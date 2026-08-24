@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">Recomp Gym Console icon</title>
+  <rect width="512" height="512" rx="88" fill="#162127"/>
+  <path d="M96 344h320v38H96z" fill="#f5f7f8"/>
+  <path d="M128 304h256v34H128z" fill="#cf4e3d"/>
+  <path d="M174 214h164v74H174z" fill="#f5f7f8"/>
+  <path d="M122 226h42v50h-42zM348 226h42v50h-42z" fill="#2f7c57"/>
+  <path d="M88 238h28v26H88zM396 238h28v26h-28z" fill="#b87919"/>
+  <path d="M206 142h100v34H206z" fill="#7a4d9d"/>
+  <path d="M222 176h68v38h-68z" fill="#1c6f8f"/>
+</svg>
