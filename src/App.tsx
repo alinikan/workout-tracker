@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { isSupabaseConfigured, supabase } from "./lib/supabaseClient";
+import { isSupabaseConfigured, supabase, supabaseConfigError } from "./lib/supabaseClient";
 
 type SessionType = "strength" | "cardio" | "movement" | "recovery";
 
@@ -1474,9 +1474,9 @@ export default function Home() {
   const [authEmail, setAuthEmail] = useState("");
   const [authMessage, setAuthMessage] = useState("");
   const [cloudStatus, setCloudStatus] = useState<CloudStatus>(
-    isSupabaseConfigured ? "signed-out" : "local-only",
+    supabaseConfigError ? "error" : isSupabaseConfigured ? "signed-out" : "local-only",
   );
-  const [cloudError, setCloudError] = useState("");
+  const [cloudError, setCloudError] = useState(supabaseConfigError);
   const [cloudReadyForUser, setCloudReadyForUser] = useState<string | null>(null);
   const [lastCloudSyncedAt, setLastCloudSyncedAt] = useState<string | null>(
     () => formatClock(loadStoreMeta().lastCloudSyncedAt),
@@ -1515,6 +1515,12 @@ export default function Home() {
   }, [isHydrated, store]);
 
   useEffect(() => {
+    if (supabaseConfigError) {
+      setCloudStatus("error");
+      setCloudError(supabaseConfigError);
+      return;
+    }
+
     if (!supabase) return;
 
     let isMounted = true;
@@ -1840,7 +1846,9 @@ export default function Home() {
 
   const nextDay = planDays[Math.min(selectedDay.index + 1, planDays.length - 1)];
   const previousDay = planDays[Math.max(selectedDay.index - 1, 0)];
-  const syncHeadline = !isSupabaseConfigured
+  const syncHeadline = supabaseConfigError
+    ? "Check Supabase settings"
+    : !isSupabaseConfigured
     ? "Connect Supabase to sync"
     : session
       ? cloudStatus === "loading"
@@ -1851,7 +1859,9 @@ export default function Home() {
             ? "Sync needs attention"
             : "Synced across devices"
       : "Sign in to sync";
-  const syncCopy = !isSupabaseConfigured
+  const syncCopy = supabaseConfigError
+    ? "Your workouts still save locally. The production sync settings need correction in Vercel, then a redeploy."
+    : !isSupabaseConfigured
     ? "Local saving still works. Add your Supabase URL and publishable key to unlock the same data on your MacBook and iPhone."
     : session
       ? "You are signed in, so every workout check, weight, note, and body check-in saves locally and to your cloud account."

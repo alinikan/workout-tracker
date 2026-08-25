@@ -1,7 +1,7 @@
 {
   "name": "Recomp Gym Console",
   "short_name": "Recomp Gym",
-  "description": "A 12-week body recomposition workout tracker with videos, logs, check-ins, and cloud sync.",
+  "description": "A 6-month body recomposition workout tracker with videos, logs, check-ins, and cloud sync.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f5f7f8",

@@ -92,6 +92,8 @@ test("includes Supabase cloud sync with protected schema", async () => {
   assert.match(app, /Synced across devices/);
   assert.match(client, /VITE_SUPABASE_URL/);
   assert.match(client, /VITE_SUPABASE_PUBLISHABLE_KEY/);
+  assert.match(client, /supabaseConfigError/);
+  assert.match(client, /createSupabaseClient/);
   assert.match(client, /persistSession: true/);
   assert.match(envExample, /VITE_SUPABASE_URL/);
   assert.match(envExample, /VITE_SUPABASE_PUBLISHABLE_KEY/);
@@ -120,4 +122,13 @@ test("includes installable app assets", async () => {
     access(new URL("public/og.png", root)),
     access(new URL("public/sw.js", root)),
   ]);
+});
+
+test("service worker avoids stale Vercel app shells", async () => {
+  const serviceWorker = await text("public/sw.js");
+
+  assert.match(serviceWorker, /recomp-gym-console-v2/);
+  assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
+  assert.match(serviceWorker, /fetch\(event\.request\)/);
+  assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
 });

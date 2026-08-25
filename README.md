@@ -300,14 +300,14 @@ In this project, `npm run lint` reuses the Vite production build gate. `npm run 
 ## Project Files
 
 - `src/App.tsx` - the main tracker app, workout data, exercise resources, autosave, cloud sync flow, and UI.
-- `src/lib/supabaseClient.ts` - optional Supabase browser client, enabled when the Vite environment variables exist.
+- `src/lib/supabaseClient.ts` - optional Supabase browser client with validation so cloud config mistakes show in the app instead of causing a blank screen.
 - `src/styles.css` - the responsive visual system and mobile layout.
 - `src/main.tsx` - the React entry point.
 - `index.html` - metadata, PWA manifest, app icon, and social card configuration.
 - `.env.example` - template for local Supabase environment variables.
 - `supabase/schema.sql` - Supabase table, Row Level Security policies, grants, and update timestamp trigger.
 - `public/manifest.json` - installable app metadata.
-- `public/sw.js` - lightweight service worker for basic app-shell caching.
+- `public/sw.js` - lightweight service worker that keeps installable-app assets cached while fetching fresh Vercel page HTML after deployments.
 - `public/app-icon.svg`, `public/icon-192.png`, `public/icon-512.png` - Home Screen/app icons.
 - `public/og.png` - social preview image.
 - `tests/rendered-html.test.mjs` - smoke tests for tracker content and assets.
@@ -406,6 +406,17 @@ If you are signed in and still do not see data:
 - Confirm Vercel has `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
 - Confirm Supabase has your Vercel URL listed in **Authentication -> URL Configuration**.
 - Confirm you ran `supabase/schema.sql` in the same Supabase project used by the app.
+
+### The live site is a white screen after a deploy
+
+This usually means the browser or iPhone Home Screen app kept an old service-worker cache. The old cached HTML can point to JavaScript files from a previous Vercel deployment, and those files may no longer exist.
+
+The current service worker fixes this by using network-first page loading and clearing the old cache version. After you push this fix and Vercel finishes deploying:
+
+1. Open `https://ali-workout.vercel.app` in Safari or Chrome.
+2. Refresh once. If it was already open as a blank page, refresh twice so the new service worker can activate.
+3. If the Home Screen app is still blank, delete that Home Screen icon and add it again from the production URL.
+4. If Safari still shows the old blank page, clear website data for `ali-workout.vercel.app` in Safari settings, then reopen the site.
 
 ### The Cloud sync panel says local-only
 
