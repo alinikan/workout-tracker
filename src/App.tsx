@@ -3,11 +3,87 @@ import type { Session } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase, supabaseConfigError } from "./lib/supabaseClient";
 
 type SessionType = "strength" | "cardio" | "movement" | "recovery";
+type AppSection = "today" | "gym" | "week" | "progress" | "library" | "account";
+type IconName =
+  | "activity"
+  | "calendar"
+  | "check"
+  | "chevronLeft"
+  | "chevronRight"
+  | "cloud"
+  | "dumbbell"
+  | "library"
+  | "mail"
+  | "play"
+  | "progress"
+  | "search"
+  | "trophy"
+  | "user"
+  | "video";
 
 type Resource = {
   label: string;
   url: string;
 };
+
+function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
+  const commonProps = {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2.2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+
+  return (
+    <svg {...commonProps}>
+      {name === "activity" && <path d="M3 12h4l3-8 4 16 3-8h4" />}
+      {name === "calendar" && (
+        <>
+          <rect x="4" y="5" width="16" height="15" rx="2" />
+          <path d="M8 3v4M16 3v4M4 10h16" />
+        </>
+      )}
+      {name === "check" && <path d="M5 13l4 4L19 7" />}
+      {name === "chevronLeft" && <path d="M15 18l-6-6 6-6" />}
+      {name === "chevronRight" && <path d="M9 6l6 6-6 6" />}
+      {name === "cloud" && <path d="M6 18h11a4 4 0 0 0 0-8 6 6 0 0 0-11.5 2A3 3 0 0 0 6 18Z" />}
+      {name === "dumbbell" && <path d="M4 9v6M8 7v10M16 7v10M20 9v6M8 12h8" />}
+      {name === "library" && <path d="M5 4v16M10 6v14M15 4l4 16" />}
+      {name === "mail" && (
+        <>
+          <rect x="4" y="6" width="16" height="12" rx="2" />
+          <path d="m4 8 8 6 8-6" />
+        </>
+      )}
+      {name === "play" && <path d="M8 5v14l11-7Z" />}
+      {name === "progress" && <path d="M4 17 9 12l4 4 7-9M4 21h16" />}
+      {name === "search" && (
+        <>
+          <circle cx="11" cy="11" r="6" />
+          <path d="m16 16 4 4" />
+        </>
+      )}
+      {name === "trophy" && <path d="M8 4h8v3a4 4 0 0 1-8 0V4ZM6 6H4a4 4 0 0 0 4 4M18 6h2a4 4 0 0 1-4 4M12 12v5M9 20h6" />}
+      {name === "user" && (
+        <>
+          <circle cx="12" cy="8" r="4" />
+          <path d="M5 21a7 7 0 0 1 14 0" />
+        </>
+      )}
+      {name === "video" && (
+        <>
+          <rect x="4" y="6" width="12" height="12" rx="2" />
+          <path d="m16 10 4-2v8l-4-2" />
+        </>
+      )}
+    </svg>
+  );
+}
 
 type Exercise = {
   id: string;
@@ -1464,6 +1540,29 @@ function familyLabel(family: Exercise["family"]) {
   }[family];
 }
 
+function lastExerciseLoad(planDays: PlanDay[], store: TrackerStore, selectedDay: PlanDay, exerciseId: string) {
+  for (let index = selectedDay.index - 1; index >= 0; index -= 1) {
+    const day = planDays[index];
+    const previousRows = store.days[day.iso]?.exercises[exerciseId] ?? [];
+    const weights = previousRows
+      .map((row) => row.weight.trim())
+      .filter(Boolean);
+
+    if (weights.length > 0) {
+      return {
+        date: formatDate(day.iso, "short"),
+        weights: weights.join(", "),
+      };
+    }
+  }
+
+  return null;
+}
+
+function completedRows(rows: SetLog[]) {
+  return rows.filter((row) => row.done).length;
+}
+
 export default function Home() {
   const planDays = useMemo(buildPlanDays, []);
   const [selectedDate, setSelectedDate] = useState(START_DATE);
@@ -1481,6 +1580,8 @@ export default function Home() {
   const [lastCloudSyncedAt, setLastCloudSyncedAt] = useState<string | null>(
     () => formatClock(loadStoreMeta().lastCloudSyncedAt),
   );
+  const [activeSection, setActiveSection] = useState<AppSection>("today");
+  const [gymExerciseIndex, setGymExerciseIndex] = useState(0);
   const [libraryFilter, setLibraryFilter] = useState("all");
   const [librarySearch, setLibrarySearch] = useState("");
   const latestStoreRef = useRef(store);
@@ -1492,6 +1593,10 @@ export default function Home() {
     setSelectedDate(closestProgramDate());
     setIsHydrated(true);
   }, []);
+
+  useEffect(() => {
+    setGymExerciseIndex(0);
+  }, [selectedDate]);
 
   useEffect(() => {
     latestStoreRef.current = store;
@@ -1642,6 +1747,22 @@ export default function Home() {
   const phase = phaseForWeek(selectedDay.week);
   const selectedExercises = selectedDay.session.exerciseIds.flatMap((id) =>
     exerciseMap[id] ? [exerciseMap[id]] : [],
+  );
+  const currentWeekStartIndex = Math.floor(selectedDay.index / 7) * 7;
+  const currentWeekDays = planDays.slice(currentWeekStartIndex, currentWeekStartIndex + 7);
+  const selectedWeekStart = planDays[currentWeekStartIndex]?.iso ?? selectedDay.iso;
+  const weekOptions = useMemo(
+    () =>
+      Array.from({ length: Math.ceil(PROGRAM_DAYS / 7) }, (_, weekIndex) => {
+        const firstDay = planDays[weekIndex * 7];
+        const lastDay = planDays[Math.min(weekIndex * 7 + 6, planDays.length - 1)];
+        return {
+          value: firstDay.iso,
+          label: `Week ${weekIndex + 1}`,
+          detail: `${formatDate(firstDay.iso, "short")} - ${formatDate(lastDay.iso, "short")}`,
+        };
+      }),
+    [planDays],
   );
 
   const stats = useMemo(() => {
@@ -1867,52 +1988,167 @@ export default function Home() {
       ? "You are signed in, so every workout check, weight, note, and body check-in saves locally and to your cloud account."
       : "Send yourself a secure email link. After you sign in on another device, the same progress appears there automatically.";
 
-  return (
-    <main className="app-shell">
-      <section className={`hero ${selectedDay.session.accent}`}>
-        <div className="hero-copy">
-          <p className="eyebrow">6-month body recomposition tracker</p>
-          <h1>Recomp Gym Console</h1>
-          <p className="hero-text">
-            Follow the PDF order from warm-up moves to working sets and finishers.
-            Every check and weight saves locally, then syncs to your account when you sign in.
-          </p>
-        </div>
-        <div className="today-status" aria-label="Current day status">
-          <span className="status-code">{selectedDay.session.code}</span>
-          <span>{formatDate(selectedDay.iso)}</span>
-          <strong>{selectedDay.session.title}</strong>
-          <small>
-            Week {selectedDay.week} - Day {selectedDay.index + 1} - Plan {selectedDay.planDayName}
-          </small>
-        </div>
-      </section>
+  const weeklyCompletion = useMemo(
+    () =>
+      weekOptions.map((week, weekIndex) => {
+        const days = planDays.slice(weekIndex * 7, weekIndex * 7 + 7);
+        const completed = days.filter((day) => store.days[day.iso]?.completed).length;
+        return {
+          ...week,
+          completed,
+          total: days.length,
+          percent: Math.round((completed / days.length) * 100),
+        };
+      }),
+    [planDays, store.days, weekOptions],
+  );
+  const recentCompletedDays = planDays
+    .filter((day) => store.days[day.iso]?.completed)
+    .slice(-6)
+    .reverse();
+  const currentGymExercise = selectedExercises[gymExerciseIndex] ?? null;
+  const currentGymRows =
+    currentGymExercise &&
+    ensureSetRows(
+      selectedLog.exercises[currentGymExercise.id],
+      recommendedSets(selectedDay, currentGymExercise, gymExerciseIndex),
+    );
+  const currentGymPreviousLoad = currentGymExercise
+    ? lastExerciseLoad(planDays, store, selectedDay, currentGymExercise.id)
+    : null;
+  const activeSectionLabel = {
+    today: "Today",
+    gym: "Gym Mode",
+    week: "Week",
+    progress: "Progress",
+    library: "Library",
+    account: "Account",
+  }[activeSection];
+  const navItems = [
+    { id: "today" as const, label: "Today", icon: "activity" as const },
+    { id: "gym" as const, label: "Gym", icon: "dumbbell" as const },
+    { id: "week" as const, label: "Week", icon: "calendar" as const },
+    { id: "progress" as const, label: "Progress", icon: "progress" as const },
+    { id: "library" as const, label: "Library", icon: "library" as const },
+    { id: "account" as const, label: "Account", icon: "user" as const },
+  ];
 
-      <nav className="date-rail" aria-label="Program days">
-        {planDays.map((day) => (
+  const completeNextGymSet = () => {
+    if (!currentGymExercise || !currentGymRows) return;
+    const nextSetIndex = currentGymRows.findIndex((row) => !row.done);
+    updateSet(currentGymExercise.id, nextSetIndex >= 0 ? nextSetIndex : 0, "done", true);
+  };
+
+  const goToNextGymMove = () => {
+    setGymExerciseIndex((index) => Math.min(index + 1, Math.max(selectedExercises.length - 1, 0)));
+  };
+
+  const goToPreviousGymMove = () => {
+    setGymExerciseIndex((index) => Math.max(index - 1, 0));
+  };
+
+  return (
+    <main className={`app-shell section-${activeSection}`}>
+      <header className={`app-header ${selectedDay.session.accent}`}>
+        <div className="brand-lockup">
+          <span className="brand-mark">RG</span>
+          <div>
+            <p className="eyebrow">Workout tracker · {activeSectionLabel}</p>
+            <h1>Recomp Gym Console</h1>
+          </div>
+        </div>
+
+        <div className="header-status-grid" aria-label="Current status">
+          <div className="header-status-card">
+            <span>Today</span>
+            <strong>{selectedDay.session.title}</strong>
+            <small>
+              {formatDate(selectedDay.iso)} · Week {selectedDay.week} · Day {selectedDay.index + 1}
+            </small>
+          </div>
+          <div className={`header-status-card sync-mini ${cloudStatus}`}>
+            <span>Save</span>
+            <strong>{lastSavedAt ?? "Ready"}</strong>
+            <small>{syncHeadline}</small>
+          </div>
+        </div>
+      </header>
+
+      <nav className="section-tabs" aria-label="Main app sections">
+        {navItems.map(({ id, label, icon }) => (
           <button
-            key={day.iso}
-            className={`date-pill ${day.iso === selectedDay.iso ? "active" : ""} ${
-              store.days[day.iso]?.completed ? "complete" : ""
-            } ${day.session.type}`}
-            onClick={() => setSelectedDate(day.iso)}
+            key={id}
+            className={activeSection === id ? "active" : ""}
             type="button"
-            aria-label={`${formatDate(day.iso)} ${day.session.title}`}
+            onClick={() => setActiveSection(id)}
+            aria-current={activeSection === id ? "page" : undefined}
           >
-            <span>{day.index + 1}</span>
-            <strong>{day.dayName.slice(0, 3)}</strong>
-            <small>{day.session.code}</small>
+            <Icon name={icon} size={18} />
+            <span>{label}</span>
           </button>
         ))}
       </nav>
 
-      <section className="progress-strip" aria-label="Program progress">
-        <div>
-          <span>Program progress</span>
-          <strong>{stats.percent}%</strong>
+      <section className="week-planner" aria-label="Program week">
+        <div className="week-planner-top">
+          <div>
+            <p className="eyebrow">Week {selectedDay.week}</p>
+            <h2>{selectedDay.session.title}</h2>
+          </div>
+          <label className="week-jump">
+            <span>Jump to week</span>
+            <select
+              value={selectedWeekStart}
+              onChange={(event) => setSelectedDate(event.target.value)}
+              aria-label="Jump to week"
+            >
+              {weekOptions.map((week) => (
+                <option key={week.value} value={week.value}>
+                  {week.label} · {week.detail}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-        <div className="progress-track">
-          <span style={{ width: `${stats.percent}%` }} />
+
+        <nav className="week-grid" aria-label="Days in selected week">
+          {currentWeekDays.map((day) => (
+            <button
+              key={day.iso}
+              className={`week-day-card ${day.iso === selectedDay.iso ? "active" : ""} ${
+                store.days[day.iso]?.completed ? "complete" : ""
+              } ${day.session.type}`}
+              onClick={() => setSelectedDate(day.iso)}
+              type="button"
+              aria-label={`${formatDate(day.iso)} ${day.session.title}`}
+            >
+              <span>{day.dayName.slice(0, 3)}</span>
+              <strong>{day.session.code}</strong>
+              <small>{day.session.title}</small>
+            </button>
+          ))}
+        </nav>
+      </section>
+
+      <section className="progress-strip" aria-label="Program progress">
+        <div className="progress-meter">
+          <div>
+            <span>Program progress</span>
+            <strong>{stats.percent}%</strong>
+          </div>
+          <div className="progress-track">
+            <span style={{ width: `${stats.percent}%` }} />
+          </div>
+        </div>
+        <div className="quick-stat">
+          <span>Streak</span>
+          <strong>{stats.streak}</strong>
+        </div>
+        <div className="quick-stat">
+          <span>Completed</span>
+          <strong>
+            {stats.completedDays}/{PROGRAM_DAYS}
+          </strong>
         </div>
         <div className="strip-actions">
           <button type="button" onClick={() => setSelectedDate(previousDay.iso)}>
@@ -1925,10 +2161,179 @@ export default function Home() {
             Next
           </button>
         </div>
-        <div className="save-status" aria-live="polite">
-          <span>{isHydrated ? "Local save" : "Loading"}</span>
-          <strong>{lastSavedAt ?? "Ready"}</strong>
-        </div>
+      </section>
+
+      <div className="mobile-save-status" aria-live="polite">
+        <span>Local save</span>
+        <strong>{isHydrated ? lastSavedAt ?? "Ready" : "Loading"}</strong>
+      </div>
+
+      <section className="gym-mode-shell" aria-label="Gym mode">
+        {currentGymExercise && currentGymRows ? (
+          <article className={`gym-card ${currentGymExercise.family}`}>
+            <div className="gym-topbar">
+              <button
+                type="button"
+                onClick={goToPreviousGymMove}
+                disabled={gymExerciseIndex === 0}
+                aria-label="Previous move"
+              >
+                <Icon name="chevronLeft" size={18} />
+              </button>
+              <span>
+                Move {gymExerciseIndex + 1} of {selectedExercises.length}
+              </span>
+              <button
+                type="button"
+                onClick={goToNextGymMove}
+                disabled={gymExerciseIndex >= selectedExercises.length - 1}
+                aria-label="Next move"
+              >
+                <Icon name="chevronRight" size={18} />
+              </button>
+            </div>
+
+            <div className="gym-main">
+              <div>
+                <div className="exercise-labels">
+                  <span className="family-chip">{familyLabel(currentGymExercise.family)}</span>
+                  <span className="order-chip">
+                    {completedRows(currentGymRows)}/{currentGymRows.length} sets
+                  </span>
+                </div>
+                <h2>{currentGymExercise.name}</h2>
+                <p>{currentGymExercise.target}</p>
+              </div>
+              {currentGymExercise.youtubeId ? (
+                <a
+                  className="gym-video"
+                  href={youtubeUrl(currentGymExercise.youtubeId)}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`Watch ${currentGymExercise.name} video`}
+                >
+                  <img src={youtubeThumb(currentGymExercise.youtubeId)} alt="" loading="lazy" />
+                  <span>
+                    <Icon name="video" size={16} /> Watch
+                  </span>
+                </a>
+              ) : (
+                <div className="gym-video placeholder">
+                  <span>Guide</span>
+                </div>
+              )}
+            </div>
+
+            <div className="gym-target-grid">
+              <div>
+                <span>Target</span>
+                <strong>{targetForExercise(selectedDay, currentGymExercise)}</strong>
+              </div>
+              <div>
+                <span>Rest</span>
+                <strong>{restForExercise(selectedDay, currentGymExercise)}</strong>
+              </div>
+              <div>
+                <span>Equipment</span>
+                <strong>{currentGymExercise.equipment}</strong>
+              </div>
+              <div>
+                <span>Last load</span>
+                <strong>{currentGymPreviousLoad?.weights ?? "New"}</strong>
+              </div>
+            </div>
+
+            {tracksWeight(currentGymExercise) && (
+              <p className="load-suggestion">
+                {currentGymPreviousLoad
+                  ? `Last time was ${currentGymPreviousLoad.weights} on ${currentGymPreviousLoad.date}. Start there, or add the smallest jump if every rep was clean.`
+                  : "First logged session for this move. Choose a load that makes every rep controlled."}
+              </p>
+            )}
+
+            <div className="set-table gym-set-table" aria-label={`${currentGymExercise.name} gym set log`}>
+              <div className="set-head">
+                <span>Set</span>
+                <span>Target</span>
+                <span>Weight</span>
+                <span>Done</span>
+              </div>
+              {currentGymRows.map((set, setIndex) => (
+                <div className="set-row" key={`${currentGymExercise.id}-gym-${setIndex}`}>
+                  <span>{setIndex + 1}</span>
+                  <strong className="target-pill">{targetForExercise(selectedDay, currentGymExercise)}</strong>
+                  {tracksWeight(currentGymExercise) ? (
+                    <input
+                      inputMode="decimal"
+                      value={set.weight}
+                      placeholder="lb/kg"
+                      onChange={(event) =>
+                        updateSet(currentGymExercise.id, setIndex, "weight", event.target.value)
+                      }
+                      aria-label={`${currentGymExercise.name} set ${setIndex + 1} weight`}
+                    />
+                  ) : (
+                    <span className="load-pill">{currentGymExercise.loadLabel ?? "body"}</span>
+                  )}
+                  <label className="mini-check">
+                    <input
+                      type="checkbox"
+                      checked={set.done}
+                      onChange={(event) =>
+                        updateSet(currentGymExercise.id, setIndex, "done", event.target.checked)
+                      }
+                    />
+                    <span />
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            <div className="gym-details-grid">
+              <details className="form-details">
+                <summary>How to do it</summary>
+                <ul>
+                  {currentGymExercise.cues.map((cue) => (
+                    <li key={cue}>{cue}</li>
+                  ))}
+                </ul>
+              </details>
+              <details className="form-details">
+                <summary>Common mistakes</summary>
+                <ul>
+                  {currentGymExercise.avoid.map((cue) => (
+                    <li key={cue}>{cue}</li>
+                  ))}
+                </ul>
+              </details>
+            </div>
+
+            <div className="gym-action-bar">
+              <button type="button" onClick={goToPreviousGymMove} disabled={gymExerciseIndex === 0}>
+                <Icon name="chevronLeft" size={18} /> Previous
+              </button>
+              <button className="primary" type="button" onClick={completeNextGymSet}>
+                <Icon name="check" size={18} /> Complete Set
+              </button>
+              <button
+                type="button"
+                onClick={goToNextGymMove}
+                disabled={gymExerciseIndex >= selectedExercises.length - 1}
+              >
+                Next <Icon name="chevronRight" size={18} />
+              </button>
+            </div>
+          </article>
+        ) : (
+          <section className="empty-gym-card">
+            <p className="eyebrow">{selectedDay.session.title}</p>
+            <h2>No gym moves today</h2>
+            <p>{selectedDay.session.summary}</p>
+            <button type="button" onClick={() => setActiveSection("today")}>
+              Back to Today
+            </button>
+          </section>
+        )}
       </section>
 
       <div className="layout-grid">
@@ -1938,18 +2343,25 @@ export default function Home() {
               <p className="eyebrow">{sessionTypeLabels[selectedDay.session.type]}</p>
               <h2 id="today-heading">{selectedDay.session.title}</h2>
             </div>
-            <button
-              className={`complete-button ${selectedLog.completed ? "is-complete" : ""}`}
-              type="button"
-              onClick={() =>
-                updateDay(selectedDay.iso, (log) => ({
-                  ...log,
-                  completed: !log.completed,
-                }))
-              }
-            >
-              {selectedLog.completed ? "Completed" : "Mark Complete"}
-            </button>
+            <div className="today-actions">
+              {selectedExercises.length > 0 && (
+                <button className="gym-launch-button" type="button" onClick={() => setActiveSection("gym")}>
+                  <Icon name="play" size={18} /> Gym Mode
+                </button>
+              )}
+              <button
+                className={`complete-button ${selectedLog.completed ? "is-complete" : ""}`}
+                type="button"
+                onClick={() =>
+                  updateDay(selectedDay.iso, (log) => ({
+                    ...log,
+                    completed: !log.completed,
+                  }))
+                }
+              >
+                {selectedLog.completed ? "Completed" : "Mark Complete"}
+              </button>
+            </div>
           </div>
 
           <div className="session-summary">
@@ -1990,7 +2402,10 @@ export default function Home() {
 
           {selectedExercises.length > 0 && (
             <section className="exercise-stack" aria-labelledby="exercise-heading">
-              <h3 id="exercise-heading">Ordered Workout</h3>
+              <div className="flow-heading">
+                <h3 id="exercise-heading">Workout Flow</h3>
+                <span>{selectedExercises.length} moves</span>
+              </div>
               {selectedExercises.map((exercise, exerciseIndex) => {
                 const setCount = recommendedSets(selectedDay, exercise, exerciseIndex);
                 const rows = ensureSetRows(selectedLog.exercises[exercise.id], setCount);
@@ -1998,6 +2413,9 @@ export default function Home() {
                 const exerciseRest = restForExercise(selectedDay, exercise);
                 const exerciseProgression = progressionForExercise(selectedDay, exercise);
                 const hasWeightInput = tracksWeight(exercise);
+                const previousLoad = hasWeightInput
+                  ? lastExerciseLoad(planDays, store, selectedDay, exercise.id)
+                  : null;
                 return (
                   <article key={exercise.id} className={`exercise-card ${exercise.family}`}>
                     <div className="exercise-topline">
@@ -2045,28 +2463,36 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <details className="form-details">
-                      <summary>Form cues and mistakes</summary>
-                      <div className="cue-grid">
-                        <div>
-                          <h5>Do</h5>
-                          <ul>
-                            {exercise.cues.map((cue) => (
-                              <li key={cue}>{cue}</li>
-                            ))}
-                          </ul>
-                        </div>
-                        <div>
-                          <h5>Avoid</h5>
-                          <ul>
-                            {exercise.avoid.map((cue) => (
-                              <li key={cue}>{cue}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                      <p className="progression-rule">{exerciseProgression}</p>
-                    </details>
+                    {hasWeightInput && (
+                      <p className="load-suggestion">
+                        {previousLoad
+                          ? `Last time: ${previousLoad.weights} on ${previousLoad.date}. Start there, or add the smallest jump if it felt clean.`
+                          : "First logged session for this move. Start light enough to control every rep."}
+                      </p>
+                    )}
+
+                    <div className="exercise-details-grid">
+                      <details className="form-details">
+                        <summary>How to do it</summary>
+                        <ul>
+                          {exercise.cues.map((cue) => (
+                            <li key={cue}>{cue}</li>
+                          ))}
+                        </ul>
+                      </details>
+                      <details className="form-details">
+                        <summary>Common mistakes</summary>
+                        <ul>
+                          {exercise.avoid.map((cue) => (
+                            <li key={cue}>{cue}</li>
+                          ))}
+                        </ul>
+                      </details>
+                      <details className="form-details progression-details">
+                        <summary>Progression</summary>
+                        <p>{exerciseProgression}</p>
+                      </details>
+                    </div>
 
                     <div className="set-table" aria-label={`${exercise.name} set log`}>
                       <div className="set-head">
@@ -2130,10 +2556,12 @@ export default function Home() {
         </section>
 
         <aside className="side-panel" aria-label="Progress and check-ins">
-          <section className={`metric-panel sync-panel ${cloudStatus}`}>
+          <section className={`metric-panel sync-panel account-card ${cloudStatus}`}>
             <div className="sync-heading">
               <div>
-                <p className="eyebrow">Cloud sync</p>
+                <p className="eyebrow">
+                  <Icon name="cloud" size={14} /> Cloud sync
+                </p>
                 <h2>{syncHeadline}</h2>
               </div>
               <span>{cloudStatus}</span>
@@ -2161,7 +2589,9 @@ export default function Home() {
                     onChange={(event) => setAuthEmail(event.target.value)}
                   />
                 </label>
-                <button type="submit">Send login link</button>
+                <button type="submit">
+                  <Icon name="mail" size={17} /> Send login link
+                </button>
               </form>
             )}
 
@@ -2176,10 +2606,12 @@ export default function Home() {
             {cloudError && <p className="sync-message error">{cloudError}</p>}
           </section>
 
-          <section className="metric-panel">
+          <section className="metric-panel progress-card">
             <div className="section-heading compact">
               <div>
-                <p className="eyebrow">Achievements</p>
+                <p className="eyebrow">
+                  <Icon name="trophy" size={14} /> Achievements
+                </p>
                 <h2>Scoreboard</h2>
               </div>
             </div>
@@ -2215,7 +2647,43 @@ export default function Home() {
             </div>
           </section>
 
-          <section className="metric-panel">
+          <section className="metric-panel progress-card">
+            <p className="eyebrow">Completion trend</p>
+            <h2>Weekly consistency</h2>
+            <div className="week-chart">
+              {weeklyCompletion.slice(0, selectedDay.week).map((week) => (
+                <div key={week.value} className="week-bar-row">
+                  <span>{week.label.replace("Week ", "W")}</span>
+                  <div>
+                    <i style={{ width: `${week.percent}%` }} />
+                  </div>
+                  <strong>
+                    {week.completed}/{week.total}
+                  </strong>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="metric-panel progress-card">
+            <p className="eyebrow">History</p>
+            <h2>Recent workouts</h2>
+            <div className="history-list">
+              {recentCompletedDays.length > 0 ? (
+                recentCompletedDays.map((day) => (
+                  <div key={day.iso} className="history-row">
+                    <span>{formatDate(day.iso, "short")}</span>
+                    <strong>{day.session.title}</strong>
+                    <small>{day.session.time}</small>
+                  </div>
+                ))
+              ) : (
+                <p className="side-copy">Completed workouts will appear here.</p>
+              )}
+            </div>
+          </section>
+
+          <section className="metric-panel progress-card checkin-card">
             <p className="eyebrow">Body check-in</p>
             <h2>{formatDate(selectedDay.iso, "short")}</h2>
             <div className="foundation-grid two">
@@ -2262,15 +2730,6 @@ export default function Home() {
               />
             </label>
           </section>
-
-          <section className="metric-panel">
-            <p className="eyebrow">Autosave</p>
-            <h2>{isHydrated ? "Progress saves itself" : "Loading saved progress"}</h2>
-            <p className="side-copy">
-              The browser keeps a local copy for weak gym Wi-Fi. When you are signed in, that
-              same progress also syncs to your cloud account. Local save: {lastSavedAt ?? "not yet"}.
-            </p>
-          </section>
         </aside>
       </div>
 
@@ -2291,11 +2750,15 @@ export default function Home() {
               <option value="warmup">Warm-up</option>
               <option value="cardio">Cardio</option>
             </select>
-            <input
-              value={librarySearch}
-              placeholder="Search moves"
-              onChange={(event) => setLibrarySearch(event.target.value)}
-            />
+            <label className="library-search">
+              <Icon name="search" size={16} />
+              <input
+                className="library-search-input"
+                value={librarySearch}
+                placeholder="Search moves"
+                onChange={(event) => setLibrarySearch(event.target.value)}
+              />
+            </label>
           </div>
         </div>
 
@@ -2353,6 +2816,21 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      <nav className="bottom-nav" aria-label="Main app sections">
+        {navItems.map(({ id, label, icon }) => (
+          <button
+            key={id}
+            className={activeSection === id ? "active" : ""}
+            type="button"
+            onClick={() => setActiveSection(id)}
+            aria-current={activeSection === id ? "page" : undefined}
+          >
+            <Icon name={icon} size={20} />
+            <span>{label}</span>
+          </button>
+        ))}
+      </nav>
     </main>
   );
 }

@@ -5,8 +5,12 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
 ## Features
 
 - 182-day program calendar, which is about 6 months of training.
-- Color-coded day rail for Strength A, Cardio Base, Strength B, Easy Movement, Strength C, Long Cardio, and Recovery.
+- App-style sections for Today, Gym Mode, Week, Progress, Library, and Account.
+- iPhone-friendly bottom navigation plus a desktop tab bar for MacBook use.
+- Color-coded weekly planner with a week selector for jumping through the full 6-month calendar without a cluttered 182-day rail.
+- Gym Mode with one move at a time, large video access, set logging, previous/next move controls, and a complete-set action.
 - Ordered workout cards so you can follow each day from move 1 to the final move, including warm-ups and finishers.
+- Previous-load suggestions that show the last logged weights for each weighted exercise.
 - Strength-day logging with only weight and completion checks. Reps, time, rest, and cardio targets are shown by phase, not entered by you.
 - Dynamic set and target recommendations from the PDF:
   - Weeks 1-2: 2 working sets.
@@ -17,7 +21,7 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
   - Weeks 13-26: repeats the same PDF weekly structure with a second build block, higher cardio targets, longer plank targets, a deload week, and final comparison weeks.
 - Warm-up moves are first-class cards with cues, resources, video links where available, targets, and completion checks.
 - Body check-ins for weight, waist, and weekly notes.
-- Achievement board for completion streaks, strength sessions, completed sets, estimated cardio minutes, and check-ins.
+- Progress section with completion streaks, strength sessions, completed sets, weekly consistency bars, recent workout history, achievements, and body check-ins.
 - Exercise library with cues, mistakes to avoid, progression notes, YouTube videos, ACE/NASM/Mayo/PureGym resources, and thumbnails.
 - No-gym fallback workout from the PDF.
 - Automatic local saving through browser storage, plus account-based Supabase cloud sync when configured.
