@@ -1571,6 +1571,7 @@ export default function Home() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [authEmail, setAuthEmail] = useState("");
+  const [authOtp, setAuthOtp] = useState("");
   const [authMessage, setAuthMessage] = useState("");
   const [cloudStatus, setCloudStatus] = useState<CloudStatus>(
     supabaseConfigError ? "error" : isSupabaseConfigured ? "signed-out" : "local-only",
@@ -1947,7 +1948,7 @@ export default function Home() {
     }));
   };
 
-  const handleSendMagicLink = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSendLoginEmail = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!supabase) return;
 
@@ -1957,7 +1958,7 @@ export default function Home() {
       return;
     }
 
-    setAuthMessage("Sending your secure login link...");
+    setAuthMessage("Sending your secure login email...");
     setCloudError("");
 
     const { error } = await supabase.auth.signInWithOtp({
@@ -1974,7 +1975,44 @@ export default function Home() {
       return;
     }
 
-    setAuthMessage("Check your email. Open the link on this device to finish signing in.");
+    setAuthMessage(
+      "Check your email. If you are using the Home Screen app, copy the login code into the code box here. The link may open Safari.",
+    );
+  };
+
+  const handleVerifyEmailCode = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!supabase) return;
+
+    const email = authEmail.trim().toLowerCase();
+    const token = authOtp.replace(/\D/g, "");
+    if (!email) {
+      setAuthMessage("Enter your email first.");
+      return;
+    }
+    if (!token) {
+      setAuthMessage("Enter the code from your login email.");
+      return;
+    }
+
+    setAuthMessage("Checking your login code...");
+    setCloudError("");
+
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "email",
+    });
+
+    if (error) {
+      setAuthMessage("");
+      setCloudStatus("error");
+      setCloudError(error.message);
+      return;
+    }
+
+    setAuthOtp("");
+    setAuthMessage("Signed in inside this app. Cloud sync is loading your progress now.");
   };
 
   const handleSignOut = async () => {
@@ -2025,7 +2063,7 @@ export default function Home() {
     ? "Local saving still works. Add your Supabase URL and publishable key to unlock the same data on your MacBook and iPhone."
     : session
       ? "You are signed in, so every workout check, weight, note, and body check-in saves locally and to your cloud account."
-      : "Send yourself a secure email link. After you sign in on another device, the same progress appears there automatically.";
+      : "Send yourself a secure login email. In the iPhone Home Screen app, enter the email code here instead of using the link that opens Safari.";
 
   const weeklyCompletion = useMemo(
     () =>
@@ -2673,21 +2711,45 @@ export default function Home() {
             )}
 
             {isSupabaseConfigured && !session && (
-              <form className="auth-form" onSubmit={handleSendMagicLink}>
-                <label>
-                  Email
-                  <input
-                    type="email"
-                    value={authEmail}
-                    placeholder="you@example.com"
-                    autoComplete="email"
-                    onChange={(event) => setAuthEmail(event.target.value)}
-                  />
-                </label>
-                <button type="submit">
-                  <Icon name="mail" size={17} /> Send login link
-                </button>
-              </form>
+              <div className="auth-stack">
+                <form className="auth-form" onSubmit={handleSendLoginEmail}>
+                  <label>
+                    Email
+                    <input
+                      type="email"
+                      value={authEmail}
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      onChange={(event) => setAuthEmail(event.target.value)}
+                    />
+                  </label>
+                  <button type="submit">
+                    <Icon name="mail" size={17} /> Send login email
+                  </button>
+                </form>
+
+                <form className="auth-form otp-form" onSubmit={handleVerifyEmailCode}>
+                  <label>
+                    Email code
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={authOtp}
+                      placeholder="123456"
+                      autoComplete="one-time-code"
+                      onChange={(event) => setAuthOtp(event.target.value.replace(/\D/g, "").slice(0, 8))}
+                    />
+                  </label>
+                  <button type="submit">
+                    <Icon name="check" size={17} /> Verify code in this app
+                  </button>
+                  <p>
+                    Best for the iPhone Home Screen app. Copy the code from the email instead of
+                    tapping the link that opens Safari.
+                  </p>
+                </form>
+              </div>
             )}
 
             {!isSupabaseConfigured && (

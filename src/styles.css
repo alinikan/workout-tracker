@@ -464,9 +464,13 @@ h5 {
   overflow-wrap: anywhere;
 }
 
+.auth-stack,
 .auth-form {
   display: grid;
   gap: 10px;
+}
+
+.auth-stack {
   margin-top: 14px;
 }
 
@@ -482,6 +486,24 @@ h5 {
 .auth-form button {
   background: var(--ink);
   color: #fff;
+}
+
+.otp-form {
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.otp-form input {
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.otp-form p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.45;
 }
 
 .env-hint {

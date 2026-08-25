@@ -26,7 +26,7 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
 - Exercise library with cues, mistakes to avoid, progression notes, YouTube videos, ACE/NASM/Mayo/PureGym resources, and thumbnails.
 - No-gym fallback workout from the PDF.
 - Automatic local saving through browser storage, plus account-based Supabase cloud sync when configured.
-- Magic-link email sign-in so the same data appears on your MacBook, iPhone, and any other logged-in device.
+- Email code sign-in so the same data appears on your MacBook, iPhone, and any other logged-in device, including the iPhone Home Screen app.
 - PWA manifest, service worker, icons, and social preview image.
 - Vercel-ready Vite config.
 
@@ -37,7 +37,7 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
 - TypeScript
 - Plain CSS
 - Browser `localStorage` for local fallback persistence
-- Supabase Auth for magic-link sign-in
+- Supabase Auth for email code sign-in
 - Supabase Postgres with Row Level Security for cloud progress
 - Vercel-ready static deployment
 
@@ -48,6 +48,8 @@ Your tracking data always saves automatically in the browser first. This keeps t
 For true cross-device sync, configure Supabase and sign in with the same email on each device. After that, every completion check, weight, workout note, and body check-in is saved locally and synced to your Supabase account.
 
 Important limitation: the cloud sync needs the same deployed app URL and the same Supabase account. If you use a different Vercel preview URL, a different Supabase project, or a different email login, it will behave like a separate account.
+
+iPhone Home Screen note: email login links often open in Safari, and Safari does not always share its login session with a Home Screen web app. Use the **Email code** box inside the Home Screen app. That signs in the app itself.
 
 ## Run on a MacBook
 
@@ -141,7 +143,27 @@ Restart the dev server after changing `.env.local`:
 npm run dev
 ```
 
-### 5. Configure Supabase login redirects
+### 5. Add the email code to the Supabase login email
+
+This is the important iPhone Home Screen step.
+
+1. In Supabase, open **Authentication -> Email Templates**.
+2. Open the **Magic Link** template.
+3. Make sure the email body includes `{{ .Token }}`.
+4. Save the template.
+
+A simple template body can look like this:
+
+```html
+<h2>Your Workout Tracker login code</h2>
+<p>Open the Workout Tracker app and enter this code:</p>
+<p style="font-size: 32px; font-weight: 700;">{{ .Token }}</p>
+<p>If you did not request this email, you can ignore it.</p>
+```
+
+The app can still request the login email with Supabase Auth, but the Home Screen app should complete login by verifying the code inside the app.
+
+### 6. Configure Supabase login redirects
 
 In Supabase, open **Authentication -> URL Configuration**.
 
@@ -158,16 +180,17 @@ After Vercel deploys, also add:
 https://YOUR-VERCEL-DOMAIN.vercel.app
 ```
 
-The app sends magic-link login emails back to the current website origin. These redirect URLs tell Supabase which app URLs are allowed to receive the login session.
+These redirect URLs are still useful for browser login links and local testing. The iPhone Home Screen app should use the email code instead of relying on a link opening in the right place.
 
-### 6. Use it
+### 7. Use it
 
 1. Run the app.
 2. Open the **Cloud sync** panel.
 3. Enter your email.
-4. Click **Send login link**.
-5. Open the email link on the same device.
-6. The panel should change to **Synced across devices**.
+4. Click **Send login email**.
+5. Open your email and copy the code.
+6. Return to the workout app, paste the code into **Email code**, and click **Verify code in this app**.
+7. The panel should change to **Synced across devices**.
 
 When you sign in for the first time, the app keeps your existing local progress, merges it with anything already in the cloud, then saves the result to Supabase.
 
@@ -177,11 +200,14 @@ When you sign in for the first time, the app keeps your existing local progress,
 
 1. Deploy the app to Vercel using the steps below.
 2. On your iPhone, open the deployed URL in Safari.
-3. Use the **Cloud sync** panel to sign in with the same email you use on your MacBook.
-4. Tap the Share button.
-5. Tap **Add to Home Screen**.
-6. Name it `Recomp Gym`.
-7. Tap **Add**.
+3. Tap the Share button.
+4. Tap **Add to Home Screen**.
+5. Name it `Recomp Gym`.
+6. Tap **Add**.
+7. Open the new Home Screen app.
+8. Open the **Cloud sync** panel.
+9. Enter your email and click **Send login email**.
+10. Copy the code from the email, return to the Home Screen app, enter it into **Email code**, and click **Verify code in this app**.
 
 It will appear like an app on your Home Screen. When you are signed in, your logs sync through Supabase for that account.
 
@@ -328,6 +354,7 @@ In this project, `npm run lint` reuses the Vite production build gate. `npm run 
 - After cloud loading finishes, every change is debounced and saved back to Supabase.
 - Supabase Auth owns the user identity. The `workout_progress.user_id` column matches the signed-in user id.
 - Row Level Security policies in `supabase/schema.sql` prevent one account from reading or changing another account's row.
+- The app uses Supabase email OTP verification for Home Screen app login. This avoids the iPhone problem where an email link opens Safari instead of the installed web app.
 
 This is designed for one human using several devices. If you edit the exact same field on two devices at the exact same time, the most recent cloud save may win for that field. For normal use, sign in on each device and let the **Cloud sync** panel show `synced` before switching devices.
 
@@ -427,9 +454,23 @@ The current service worker fixes this by using network-first page loading and cl
 
 The app cannot see Supabase environment variables. For local development, create `.env.local` from `.env.example` and restart `npm run dev`. For Vercel, add the same variables in the project settings and redeploy.
 
-### The login email link does not work
+### The login email opens Safari instead of the Home Screen app
 
-Add the exact app URL to Supabase **Authentication -> URL Configuration**. For local testing, allow `http://localhost:3000`. For production, allow your exact Vercel URL, including `https://`.
+That is normal on iPhone. Safari and the Home Screen app can have separate login storage, so a session created in Safari may not sign in the app icon version.
+
+Use the code flow:
+
+1. Open the Home Screen app.
+2. Open **Cloud sync**.
+3. Enter your email and click **Send login email**.
+4. Copy the code from the email.
+5. Return to the Home Screen app.
+6. Paste the code into **Email code**.
+7. Click **Verify code in this app**.
+
+If your Supabase email only has a link and no code, open Supabase **Authentication -> Email Templates -> Magic Link** and add `{{ .Token }}` to the email body.
+
+For normal browser link login, also add the exact app URL to Supabase **Authentication -> URL Configuration**. For local testing, allow `http://localhost:3000`. For production, allow your exact Vercel URL, including `https://`.
 
 ### The Cloud sync panel shows an error
 
@@ -458,7 +499,9 @@ After deploying a PWA fix:
 
 - [Use Supabase with React](https://supabase.com/docs/guides/getting-started/quickstarts/reactjs)
 - [Initialize the Supabase JavaScript client](https://supabase.com/docs/reference/javascript/initializing)
-- [Magic-link sign-in with `signInWithOtp`](https://supabase.com/docs/reference/javascript/auth-signinwithotp)
+- [Email OTP and magic-link sign-in with `signInWithOtp`](https://supabase.com/docs/reference/javascript/auth-signinwithotp)
+- [Verify email codes with `verifyOtp`](https://supabase.com/docs/reference/javascript/auth-verifyotp)
+- [Supabase email template variables](https://supabase.com/docs/guides/auth/auth-email-templates)
 - [Listen to auth state changes](https://supabase.com/docs/reference/javascript/auth-onauthstatechange)
 - [Upsert rows with Supabase JavaScript](https://supabase.com/docs/reference/javascript/upsert)
 - [Secure tables with Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security)
