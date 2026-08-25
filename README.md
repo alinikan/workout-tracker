@@ -443,6 +443,17 @@ The tracker still works. The resource links need internet access because they po
 
 Open the Home Screen app, check the **Cloud sync** panel, and sign in again if needed. If you previously used a Vercel preview URL, open the production URL in Safari, sign in there, and add that production URL to Home Screen.
 
+### The iPhone Home Screen web app opens half-loaded or buttons do not respond
+
+This is usually an old standalone PWA shell or iOS safe-area issue. The app includes iPhone-specific viewport settings, safe-area spacing, and a versioned service worker so scripts/styles refresh correctly in Home Screen mode.
+
+After deploying a PWA fix:
+
+1. Open the existing Home Screen app once and wait 10-20 seconds.
+2. Fully close it from the iPhone app switcher.
+3. Reopen it.
+4. If it is still broken, delete that Home Screen icon and add it again from `https://ali-workout.vercel.app`.
+
 ## Supabase References
 
 - [Use Supabase with React](https://supabase.com/docs/guides/getting-started/quickstarts/reactjs)

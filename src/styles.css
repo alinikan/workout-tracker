@@ -31,12 +31,20 @@ html {
     sans-serif;
   letter-spacing: 0;
   scroll-behavior: smooth;
+  min-height: 100%;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
   min-width: 320px;
+  min-height: 100%;
   background: linear-gradient(180deg, #f8fafb 0%, var(--bg) 360px);
+  overscroll-behavior-y: none;
+}
+
+#root {
+  min-height: 100%;
 }
 
 button,
@@ -52,6 +60,7 @@ label,
 summary,
 select {
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 button {
@@ -2427,7 +2436,7 @@ textarea {
 
 @media (max-width: 720px) {
   .app-shell {
-    padding-bottom: calc(92px + env(safe-area-inset-bottom));
+    padding-bottom: calc(104px + env(safe-area-inset-bottom));
   }
 
   .section-tabs {
@@ -2436,9 +2445,9 @@ textarea {
 
   .bottom-nav {
     position: fixed;
-    right: 10px;
-    bottom: calc(8px + env(safe-area-inset-bottom));
-    left: 10px;
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: max(10px, env(safe-area-inset-left));
     z-index: 20;
     display: grid;
     grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -2449,6 +2458,8 @@ textarea {
     background: rgba(255, 255, 255, 0.94);
     box-shadow: 0 18px 46px rgba(18, 24, 32, 0.18);
     backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    transform: translateZ(0);
   }
 
   .bottom-nav button {
@@ -2528,5 +2539,48 @@ textarea {
   .history-row {
     grid-template-columns: 1fr;
     gap: 3px;
+  }
+}
+
+@supports (-webkit-touch-callout: none) {
+  html,
+  body,
+  #root {
+    min-height: -webkit-fill-available;
+  }
+}
+
+@media (display-mode: standalone) {
+  body {
+    background: #f6f7f9;
+  }
+
+  .app-shell {
+    min-height: 100svh;
+    padding-top: max(18px, env(safe-area-inset-top));
+  }
+}
+
+@media (display-mode: standalone) and (max-width: 720px) {
+  .app-shell {
+    padding-right: max(10px, env(safe-area-inset-right));
+    padding-bottom: calc(118px + env(safe-area-inset-bottom));
+    padding-left: max(10px, env(safe-area-inset-left));
+  }
+
+  .bottom-nav {
+    z-index: 1000;
+    border-color: rgba(199, 208, 219, 0.95);
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .gym-action-bar {
+    bottom: calc(88px + env(safe-area-inset-bottom));
+    z-index: 900;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }

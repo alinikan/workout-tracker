@@ -1736,8 +1736,47 @@ export default function Home() {
 
   useEffect(() => {
     if (import.meta.env.PROD && "serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+      let shouldReloadForUpdate = true;
+
+      const reloadOnceForUpdate = () => {
+        if (!shouldReloadForUpdate) return;
+        const key = "recomp-gym-console-sw-refresh";
+        if (window.sessionStorage.getItem(key) === "done") return;
+        window.sessionStorage.setItem(key, "done");
+        window.location.reload();
+      };
+
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((registration) => {
+          void registration.update();
+
+          if (registration.waiting) {
+            registration.waiting.postMessage({ type: "SKIP_WAITING" });
+          }
+
+          registration.addEventListener("updatefound", () => {
+            const installingWorker = registration.installing;
+            if (!installingWorker) return;
+
+            installingWorker.addEventListener("statechange", () => {
+              if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
+                installingWorker.postMessage({ type: "SKIP_WAITING" });
+              }
+            });
+          });
+        })
+        .catch(() => undefined);
+
+      navigator.serviceWorker.addEventListener("controllerchange", reloadOnceForUpdate);
+
+      return () => {
+        shouldReloadForUpdate = false;
+        navigator.serviceWorker.removeEventListener("controllerchange", reloadOnceForUpdate);
+      };
     }
+
+    return undefined;
   }, []);
 
   const selectedDay =

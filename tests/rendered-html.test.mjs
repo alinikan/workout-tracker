@@ -121,7 +121,11 @@ test("starts Aug 25 on the PDF Monday workout slot and ignores scratch folders",
 });
 
 test("includes installable app assets", async () => {
-  await Promise.all([
+  const [html, manifest, styles, app] = await Promise.all([
+    text("index.html"),
+    text("public/manifest.json"),
+    text("src/styles.css"),
+    text("src/App.tsx"),
     access(new URL("public/manifest.json", root)),
     access(new URL("public/app-icon.svg", root)),
     access(new URL("public/icon-192.png", root)),
@@ -129,13 +133,23 @@ test("includes installable app assets", async () => {
     access(new URL("public/og.png", root)),
     access(new URL("public/sw.js", root)),
   ]);
+
+  assert.match(html, /viewport-fit=cover/);
+  assert.match(html, /apple-mobile-web-app-status-bar-style/);
+  assert.match(manifest, /"start_url": "\/\?source=pwa"/);
+  assert.match(manifest, /"scope": "\/"/);
+  assert.match(styles, /display-mode: standalone/);
+  assert.match(styles, /safe-area-inset-bottom/);
+  assert.match(app, /controllerchange/);
 });
 
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v2/);
+  assert.match(serviceWorker, /recomp-gym-console-v3/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
+  assert.match(serviceWorker, /requestDestination === "script"/);
+  assert.match(serviceWorker, /APP_UPDATED/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
   assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
 });
