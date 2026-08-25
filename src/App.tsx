@@ -1972,7 +1972,6 @@ export default function Home() {
                   />
                   <span>
                     <strong>{task}</strong>
-                    <small>{selectedDay.session.time}</small>
                   </span>
                 </label>
               ))}

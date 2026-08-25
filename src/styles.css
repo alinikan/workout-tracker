@@ -1,20 +1,21 @@
 :root {
-  --bg: #f5f7f8;
+  --bg: #f4f6f8;
   --paper: #ffffff;
-  --paper-2: #eef5f2;
-  --ink: #162127;
-  --muted: #5e6a70;
-  --line: #d9e2e2;
-  --line-strong: #b9c9c8;
-  --strength-a: #1c6f8f;
-  --strength-b: #7a4d9d;
-  --strength-c: #2f7c57;
-  --cardio: #cf4e3d;
-  --cardio-long: #b87919;
-  --movement: #4f7d86;
-  --recovery: #6f7f38;
+  --paper-2: #f7fafb;
+  --ink: #17212b;
+  --muted: #66727d;
+  --line: #dfe6eb;
+  --line-strong: #bcc9d1;
+  --strength-a: #176b87;
+  --strength-b: #7357a5;
+  --strength-c: #2e7a58;
+  --cardio: #c95b47;
+  --cardio-long: #a66f1a;
+  --movement: #4b7f89;
+  --recovery: #6d7d3a;
   --danger: #b3261e;
-  --shadow: 0 18px 45px rgba(25, 39, 44, 0.1);
+  --shadow: 0 10px 26px rgba(23, 33, 43, 0.08);
+  --shadow-soft: 0 3px 12px rgba(23, 33, 43, 0.06);
   color-scheme: light;
 }
 
@@ -35,10 +36,7 @@ html {
 body {
   margin: 0;
   min-width: 320px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(245, 247, 248, 0.96)),
-    radial-gradient(circle at 12% 0%, rgba(207, 78, 61, 0.14), transparent 27%),
-    radial-gradient(circle at 88% 12%, rgba(47, 124, 87, 0.15), transparent 30%);
+  background: linear-gradient(180deg, #f8fafb 0%, var(--bg) 360px);
 }
 
 button,
@@ -67,23 +65,21 @@ a {
 }
 
 .app-shell {
-  width: min(1180px, 100%);
+  width: min(1220px, 100%);
   margin: 0 auto;
-  padding: 18px clamp(14px, 3vw, 28px) 48px;
+  padding: 20px clamp(14px, 3vw, 30px) 52px;
 }
 
 .hero {
   display: grid;
-  grid-template-columns: 1fr minmax(220px, 310px);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 300px);
+  gap: 16px;
   align-items: stretch;
-  min-height: 250px;
-  padding: clamp(22px, 4vw, 42px);
-  border: 1px solid rgba(22, 33, 39, 0.1);
+  min-height: 214px;
+  padding: clamp(20px, 3vw, 34px);
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(238, 245, 242, 0.86)),
-    linear-gradient(90deg, rgba(28, 111, 143, 0.16), rgba(207, 78, 61, 0.16));
+  background: linear-gradient(135deg, #ffffff 0%, #f2f7f8 100%);
   box-shadow: var(--shadow);
   overflow: hidden;
 }
@@ -139,9 +135,9 @@ p {
 
 h1 {
   max-width: 740px;
-  margin-bottom: 14px;
-  font-size: clamp(2.7rem, 8vw, 6.4rem);
-  line-height: 0.94;
+  margin-bottom: 12px;
+  font-size: clamp(2.35rem, 5.6vw, 4.8rem);
+  line-height: 0.98;
   letter-spacing: 0;
 }
 
@@ -173,19 +169,19 @@ h5 {
 .hero-text {
   max-width: 620px;
   margin-bottom: 0;
-  color: #38464d;
-  font-size: 1.02rem;
-  line-height: 1.65;
+  color: #3c4a54;
+  font-size: 1rem;
+  line-height: 1.58;
 }
 
 .today-status {
   display: grid;
   align-content: end;
-  min-height: 210px;
-  padding: 18px;
-  border: 1px solid rgba(22, 33, 39, 0.12);
+  min-height: 176px;
+  padding: 16px;
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.8);
 }
 
 .today-status span,
@@ -201,9 +197,9 @@ h5 {
 .status-code {
   display: grid;
   place-items: center;
-  width: 64px;
-  height: 64px;
-  margin-bottom: 20px;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 16px;
   border-radius: 8px;
   background: var(--ink);
   color: #fff !important;
@@ -213,9 +209,9 @@ h5 {
 
 .date-rail {
   display: flex;
-  gap: 8px;
-  margin: 18px 0;
-  padding: 4px 2px 10px;
+  gap: 7px;
+  margin: 16px 0;
+  padding: 2px 2px 10px;
   overflow-x: auto;
   scrollbar-color: var(--line-strong) transparent;
 }
@@ -223,9 +219,9 @@ h5 {
 .date-pill {
   display: grid;
   grid-template-rows: 22px 20px 18px;
-  flex: 0 0 62px;
-  width: 62px;
-  height: 72px;
+  flex: 0 0 60px;
+  width: 60px;
+  height: 70px;
   padding: 7px 5px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -281,13 +277,14 @@ h5 {
 .progress-strip {
   display: grid;
   grid-template-columns: minmax(150px, 190px) 1fr auto minmax(120px, auto);
-  gap: 16px;
+  gap: 14px;
   align-items: center;
-  margin-bottom: 18px;
+  margin-bottom: 22px;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-soft);
 }
 
 .progress-strip span {
@@ -302,7 +299,7 @@ h5 {
 }
 
 .progress-track {
-  height: 12px;
+  height: 10px;
   border-radius: 999px;
   background: #dfe8e8;
   overflow: hidden;
@@ -326,7 +323,7 @@ h5 {
   padding: 8px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #eef5f2;
+  background: #f1f6f4;
 }
 
 .save-status span,
@@ -350,11 +347,20 @@ h5 {
   background: var(--paper);
   color: var(--ink);
   font-weight: 800;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.strip-actions button:hover,
+.account-row button:hover {
+  border-color: var(--ink);
 }
 
 .layout-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  grid-template-columns: minmax(0, 1fr) minmax(292px, 344px);
   gap: 18px;
   align-items: start;
 }
@@ -365,7 +371,8 @@ h5 {
 .fallback-section {
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow-soft);
 }
 
 .workout-panel,
@@ -380,7 +387,7 @@ h5 {
 }
 
 .metric-panel {
-  padding: 18px;
+  padding: 16px;
 }
 
 .sync-panel {
@@ -530,11 +537,11 @@ h5 {
 
 .session-summary div,
 .stat-grid div {
-  min-height: 76px;
-  padding: 12px;
+  min-height: 70px;
+  padding: 11px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--paper-2);
+  background: #f8fbfc;
 }
 
 .session-summary span,
@@ -566,37 +573,37 @@ h5 {
 
 .phase-note {
   padding: 12px 14px;
-  border-left: 4px solid var(--cardio-long);
-  background: #fff8eb;
+  border-left: 4px solid var(--strength-a);
+  background: #f2f8fa;
 }
 
 .checklist-block,
 .exercise-stack,
 .notes-block {
-  margin-top: 24px;
+  margin-top: 22px;
 }
 
 .check-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .check-row {
   display: grid;
-  grid-template-columns: 24px 1fr;
+  grid-template-columns: 22px 1fr;
   gap: 10px;
   align-items: center;
-  min-height: 62px;
-  padding: 12px;
+  min-height: 52px;
+  padding: 10px 11px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--paper);
+  background: #fbfdfd;
 }
 
 .check-row input {
-  width: 20px;
-  height: 20px;
+  width: 19px;
+  height: 19px;
   accent-color: var(--strength-c);
 }
 
@@ -611,7 +618,7 @@ h5 {
 
 .exercise-stack {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .exercise-stack > h3 {
@@ -627,7 +634,8 @@ h5 {
 }
 
 .exercise-card {
-  padding: 16px;
+  padding: 14px;
+  box-shadow: 0 1px 0 rgba(23, 33, 43, 0.04);
 }
 
 .exercise-card.legs,
@@ -706,11 +714,11 @@ h5 {
 }
 
 .rep-box {
-  min-height: 72px;
-  padding: 10px;
+  min-height: 66px;
+  padding: 9px 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--paper-2);
+  background: #f8fbfc;
   text-align: right;
 }
 
@@ -720,10 +728,10 @@ h5 {
 
 .media-row {
   display: grid;
-  grid-template-columns: 144px 1fr;
-  gap: 12px;
+  grid-template-columns: 132px 1fr;
+  gap: 10px;
   align-items: stretch;
-  margin: 12px 0;
+  margin: 10px 0;
 }
 
 .video-thumb,
@@ -767,8 +775,8 @@ h5 {
 }
 
 .resource-links a {
-  min-height: 34px;
-  padding: 7px 10px;
+  min-height: 32px;
+  padding: 6px 9px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #f9fbfb;
@@ -778,7 +786,7 @@ h5 {
 }
 
 .form-details {
-  margin: 12px 0;
+  margin: 10px 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fbfdfd;
@@ -809,7 +817,7 @@ h5 {
   margin: 0 12px 12px;
   padding: 10px;
   border-radius: 8px;
-  background: #eef5f2;
+  background: #f1f6f4;
   color: #244033;
   font-weight: 700;
 }
