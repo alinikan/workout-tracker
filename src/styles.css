@@ -2469,8 +2469,19 @@ textarea {
 }
 
 @media (max-width: 720px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
+
   .app-shell {
+    max-width: 100%;
     padding-bottom: calc(104px + env(safe-area-inset-bottom));
+    overflow-x: clip;
   }
 
   .section-tabs {
@@ -2509,16 +2520,35 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .section-today.app-shell,
+  .section-gym.app-shell,
+  .section-today .layout-grid,
+  .section-today .workout-panel,
+  .today-day-switcher,
+  .gym-mode-shell,
+  .gym-card,
+  .gym-main,
+  .gym-target-grid,
+  .gym-set-table {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .today-day-switcher {
     grid-template-columns: 1fr;
+    overflow: hidden;
   }
 
   .today-week-strip {
+    min-width: 0;
+    max-width: 100%;
     display: flex;
     gap: 7px;
     padding-bottom: 3px;
     overflow-x: auto;
+    overscroll-behavior-x: contain;
     scrollbar-color: var(--line-strong) transparent;
+    -webkit-overflow-scrolling: touch;
   }
 
   .today-day-button {
@@ -2571,6 +2601,12 @@ textarea {
   .gym-target-grid,
   .gym-set-table {
     padding-inline: 14px;
+  }
+
+  .gym-set-table {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   .gym-action-bar {

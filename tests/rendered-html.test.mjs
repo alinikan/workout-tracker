@@ -148,7 +148,10 @@ test("includes installable app assets", async () => {
   assert.match(styles, /display-mode: standalone/);
   assert.match(styles, /safe-area-inset-bottom/);
   assert.match(styles, /--gym-action-bar-height/);
+  assert.match(styles, /section-today\.app-shell/);
   assert.match(styles, /section-gym\.app-shell/);
+  assert.match(styles, /overflow-x: clip/);
+  assert.match(styles, /overscroll-behavior-x: contain/);
   assert.match(styles, /scroll-margin-bottom/);
   assert.match(styles, /grid-template-columns: 46px minmax\(0, 1fr\) 46px/);
   assert.match(app, /controllerchange/);
