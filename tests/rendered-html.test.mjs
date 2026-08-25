@@ -51,6 +51,7 @@ test("includes researched movement resources and autosave controls", async () =>
     "Gym Mode",
     "Workout Flow",
     "Jump to week",
+    "Selected workout day",
     "Completion trend",
     "Weekly consistency",
     "Last time:",

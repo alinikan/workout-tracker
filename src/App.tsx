@@ -2168,6 +2168,47 @@ export default function Home() {
         <strong>{isHydrated ? lastSavedAt ?? "Ready" : "Loading"}</strong>
       </div>
 
+      <section className="today-day-switcher" aria-label="Choose workout day">
+        <div>
+          <p className="eyebrow">Selected workout day</p>
+          <h2>{selectedDay.session.title}</h2>
+          <p>
+            {formatDate(selectedDay.iso)} · Day {selectedDay.index + 1} · PDF {selectedDay.planDayName}
+          </p>
+        </div>
+        <label className="week-jump">
+          <span>Jump to week</span>
+          <select
+            value={selectedWeekStart}
+            onChange={(event) => setSelectedDate(event.target.value)}
+            aria-label="Jump to week"
+          >
+            {weekOptions.map((week) => (
+              <option key={week.value} value={week.value}>
+                {week.label} · {week.detail}
+              </option>
+            ))}
+          </select>
+        </label>
+        <nav className="today-week-strip" aria-label="Choose day in selected week">
+          {currentWeekDays.map((day) => (
+            <button
+              key={day.iso}
+              className={`today-day-button ${day.iso === selectedDay.iso ? "active" : ""} ${
+                store.days[day.iso]?.completed ? "complete" : ""
+              } ${day.session.type}`}
+              onClick={() => setSelectedDate(day.iso)}
+              type="button"
+              aria-label={`${formatDate(day.iso)} ${day.session.title}`}
+            >
+              <span>{day.dayName.slice(0, 3)}</span>
+              <strong>{day.session.code}</strong>
+              <small>{day.index + 1}</small>
+            </button>
+          ))}
+        </nav>
+      </section>
+
       <section className="gym-mode-shell" aria-label="Gym mode">
         {currentGymExercise && currentGymRows ? (
           <article className={`gym-card ${currentGymExercise.family}`}>

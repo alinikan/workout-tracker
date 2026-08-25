@@ -8,6 +8,7 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
 - App-style sections for Today, Gym Mode, Week, Progress, Library, and Account.
 - iPhone-friendly bottom navigation plus a desktop tab bar for MacBook use.
 - Color-coded weekly planner with a week selector for jumping through the full 6-month calendar without a cluttered 182-day rail.
+- Compact Today day picker so you can choose any day in the current week or jump weeks without leaving Today.
 - Gym Mode with one move at a time, large video access, set logging, previous/next move controls, and a complete-set action.
 - Ordered workout cards so you can follow each day from move 1 to the final move, including warm-ups and finishers.
 - Previous-load suggestions that show the last logged weights for each weighted exercise.
