@@ -58,6 +58,7 @@ test("includes researched movement resources and autosave controls", async () =>
     "bottom-nav",
     "section-tabs",
     "Move {exerciseIndex + 1}",
+    "gym-action-label",
     "Weight",
   ]) {
     assert.match(page, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
@@ -140,7 +141,12 @@ test("includes installable app assets", async () => {
   assert.match(manifest, /"scope": "\/"/);
   assert.match(styles, /display-mode: standalone/);
   assert.match(styles, /safe-area-inset-bottom/);
+  assert.match(styles, /--gym-action-bar-height/);
+  assert.match(styles, /section-gym\.app-shell/);
+  assert.match(styles, /scroll-margin-bottom/);
+  assert.match(styles, /grid-template-columns: 46px minmax\(0, 1fr\) 46px/);
   assert.match(app, /controllerchange/);
+  assert.match(app, /aria-label="Complete next set"/);
 });
 
 test("service worker avoids stale Vercel app shells", async () => {

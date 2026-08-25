@@ -1228,6 +1228,8 @@ select:focus {
   --danger: #b42318;
   --shadow: 0 18px 44px rgba(18, 24, 32, 0.08);
   --shadow-soft: 0 8px 20px rgba(18, 24, 32, 0.05);
+  --mobile-nav-height: 76px;
+  --gym-action-bar-height: 62px;
 }
 
 body {
@@ -2324,6 +2326,14 @@ textarea {
   backdrop-filter: blur(14px);
 }
 
+.gym-action-label {
+  white-space: nowrap;
+}
+
+.gym-action-short {
+  display: none;
+}
+
 .gym-action-bar .primary {
   background: var(--ink);
   color: #fff;
@@ -2505,13 +2515,20 @@ textarea {
   }
 
   .exercise-details-grid,
-  .gym-details-grid,
-  .gym-action-bar {
+  .gym-details-grid {
     grid-template-columns: 1fr;
+  }
+
+  .section-gym.app-shell {
+    padding-bottom: calc(
+      var(--mobile-nav-height) + var(--gym-action-bar-height) + 42px +
+        env(safe-area-inset-bottom)
+    );
   }
 
   .gym-card {
     box-shadow: none;
+    overflow: visible;
   }
 
   .gym-main {
@@ -2533,12 +2550,53 @@ textarea {
   }
 
   .gym-action-bar {
-    bottom: calc(76px + env(safe-area-inset-bottom));
+    bottom: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));
+    grid-template-columns: 46px minmax(0, 1fr) 46px;
+    gap: 6px;
+    min-height: var(--gym-action-bar-height);
+    margin: 14px -1px -1px;
+    padding: 8px 10px;
+    border: 1px solid rgba(199, 208, 219, 0.95);
+    border-radius: 8px;
+    box-shadow: 0 16px 40px rgba(18, 24, 32, 0.16);
+    z-index: 18;
+  }
+
+  .gym-action-bar button {
+    min-width: 0;
+    min-height: 44px;
+    padding: 0 8px;
+  }
+
+  .gym-action-bar button:not(.primary) {
+    padding: 0;
+  }
+
+  .gym-action-bar .optional {
+    display: none;
+  }
+
+  .gym-set-table,
+  .gym-details-grid {
+    scroll-margin-bottom: calc(
+      var(--mobile-nav-height) + var(--gym-action-bar-height) + 24px +
+        env(safe-area-inset-bottom)
+    );
   }
 
   .history-row {
     grid-template-columns: 1fr;
     gap: 3px;
+  }
+}
+
+@media (max-width: 380px) {
+  .gym-action-full {
+    display: none;
+  }
+
+  .gym-action-short {
+    display: inline;
   }
 }
 
@@ -2576,8 +2634,15 @@ textarea {
     -webkit-backdrop-filter: none;
   }
 
+  .section-gym.app-shell {
+    padding-bottom: calc(
+      var(--mobile-nav-height) + var(--gym-action-bar-height) + 54px +
+        env(safe-area-inset-bottom)
+    );
+  }
+
   .gym-action-bar {
-    bottom: calc(88px + env(safe-area-inset-bottom));
+    bottom: calc(var(--mobile-nav-height) + 12px + env(safe-area-inset-bottom));
     z-index: 900;
     background: rgba(255, 255, 255, 0.98);
     backdrop-filter: none;

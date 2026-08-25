@@ -2389,18 +2389,33 @@ export default function Home() {
             </div>
 
             <div className="gym-action-bar">
-              <button type="button" onClick={goToPreviousGymMove} disabled={gymExerciseIndex === 0}>
-                <Icon name="chevronLeft" size={18} /> Previous
+              <button
+                type="button"
+                onClick={goToPreviousGymMove}
+                disabled={gymExerciseIndex === 0}
+                aria-label="Previous move"
+              >
+                <Icon name="chevronLeft" size={18} />
+                <span className="gym-action-label optional">Previous</span>
               </button>
-              <button className="primary" type="button" onClick={completeNextGymSet}>
-                <Icon name="check" size={18} /> Complete Set
+              <button
+                className="primary"
+                type="button"
+                onClick={completeNextGymSet}
+                aria-label="Complete next set"
+              >
+                <Icon name="check" size={18} />
+                <span className="gym-action-label gym-action-full">Complete Set</span>
+                <span className="gym-action-label gym-action-short">Done</span>
               </button>
               <button
                 type="button"
                 onClick={goToNextGymMove}
                 disabled={gymExerciseIndex >= selectedExercises.length - 1}
+                aria-label="Next move"
               >
-                Next <Icon name="chevronRight" size={18} />
+                <span className="gym-action-label optional">Next</span>
+                <Icon name="chevronRight" size={18} />
               </button>
             </div>
           </article>
