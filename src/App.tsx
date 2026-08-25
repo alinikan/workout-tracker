@@ -1571,7 +1571,7 @@ export default function Home() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [authEmail, setAuthEmail] = useState("");
-  const [authOtp, setAuthOtp] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
   const [authMessage, setAuthMessage] = useState("");
   const [cloudStatus, setCloudStatus] = useState<CloudStatus>(
     supabaseConfigError ? "error" : isSupabaseConfigured ? "signed-out" : "local-only",
@@ -1948,21 +1948,61 @@ export default function Home() {
     }));
   };
 
-  const handleSendLoginEmail = async (event: FormEvent<HTMLFormElement>) => {
+  const getAuthCredentials = () => {
+    const email = authEmail.trim().toLowerCase();
+    const password = authPassword;
+    setCloudError("");
+
+    if (!email) {
+      setAuthMessage("Enter your email first.");
+      return null;
+    }
+    if (password.length < 8) {
+      setAuthMessage("Use a password with at least 8 characters.");
+      return null;
+    }
+
+    return { email, password };
+  };
+
+  const handleSignInWithPassword = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!supabase) return;
 
-    const email = authEmail.trim().toLowerCase();
-    if (!email) {
-      setAuthMessage("Enter your email first.");
+    const credentials = getAuthCredentials();
+    if (!credentials) return;
+
+    setAuthMessage("Signing in...");
+    setCloudError("");
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: credentials.email,
+      password: credentials.password,
+    });
+
+    if (error) {
+      setAuthMessage("");
+      setCloudStatus("error");
+      setCloudError(error.message);
       return;
     }
 
-    setAuthMessage("Sending your secure login email...");
+    setAuthPassword("");
+    setAuthMessage("Signed in. Cloud sync is loading your progress now.");
+  };
+
+  const handleCreateAccount = async () => {
+    if (!supabase) return;
+
+    const credentials = getAuthCredentials();
+    if (!credentials) return;
+
+    setAuthMessage("Creating your account...");
     setCloudError("");
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
+    const { data, error } = await supabase.auth.signUp({
+      email: credentials.email,
+      password: credentials.password,
       options: {
         emailRedirectTo: window.location.origin,
       },
@@ -1975,44 +2015,12 @@ export default function Home() {
       return;
     }
 
+    setAuthPassword("");
     setAuthMessage(
-      "Check your email. If you are using the Home Screen app, copy the login code into the code box here. The link may open Safari.",
+      data.session
+        ? "Account created and signed in. Cloud sync is loading your progress now."
+        : "Account created. Supabase is asking for email confirmation first. Confirm the email once, then return here and sign in with your password.",
     );
-  };
-
-  const handleVerifyEmailCode = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!supabase) return;
-
-    const email = authEmail.trim().toLowerCase();
-    const token = authOtp.replace(/\D/g, "");
-    if (!email) {
-      setAuthMessage("Enter your email first.");
-      return;
-    }
-    if (!token) {
-      setAuthMessage("Enter the code from your login email.");
-      return;
-    }
-
-    setAuthMessage("Checking your login code...");
-    setCloudError("");
-
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token,
-      type: "email",
-    });
-
-    if (error) {
-      setAuthMessage("");
-      setCloudStatus("error");
-      setCloudError(error.message);
-      return;
-    }
-
-    setAuthOtp("");
-    setAuthMessage("Signed in inside this app. Cloud sync is loading your progress now.");
   };
 
   const handleSignOut = async () => {
@@ -2063,7 +2071,7 @@ export default function Home() {
     ? "Local saving still works. Add your Supabase URL and publishable key to unlock the same data on your MacBook and iPhone."
     : session
       ? "You are signed in, so every workout check, weight, note, and body check-in saves locally and to your cloud account."
-      : "Send yourself a secure login email. In the iPhone Home Screen app, enter the email code here instead of using the link that opens Safari.";
+      : "Sign in or create an account with email and password. This works inside the iPhone Home Screen app without magic links or custom SMTP.";
 
   const weeklyCompletion = useMemo(
     () =>
@@ -2712,7 +2720,7 @@ export default function Home() {
 
             {isSupabaseConfigured && !session && (
               <div className="auth-stack">
-                <form className="auth-form" onSubmit={handleSendLoginEmail}>
+                <form className="auth-form password-auth-form" onSubmit={handleSignInWithPassword}>
                   <label>
                     Email
                     <input
@@ -2723,30 +2731,28 @@ export default function Home() {
                       onChange={(event) => setAuthEmail(event.target.value)}
                     />
                   </label>
-                  <button type="submit">
-                    <Icon name="mail" size={17} /> Send login email
-                  </button>
-                </form>
-
-                <form className="auth-form otp-form" onSubmit={handleVerifyEmailCode}>
                   <label>
-                    Email code
+                    Password
                     <input
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      value={authOtp}
-                      placeholder="123456"
-                      autoComplete="one-time-code"
-                      onChange={(event) => setAuthOtp(event.target.value.replace(/\D/g, "").slice(0, 8))}
+                      type="password"
+                      value={authPassword}
+                      placeholder="At least 8 characters"
+                      autoComplete="current-password"
+                      minLength={8}
+                      onChange={(event) => setAuthPassword(event.target.value)}
                     />
                   </label>
-                  <button type="submit">
-                    <Icon name="check" size={17} /> Verify code in this app
-                  </button>
+                  <div className="auth-button-row">
+                    <button type="submit">
+                      <Icon name="user" size={17} /> Sign in
+                    </button>
+                    <button className="secondary" type="button" onClick={handleCreateAccount}>
+                      <Icon name="check" size={17} /> Create account
+                    </button>
+                  </div>
                   <p>
-                    Best for the iPhone Home Screen app. Copy the code from the email instead of
-                    tapping the link that opens Safari.
+                    Use the same email and password on your iPhone Home Screen app, MacBook, and
+                    any other device.
                   </p>
                 </form>
               </div>

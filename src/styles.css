@@ -488,22 +488,24 @@ h5 {
   color: #fff;
 }
 
-.otp-form {
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-}
-
-.otp-form input {
-  font-size: 1.15rem;
-  font-weight: 900;
-}
-
-.otp-form p {
+.password-auth-form p {
   margin: 0;
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 750;
   line-height: 1.45;
+}
+
+.auth-button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.auth-form button.secondary {
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  color: var(--ink);
 }
 
 .env-hint {
@@ -2619,6 +2621,10 @@ textarea {
 
   .gym-action-short {
     display: inline;
+  }
+
+  .auth-button-row {
+    grid-template-columns: 1fr;
   }
 }
 

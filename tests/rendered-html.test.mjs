@@ -48,8 +48,8 @@ test("includes researched movement resources and autosave controls", async () =>
     "Light Practice Sets",
     "Brisk Treadmill Finisher",
     "Cloud sync",
-    "Email code",
-    "Verify code in this app",
+    "Create account",
+    "Password",
     "Gym Mode",
     "Workout Flow",
     "Jump to week",
@@ -96,13 +96,14 @@ test("includes Supabase cloud sync with protected schema", async () => {
   ]);
 
   assert.match(packageJson, /"@supabase\/supabase-js"/);
-  assert.match(app, /signInWithOtp/);
-  assert.match(app, /verifyOtp/);
-  assert.match(app, /autoComplete="one-time-code"/);
-  assert.match(app, /type: "email"/);
+  assert.match(app, /signUp/);
+  assert.match(app, /signInWithPassword/);
+  assert.match(app, /type="password"/);
+  assert.match(app, /autoComplete="current-password"/);
   assert.match(app, /workout_progress/);
   assert.match(app, /chooseInitialSyncedStore/);
   assert.match(app, /Synced across devices/);
+  assert.doesNotMatch(app, /signInWithOtp|verifyOtp|one-time-code/);
   assert.match(client, /VITE_SUPABASE_URL/);
   assert.match(client, /VITE_SUPABASE_PUBLISHABLE_KEY/);
   assert.match(client, /supabaseConfigError/);
