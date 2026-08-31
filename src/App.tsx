@@ -168,7 +168,6 @@ const STORAGE_KEY = "body-recomp-gym-tracker-v1";
 const STORAGE_META_KEY = "body-recomp-gym-tracker-meta-v1";
 const START_DATE = "2026-08-31";
 const PROGRAM_DAYS = 182;
-const WORKOUTX_DOCS_URL = "https://workoutxapp.com/docs.html";
 
 const strengthWarmupIds = [
   "warmup-treadmill-walk",
@@ -1775,30 +1774,18 @@ function ExerciseMedia({
 
 function ExerciseMediaLinks({
   exercise,
-  planDay,
   compact = false,
 }: {
   exercise: Exercise;
-  planDay?: PlanDay;
   compact?: boolean;
 }) {
-  const demo = motionDemoForExercise(exercise, planDay);
-
-  if (!demo && !exercise.youtubeId) return null;
+  if (!exercise.youtubeId) return null;
 
   return (
     <div className={`media-actions ${compact ? "compact-media-actions" : ""}`}>
-      {exercise.youtubeId && (
-        <a href={youtubeUrl(exercise.youtubeId)} target="_blank" rel="noreferrer">
-          <Icon name="video" size={14} /> YouTube
-        </a>
-      )}
-      {demo && (
-        <a href={WORKOUTX_DOCS_URL} target="_blank" rel="noreferrer">
-          <Icon name="activity" size={14} />
-          {demo.match === "exact" ? "GIF source" : "GIF reference"}
-        </a>
-      )}
+      <a href={youtubeUrl(exercise.youtubeId)} target="_blank" rel="noreferrer">
+        <Icon name="video" size={14} /> YouTube
+      </a>
     </div>
   );
 }
@@ -2572,7 +2559,7 @@ export default function Home() {
               </div>
               <div className="gym-media-stack">
                 <ExerciseMedia exercise={currentGymExercise} planDay={selectedDay} variant="gym" />
-                <ExerciseMediaLinks exercise={currentGymExercise} planDay={selectedDay} />
+                <ExerciseMediaLinks exercise={currentGymExercise} />
               </div>
             </div>
 
@@ -2804,7 +2791,7 @@ export default function Home() {
                       <ExerciseMedia exercise={exercise} planDay={selectedDay} variant="thumb" />
 
                       <div className="media-resource-stack">
-                        <ExerciseMediaLinks exercise={exercise} planDay={selectedDay} compact />
+                        <ExerciseMediaLinks exercise={exercise} compact />
                         <div className="resource-links">
                           {exercise.resources.map((resource) => (
                             <a
