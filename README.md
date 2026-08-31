@@ -11,6 +11,7 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
 - Compact Today day picker so you can choose any day in the current week or jump weeks without leaving Today.
 - Gym Mode with one move at a time, large video access, set logging, previous/next move controls, smart load guidance, swap controls, and a complete-set action.
 - Ordered workout flow so you can follow each day from move 1 to the final move, including warm-ups and finishers, without every detail cluttering the screen at once.
+- Home/gym split labels show whether a movement is **Upstairs OK**, **Downstairs**, **Downstairs/outside**, or **Either**.
 - Exercise Detail bottom sheet with the selected move's YouTube/GIF media, cue list, common mistakes, progression note, resource links, swap options, and set log.
 - Legit exercise swaps for matching movement patterns such as machine chest press, assisted pull-up, seated cable row, machine shoulder press, pec deck fly, goblet squat, and Romanian deadlift variations.
 - YouTube-first media panels that play inline in the app, plus a separate YouTube button for opening the full video externally.
@@ -68,12 +69,33 @@ iPhone Home Screen note: email + password sign-in happens directly inside the Ho
 1. Open **Today** to see the selected day's ordered workout flow.
 2. Use the week strip or **Jump to week** selector if you want a different date.
 3. Follow the moves from top to bottom. Each row is color-coded by movement family: warm-up, legs, push, pull, hinge, core, arms, or cardio.
-4. Tap the numbered check button to mark a whole move complete, or tap **Details / Swap** for the full set-by-set log.
-5. In the Exercise Detail sheet, tap the video area to play the YouTube demo inline. Tap the **YouTube** button only when you want to open the full video externally.
-6. If a movement is unavailable, use **Swap Options** and choose a listed substitute. The app keeps the original available so you can switch back later.
-7. Use **Gym Mode** when you want the largest, simplest training view: one movement, one set table, previous/next controls, and the complete-set button.
-8. Check **Progress** for program completion, streak, sets, cardio minutes, best logged loads, weekly consistency, achievements, and body trend.
-9. Use **Account** to sign in with email + password so the same data syncs across your iPhone, MacBook, and any other device.
+4. Use the location chip beside each move to decide whether it can happen upstairs or should stay in the downstairs gym.
+5. Tap the numbered check button to mark a whole move complete, or tap **Details / Swap** for the full set-by-set log.
+6. Use **Upstairs OK** prep only when you can head downstairs soon after; do equipment ramp sets downstairs right before the working lift.
+7. Use **Either** for mat/bodyweight work that can happen upstairs or downstairs without disrupting the session.
+8. In the Exercise Detail sheet, tap the video area to play the YouTube demo inline. Tap the **YouTube** button only when you want to open the full video externally.
+9. If a movement is unavailable, use **Swap Options** and choose a listed substitute. The app keeps the original available so you can switch back later.
+10. Use **Gym Mode** when you want the largest, simplest training view: one movement, one set table, previous/next controls, and the complete-set button.
+11. Check **Progress** for program completion, streak, sets, cardio minutes, best logged loads, weekly consistency, achievements, and body trend.
+12. Use **Account** to sign in with email + password so the same data syncs across your iPhone, MacBook, and any other device.
+
+## Home/Gym Split
+
+Because the gym is downstairs, the app now separates movements by where they make sense.
+
+- **Upstairs OK:** bodyweight or mat-based prep such as bodyweight squats, hip-hinge drills, warm-up planks, and mobility. Do these first in your unit only if you can head downstairs soon after.
+- **Downstairs:** treadmill work, lift-specific ramp warm-ups, machines, dumbbells, and cable work. These either need the downstairs equipment or should happen immediately before the lift.
+- **Downstairs/outside:** cardio walks that can use the downstairs treadmill or an outdoor route.
+- **Either:** bodyweight/mat work that appears later in the lifting flow, such as front planks, dead bugs, or push-ups. Staying downstairs is usually smoother, but upstairs is okay if you keep the transition short and do not cool down.
+
+Trainer rule: do not do upstairs prep, get distracted, and then start heavy sets cold downstairs. The upstairs work should lead directly into the downstairs treadmill and ramp warm-ups.
+
+Why this split is allowed: NSCA describes warm-ups as general work plus more specific movement prep before training, and ACE describes movement prep as controlled movement that raises readiness before harder work. The app uses that logic by allowing low-equipment bodyweight prep upstairs, then keeping treadmill work, ramp sets, and loaded exercises downstairs where they can happen immediately before lifting.
+
+References:
+
+- [NSCA: Introduction to Dynamic Warm-Up](https://www.nsca.com/education/articles/kinetic-select/introduction-to-dynamic-warm-up/)
+- [ACE: Movement Preparation Warm-Up Strategy](https://www.acefitness.org/resources/pros/expert-articles/5404/5-reasons-movement-preparation-is-an-effective-warm-up-strategy/)
 
 ## New Core and Arm Additions
 

@@ -35,6 +35,8 @@ type MotionDemo = {
   match: "exact" | "reference";
 };
 
+type TrainingLocation = "upstairs" | "downstairs" | "downstairs-outside" | "either";
+
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   const commonProps = {
     width: size,
@@ -113,6 +115,8 @@ type Exercise = {
   youtubeId?: string;
   logType?: "weight" | "done";
   loadLabel?: string;
+  trainingLocation?: TrainingLocation;
+  locationNote?: string;
   swapIds?: string[];
   resources: Resource[];
 };
@@ -178,11 +182,11 @@ const START_DATE = "2026-08-31";
 const PROGRAM_DAYS = 182;
 
 const strengthWarmupIds = [
-  "warmup-treadmill-walk",
   "bodyweight-squat",
   "hip-hinge-drill",
   "incline-push-up",
   "warmup-front-plank",
+  "warmup-treadmill-walk",
 ];
 
 const emptySet = (): SetLog => ({
@@ -231,6 +235,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Easy walk",
     family: "warmup",
     equipment: "Treadmill",
+    trainingLocation: "downstairs",
+    locationNote: "Do this on the downstairs treadmill so you finish warm and can start the equipment ramp sets right away.",
     target: "General warm-up",
     reps: "10 min easy",
     rest: "None",
@@ -264,6 +270,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Treadmill",
     family: "cardio",
     equipment: "Treadmill or outdoor route",
+    trainingLocation: "downstairs-outside",
+    locationNote: "Use the downstairs treadmill or an outdoor route; keep the effort at the planned talk-test pace.",
     target: "Moderate cardio",
     reps: "Talk test pace",
     rest: "As needed",
@@ -297,6 +305,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Cool-down",
     family: "cardio",
     equipment: "Treadmill or outdoor route",
+    trainingLocation: "downstairs-outside",
+    locationNote: "Cool down downstairs on the treadmill, or outside if the whole cardio session was outdoors.",
     target: "Cool-down",
     reps: "5 min easy",
     rest: "Done after cardio",
@@ -330,6 +340,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Long walk",
     family: "cardio",
     equipment: "Treadmill or outdoor route",
+    trainingLocation: "downstairs-outside",
+    locationNote: "Use the downstairs treadmill or an outdoor route. This is not an upstairs-in-the-unit item unless you have enough walking space.",
     target: "Long moderate cardio",
     reps: "45-60 min",
     rest: "As needed",
@@ -363,6 +375,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Squat",
     family: "warmup",
     equipment: "Bodyweight",
+    trainingLocation: "upstairs",
+    locationNote: "Good to do upstairs before heading down, as long as you go downstairs soon after and do the ramp warm-ups there.",
     target: "Squat pattern",
     reps: "8-12 warm-up reps",
     rest: "Easy",
@@ -394,6 +408,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Hip hinge",
     family: "warmup",
     equipment: "Bodyweight",
+    trainingLocation: "upstairs",
+    locationNote: "Good to do upstairs before heading down; keep the transition short so you do not cool off before lifting.",
     target: "Hinge pattern",
     reps: "8-12 warm-up reps",
     rest: "Easy",
@@ -429,6 +445,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Incline push-up",
     family: "warmup",
     equipment: "Bench",
+    trainingLocation: "upstairs",
+    locationNote: "Good upstairs if you have a stable counter, bench, or sturdy surface; otherwise do it downstairs.",
     target: "Pressing warm-up",
     reps: "6-10 warm-up reps",
     rest: "Easy",
@@ -460,6 +478,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Warm-up plank",
     family: "warmup",
     equipment: "Mat or floor",
+    trainingLocation: "upstairs",
+    locationNote: "Good upstairs on a mat or floor before you go down to the gym.",
     target: "Core brace rehearsal",
     reps: "20-30 sec",
     rest: "Easy",
@@ -495,6 +515,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Leg press ramp",
     family: "warmup",
     equipment: "Leg press machine",
+    trainingLocation: "downstairs",
+    locationNote: "Do this downstairs at the leg press immediately before your working Leg Press sets.",
     target: "Specific warm-up for the first working lift",
     reps: "2 lighter sets",
     rest: "45-60 sec",
@@ -532,6 +554,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Incline ramp",
     family: "warmup",
     equipment: "Incline bench and lighter dumbbells",
+    trainingLocation: "downstairs",
+    locationNote: "Do this downstairs at the bench immediately before your working Incline Dumbbell Press sets.",
     target: "Specific warm-up for the second working lift",
     reps: "2 lighter sets",
     rest: "45-60 sec",
@@ -569,6 +593,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Goblet ramp",
     family: "warmup",
     equipment: "Bodyweight, light dumbbell, or light kettlebell",
+    trainingLocation: "downstairs",
+    locationNote: "Do this downstairs right before Goblet Squat so the warm-up matches the exact weight and setup.",
     target: "Specific warm-up for the first working lift",
     reps: "2 lighter sets",
     rest: "45-60 sec",
@@ -606,6 +632,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Row ramp",
     family: "warmup",
     equipment: "Bench and lighter dumbbell",
+    trainingLocation: "downstairs",
+    locationNote: "Do this downstairs at the bench right before Single-Arm Dumbbell Row.",
     target: "Specific warm-up for the second working lift",
     reps: "2 lighter sets each side",
     rest: "45-60 sec",
@@ -643,6 +671,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Finisher",
     family: "cardio",
     equipment: "Treadmill",
+    trainingLocation: "downstairs",
+    locationNote: "Keep this downstairs after lifting so the session finishes in one clean flow.",
     target: "Post-lift moderate cardio",
     reps: "10 min brisk",
     rest: "After lifting",
@@ -676,6 +706,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Mobility",
     family: "warmup",
     equipment: "Open floor space",
+    trainingLocation: "upstairs",
+    locationNote: "Good upstairs on recovery or movement days if you have enough open floor space.",
     target: "Light mobility and stretching",
     reps: "5-10 min",
     rest: "Easy",
@@ -869,6 +901,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Plank",
     family: "core",
     equipment: "Mat or floor",
+    trainingLocation: "either",
+    locationNote: "Either place is fine. If you go upstairs after lifting, keep the transition short and finish before you cool down.",
     target: "Core stability",
     reps: "20-45 sec",
     rest: "45-60 sec",
@@ -908,6 +942,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Dead bug",
     family: "core",
     equipment: "Mat or open floor",
+    trainingLocation: "either",
+    locationNote: "Either place is fine. Upstairs is practical if you have a mat and go there right after the lifting block.",
     target: "Dynamic abs, deep core, anti-extension control",
     reps: "8-12 each side",
     rest: "45-60 sec",
@@ -1109,6 +1145,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Push-up",
     family: "push",
     equipment: "Bodyweight or bench",
+    trainingLocation: "either",
+    locationNote: "Either place is possible, but during Strength B it is usually smoother to stay downstairs with the rest of the session.",
     target: "Chest, shoulders, triceps, core",
     reps: "6-15",
     rest: "60-75 sec",
@@ -2456,6 +2494,57 @@ function familyLabel(family: Exercise["family"]) {
   }[family];
 }
 
+const locationLabels: Record<TrainingLocation, { label: string; detail: string }> = {
+  upstairs: {
+    label: "Upstairs OK",
+    detail: "Good to do in your unit if you have clear floor space and head downstairs soon after.",
+  },
+  downstairs: {
+    label: "Downstairs",
+    detail: "Keep this in the home gym because it needs equipment or should happen right before lifting.",
+  },
+  "downstairs-outside": {
+    label: "Downstairs/outside",
+    detail: "Use the downstairs treadmill or an outdoor route for the planned cardio pace.",
+  },
+  either: {
+    label: "Either",
+    detail: "Can be done upstairs or downstairs; choose the option that keeps the session flowing.",
+  },
+};
+
+function trainingLocationForExercise(exercise: Exercise): TrainingLocation {
+  if (exercise.trainingLocation) return exercise.trainingLocation;
+  if (exercise.family === "warmup") return "upstairs";
+  if (exercise.family === "cardio") return "downstairs-outside";
+  return "downstairs";
+}
+
+function locationGuideForExercise(exercise: Exercise) {
+  const type = trainingLocationForExercise(exercise);
+  return {
+    type,
+    label: locationLabels[type].label,
+    detail: exercise.locationNote ?? locationLabels[type].detail,
+  };
+}
+
+function locationFlowNoteForDay(planDay: PlanDay) {
+  if (planDay.session.type === "strength") {
+    return "Do Upstairs OK prep first in your unit only if you can head downstairs right after. Then do the downstairs treadmill warm-up and ramp sets before lifting. If a later Either move would make you go up and back down, do it downstairs.";
+  }
+
+  if (planDay.session.type === "movement") {
+    return "Mobility and bodyweight prep can be upstairs. Do the walking portion downstairs on the treadmill or outside.";
+  }
+
+  if (planDay.session.type === "cardio") {
+    return "Use the downstairs treadmill or an outdoor route for the walking work.";
+  }
+
+  return "Recovery work can happen upstairs unless you choose an optional walk.";
+}
+
 function lastExerciseLoad(planDays: PlanDay[], store: TrackerStore, selectedDay: PlanDay, exerciseId: string) {
   for (let index = selectedDay.index - 1; index >= 0; index -= 1) {
     const day = planDays[index];
@@ -2868,6 +2957,7 @@ export default function Home() {
   const phase = phaseForWeek(selectedDay.week);
   const selectedSessionTime = sessionTimeForDay(selectedDay);
   const selectedSessionSummary = sessionSummaryForDay(selectedDay);
+  const selectedLocationNote = locationFlowNoteForDay(selectedDay);
   const selectedExercises = selectedDay.session.exerciseIds.flatMap((id) =>
     exerciseMap[id] ? [exerciseMap[id]] : [],
   );
@@ -3230,6 +3320,7 @@ export default function Home() {
       isComplete,
       target: targetForExercise(selectedDay, activeExercise),
       rest: restForExercise(selectedDay, activeExercise),
+      location: locationGuideForExercise(activeExercise),
       progression: progressionForExercise(selectedDay, activeExercise),
       suggestion: smartLoadSuggestion(planDays, store, selectedDay, activeExercise, exerciseIndex),
       swaps: swapOptionsFor(originalExercise),
@@ -3256,6 +3347,7 @@ export default function Home() {
     : null;
   const currentGymTarget = currentGymMove?.target ?? "";
   const currentGymRest = currentGymMove?.rest ?? "";
+  const currentGymLocation = currentGymMove?.location ?? null;
   const currentGymSuggestion = currentGymMove?.suggestion ?? null;
   const detailMove = detailExerciseId
     ? workoutMoveRows.find((move) => move.originalExercise.id === detailExerciseId) ?? null
@@ -3265,6 +3357,7 @@ export default function Home() {
   const detailPreviousLoad = detailExercise
     ? lastExerciseLoad(planDays, store, selectedDay, detailExercise.id)
     : null;
+  const detailLocation = detailMove?.location ?? null;
   const bestLiftRows = libraryOrder
     .map((id) => {
       const exercise = exerciseMap[id];
@@ -3537,6 +3630,11 @@ export default function Home() {
               <div>
                 <div className="exercise-labels">
                   <span className="family-chip">{familyLabel(currentGymExercise.family)}</span>
+                  {currentGymLocation && (
+                    <span className={`location-chip ${currentGymLocation.type}`}>
+                      {currentGymLocation.label}
+                    </span>
+                  )}
                   <span className="order-chip">
                     {completedRows(currentGymRows)}/{currentGymRows.length} sets
                   </span>
@@ -3568,6 +3666,13 @@ export default function Home() {
                 <span>Equipment</span>
                 <strong>{currentGymExercise.equipment}</strong>
               </div>
+              {currentGymLocation && (
+                <div className={`location-fact ${currentGymLocation.type}`}>
+                  <span>Where</span>
+                  <strong>{currentGymLocation.label}</strong>
+                  <small>{currentGymLocation.detail}</small>
+                </div>
+              )}
               <div>
                 <span>Last load</span>
                 <strong>
@@ -3766,6 +3871,9 @@ export default function Home() {
 
           <p className="plan-note">{selectedSessionSummary}</p>
           <p className="phase-note">{phase.note}</p>
+          <p className="location-flow-note">
+            <strong>Home/gym split:</strong> {selectedLocationNote}
+          </p>
 
           <section className="checklist-block compact-targets" aria-labelledby="tasks-heading">
             <div className="flow-heading">
@@ -3823,6 +3931,7 @@ export default function Home() {
                       <span className="move-title-row">
                         <strong>{move.activeExercise.name}</strong>
                         <span className="family-chip">{familyLabel(move.activeExercise.family)}</span>
+                        <span className={`location-chip ${move.location.type}`}>{move.location.label}</span>
                         {move.isSwapped && <span className="swap-chip">Swap active</span>}
                       </span>
                       {move.isSwapped && (
@@ -4176,25 +4285,32 @@ export default function Home() {
         </div>
 
         <div className="library-grid">
-          {filteredLibrary.map((exercise) => (
-            <article key={exercise.id} className={`library-card ${exercise.family}`}>
-              <div className="library-media">
-                <ExerciseMedia exercise={exercise} variant="library" />
-              </div>
-              <ExerciseMediaLinks exercise={exercise} compact />
-              <span className="family-chip">{familyLabel(exercise.family)}</span>
-              <h3>{exercise.name}</h3>
-              <p>{exercise.target}</p>
-              <small>{exercise.equipment}</small>
-              <div className="resource-links compact-links">
-                {exercise.resources.slice(0, 3).map((resource) => (
-                  <a key={resource.url} href={resource.url} target="_blank" rel="noreferrer">
-                    {resource.label}
-                  </a>
-                ))}
-              </div>
-            </article>
-          ))}
+          {filteredLibrary.map((exercise) => {
+            const location = locationGuideForExercise(exercise);
+
+            return (
+              <article key={exercise.id} className={`library-card ${exercise.family}`}>
+                <div className="library-media">
+                  <ExerciseMedia exercise={exercise} variant="library" />
+                </div>
+                <ExerciseMediaLinks exercise={exercise} compact />
+                <div className="library-chip-row">
+                  <span className="family-chip">{familyLabel(exercise.family)}</span>
+                  <span className={`location-chip ${location.type}`}>{location.label}</span>
+                </div>
+                <h3>{exercise.name}</h3>
+                <p>{exercise.target}</p>
+                <small>{exercise.equipment}</small>
+                <div className="resource-links compact-links">
+                  {exercise.resources.slice(0, 3).map((resource) => (
+                    <a key={resource.url} href={resource.url} target="_blank" rel="noreferrer">
+                      {resource.label}
+                    </a>
+                  ))}
+                </div>
+              </article>
+            );
+          })}
         </div>
       </section>
 
@@ -4282,6 +4398,13 @@ export default function Home() {
                   <span>Equipment</span>
                   <strong>{detailExercise.equipment}</strong>
                 </div>
+                {detailLocation && (
+                  <div className={`location-fact ${detailLocation.type}`}>
+                    <span>Where</span>
+                    <strong>{detailLocation.label}</strong>
+                    <small>{detailLocation.detail}</small>
+                  </div>
+                )}
                 <div>
                   <span>Last load</span>
                   <strong>

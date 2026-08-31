@@ -95,6 +95,15 @@ test("includes researched movement resources and autosave controls", async () =>
     "sessionTimeForDay",
     "warmupTarget",
     "rampWarmupTarget",
+    "TrainingLocation",
+    "Upstairs OK",
+    "Downstairs",
+    "Downstairs/outside",
+    "Either",
+    "Home/gym split",
+    "locationGuideForExercise",
+    "locationFlowNoteForDay",
+    "location-chip",
   ]) {
     assert.match(page, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
@@ -120,6 +129,10 @@ test("extends the PDF progression to roughly 6 months", async () => {
   assert.match(page, /working lbs/);
   assert.match(page, /rangedTarget/);
   assert.match(page, /double-progression rule/);
+  assert.match(
+    page,
+    /const strengthWarmupIds = \[\s*"bodyweight-squat",\s*"hip-hinge-drill",\s*"incline-push-up",\s*"warmup-front-plank",\s*"warmup-treadmill-walk",\s*\]/,
+  );
 });
 
 test("includes Supabase cloud sync with protected schema", async () => {
@@ -230,6 +243,8 @@ test("includes installable app assets", async () => {
   assert.match(styles, /detail-sheet-backdrop/);
   assert.match(styles, /move-list/);
   assert.match(styles, /swap-option-grid/);
+  assert.match(styles, /location-chip/);
+  assert.match(styles, /location-flow-note/);
   assert.match(styles, /section-today\.app-shell/);
   assert.match(styles, /section-gym\.app-shell/);
   assert.match(styles, /overflow-x: clip/);
@@ -243,11 +258,12 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v10/);
-  assert.match(serviceWorker, /clean-inline-video-v10/);
+  assert.match(serviceWorker, /recomp-gym-console-v11/);
+  assert.match(serviceWorker, /home-gym-location-v11/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
   assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
+  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v10/);
 });

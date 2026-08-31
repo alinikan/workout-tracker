@@ -610,6 +610,21 @@ h5 {
   background: #f2f8fa;
 }
 
+.location-flow-note {
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #cfe1d7;
+  border-left: 4px solid #287a50;
+  border-radius: 8px;
+  background: #f4faf6;
+  color: #304247;
+  line-height: 1.5;
+}
+
+.location-flow-note strong {
+  color: #1f6a45;
+}
+
 .checklist-block,
 .exercise-stack,
 .notes-block {
@@ -1833,10 +1848,45 @@ h3 {
 }
 
 .order-chip,
-.family-chip {
+.family-chip,
+.location-chip {
   min-height: 22px;
   padding: 0 8px;
   font-size: 0.68rem;
+}
+
+.location-chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-weight: 950;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.location-chip.upstairs {
+  border-color: #b6dfc9;
+  background: #e4f5eb;
+  color: #1f6a45;
+}
+
+.location-chip.downstairs {
+  border-color: #cbd5dc;
+  background: #edf2f4;
+  color: #334147;
+}
+
+.location-chip.downstairs-outside {
+  border-color: #b9d9e5;
+  background: #e1f2f8;
+  color: #176b87;
+}
+
+.location-chip.either {
+  border-color: #ead29a;
+  background: #fff1d1;
+  color: #79530f;
 }
 
 .rep-box {
@@ -3307,6 +3357,13 @@ body {
   overflow-wrap: anywhere;
 }
 
+.library-chip-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .smart-load-mini {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
@@ -3537,6 +3594,15 @@ body {
   display: block;
   margin-top: 6px;
   line-height: 1.25;
+}
+
+.location-fact small {
+  display: block;
+  margin-top: 6px;
+  color: #45565d;
+  font-size: 0.78rem;
+  font-weight: 760;
+  line-height: 1.35;
 }
 
 .swap-panel {

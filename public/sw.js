@@ -1,5 +1,5 @@
-const CACHE_NAME = "recomp-gym-console-v10";
-const APP_VERSION = "2026-08-31-clean-inline-video-v10";
+const CACHE_NAME = "recomp-gym-console-v11";
+const APP_VERSION = "2026-08-31-home-gym-location-v11";
 const APP_FALLBACK_URL = "/";
 
 const CORE_ASSETS = [
