@@ -5,14 +5,16 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
 ## Features
 
 - 182-day program calendar, which is about 6 months of training.
-- App-style sections for Today, Gym Mode, Week, Progress, Library, and Account.
+- Color-coded app sections for Today, Gym Mode, Week, Progress, Library, and Account.
 - iPhone-friendly bottom navigation plus a desktop tab bar for MacBook use.
 - Color-coded weekly planner with a week selector for jumping through the full 6-month calendar without a cluttered 182-day rail.
 - Compact Today day picker so you can choose any day in the current week or jump weeks without leaving Today.
-- Gym Mode with one move at a time, large video access, set logging, previous/next move controls, and a complete-set action.
-- Ordered workout cards so you can follow each day from move 1 to the final move, including warm-ups and finishers.
+- Gym Mode with one move at a time, large video access, set logging, previous/next move controls, smart load guidance, swap controls, and a complete-set action.
+- Ordered workout flow so you can follow each day from move 1 to the final move, including warm-ups and finishers, without every detail cluttering the screen at once.
+- Exercise Detail bottom sheet with the selected move's YouTube/GIF media, cue list, common mistakes, progression note, resource links, swap options, and set log.
+- Legit exercise swaps for matching movement patterns such as machine chest press, assisted pull-up, seated cable row, machine shoulder press, pec deck fly, goblet squat, and Romanian deadlift variations.
 - YouTube-first media panels with an optional **Show GIF** button for autoplaying movement demos when a WorkoutX key is configured.
-- Previous-load suggestions that show the last logged weights for each weighted exercise.
+- Smart load suggestions that use your last logged load, completed sets, and deload weeks to suggest whether to start light, repeat, nudge up, or reduce load.
 - Strength-day logging with only weight and completion checks. Reps, time, rest, and cardio targets are shown by phase, not entered by you.
 - Dynamic set and target recommendations from the PDF:
   - Weeks 1-2: 2 working sets.
@@ -23,12 +25,12 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
   - Weeks 13-26: repeats the same PDF weekly structure with a second build block, higher cardio targets, longer plank targets, a deload week, and final comparison weeks.
 - Warm-up moves are first-class cards with cues, resources, video links where available, targets, and completion checks.
 - Body check-ins for weight, waist, and weekly notes.
-- Progress section with completion streaks, strength sessions, completed sets, weekly consistency bars, recent workout history, achievements, and body check-ins.
+- Progress dashboard with completion streaks, strength sessions, completed sets, estimated cardio minutes, body check-ins, best logged loads, weekly consistency bars, recent workout history, achievements, and body trend.
 - Exercise library with cues, mistakes to avoid, progression notes, YouTube videos, ACE/NASM/Mayo/PureGym resources, and thumbnails.
 - No-gym fallback workout from the PDF.
 - Automatic local saving through browser storage, plus account-based Supabase cloud sync when configured.
 - Email + password sign-in so the same data appears on your MacBook, iPhone, and any other logged-in device, including the iPhone Home Screen app.
-- PWA manifest, service worker, icons, and social preview image.
+- PWA manifest, versioned service worker, safe-area spacing, icons, and social preview image for iPhone Home Screen use.
 - Vercel-ready Vite config.
 
 ## Tech Stack
@@ -54,9 +56,21 @@ Important limitation: the cloud sync needs the same deployed app URL and the sam
 
 iPhone Home Screen note: email + password sign-in happens directly inside the Home Screen app. It does not depend on a magic link opening in the right browser.
 
+## Using the Redesigned Tracker
+
+1. Open **Today** to see the selected day's ordered workout flow.
+2. Use the week strip or **Jump to week** selector if you want a different date.
+3. Follow the moves from top to bottom. Each row is color-coded by movement family: warm-up, legs, push, pull, hinge, core, or cardio.
+4. Tap the numbered check button to mark a whole move complete, or tap **Details / Swap** for the full set-by-set log.
+5. In the Exercise Detail sheet, use YouTube as the main form reference. Tap **Show GIF** when you want the looping movement demo.
+6. If a movement is unavailable, use **Swap Options** and choose a listed substitute. The app keeps the original available so you can switch back later.
+7. Use **Gym Mode** when you want the largest, simplest training view: one movement, one set table, previous/next controls, and the complete-set button.
+8. Check **Progress** for program completion, streak, sets, cardio minutes, best logged loads, weekly consistency, achievements, and body trend.
+9. Use **Account** to sign in with email + password so the same data syncs across your iPhone, MacBook, and any other device.
+
 ## Optional GIF Demo Setup
 
-The app has GIF support built in for every workout move. YouTube remains the default visual guide. Tap **Show GIF** in Gym Mode, Today, or the Move Library when you want the short looping form demo.
+The app has GIF support built in for every workout move. YouTube remains the default visual guide. Tap **Show GIF** in Gym Mode, the Exercise Detail sheet, or the Move Library when you want the short looping form demo.
 
 GIFs are loaded through `api/workoutx-gif.js`, which keeps your WorkoutX key private on Vercel. The browser only sees same-origin URLs such as `/api/workoutx-gif?id=0739`.
 
@@ -128,7 +142,7 @@ On iPhone, delete and re-add the Home Screen app only if it keeps an old cached 
 
 Most plan movements use exact ExerciseDB-style IDs. A few warm-up/recovery items are intentionally labeled as reference GIFs because they are movement patterns rather than one exact lift.
 
-- Exact GIFs: treadmill walking, incline push-up, leg press, incline dumbbell press, lat pulldown, dumbbell Romanian deadlift, goblet squat, one-arm dumbbell row, push-up, seated dumbbell shoulder press, incline rear lateral raise, barbell Romanian deadlift, cable standing fly.
+- Exact GIFs: treadmill walking, incline push-up, leg press, incline dumbbell press, machine chest press, lat pulldown, assisted pull-up, seated cable row, dumbbell Romanian deadlift, goblet squat, one-arm dumbbell row, push-up, seated dumbbell shoulder press, machine shoulder press, incline rear lateral raise, barbell Romanian deadlift, cable standing fly, pec deck fly.
 - Reference GIFs: easy treadmill warm-up, cool-down walk, bodyweight squat warm-up, hip-hinge drill, warm-up/front plank, light practice sets, mobility flow.
 
 ## Run on a MacBook
@@ -421,7 +435,7 @@ In this project, `npm run lint` reuses the Vite production build gate. `npm run 
 
 ## Project Files
 
-- `src/App.tsx` - the main tracker app, workout data, exercise resources, autosave, cloud sync flow, and UI.
+- `src/App.tsx` - the main tracker app, workout data, exercise resources, smart load logic, exercise swaps, autosave, cloud sync flow, and UI.
 - `src/lib/supabaseClient.ts` - optional Supabase browser client with validation so cloud config mistakes show in the app instead of causing a blank screen.
 - `src/styles.css` - the responsive visual system and mobile layout.
 - `src/main.tsx` - the React entry point.
@@ -476,16 +490,26 @@ The app uses concise, paraphrased exercise cues based on the PDF plus reputable 
   - Cable crossover: https://www.nasm.org/resource-center/exercise-library/cable-crossover
   - Prisoner squat: https://www.nasm.org/resource-center/exercise-library/prisoner-squat
   - Incline push-up: https://www.nasm.org/resource-center/exercise-library/incline-push-up
+  - Chest press machine: https://www.nasm.org/resource-center/exercise-library/chest-press-machine
+  - Band-assisted pull-up: https://www.nasm.org/resource-center/exercise-library/band-assisted-pull-up
+  - Seated machine row: https://www.nasm.org/resource-center/exercise-library/seated-machine-row-close-grip
 - Mayo Clinic videos:
   - Hip hinge: https://www.youtube.com/watch?v=sinpFajtRPw
   - Seated lat pull: https://www.youtube.com/watch?v=NbHnnvHkajg
   - Knee push-up option: https://www.youtube.com/watch?v=WcHtt6zT3Go
   - Front plank: https://www.youtube.com/watch?v=GgOnCjmyTfY
   - Leg press demo: https://www.mayoclinic.org/healthy-lifestyle/fitness/multimedia/leg-press/vid-20084684
+  - Chest press demo: https://www.mayoclinic.org/healthy-lifestyle/fitness/multimedia/chest-press/vid-20084687
 - PureGym demos:
   - Single-arm dumbbell row: https://www.puregym.com/exercises/back/rows/single-arm-dumbbell-row/
   - Seated shoulder press: https://www.puregym.com/exercises/arms-and-shoulders/shoulder-press/seated-shoulder-press/
   - Cable fly: https://www.puregym.com/exercises/chest/chest-fly/cable-flyes/
+  - Machine equipment demos: https://www.puregym.com/lets-get-started/workout-builder/equipment-how-tos/
+- Swap-specific sources:
+  - Assisted machine pull-up: https://macrosinc.net/exercises/back/assisted-machine-pull-up/
+  - Machine shoulder press: https://www.muscleandstrength.com/exercises/machine-shoulder-press
+  - Pec deck fly: https://www.fittr.com/exercise-video/lever-pec-deck-fly-13/
+  - Pec deck fly form notes: https://www.liveleantv.com/how-to-do-a-pec-deck-fly/
 - Cardio intensity:
   - CDC intensity guide: https://www.cdc.gov/physical-activity-basics/measuring/index.html
 
@@ -496,6 +520,7 @@ Most plan data is in `src/App.tsx`:
 - Change `START_DATE` to shift the whole 182-day program.
 - Edit `scheduleOrder` to change the PDF day order that starts on Aug 31.
 - Edit `exerciseMap` to change cues, resources, videos, reps, or rest times.
+- Add or remove `swapIds` inside an exercise to control which substitute moves appear in the Detail sheet and Gym Mode swap strip.
 - Edit `recommendedSets()`, `targetForExercise()`, and `phaseForWeek()` to change progression logic.
 
 If you change the start date, use `YYYY-MM-DD` format:

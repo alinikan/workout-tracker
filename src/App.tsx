@@ -17,9 +17,12 @@ type IconName =
   | "play"
   | "progress"
   | "search"
+  | "spark"
+  | "swap"
   | "trophy"
   | "user"
-  | "video";
+  | "video"
+  | "x";
 
 type Resource = {
   label: string;
@@ -74,6 +77,8 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
           <path d="m16 16 4 4" />
         </>
       )}
+      {name === "spark" && <path d="m12 3 1.7 5.1L19 10l-5.3 1.9L12 17l-1.7-5.1L5 10l5.3-1.9L12 3ZM5 16l.8 2.2L8 19l-2.2.8L5 22l-.8-2.2L2 19l2.2-.8L5 16ZM19 15l.7 2.1L22 18l-2.3.9L19 21l-.7-2.1L16 18l2.3-.9L19 15Z" />}
+      {name === "swap" && <path d="M7 7h11l-3-3M17 17H6l3 3M18 7l-4 4M6 17l4-4" />}
       {name === "trophy" && <path d="M8 4h8v3a4 4 0 0 1-8 0V4ZM6 6H4a4 4 0 0 0 4 4M18 6h2a4 4 0 0 1-4 4M12 12v5M9 20h6" />}
       {name === "user" && (
         <>
@@ -87,6 +92,7 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
           <path d="m16 10 4-2v8l-4-2" />
         </>
       )}
+      {name === "x" && <path d="M18 6 6 18M6 6l12 12" />}
     </svg>
   );
 }
@@ -107,6 +113,7 @@ type Exercise = {
   youtubeId?: string;
   logType?: "weight" | "done";
   loadLabel?: string;
+  swapIds?: string[];
   resources: Resource[];
 };
 
@@ -132,6 +139,7 @@ type DayLog = {
   warmup: Record<string, boolean>;
   tasks: Record<string, boolean>;
   exercises: Record<string, SetLog[]>;
+  swaps: Record<string, string>;
   notes: string;
 };
 
@@ -188,6 +196,7 @@ const createEmptyDay = (): DayLog => ({
   warmup: {},
   tasks: {},
   exercises: {},
+  swaps: {},
   notes: "",
 });
 
@@ -196,6 +205,25 @@ const createEmptyMetric = (): MetricLog => ({
   waist: "",
   note: "",
 });
+
+function normalizeDayLog(log: DayLog | undefined): DayLog {
+  return {
+    ...createEmptyDay(),
+    ...log,
+    warmup: log?.warmup ?? {},
+    tasks: log?.tasks ?? {},
+    exercises: log?.exercises ?? {},
+    swaps: log?.swaps ?? {},
+    notes: log?.notes ?? "",
+  };
+}
+
+function normalizeMetricLogShape(metric: MetricLog | undefined): MetricLog {
+  return {
+    ...createEmptyMetric(),
+    ...metric,
+  };
+}
 
 const exerciseMap: Record<string, Exercise> = {
   "warmup-treadmill-walk": {
@@ -589,6 +617,7 @@ const exerciseMap: Record<string, Exercise> = {
       match: "exact",
     },
     youtubeId: "cDGOn-yfKJA",
+    swapIds: ["goblet-squat"],
     resources: [
       {
         label: "NASM video guide",
@@ -629,6 +658,7 @@ const exerciseMap: Record<string, Exercise> = {
       match: "exact",
     },
     youtubeId: "JKnpHchOWPU",
+    swapIds: ["machine-chest-press", "push-up"],
     resources: [
       {
         label: "NASM two-arm guide",
@@ -666,6 +696,7 @@ const exerciseMap: Record<string, Exercise> = {
       match: "exact",
     },
     youtubeId: "NbHnnvHkajg",
+    swapIds: ["assisted-pull-up", "seated-cable-row"],
     resources: [
       {
         label: "ACE guide",
@@ -707,6 +738,7 @@ const exerciseMap: Record<string, Exercise> = {
       match: "exact",
     },
     youtubeId: "V8Hdl1FiNt4",
+    swapIds: ["barbell-rdl"],
     resources: [
       {
         label: "NASM video guide",
@@ -783,6 +815,7 @@ const exerciseMap: Record<string, Exercise> = {
       match: "exact",
     },
     youtubeId: "nfX7IFK9UNI",
+    swapIds: ["leg-press"],
     resources: [
       {
         label: "NASM video guide",
@@ -820,6 +853,7 @@ const exerciseMap: Record<string, Exercise> = {
       match: "exact",
     },
     youtubeId: "k0cTJCfxa0Y",
+    swapIds: ["seated-cable-row"],
     resources: [
       {
         label: "ACE single-arm row",
@@ -855,6 +889,7 @@ const exerciseMap: Record<string, Exercise> = {
     youtubeId: "WDIpL0pjun0",
     logType: "done",
     loadLabel: "body",
+    swapIds: ["incline-db-press", "machine-chest-press"],
     resources: [
       {
         label: "NASM push-up",
@@ -895,6 +930,7 @@ const exerciseMap: Record<string, Exercise> = {
       label: "Dumbbell seated shoulder press",
       match: "exact",
     },
+    swapIds: ["machine-shoulder-press"],
     resources: [
       {
         label: "ACE guide",
@@ -964,6 +1000,7 @@ const exerciseMap: Record<string, Exercise> = {
       match: "exact",
     },
     youtubeId: "V8Hdl1FiNt4",
+    swapIds: ["db-rdl"],
     resources: [
       {
         label: "NASM dumbbell RDL",
@@ -1001,6 +1038,7 @@ const exerciseMap: Record<string, Exercise> = {
       match: "exact",
     },
     youtubeId: "XY6JrX1wyxk",
+    swapIds: ["pec-deck-fly"],
     resources: [
       {
         label: "NASM cable crossover",
@@ -1013,6 +1051,191 @@ const exerciseMap: Record<string, Exercise> = {
       {
         label: "PureGym cable fly",
         url: "https://www.puregym.com/exercises/chest/chest-fly/cable-flyes/",
+      },
+    ],
+  },
+  "machine-chest-press": {
+    id: "machine-chest-press",
+    name: "Machine Chest Press",
+    shortName: "Machine press",
+    family: "push",
+    equipment: "Chest press machine",
+    target: "Chest, front shoulders, triceps",
+    reps: "8-12",
+    rest: "90 sec",
+    cues: [
+      "Set the seat so the handles begin around mid-chest height.",
+      "Brace, keep shoulder blades lightly back, and press the handles forward smoothly.",
+      "Return under control until the chest is stretched without shoulders rolling forward.",
+    ],
+    avoid: [
+      "Do not let the handles snap back into the stack.",
+      "Do not shrug or let shoulders drift toward the ears.",
+      "Do not chase a longer range if the front of the shoulder complains.",
+    ],
+    progression: "Use this as the stable press swap. Add the smallest load jump after all sets hit the top of the range cleanly.",
+    motionDemo: {
+      workoutXId: "0577",
+      label: "Lever chest press",
+      match: "exact",
+    },
+    youtubeId: "lRo9zZ7EwpM",
+    resources: [
+      {
+        label: "NASM chest press machine",
+        url: "https://www.nasm.org/resource-center/exercise-library/chest-press-machine",
+      },
+      {
+        label: "Mayo chest press",
+        url: "https://www.mayoclinic.org/healthy-lifestyle/fitness/multimedia/chest-press/vid-20084687",
+      },
+    ],
+  },
+  "assisted-pull-up": {
+    id: "assisted-pull-up",
+    name: "Band-Assisted Pull-Up",
+    shortName: "Assisted pull-up",
+    family: "pull",
+    equipment: "Pull-up bar and band, or assisted pull-up machine",
+    target: "Lats, upper back, biceps",
+    reps: "6-10",
+    rest: "90 sec",
+    cues: [
+      "Use enough assistance that every rep is smooth and controlled.",
+      "Start from a long-arm hang, pull shoulder blades down, then drive elbows toward your ribs.",
+      "Lower slowly until arms are long again without dropping into the shoulders.",
+    ],
+    avoid: [
+      "Do not kick, swing, or shorten the bottom range.",
+      "Do not use so much assistance that the set feels like cardio.",
+      "Do not crane the neck to clear the bar.",
+    ],
+    progression: "Reduce band or machine assistance gradually while keeping clean vertical pulling mechanics.",
+    motionDemo: {
+      workoutXId: "0017",
+      label: "Assisted pull-up",
+      match: "exact",
+    },
+    youtubeId: "B_VkNQS5YLs",
+    resources: [
+      {
+        label: "NASM band-assisted pull-up",
+        url: "https://www.nasm.org/resource-center/exercise-library/band-assisted-pull-up",
+      },
+      {
+        label: "Macros machine assisted pull-up",
+        url: "https://macrosinc.net/exercises/back/assisted-machine-pull-up/",
+      },
+    ],
+  },
+  "seated-cable-row": {
+    id: "seated-cable-row",
+    name: "Seated Cable Row",
+    shortName: "Seated row",
+    family: "pull",
+    equipment: "Seated cable row machine",
+    target: "Lats, rhomboids, traps, biceps",
+    reps: "8-12",
+    rest: "75-90 sec",
+    cues: [
+      "Sit tall with ribs down, knees softly bent, and arms long at the start.",
+      "Row the handle toward the lower ribs while keeping shoulders away from ears.",
+      "Return with control until the back stretches without rounding forward.",
+    ],
+    avoid: [
+      "Do not lean back and turn each rep into a body swing.",
+      "Do not shrug before the handle moves.",
+      "Do not let the cable pull you into a rounded spine.",
+    ],
+    progression: "Add load only when the torso stays still and every rep finishes with elbows moving behind the body.",
+    motionDemo: {
+      workoutXId: "0861",
+      label: "Cable seated row",
+      match: "exact",
+    },
+    youtubeId: "k0cTJCfxa0Y",
+    resources: [
+      {
+        label: "NASM seated machine row",
+        url: "https://www.nasm.org/resource-center/exercise-library/seated-machine-row-close-grip",
+      },
+      {
+        label: "PureGym seated row machine",
+        url: "https://www.puregym.com/lets-get-started/workout-builder/equipment-how-tos/",
+      },
+    ],
+  },
+  "machine-shoulder-press": {
+    id: "machine-shoulder-press",
+    name: "Machine Shoulder Press",
+    shortName: "Machine shoulder",
+    family: "push",
+    equipment: "Shoulder press machine",
+    target: "Shoulders, triceps, upper chest",
+    reps: "8-12",
+    rest: "75-90 sec",
+    cues: [
+      "Set the seat so handles begin around shoulder or ear height.",
+      "Keep ribs down and press up through a comfortable shoulder path.",
+      "Lower slowly until the handles return to the start without bouncing the stack.",
+    ],
+    avoid: [
+      "Do not arch the low back to finish reps.",
+      "Do not force elbows directly out to the sides if shoulders feel pinched.",
+      "Do not lock out hard or lose control at the bottom.",
+    ],
+    progression: "Use this as the stable vertical press swap. Add load after the same smooth path is repeatable for every set.",
+    motionDemo: {
+      workoutXId: "0603",
+      label: "Lever shoulder press",
+      match: "exact",
+    },
+    youtubeId: "jUB9xk16y5M",
+    resources: [
+      {
+        label: "Muscle & Strength machine shoulder press",
+        url: "https://www.muscleandstrength.com/exercises/machine-shoulder-press",
+      },
+      {
+        label: "PureGym shoulder press machine",
+        url: "https://www.puregym.com/lets-get-started/workout-builder/equipment-how-tos/",
+      },
+    ],
+  },
+  "pec-deck-fly": {
+    id: "pec-deck-fly",
+    name: "Pec Deck Fly",
+    shortName: "Pec deck",
+    family: "push",
+    equipment: "Pec deck or chest fly machine",
+    target: "Chest, front shoulders",
+    reps: "10-15",
+    rest: "60 sec",
+    cues: [
+      "Set the seat so elbows and hands move around chest height.",
+      "Keep chest tall and bring the pads or handles together without turning it into a press.",
+      "Open slowly until the chest stretches while shoulders stay controlled.",
+    ],
+    avoid: [
+      "Do not let shoulders roll forward at the finish.",
+      "Do not overload and shorten the arc.",
+      "Do not bounce out of the stretched position.",
+    ],
+    progression: "Add reps first; increase load only when the fly arc stays smooth and chest-led.",
+    motionDemo: {
+      workoutXId: "0596",
+      label: "Lever seated fly",
+      match: "exact",
+    },
+    youtubeId: "Lw6A9NCwReU",
+    resources: [
+      {
+        label: "FITTR pec deck fly",
+        url: "https://www.fittr.com/exercise-video/lever-pec-deck-fly-13/",
+      },
+      {
+        label: "Live Lean pec deck fly",
+        url: "https://www.liveleantv.com/how-to-do-a-pec-deck-fly/",
       },
     ],
   },
@@ -1145,17 +1368,22 @@ const libraryOrder = [
   "warmup-front-plank",
   "light-practice-sets",
   "leg-press",
-  "incline-db-press",
-  "lat-pulldown",
-  "db-rdl",
-  "front-plank",
   "goblet-squat",
+  "incline-db-press",
+  "machine-chest-press",
+  "lat-pulldown",
+  "assisted-pull-up",
+  "seated-cable-row",
+  "db-rdl",
+  "barbell-rdl",
+  "front-plank",
   "single-arm-row",
   "push-up",
   "seated-db-overhead",
+  "machine-shoulder-press",
   "incline-reverse-fly",
-  "barbell-rdl",
   "cable-chest-fly",
+  "pec-deck-fly",
   "treadmill-finisher",
   "treadmill-walk",
   "cardio-cooldown-walk",
@@ -1278,8 +1506,12 @@ function recommendedSets(planDay: PlanDay, exercise: Exercise, index: number) {
     const item = exerciseMap[id];
     return item && item.family !== "warmup" && item.family !== "cardio";
   });
+  const warmupCount = planDay.session.exerciseIds.filter((id) => {
+    const item = exerciseMap[id];
+    return item?.family === "warmup";
+  }).length;
   const foundWorkingIndex = workingIds.indexOf(exercise.id);
-  const workingIndex = foundWorkingIndex >= 0 ? foundWorkingIndex : index;
+  const workingIndex = foundWorkingIndex >= 0 ? foundWorkingIndex : Math.max(0, index - warmupCount);
 
   if (planDay.week <= 6) return workingIndex < 4 ? 3 : 2;
   if (planDay.week <= 10) return workingIndex === 0 ? 4 : workingIndex < 4 ? 3 : 2;
@@ -1425,6 +1657,29 @@ function tracksWeight(exercise: Exercise) {
   return exercise.logType !== "done";
 }
 
+function activeExerciseFor(originalExercise: Exercise, log: DayLog) {
+  const selectedSwapId = log.swaps?.[originalExercise.id];
+  if (!selectedSwapId || !originalExercise.swapIds?.includes(selectedSwapId)) return originalExercise;
+  return exerciseMap[selectedSwapId] ?? originalExercise;
+}
+
+function swapOptionsFor(exercise: Exercise) {
+  return (exercise.swapIds ?? []).flatMap((id) => (exerciseMap[id] ? [exerciseMap[id]] : []));
+}
+
+function isSwappedExercise(originalExercise: Exercise, log: DayLog) {
+  return activeExerciseFor(originalExercise, log).id !== originalExercise.id;
+}
+
+function parseLoadValue(value: string) {
+  const match = value.replace(",", ".").match(/\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : null;
+}
+
+function formatLoadValue(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, "");
+}
+
 function estimatedCardioMinutes(planDay: PlanDay) {
   if (planDay.session.title === "Cardio Base") return planDay.week >= 15 ? 45 : planDay.week >= 7 ? 40 : 35;
   if (planDay.session.title === "Long Cardio") return planDay.week >= 15 ? 65 : planDay.week >= 7 ? 55 : 45;
@@ -1451,9 +1706,22 @@ function formatClock(iso?: string | null) {
 
 function normalizeStore(value: unknown): TrackerStore | null {
   if (!isRecord(value)) return null;
+  const days = isRecord(value.days)
+    ? Object.entries(value.days).reduce<Record<string, DayLog>>((merged, [date, log]) => {
+        merged[date] = normalizeDayLog(log as DayLog | undefined);
+        return merged;
+      }, {})
+    : {};
+  const metrics = isRecord(value.metrics)
+    ? Object.entries(value.metrics).reduce<Record<string, MetricLog>>((merged, [date, metric]) => {
+        merged[date] = normalizeMetricLogShape(metric as MetricLog | undefined);
+        return merged;
+      }, {})
+    : {};
+
   return {
-    days: isRecord(value.days) ? (value.days as Record<string, DayLog>) : {},
-    metrics: isRecord(value.metrics) ? (value.metrics as Record<string, MetricLog>) : {},
+    days,
+    metrics,
   };
 }
 
@@ -1500,6 +1768,16 @@ function mergeChecks(
   }, {});
 }
 
+function mergeSwaps(
+  cloudSwaps: Record<string, string> = {},
+  localSwaps: Record<string, string> = {},
+) {
+  return {
+    ...cloudSwaps,
+    ...localSwaps,
+  };
+}
+
 function preferFilled(localValue = "", cloudValue = "") {
   return localValue.trim() ? localValue : cloudValue;
 }
@@ -1517,25 +1795,29 @@ function mergeSetRows(cloudRows: SetLog[] = [], localRows: SetLog[] = []) {
 }
 
 function mergeDayLog(cloudLog: DayLog | undefined, localLog: DayLog | undefined) {
-  if (!cloudLog) return localLog ?? createEmptyDay();
-  if (!localLog) return cloudLog;
+  if (!cloudLog) return normalizeDayLog(localLog);
+  if (!localLog) return normalizeDayLog(cloudLog);
 
-  const cloudExercises = cloudLog.exercises ?? {};
-  const localExercises = localLog.exercises ?? {};
+  const normalizedCloudLog = normalizeDayLog(cloudLog);
+  const normalizedLocalLog = normalizeDayLog(localLog);
+
+  const cloudExercises = normalizedCloudLog.exercises;
+  const localExercises = normalizedLocalLog.exercises;
   const exerciseIds = new Set([
     ...Object.keys(cloudExercises),
     ...Object.keys(localExercises),
   ]);
 
   return {
-    completed: Boolean(localLog.completed ?? cloudLog.completed),
-    warmup: mergeChecks(cloudLog.warmup, localLog.warmup),
-    tasks: mergeChecks(cloudLog.tasks, localLog.tasks),
+    completed: Boolean(normalizedLocalLog.completed ?? normalizedCloudLog.completed),
+    warmup: mergeChecks(normalizedCloudLog.warmup, normalizedLocalLog.warmup),
+    tasks: mergeChecks(normalizedCloudLog.tasks, normalizedLocalLog.tasks),
+    swaps: mergeSwaps(normalizedCloudLog.swaps, normalizedLocalLog.swaps),
     exercises: [...exerciseIds].reduce<Record<string, SetLog[]>>((merged, id) => {
       merged[id] = mergeSetRows(cloudExercises[id], localExercises[id]);
       return merged;
     }, {}),
-    notes: preferFilled(localLog.notes, cloudLog.notes),
+    notes: preferFilled(normalizedLocalLog.notes, normalizedCloudLog.notes),
   };
 }
 
@@ -1675,14 +1957,72 @@ function lastExerciseLoad(planDays: PlanDay[], store: TrackerStore, selectedDay:
       .filter(Boolean);
 
     if (weights.length > 0) {
+      const numericLoads = weights
+        .map(parseLoadValue)
+        .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
       return {
         date: formatDate(day.iso, "short"),
         weights: weights.join(", "),
+        maxLoad: numericLoads.length ? Math.max(...numericLoads) : null,
+        allDone: previousRows.length > 0 && previousRows.every((row) => row.done),
       };
     }
   }
 
   return null;
+}
+
+function smartLoadSuggestion(
+  planDays: PlanDay[],
+  store: TrackerStore,
+  selectedDay: PlanDay,
+  exercise: Exercise,
+  exerciseIndex: number,
+) {
+  const setCount = recommendedSets(selectedDay, exercise, exerciseIndex);
+  const target = targetForExercise(selectedDay, exercise);
+
+  if (!tracksWeight(exercise)) {
+    return {
+      label: "Complete clean",
+      detail: `Do ${setCount} ${setCount === 1 ? "round" : "rounds"} at ${target}. Mark it done when form and pace stay controlled.`,
+      tone: "steady",
+    };
+  }
+
+  const previousLoad = lastExerciseLoad(planDays, store, selectedDay, exercise.id);
+
+  if (!previousLoad) {
+    return {
+      label: "Start conservative",
+      detail: `Choose a load you can control for ${setCount} ${setCount === 1 ? "set" : "sets"} of ${target}. The first win is repeatable form.`,
+      tone: "start",
+    };
+  }
+
+  if ((selectedDay.week === 11 || selectedDay.week === 23) && previousLoad.maxLoad) {
+    const low = formatLoadValue(previousLoad.maxLoad * 0.85);
+    const high = formatLoadValue(previousLoad.maxLoad * 0.9);
+    return {
+      label: "Deload load",
+      detail: `Last top logged load was ${previousLoad.weights}. Use about ${low}-${high} today and make every rep smooth.`,
+      tone: "deload",
+    };
+  }
+
+  if (previousLoad.allDone) {
+    return {
+      label: "Hold or nudge up",
+      detail: `Last time was ${previousLoad.weights} on ${previousLoad.date}. Start there; if set 1 feels clean, take the smallest available jump.`,
+      tone: "build",
+    };
+  }
+
+  return {
+    label: "Repeat and own it",
+    detail: `Last logged load was ${previousLoad.weights} on ${previousLoad.date}. Repeat that before increasing.`,
+    tone: "steady",
+  };
 }
 
 function completedRows(rows: SetLog[]) {
@@ -1829,6 +2169,7 @@ export default function Home() {
   const [gymExerciseIndex, setGymExerciseIndex] = useState(0);
   const [libraryFilter, setLibraryFilter] = useState("all");
   const [librarySearch, setLibrarySearch] = useState("");
+  const [detailExerciseId, setDetailExerciseId] = useState<string | null>(null);
   const latestStoreRef = useRef(store);
   const firstLocalSaveRef = useRef(true);
   const suppressLocalChangeMetaRef = useRef(false);
@@ -1841,7 +2182,25 @@ export default function Home() {
 
   useEffect(() => {
     setGymExerciseIndex(0);
+    setDetailExerciseId(null);
   }, [selectedDate]);
+
+  useEffect(() => {
+    if (!detailExerciseId || typeof window === "undefined") return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDetailExerciseId(null);
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [detailExerciseId]);
 
   useEffect(() => {
     latestStoreRef.current = store;
@@ -2026,7 +2385,7 @@ export default function Home() {
 
   const selectedDay =
     planDays.find((day) => day.iso === selectedDate) ?? planDays[0];
-  const selectedLog = store.days[selectedDay.iso] ?? createEmptyDay();
+  const selectedLog = normalizeDayLog(store.days[selectedDay.iso]);
   const selectedMetric = store.metrics[selectedDay.iso] ?? createEmptyMetric();
   const phase = phaseForWeek(selectedDay.week);
   const selectedExercises = selectedDay.session.exerciseIds.flatMap((id) =>
@@ -2075,6 +2434,9 @@ export default function Home() {
         ),
       0,
     );
+    const bodyCheckIns = Object.values(store.metrics).filter(
+      (metric) => metric.weight.trim() || metric.waist.trim() || metric.note.trim(),
+    ).length;
 
     let streak = 0;
     for (let index = selectedDay.index; index >= 0; index -= 1) {
@@ -2087,10 +2449,11 @@ export default function Home() {
       strengthSessions,
       cardioMinutes,
       completedSets,
+      bodyCheckIns,
       streak,
       percent: Math.round((completedDays / PROGRAM_DAYS) * 100),
     };
-  }, [planDays, selectedDay.index, store.days]);
+  }, [planDays, selectedDay.index, store.days, store.metrics]);
 
   const achievements = [
     {
@@ -2127,7 +2490,7 @@ export default function Home() {
 
   const updateDay = (date: string, updater: (log: DayLog) => DayLog) => {
     setStore((current) => {
-      const nextLog = updater(current.days[date] ?? createEmptyDay());
+      const nextLog = updater(normalizeDayLog(current.days[date]));
       return {
         ...current,
         days: {
@@ -2159,7 +2522,9 @@ export default function Home() {
   ) => {
     updateDay(selectedDay.iso, (log) => {
       const exercise = exerciseMap[exerciseId];
-      const exerciseIndex = selectedExercises.findIndex((item) => item.id === exerciseId);
+      const exerciseIndex = selectedExercises.findIndex(
+        (item) => item.id === exerciseId || activeExerciseFor(item, selectedLog).id === exerciseId,
+      );
       const count = Math.max(
         recommendedSets(selectedDay, exercise, exerciseIndex),
         log.exercises[exerciseId]?.length ?? 0,
@@ -2172,6 +2537,39 @@ export default function Home() {
       if (field === "weight" && typeof value === "string" && value.trim()) {
         rows[setIndex].done = true;
       }
+      return {
+        ...log,
+        exercises: {
+          ...log.exercises,
+          [exerciseId]: rows,
+        },
+      };
+    });
+  };
+
+  const setExerciseSwap = (originalExerciseId: string, nextExerciseId: string) => {
+    updateDay(selectedDay.iso, (log) => {
+      const nextSwaps = { ...(log.swaps ?? {}) };
+      if (nextExerciseId === originalExerciseId) {
+        delete nextSwaps[originalExerciseId];
+      } else {
+        nextSwaps[originalExerciseId] = nextExerciseId;
+      }
+
+      return {
+        ...log,
+        swaps: nextSwaps,
+      };
+    });
+  };
+
+  const toggleExerciseDone = (exerciseId: string, setCount: number, isComplete: boolean) => {
+    updateDay(selectedDay.iso, (log) => {
+      const rows = ensureSetRows(log.exercises[exerciseId], setCount).map((row) => ({
+        ...row,
+        done: !isComplete,
+      }));
+
       return {
         ...log,
         exercises: {
@@ -2335,16 +2733,108 @@ export default function Home() {
     .filter((day) => store.days[day.iso]?.completed)
     .slice(-6)
     .reverse();
-  const currentGymExercise = selectedExercises[gymExerciseIndex] ?? null;
-  const currentGymRows =
-    currentGymExercise &&
-    ensureSetRows(
-      selectedLog.exercises[currentGymExercise.id],
-      recommendedSets(selectedDay, currentGymExercise, gymExerciseIndex),
-    );
+  const workoutMoveRows = selectedExercises.map((originalExercise, exerciseIndex) => {
+    const activeExercise = activeExerciseFor(originalExercise, selectedLog);
+    const setCount = recommendedSets(selectedDay, activeExercise, exerciseIndex);
+    const rows = ensureSetRows(selectedLog.exercises[activeExercise.id], setCount);
+    const doneCount = completedRows(rows);
+    const isComplete = rows.length > 0 && doneCount >= rows.length;
+
+    return {
+      originalExercise,
+      activeExercise,
+      exerciseIndex,
+      setCount,
+      rows,
+      doneCount,
+      isComplete,
+      target: targetForExercise(selectedDay, activeExercise),
+      rest: restForExercise(selectedDay, activeExercise),
+      progression: progressionForExercise(selectedDay, activeExercise),
+      suggestion: smartLoadSuggestion(planDays, store, selectedDay, activeExercise, exerciseIndex),
+      swaps: swapOptionsFor(originalExercise),
+      isSwapped: isSwappedExercise(originalExercise, selectedLog),
+    };
+  });
+  const completedMoveCount = workoutMoveRows.filter((move) => move.isComplete).length;
+  const moveCompletionPercent = workoutMoveRows.length
+    ? Math.round((completedMoveCount / workoutMoveRows.length) * 100)
+    : selectedLog.completed
+      ? 100
+      : 0;
+  const completedTaskCount = selectedDay.session.tasks.filter((task) => selectedLog.tasks[task]).length;
+  const taskCompletionPercent = selectedDay.session.tasks.length
+    ? Math.round((completedTaskCount / selectedDay.session.tasks.length) * 100)
+    : 0;
+  const nextOpenMove = workoutMoveRows.find((move) => !move.isComplete) ?? workoutMoveRows[0] ?? null;
+  const currentGymMove = workoutMoveRows[gymExerciseIndex] ?? null;
+  const currentGymExercise = currentGymMove?.activeExercise ?? null;
+  const currentGymOriginalExercise = currentGymMove?.originalExercise ?? null;
+  const currentGymRows = currentGymMove?.rows ?? null;
   const currentGymPreviousLoad = currentGymExercise
     ? lastExerciseLoad(planDays, store, selectedDay, currentGymExercise.id)
     : null;
+  const currentGymTarget = currentGymMove?.target ?? "";
+  const currentGymRest = currentGymMove?.rest ?? "";
+  const currentGymSuggestion = currentGymMove?.suggestion ?? null;
+  const detailMove = detailExerciseId
+    ? workoutMoveRows.find((move) => move.originalExercise.id === detailExerciseId) ?? null
+    : null;
+  const detailExercise = detailMove?.activeExercise ?? null;
+  const detailRows = detailMove?.rows ?? null;
+  const detailPreviousLoad = detailExercise
+    ? lastExerciseLoad(planDays, store, selectedDay, detailExercise.id)
+    : null;
+  const bestLiftRows = libraryOrder
+    .map((id) => {
+      const exercise = exerciseMap[id];
+      if (!exercise || !tracksWeight(exercise)) return null;
+
+      const allLoads = Object.values(store.days).flatMap((log) =>
+        (log.exercises[id] ?? [])
+          .map((row) => parseLoadValue(row.weight))
+          .filter((value): value is number => typeof value === "number" && Number.isFinite(value)),
+      );
+
+      if (!allLoads.length) return null;
+
+      return {
+        id,
+        name: exercise.shortName,
+        load: Math.max(...allLoads),
+        family: exercise.family,
+      };
+    })
+    .filter((item): item is { id: string; name: string; load: number; family: Exercise["family"] } =>
+      Boolean(item),
+    )
+    .sort((a, b) => b.load - a.load)
+    .slice(0, 5);
+  const bodyTrend = useMemo(() => {
+    const entries = Object.entries(store.metrics)
+      .map(([date, metric]) => ({
+        date,
+        weight: parseLoadValue(metric.weight),
+        waist: parseLoadValue(metric.waist),
+      }))
+      .filter((entry) => entry.weight !== null || entry.waist !== null)
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    if (entries.length < 2) return null;
+
+    const first = entries[0];
+    const last = entries[entries.length - 1];
+    const weightDelta =
+      first.weight !== null && last.weight !== null ? last.weight - first.weight : null;
+    const waistDelta = first.waist !== null && last.waist !== null ? last.waist - first.waist : null;
+
+    return {
+      from: formatDate(first.date, "short"),
+      to: formatDate(last.date, "short"),
+      weightDelta,
+      waistDelta,
+    };
+  }, [store.metrics]);
   const activeSectionLabel = {
     today: "Today",
     gym: "Gym Mode",
@@ -2539,7 +3029,7 @@ export default function Home() {
       </section>
 
       <section className="gym-mode-shell" aria-label="Gym mode">
-        {currentGymExercise && currentGymRows ? (
+        {currentGymMove && currentGymExercise && currentGymRows ? (
           <article className={`gym-card ${currentGymExercise.family}`}>
             <div className="gym-topbar">
               <button
@@ -2570,6 +3060,11 @@ export default function Home() {
                   <span className="order-chip">
                     {completedRows(currentGymRows)}/{currentGymRows.length} sets
                   </span>
+                  {currentGymMove.isSwapped && currentGymOriginalExercise && (
+                    <span className="swap-chip">
+                      Swapped from {currentGymOriginalExercise.shortName}
+                    </span>
+                  )}
                 </div>
                 <h2>{currentGymExercise.name}</h2>
                 <p>{currentGymExercise.target}</p>
@@ -2583,11 +3078,11 @@ export default function Home() {
             <div className="gym-target-grid">
               <div>
                 <span>Target</span>
-                <strong>{targetForExercise(selectedDay, currentGymExercise)}</strong>
+                <strong>{currentGymTarget}</strong>
               </div>
               <div>
                 <span>Rest</span>
-                <strong>{restForExercise(selectedDay, currentGymExercise)}</strong>
+                <strong>{currentGymRest}</strong>
               </div>
               <div>
                 <span>Equipment</span>
@@ -2599,12 +3094,39 @@ export default function Home() {
               </div>
             </div>
 
-            {tracksWeight(currentGymExercise) && (
-              <p className="load-suggestion">
-                {currentGymPreviousLoad
-                  ? `Last time was ${currentGymPreviousLoad.weights} on ${currentGymPreviousLoad.date}. Start there, or add the smallest jump if every rep was clean.`
-                  : "First logged session for this move. Choose a load that makes every rep controlled."}
-              </p>
+            {currentGymOriginalExercise && currentGymMove.swaps.length > 0 && (
+              <div className="swap-control-strip" aria-label={`${currentGymOriginalExercise.name} swap options`}>
+                <span>
+                  <Icon name="swap" size={15} /> Swap
+                </span>
+                <button
+                  className={!currentGymMove.isSwapped ? "selected" : ""}
+                  type="button"
+                  onClick={() => setExerciseSwap(currentGymOriginalExercise.id, currentGymOriginalExercise.id)}
+                >
+                  Original
+                </button>
+                {currentGymMove.swaps.map((swap) => (
+                  <button
+                    key={swap.id}
+                    className={currentGymExercise.id === swap.id ? "selected" : ""}
+                    type="button"
+                    onClick={() => setExerciseSwap(currentGymOriginalExercise.id, swap.id)}
+                  >
+                    {swap.shortName}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {currentGymSuggestion && (
+              <div className={`load-suggestion smart-load ${currentGymSuggestion.tone}`}>
+                <Icon name="spark" size={16} />
+                <span>
+                  <strong>{currentGymSuggestion.label}</strong>
+                  <small>{currentGymSuggestion.detail}</small>
+                </span>
+              </div>
             )}
 
             <div className="set-table gym-set-table" aria-label={`${currentGymExercise.name} gym set log`}>
@@ -2617,7 +3139,7 @@ export default function Home() {
               {currentGymRows.map((set, setIndex) => (
                 <div className="set-row" key={`${currentGymExercise.id}-gym-${setIndex}`}>
                   <span>{setIndex + 1}</span>
-                  <strong className="target-pill">{targetForExercise(selectedDay, currentGymExercise)}</strong>
+                  <strong className="target-pill">{currentGymTarget}</strong>
                   {tracksWeight(currentGymExercise) ? (
                     <input
                       inputMode="decimal"
@@ -2708,11 +3230,14 @@ export default function Home() {
       </section>
 
       <div className="layout-grid">
-        <section className="workout-panel" aria-labelledby="today-heading">
-          <div className="section-heading">
+        <section className={`workout-panel today-command-panel ${selectedDay.session.accent}`} aria-labelledby="today-heading">
+          <div className="today-command-header">
             <div>
               <p className="eyebrow">{sessionTypeLabels[selectedDay.session.type]}</p>
               <h2 id="today-heading">{selectedDay.session.title}</h2>
+              <p className="today-command-date">
+                {formatDate(selectedDay.iso)} · Day {selectedDay.index + 1} · {phase.label}
+              </p>
             </div>
             <div className="today-actions">
               {selectedExercises.length > 0 && (
@@ -2735,27 +3260,40 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="session-summary">
-            <div>
-              <span>Time</span>
+          <div className="command-progress-grid">
+            <div className="command-progress-card primary">
+              <span>Move progress</span>
+              <strong>
+                {completedMoveCount}/{workoutMoveRows.length || selectedDay.session.tasks.length}
+              </strong>
+              <div className="progress-track compact">
+                <span style={{ width: `${moveCompletionPercent}%` }} />
+              </div>
+            </div>
+            <div className="command-progress-card">
+              <span>Next</span>
+              <strong>{nextOpenMove?.activeExercise.shortName ?? "Recovery"}</strong>
+              <small>{nextOpenMove?.target ?? selectedDay.session.summary}</small>
+            </div>
+            <div className="command-progress-card">
+              <span>Session</span>
               <strong>{selectedDay.session.time}</strong>
-            </div>
-            <div>
-              <span>Phase</span>
-              <strong>{phase.label}</strong>
-            </div>
-            <div>
-              <span>Sets</span>
-              <strong>{phase.sets}</strong>
+              <small>{phase.sets}</small>
             </div>
           </div>
 
           <p className="plan-note">{selectedDay.session.summary}</p>
           <p className="phase-note">{phase.note}</p>
 
-          <section className="checklist-block" aria-labelledby="tasks-heading">
-            <h3 id="tasks-heading">Today&apos;s Targets</h3>
-            <div className="check-grid">
+          <section className="checklist-block compact-targets" aria-labelledby="tasks-heading">
+            <div className="flow-heading">
+              <h3 id="tasks-heading">Today&apos;s Targets</h3>
+              <span>{completedTaskCount}/{selectedDay.session.tasks.length}</span>
+            </div>
+            <div className="progress-track compact task-track">
+              <span style={{ width: `${taskCompletionPercent}%` }} />
+            </div>
+            <div className="check-grid compact">
               {selectedDay.session.tasks.map((task) => (
                 <label key={task} className="check-row">
                   <input
@@ -2771,130 +3309,72 @@ export default function Home() {
             </div>
           </section>
 
-          {selectedExercises.length > 0 && (
-            <section className="exercise-stack" aria-labelledby="exercise-heading">
+          {workoutMoveRows.length > 0 ? (
+            <section className="exercise-stack compact-flow" aria-labelledby="exercise-heading">
               <div className="flow-heading">
                 <h3 id="exercise-heading">Workout Flow</h3>
-                <span>{selectedExercises.length} moves</span>
+                <span>{completedMoveCount}/{workoutMoveRows.length} complete</span>
               </div>
-              {selectedExercises.map((exercise, exerciseIndex) => {
-                const setCount = recommendedSets(selectedDay, exercise, exerciseIndex);
-                const rows = ensureSetRows(selectedLog.exercises[exercise.id], setCount);
-                const exerciseTarget = targetForExercise(selectedDay, exercise);
-                const exerciseRest = restForExercise(selectedDay, exercise);
-                const exerciseProgression = progressionForExercise(selectedDay, exercise);
-                const hasWeightInput = tracksWeight(exercise);
-                const previousLoad = hasWeightInput
-                  ? lastExerciseLoad(planDays, store, selectedDay, exercise.id)
-                  : null;
-                return (
-                  <article key={exercise.id} className={`exercise-card ${exercise.family}`}>
-                    <div className="exercise-topline">
-                      <div>
-                        <div className="exercise-labels">
-                          <span className="order-chip">Move {exerciseIndex + 1}</span>
-                          <span className="family-chip">{familyLabel(exercise.family)}</span>
-                        </div>
-                        <h4>{exercise.name}</h4>
-                        <p>{exercise.target}</p>
-                      </div>
-                      <div className="rep-box">
-                        <strong>{exerciseTarget}</strong>
-                        <small>{exerciseRest}</small>
-                      </div>
-                    </div>
-
-                    <div className="media-row">
-                      <ExerciseMedia exercise={exercise} planDay={selectedDay} variant="thumb" />
-
-                      <div className="media-resource-stack">
-                        <ExerciseMediaLinks exercise={exercise} compact />
-                        <div className="resource-links">
-                          {exercise.resources.map((resource) => (
-                            <a
-                              key={resource.url}
-                              href={resource.url}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              {resource.label}
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {hasWeightInput && (
-                      <p className="load-suggestion">
-                        {previousLoad
-                          ? `Last time: ${previousLoad.weights} on ${previousLoad.date}. Start there, or add the smallest jump if it felt clean.`
-                          : "First logged session for this move. Start light enough to control every rep."}
-                      </p>
-                    )}
-
-                    <div className="exercise-details-grid">
-                      <details className="form-details">
-                        <summary>How to do it</summary>
-                        <ul>
-                          {exercise.cues.map((cue) => (
-                            <li key={cue}>{cue}</li>
-                          ))}
-                        </ul>
-                      </details>
-                      <details className="form-details">
-                        <summary>Common mistakes</summary>
-                        <ul>
-                          {exercise.avoid.map((cue) => (
-                            <li key={cue}>{cue}</li>
-                          ))}
-                        </ul>
-                      </details>
-                      <details className="form-details progression-details">
-                        <summary>Progression</summary>
-                        <p>{exerciseProgression}</p>
-                      </details>
-                    </div>
-
-                    <div className="set-table" aria-label={`${exercise.name} set log`}>
-                      <div className="set-head">
-                        <span>Set</span>
-                        <span>Target</span>
-                        <span>Weight</span>
-                        <span>Done</span>
-                      </div>
-                      {rows.map((set, setIndex) => (
-                        <div className="set-row" key={`${exercise.id}-${setIndex}`}>
-                          <span>{setIndex + 1}</span>
-                          <strong className="target-pill">{exerciseTarget}</strong>
-                          {hasWeightInput ? (
-                            <input
-                              inputMode="decimal"
-                              value={set.weight}
-                              placeholder="lb/kg"
-                              onChange={(event) =>
-                                updateSet(exercise.id, setIndex, "weight", event.target.value)
-                              }
-                              aria-label={`${exercise.name} set ${setIndex + 1} weight`}
-                            />
-                          ) : (
-                            <span className="load-pill">{exercise.loadLabel ?? "body"}</span>
-                          )}
-                          <label className="mini-check">
-                            <input
-                              type="checkbox"
-                              checked={set.done}
-                              onChange={(event) =>
-                                updateSet(exercise.id, setIndex, "done", event.target.checked)
-                              }
-                            />
-                            <span />
-                          </label>
-                        </div>
-                      ))}
-                    </div>
+              <div className="move-list">
+                {workoutMoveRows.map((move) => (
+                  <article
+                    key={move.originalExercise.id}
+                    className={`move-item ${move.activeExercise.family} ${
+                      move.isComplete ? "complete" : ""
+                    } ${nextOpenMove?.originalExercise.id === move.originalExercise.id ? "next-up" : ""}`}
+                  >
+                    <button
+                      className="move-check-button"
+                      type="button"
+                      onClick={() =>
+                        toggleExerciseDone(move.activeExercise.id, move.setCount, move.isComplete)
+                      }
+                      aria-label={`${move.isComplete ? "Reopen" : "Complete"} ${move.activeExercise.name}`}
+                    >
+                      {move.isComplete ? <Icon name="check" size={18} /> : move.exerciseIndex + 1}
+                    </button>
+                    <button
+                      className="move-main-button"
+                      type="button"
+                      onClick={() => setDetailExerciseId(move.originalExercise.id)}
+                    >
+                      <span className="move-title-row">
+                        <strong>{move.activeExercise.name}</strong>
+                        <span className="family-chip">{familyLabel(move.activeExercise.family)}</span>
+                        {move.isSwapped && <span className="swap-chip">Swap active</span>}
+                      </span>
+                      {move.isSwapped && (
+                        <small className="swap-origin">Original: {move.originalExercise.name}</small>
+                      )}
+                      <span className="move-meta-row">
+                        <span>{move.target}</span>
+                        <span>{move.rest}</span>
+                        <span>{move.activeExercise.equipment}</span>
+                      </span>
+                      <span className={`smart-load-mini ${move.suggestion.tone}`}>
+                        <Icon name="spark" size={14} />
+                        <span>
+                          <strong>{move.suggestion.label}</strong>
+                          <small>{move.suggestion.detail}</small>
+                        </span>
+                      </span>
+                    </button>
+                    <button
+                      className="move-detail-button"
+                      type="button"
+                      onClick={() => setDetailExerciseId(move.originalExercise.id)}
+                    >
+                      <Icon name={move.swaps.length ? "swap" : "video"} size={16} />
+                      <span>{move.swaps.length ? "Details / Swap" : "Details"}</span>
+                    </button>
                   </article>
-                );
-              })}
+                ))}
+              </div>
+            </section>
+          ) : (
+            <section className="recovery-flow" aria-label="Recovery day">
+              <h3>Recovery Day</h3>
+              <p>{selectedDay.session.summary}</p>
             </section>
           )}
 
@@ -3027,6 +3507,73 @@ export default function Home() {
                   <small>{achievement.detail}</small>
                 </div>
               ))}
+            </div>
+          </section>
+
+          <section className="metric-panel progress-card dashboard-card">
+            <div className="section-heading compact">
+              <div>
+                <p className="eyebrow">
+                  <Icon name="progress" size={14} /> Progress Dashboard
+                </p>
+                <h2>Training picture</h2>
+              </div>
+            </div>
+            <div className="dashboard-stat-grid">
+              <div className="dashboard-stat strength">
+                <span>Program</span>
+                <strong>{stats.percent}%</strong>
+                <small>{stats.completedDays} of {PROGRAM_DAYS} days</small>
+              </div>
+              <div className="dashboard-stat cardio">
+                <span>Cardio</span>
+                <strong>{stats.cardioMinutes}</strong>
+                <small>estimated minutes</small>
+              </div>
+              <div className="dashboard-stat sets">
+                <span>Sets</span>
+                <strong>{stats.completedSets}</strong>
+                <small>completed rows</small>
+              </div>
+              <div className="dashboard-stat body">
+                <span>Body checks</span>
+                <strong>{stats.bodyCheckIns}</strong>
+                <small>logged check-ins</small>
+              </div>
+            </div>
+
+            <div className="dashboard-split">
+              <div className="best-load-panel">
+                <h3>Best logged loads</h3>
+                {bestLiftRows.length > 0 ? (
+                  <div className="best-load-list">
+                    {bestLiftRows.map((lift) => (
+                      <div key={lift.id} className={`best-load-row ${lift.family}`}>
+                        <span>{lift.name}</span>
+                        <strong>{formatLoadValue(lift.load)}</strong>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="side-copy">Weights appear here after your first logged sets.</p>
+                )}
+              </div>
+              <div className="body-trend-panel">
+                <h3>Body trend</h3>
+                {bodyTrend ? (
+                  <div className="trend-list">
+                    <span>{bodyTrend.from} to {bodyTrend.to}</span>
+                    <strong>
+                      Weight {bodyTrend.weightDelta === null ? "n/a" : `${formatLoadValue(bodyTrend.weightDelta)} kg`}
+                    </strong>
+                    <strong>
+                      Waist {bodyTrend.waistDelta === null ? "n/a" : `${formatLoadValue(bodyTrend.waistDelta)} cm`}
+                    </strong>
+                  </div>
+                ) : (
+                  <p className="side-copy">Two body check-ins unlock the trend.</p>
+                )}
+              </div>
             </div>
           </section>
 
@@ -3193,6 +3740,192 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {detailMove && detailExercise && detailRows && (
+        <div
+          className="detail-sheet-backdrop"
+          role="presentation"
+          onClick={() => setDetailExerciseId(null)}
+        >
+          <section
+            className={`exercise-detail-sheet ${detailExercise.family}`}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="detail-heading"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="sheet-handle" />
+            <div className="detail-sheet-header">
+              <div>
+                <p className="eyebrow">Exercise Detail</p>
+                <h2 id="detail-heading">{detailExercise.name}</h2>
+                {detailMove.isSwapped && (
+                  <p>Swapped from {detailMove.originalExercise.name}</p>
+                )}
+              </div>
+              <button
+                className="sheet-close-button"
+                type="button"
+                onClick={() => setDetailExerciseId(null)}
+                aria-label="Close exercise details"
+              >
+                <Icon name="x" size={20} />
+              </button>
+            </div>
+
+            <div className="detail-media-grid">
+              <div className="detail-media-panel">
+                <ExerciseMedia exercise={detailExercise} planDay={selectedDay} variant="gym" />
+                <ExerciseMediaLinks exercise={detailExercise} />
+                <div className="resource-links detail-resources">
+                  {detailExercise.resources.map((resource) => (
+                    <a key={resource.url} href={resource.url} target="_blank" rel="noreferrer">
+                      {resource.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              <div className="detail-fact-grid">
+                <div>
+                  <span>Target</span>
+                  <strong>{detailMove.target}</strong>
+                </div>
+                <div>
+                  <span>Rest</span>
+                  <strong>{detailMove.rest}</strong>
+                </div>
+                <div>
+                  <span>Equipment</span>
+                  <strong>{detailExercise.equipment}</strong>
+                </div>
+                <div>
+                  <span>Last load</span>
+                  <strong>{detailPreviousLoad?.weights ?? "New"}</strong>
+                </div>
+              </div>
+            </div>
+
+            {detailMove.swaps.length > 0 && (
+              <section className="swap-panel" aria-labelledby="swap-heading">
+                <div className="flow-heading">
+                  <h3 id="swap-heading">Swap Options</h3>
+                  <span>{detailMove.swaps.length} legit</span>
+                </div>
+                <div className="swap-option-grid">
+                  <button
+                    className={!detailMove.isSwapped ? "selected" : ""}
+                    type="button"
+                    onClick={() =>
+                      setExerciseSwap(detailMove.originalExercise.id, detailMove.originalExercise.id)
+                    }
+                  >
+                    <strong>Use original</strong>
+                    <small>{detailMove.originalExercise.name}</small>
+                    <span>{detailMove.originalExercise.equipment}</span>
+                  </button>
+                  {detailMove.swaps.map((swap) => (
+                    <button
+                      key={swap.id}
+                      className={detailExercise.id === swap.id ? "selected" : ""}
+                      type="button"
+                      onClick={() => setExerciseSwap(detailMove.originalExercise.id, swap.id)}
+                    >
+                      <strong>{swap.name}</strong>
+                      <small>{swap.target}</small>
+                      <span>{swap.equipment}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <div className={`load-suggestion smart-load ${detailMove.suggestion.tone}`}>
+              <Icon name="spark" size={16} />
+              <span>
+                <strong>{detailMove.suggestion.label}</strong>
+                <small>{detailMove.suggestion.detail}</small>
+              </span>
+            </div>
+
+            <div className="detail-details-grid">
+              <details className="form-details" open>
+                <summary>How to do it</summary>
+                <ul>
+                  {detailExercise.cues.map((cue) => (
+                    <li key={cue}>{cue}</li>
+                  ))}
+                </ul>
+              </details>
+              <details className="form-details">
+                <summary>Common mistakes</summary>
+                <ul>
+                  {detailExercise.avoid.map((cue) => (
+                    <li key={cue}>{cue}</li>
+                  ))}
+                </ul>
+              </details>
+              <details className="form-details progression-details">
+                <summary>Progression</summary>
+                <p>{detailMove.progression}</p>
+              </details>
+            </div>
+
+            <div className="set-table detail-set-table" aria-label={`${detailExercise.name} detail set log`}>
+              <div className="set-head">
+                <span>Set</span>
+                <span>Target</span>
+                <span>Weight</span>
+                <span>Done</span>
+              </div>
+              {detailRows.map((set, setIndex) => (
+                <div className="set-row" key={`${detailExercise.id}-detail-${setIndex}`}>
+                  <span>{setIndex + 1}</span>
+                  <strong className="target-pill">{detailMove.target}</strong>
+                  {tracksWeight(detailExercise) ? (
+                    <input
+                      inputMode="decimal"
+                      value={set.weight}
+                      placeholder="lb/kg"
+                      onChange={(event) =>
+                        updateSet(detailExercise.id, setIndex, "weight", event.target.value)
+                      }
+                      aria-label={`${detailExercise.name} set ${setIndex + 1} weight`}
+                    />
+                  ) : (
+                    <span className="load-pill">{detailExercise.loadLabel ?? "body"}</span>
+                  )}
+                  <label className="mini-check">
+                    <input
+                      type="checkbox"
+                      checked={set.done}
+                      onChange={(event) =>
+                        updateSet(detailExercise.id, setIndex, "done", event.target.checked)
+                      }
+                    />
+                    <span />
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            <div className="sheet-action-row">
+              <button
+                type="button"
+                onClick={() =>
+                  toggleExerciseDone(detailExercise.id, detailMove.setCount, detailMove.isComplete)
+                }
+              >
+                <Icon name="check" size={17} />
+                {detailMove.isComplete ? "Reopen Move" : "Complete Move"}
+              </button>
+              <button className="secondary" type="button" onClick={() => setDetailExerciseId(null)}>
+                Close
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
 
       <nav className="bottom-nav" aria-label="Main app sections">
         {navItems.map(({ id, label, icon }) => (

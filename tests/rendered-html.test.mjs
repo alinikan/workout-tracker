@@ -43,6 +43,11 @@ test("includes researched movement resources and autosave controls", async () =>
     "Single-Arm Dumbbell Row",
     "Seated Dumbbell Overhead Press",
     "Standing Cable Chest Fly",
+    "Machine Chest Press",
+    "Band-Assisted Pull-Up",
+    "Seated Cable Row",
+    "Machine Shoulder Press",
+    "Pec Deck Fly",
     "Treadmill Easy Walk",
     "Warm-Up Front Plank",
     "Light Practice Sets",
@@ -61,10 +66,18 @@ test("includes researched movement resources and autosave controls", async () =>
     "Show YouTube",
     "Completion trend",
     "Weekly consistency",
-    "Last time:",
+    "Exercise Detail",
+    "Swap Options",
+    "Use original",
+    "smartLoadSuggestion",
+    "Hold or nudge up",
+    "Progress Dashboard",
+    "dashboard-stat-grid",
+    "activeExerciseFor",
+    "workoutMoveRows",
     "bottom-nav",
     "section-tabs",
-    "Move {exerciseIndex + 1}",
+    "move.exerciseIndex + 1",
     "gym-action-label",
     "Weight",
   ]) {
@@ -136,6 +149,11 @@ test("includes API-backed autoplay exercise GIF support", async () => {
   assert.match(app, /workoutXId: "0314"/);
   assert.match(app, /workoutXId: "1459"/);
   assert.match(app, /workoutXId: "0227"/);
+  assert.match(app, /workoutXId: "0577"/);
+  assert.match(app, /workoutXId: "0017"/);
+  assert.match(app, /workoutXId: "0861"/);
+  assert.match(app, /workoutXId: "0603"/);
+  assert.match(app, /workoutXId: "0596"/);
   assert.match(app, /aria-pressed=\{isShowingGif\}/);
   assert.match(app, /setShowGif\(\(current\) => !current\)/);
   assert.match(app, /setGifFailed\(true\)/);
@@ -180,6 +198,11 @@ test("includes installable app assets", async () => {
   assert.match(styles, /display-mode: standalone/);
   assert.match(styles, /safe-area-inset-bottom/);
   assert.match(styles, /--gym-action-bar-height/);
+  assert.match(styles, /--focus-teal/);
+  assert.match(styles, /--focus-coral/);
+  assert.match(styles, /detail-sheet-backdrop/);
+  assert.match(styles, /move-list/);
+  assert.match(styles, /swap-option-grid/);
   assert.match(styles, /section-today\.app-shell/);
   assert.match(styles, /section-gym\.app-shell/);
   assert.match(styles, /overflow-x: clip/);
@@ -193,7 +216,8 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v6/);
+  assert.match(serviceWorker, /recomp-gym-console-v7/);
+  assert.match(serviceWorker, /product-polish-swaps-v7/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
