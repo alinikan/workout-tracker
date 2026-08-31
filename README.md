@@ -86,9 +86,9 @@ Because the gym is downstairs, the app now separates movements by where they mak
 - **Upstairs OK:** bodyweight or mat-based prep such as bodyweight squats, hip-hinge drills, warm-up planks, and mobility. Do these first in your unit only if you can head downstairs soon after.
 - **Downstairs:** treadmill work, lift-specific ramp warm-ups, machines, dumbbells, and cable work. These either need the downstairs equipment or should happen immediately before the lift.
 - **Downstairs/outside:** cardio walks that can use the downstairs treadmill or an outdoor route.
-- **Either:** bodyweight/mat work that appears later in the lifting flow, such as front planks, dead bugs, or push-ups. Staying downstairs is usually smoother, but upstairs is okay if you keep the transition short and do not cool down.
+- **Either:** bodyweight/mat work that appears after the downstairs treadmill finisher, such as front planks and dead bugs. Staying downstairs is usually smoother, but upstairs is okay because the downstairs equipment work is already done.
 
-Trainer rule: do not do upstairs prep, get distracted, and then start heavy sets cold downstairs. The upstairs work should lead directly into the downstairs treadmill and ramp warm-ups.
+Trainer rule: start with the Upstairs OK moves in your unit, then go downstairs for the treadmill warm-up, ramp sets, lifting, and treadmill finisher. After that, the remaining Either floor work can be done upstairs or downstairs.
 
 Why this split is allowed: NSCA describes warm-ups as general work plus more specific movement prep before training, and ACE describes movement prep as controlled movement that raises readiness before harder work. The app uses that logic by allowing low-equipment bodyweight prep upstairs, then keeping treadmill work, ramp sets, and loaded exercises downstairs where they can happen immediately before lifting.
 

@@ -672,7 +672,7 @@ const exerciseMap: Record<string, Exercise> = {
     family: "cardio",
     equipment: "Treadmill",
     trainingLocation: "downstairs",
-    locationNote: "Keep this downstairs after lifting so the session finishes in one clean flow.",
+    locationNote: "Do this downstairs after lifting and before the final floor core block, so you can head upstairs afterward if you want.",
     target: "Post-lift moderate cardio",
     reps: "10 min brisk",
     rest: "After lifting",
@@ -1145,8 +1145,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Push-up",
     family: "push",
     equipment: "Bodyweight or bench",
-    trainingLocation: "either",
-    locationNote: "Either place is possible, but during Strength B it is usually smoother to stay downstairs with the rest of the session.",
+    trainingLocation: "downstairs",
+    locationNote: "Do this downstairs when it appears in Strength B because it sits inside the main lifting block.",
     target: "Chest, shoulders, triceps, core",
     reps: "6-15",
     rest: "60-75 sec",
@@ -1523,7 +1523,7 @@ const weeklySchedule: Record<string, SessionTemplate> = {
     type: "strength",
     code: "A",
     time: "60-85 min",
-    summary: "Phase-scaled warm-up, two specific ramp warm-ups, full-body weights, dead bugs, and a brisk treadmill finisher.",
+    summary: "Phase-scaled warm-up, two specific ramp warm-ups, full-body weights, a brisk treadmill finisher, then floor core work.",
     accent: "strength-a",
     exerciseIds: [
       ...strengthWarmupIds,
@@ -1533,9 +1533,9 @@ const weeklySchedule: Record<string, SessionTemplate> = {
       "incline-db-press",
       "lat-pulldown",
       "db-rdl",
+      "treadmill-finisher",
       "front-plank",
       "dead-bug",
-      "treadmill-finisher",
     ],
     tasks: ["Follow every move in order", "Log weights in pounds", "Keep every rep clean and stop before form breaks"],
     finisher: "Brisk treadmill walk at talk-test pace; duration progresses by phase.",
@@ -1555,7 +1555,7 @@ const weeklySchedule: Record<string, SessionTemplate> = {
     type: "strength",
     code: "B",
     time: "65-90 min",
-    summary: "Phase-scaled warm-up, two specific ramp warm-ups, full-body weights, direct arms, dead bugs, and a brisk treadmill finisher.",
+    summary: "Phase-scaled warm-up, two specific ramp warm-ups, full-body weights, direct arms, a brisk treadmill finisher, then floor core work.",
     accent: "strength-b",
     exerciseIds: [
       ...strengthWarmupIds,
@@ -1566,11 +1566,11 @@ const weeklySchedule: Record<string, SessionTemplate> = {
       "push-up",
       "seated-db-overhead",
       "incline-reverse-fly",
-      "front-plank",
       "dumbbell-biceps-curl",
       "rope-triceps-pressdown",
-      "dead-bug",
       "treadmill-finisher",
+      "front-plank",
+      "dead-bug",
     ],
     tasks: ["Follow every move in order", "Log weights in pounds", "Keep every rep clean and stop before form breaks"],
     finisher: "Brisk treadmill walk at talk-test pace; duration progresses by phase.",
@@ -1590,7 +1590,7 @@ const weeklySchedule: Record<string, SessionTemplate> = {
     type: "strength",
     code: "C",
     time: "65-90 min",
-    summary: "Phase-scaled warm-up, two specific ramp warm-ups, full-body weights, direct arms, dead bugs, and a brisk treadmill finisher.",
+    summary: "Phase-scaled warm-up, two specific ramp warm-ups, full-body weights, direct arms, a brisk treadmill finisher, then floor core work.",
     accent: "strength-c",
     exerciseIds: [
       ...strengthWarmupIds,
@@ -1601,11 +1601,11 @@ const weeklySchedule: Record<string, SessionTemplate> = {
       "lat-pulldown",
       "barbell-rdl",
       "cable-chest-fly",
-      "front-plank",
       "dumbbell-biceps-curl",
       "rope-triceps-pressdown",
-      "dead-bug",
       "treadmill-finisher",
+      "front-plank",
+      "dead-bug",
     ],
     tasks: ["Follow every move in order", "Log weights in pounds", "Keep every rep clean and stop before form breaks"],
     finisher: "Brisk treadmill walk at talk-test pace; duration progresses by phase.",
@@ -2531,7 +2531,7 @@ function locationGuideForExercise(exercise: Exercise) {
 
 function locationFlowNoteForDay(planDay: PlanDay) {
   if (planDay.session.type === "strength") {
-    return "Do Upstairs OK prep first in your unit only if you can head downstairs right after. Then do the downstairs treadmill warm-up and ramp sets before lifting. If a later Either move would make you go up and back down, do it downstairs.";
+    return "Start with the Upstairs OK moves in your unit, then go downstairs for the treadmill warm-up, ramp sets, lifting, and treadmill finisher. After that, Either floor work can be upstairs or downstairs.";
   }
 
   if (planDay.session.type === "movement") {

@@ -133,6 +133,15 @@ test("extends the PDF progression to roughly 6 months", async () => {
     page,
     /const strengthWarmupIds = \[\s*"bodyweight-squat",\s*"hip-hinge-drill",\s*"incline-push-up",\s*"warmup-front-plank",\s*"warmup-treadmill-walk",\s*\]/,
   );
+  assert.match(page, /"db-rdl",\s*"treadmill-finisher",\s*"front-plank",\s*"dead-bug"/);
+  assert.match(
+    page,
+    /"incline-reverse-fly",\s*"dumbbell-biceps-curl",\s*"rope-triceps-pressdown",\s*"treadmill-finisher",\s*"front-plank",\s*"dead-bug"/,
+  );
+  assert.match(
+    page,
+    /"cable-chest-fly",\s*"dumbbell-biceps-curl",\s*"rope-triceps-pressdown",\s*"treadmill-finisher",\s*"front-plank",\s*"dead-bug"/,
+  );
 });
 
 test("includes Supabase cloud sync with protected schema", async () => {
@@ -258,12 +267,12 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v11/);
-  assert.match(serviceWorker, /home-gym-location-v11/);
+  assert.match(serviceWorker, /recomp-gym-console-v12/);
+  assert.match(serviceWorker, /finisher-before-either-v12/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
   assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
-  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v10/);
+  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v11/);
 });
