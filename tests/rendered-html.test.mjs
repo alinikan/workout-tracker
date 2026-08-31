@@ -91,7 +91,6 @@ test("includes researched movement resources and autosave controls", async () =>
     "Arms",
     "8-12 each side",
     "direct arms",
-    "Inline video",
     "youtube-nocookie.com/embed",
     "sessionTimeForDay",
     "warmupTarget",
@@ -100,7 +99,7 @@ test("includes researched movement resources and autosave controls", async () =>
     assert.match(page, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
 
-  assert.doesNotMatch(page, /Reps\/sec|RIR|Daily Foundations|Export JSON|Import|Light Practice Sets|lb\/kg/);
+  assert.doesNotMatch(page, /Reps\/sec|RIR|Daily Foundations|Export JSON|Import|Light Practice Sets|lb\/kg|Inline video/);
   assert.doesNotMatch(page, /Starts Tuesday/);
   assert.match(page, /acefitness\.org/);
   assert.match(page, /nasm\.org/);
@@ -244,8 +243,8 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v9/);
-  assert.match(serviceWorker, /progressive-warmups-inline-video-v9/);
+  assert.match(serviceWorker, /recomp-gym-console-v10/);
+  assert.match(serviceWorker, /clean-inline-video-v10/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);

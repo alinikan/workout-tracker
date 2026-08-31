@@ -2582,10 +2582,6 @@ function ExerciseMedia({
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
           />
-          <span className="motion-badge">
-            <Icon name="video" size={variant === "gym" ? 16 : 14} />
-            Inline video
-          </span>
         </div>
       ) : (
         <div className={className}>

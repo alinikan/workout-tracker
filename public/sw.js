@@ -1,5 +1,5 @@
-const CACHE_NAME = "recomp-gym-console-v9";
-const APP_VERSION = "2026-08-31-progressive-warmups-inline-video-v9";
+const CACHE_NAME = "recomp-gym-console-v10";
+const APP_VERSION = "2026-08-31-clean-inline-video-v10";
 const APP_FALLBACK_URL = "/";
 
 const CORE_ASSETS = [
