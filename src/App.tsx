@@ -26,6 +26,12 @@ type Resource = {
   url: string;
 };
 
+type MotionDemo = {
+  workoutXId: string;
+  label: string;
+  match: "exact" | "reference";
+};
+
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   const commonProps = {
     width: size,
@@ -97,6 +103,7 @@ type Exercise = {
   cues: string[];
   avoid: string[];
   progression: string;
+  motionDemo?: MotionDemo;
   youtubeId?: string;
   logType?: "weight" | "done";
   loadLabel?: string;
@@ -159,8 +166,9 @@ type PlanDay = {
 
 const STORAGE_KEY = "body-recomp-gym-tracker-v1";
 const STORAGE_META_KEY = "body-recomp-gym-tracker-meta-v1";
-const START_DATE = "2026-08-25";
+const START_DATE = "2026-08-31";
 const PROGRAM_DAYS = 182;
+const WORKOUTX_DOCS_URL = "https://workoutxapp.com/docs.html";
 
 const strengthWarmupIds = [
   "warmup-treadmill-walk",
@@ -210,6 +218,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not hold the treadmill rails unless you need balance.",
     ],
     progression: "Keep this easy every time; progression belongs in the workout, not the warm-up.",
+    motionDemo: {
+      workoutXId: "3666",
+      label: "Walking on incline treadmill",
+      match: "reference",
+    },
     logType: "done",
     loadLabel: "easy pace",
     resources: [
@@ -238,6 +251,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not hold the treadmill rails unless you need balance.",
     ],
     progression: "Add 5 minutes per week or a small incline before chasing speed.",
+    motionDemo: {
+      workoutXId: "3666",
+      label: "Walking on incline treadmill",
+      match: "exact",
+    },
     logType: "done",
     loadLabel: "pace",
     resources: [
@@ -266,6 +284,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not use the cool-down as extra hard cardio.",
     ],
     progression: "Keep this easy; the goal is recovery between sessions.",
+    motionDemo: {
+      workoutXId: "3666",
+      label: "Walking on incline treadmill",
+      match: "reference",
+    },
     logType: "done",
     loadLabel: "easy pace",
     resources: [
@@ -294,6 +317,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not chase incline if it changes your posture or bothers your knees.",
     ],
     progression: "Build duration first, then add a small incline if recovery is good.",
+    motionDemo: {
+      workoutXId: "3666",
+      label: "Walking on incline treadmill",
+      match: "exact",
+    },
     logType: "done",
     loadLabel: "pace",
     resources: [
@@ -319,6 +347,11 @@ const exerciseMap: Record<string, Exercise> = {
     ],
     avoid: ["Knees collapsing inward.", "Rounding the low back at the bottom."],
     progression: "Move slowly enough that every rep looks the same.",
+    motionDemo: {
+      workoutXId: "1685",
+      label: "Squat to overhead reach",
+      match: "reference",
+    },
     youtubeId: "UYbsgiiZgao",
     logType: "done",
     loadLabel: "body",
@@ -345,6 +378,11 @@ const exerciseMap: Record<string, Exercise> = {
     ],
     avoid: ["Squatting the drill.", "Reaching down by rounding your back."],
     progression: "Use the same pattern before every Romanian deadlift set.",
+    motionDemo: {
+      workoutXId: "0044",
+      label: "Hip-hinge pattern reference",
+      match: "reference",
+    },
     youtubeId: "sinpFajtRPw",
     logType: "done",
     loadLabel: "body",
@@ -375,6 +413,11 @@ const exerciseMap: Record<string, Exercise> = {
     ],
     avoid: ["Sagging hips.", "Elbows flaring straight out."],
     progression: "Lower the bench height gradually as strength improves.",
+    motionDemo: {
+      workoutXId: "0493",
+      label: "Incline push-up",
+      match: "exact",
+    },
     youtubeId: "0JUrOH--Kdk",
     logType: "done",
     loadLabel: "body",
@@ -401,6 +444,11 @@ const exerciseMap: Record<string, Exercise> = {
     ],
     avoid: ["Holding your breath.", "Sagging hips.", "Turning it into a max plank test."],
     progression: "Keep the warm-up plank at 20 seconds; progress the main plank later.",
+    motionDemo: {
+      workoutXId: "0464",
+      label: "Front plank reference",
+      match: "reference",
+    },
     youtubeId: "GgOnCjmyTfY",
     logType: "done",
     loadLabel: "body",
@@ -435,6 +483,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not skip setup just because the load is light.",
     ],
     progression: "As working weights rise, keep practice sets light enough to feel crisp.",
+    motionDemo: {
+      workoutXId: "0739",
+      label: "Practice-set reference",
+      match: "reference",
+    },
     logType: "done",
     loadLabel: "light",
     resources: [
@@ -463,6 +516,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not hold the rails to force a higher incline.",
     ],
     progression: "Keep it at 10 minutes; add a small incline only if recovery stays good.",
+    motionDemo: {
+      workoutXId: "3666",
+      label: "Walking on incline treadmill",
+      match: "exact",
+    },
     logType: "done",
     loadLabel: "pace",
     resources: [
@@ -492,6 +550,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not turn recovery work into a hard workout.",
     ],
     progression: "Add a few minutes only if it helps you feel better for the next lift.",
+    motionDemo: {
+      workoutXId: "1604",
+      label: "World's greatest stretch",
+      match: "reference",
+    },
     logType: "done",
     loadLabel: "easy",
     resources: [
@@ -521,6 +584,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not let hips lift off the pad.",
     ],
     progression: "When all sets hit the top of the rep range cleanly, add the smallest available load next time.",
+    motionDemo: {
+      workoutXId: "0739",
+      label: "Sled 45 degree leg press",
+      match: "exact",
+    },
     youtubeId: "cDGOn-yfKJA",
     resources: [
       {
@@ -556,6 +624,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not arch the low back to chase heavier weight.",
     ],
     progression: "Add load only after every set reaches 12 clean reps with stable shoulders.",
+    motionDemo: {
+      workoutXId: "0314",
+      label: "Dumbbell incline bench press",
+      match: "exact",
+    },
     youtubeId: "JKnpHchOWPU",
     resources: [
       {
@@ -588,6 +661,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not yank with momentum.",
     ],
     progression: "Add load only when the bar path stays smooth and your chest stays proud.",
+    motionDemo: {
+      workoutXId: "2330",
+      label: "Cable lat pulldown",
+      match: "exact",
+    },
     youtubeId: "NbHnnvHkajg",
     resources: [
       {
@@ -624,6 +702,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not let dumbbells drift away from your legs.",
     ],
     progression: "When 12s are crisp at the same depth, move up one dumbbell size.",
+    motionDemo: {
+      workoutXId: "1459",
+      label: "Dumbbell Romanian deadlift",
+      match: "exact",
+    },
     youtubeId: "V8Hdl1FiNt4",
     resources: [
       {
@@ -652,6 +735,11 @@ const exerciseMap: Record<string, Exercise> = {
     ],
     avoid: ["Holding your breath.", "Letting hips sag.", "Shrugging shoulders into ears."],
     progression: "Add 5 seconds only when the current hold is clean.",
+    motionDemo: {
+      workoutXId: "0464",
+      label: "Front plank reference",
+      match: "reference",
+    },
     youtubeId: "mwlp75MS6Rg",
     logType: "done",
     loadLabel: "body",
@@ -690,6 +778,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not turn it into a good morning.",
     ],
     progression: "Add weight after every set reaches 12 with the same depth and posture.",
+    motionDemo: {
+      workoutXId: "1760",
+      label: "Dumbbell goblet squat",
+      match: "exact",
+    },
     youtubeId: "nfX7IFK9UNI",
     resources: [
       {
@@ -722,6 +815,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not throw the weight upward.",
     ],
     progression: "Increase when both sides hit 12 reps without torso rotation.",
+    motionDemo: {
+      workoutXId: "0292",
+      label: "Dumbbell one-arm bent-over row",
+      match: "exact",
+    },
     youtubeId: "k0cTJCfxa0Y",
     resources: [
       {
@@ -750,6 +848,11 @@ const exerciseMap: Record<string, Exercise> = {
     ],
     avoid: ["Sagging hips.", "Flaring elbows straight out.", "Half reps just to add reps."],
     progression: "First earn 15 clean incline reps, then lower the surface or move to floor reps.",
+    motionDemo: {
+      workoutXId: "0662",
+      label: "Push-up",
+      match: "exact",
+    },
     youtubeId: "WDIpL0pjun0",
     logType: "done",
     loadLabel: "body",
@@ -788,6 +891,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not lock out hard at the top.",
     ],
     progression: "Add load only when every rep has a stable rib cage and smooth descent.",
+    motionDemo: {
+      workoutXId: "0405",
+      label: "Dumbbell seated shoulder press",
+      match: "exact",
+    },
     resources: [
       {
         label: "ACE guide",
@@ -819,6 +927,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not use a weight that turns the set into swinging.",
     ],
     progression: "Progress slowly; clean 15s matter more than heavier dumbbells here.",
+    motionDemo: {
+      workoutXId: "0326",
+      label: "Dumbbell incline rear lateral raise",
+      match: "exact",
+    },
     resources: [
       {
         label: "ACE guide",
@@ -846,6 +959,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not add load faster than your hinge skill improves.",
     ],
     progression: "Use dumbbells until the hinge is automatic; then try the bar if setup is safe.",
+    motionDemo: {
+      workoutXId: "0085",
+      label: "Barbell Romanian deadlift",
+      match: "exact",
+    },
     youtubeId: "V8Hdl1FiNt4",
     resources: [
       {
@@ -878,6 +996,11 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not stretch beyond control.",
     ],
     progression: "Add reps first; increase weight only when the arc stays smooth.",
+    motionDemo: {
+      workoutXId: "0227",
+      label: "Cable standing fly",
+      match: "exact",
+    },
     youtubeId: "XY6JrX1wyxk",
     resources: [
       {
@@ -1473,6 +1596,10 @@ function youtubeThumb(id?: string) {
   return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : "";
 }
 
+function workoutXGifUrl(workoutXId?: string) {
+  return workoutXId ? `/api/workoutx-gif?id=${encodeURIComponent(workoutXId)}` : "";
+}
+
 async function fetchCloudStore(userId: string) {
   if (!supabase) return { store: { days: {}, metrics: {} }, updatedAt: null };
 
@@ -1561,6 +1688,119 @@ function lastExerciseLoad(planDays: PlanDay[], store: TrackerStore, selectedDay:
 
 function completedRows(rows: SetLog[]) {
   return rows.filter((row) => row.done).length;
+}
+
+function firstWeightedExerciseForDay(planDay?: PlanDay) {
+  if (!planDay) return null;
+
+  const firstWeightedId = planDay.session.exerciseIds.find((id) => {
+    const item = exerciseMap[id];
+    return item ? tracksWeight(item) : false;
+  });
+
+  return firstWeightedId ? exerciseMap[firstWeightedId] : null;
+}
+
+function motionDemoForExercise(exercise: Exercise, planDay?: PlanDay) {
+  if (exercise.id !== "light-practice-sets") return exercise.motionDemo;
+
+  const firstWeightedMove = firstWeightedExerciseForDay(planDay);
+  if (!firstWeightedMove?.motionDemo) return exercise.motionDemo;
+
+  return {
+    ...firstWeightedMove.motionDemo,
+    label: `Practice-set reference: ${firstWeightedMove.shortName}`,
+    match: "reference" as const,
+  };
+}
+
+function ExerciseMedia({
+  exercise,
+  planDay,
+  variant,
+}: {
+  exercise: Exercise;
+  planDay?: PlanDay;
+  variant: "gym" | "thumb" | "library";
+}) {
+  const [gifFailed, setGifFailed] = useState(false);
+  const demo = gifFailed ? undefined : motionDemoForExercise(exercise, planDay);
+  const className = `exercise-media exercise-media-${variant} ${
+    demo ? "has-gif" : exercise.youtubeId ? "has-video" : "placeholder"
+  }`;
+
+  if (demo) {
+    return (
+      <div className={className}>
+        <img
+          className="exercise-gif"
+          src={workoutXGifUrl(demo.workoutXId)}
+          alt={`${exercise.name}: ${demo.label} animated demonstration`}
+          loading={variant === "gym" ? "eager" : "lazy"}
+          decoding="async"
+          onError={() => setGifFailed(true)}
+        />
+        <span className="motion-badge">
+          <Icon name="video" size={variant === "gym" ? 16 : 14} />
+          {demo.match === "exact" ? "GIF demo" : "Reference GIF"}
+        </span>
+      </div>
+    );
+  }
+
+  if (exercise.youtubeId) {
+    return (
+      <a
+        className={className}
+        href={youtubeUrl(exercise.youtubeId)}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={`Watch ${exercise.name} video`}
+      >
+        <img src={youtubeThumb(exercise.youtubeId)} alt="" loading="lazy" />
+        <span className="motion-badge">
+          <Icon name="video" size={variant === "gym" ? 16 : 14} />
+          Video
+        </span>
+      </a>
+    );
+  }
+
+  return (
+    <div className={className}>
+      <span className="motion-badge">Guide</span>
+    </div>
+  );
+}
+
+function ExerciseMediaLinks({
+  exercise,
+  planDay,
+  compact = false,
+}: {
+  exercise: Exercise;
+  planDay?: PlanDay;
+  compact?: boolean;
+}) {
+  const demo = motionDemoForExercise(exercise, planDay);
+
+  if (!demo && !exercise.youtubeId) return null;
+
+  return (
+    <div className={`media-actions ${compact ? "compact-media-actions" : ""}`}>
+      {exercise.youtubeId && (
+        <a href={youtubeUrl(exercise.youtubeId)} target="_blank" rel="noreferrer">
+          <Icon name="video" size={14} /> YouTube
+        </a>
+      )}
+      {demo && (
+        <a href={WORKOUTX_DOCS_URL} target="_blank" rel="noreferrer">
+          <Icon name="activity" size={14} />
+          {demo.match === "exact" ? "GIF source" : "GIF reference"}
+        </a>
+      )}
+    </div>
+  );
 }
 
 export default function Home() {
@@ -2330,24 +2570,10 @@ export default function Home() {
                 <h2>{currentGymExercise.name}</h2>
                 <p>{currentGymExercise.target}</p>
               </div>
-              {currentGymExercise.youtubeId ? (
-                <a
-                  className="gym-video"
-                  href={youtubeUrl(currentGymExercise.youtubeId)}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={`Watch ${currentGymExercise.name} video`}
-                >
-                  <img src={youtubeThumb(currentGymExercise.youtubeId)} alt="" loading="lazy" />
-                  <span>
-                    <Icon name="video" size={16} /> Watch
-                  </span>
-                </a>
-              ) : (
-                <div className="gym-video placeholder">
-                  <span>Guide</span>
-                </div>
-              )}
+              <div className="gym-media-stack">
+                <ExerciseMedia exercise={currentGymExercise} planDay={selectedDay} variant="gym" />
+                <ExerciseMediaLinks exercise={currentGymExercise} planDay={selectedDay} />
+              </div>
             </div>
 
             <div className="gym-target-grid">
@@ -2575,32 +2801,22 @@ export default function Home() {
                     </div>
 
                     <div className="media-row">
-                      {exercise.youtubeId ? (
-                        <a
-                          className="video-thumb"
-                          href={youtubeUrl(exercise.youtubeId)}
-                          target="_blank"
-                          rel="noreferrer"
-                          aria-label={`Watch ${exercise.name} video`}
-                        >
-                          <img src={youtubeThumb(exercise.youtubeId)} alt="" loading="lazy" />
-                          <span>Watch</span>
-                        </a>
-                      ) : (
-                        <div className="video-placeholder">Guide</div>
-                      )}
+                      <ExerciseMedia exercise={exercise} planDay={selectedDay} variant="thumb" />
 
-                      <div className="resource-links">
-                        {exercise.resources.map((resource) => (
-                          <a
-                            key={resource.url}
-                            href={resource.url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            {resource.label}
-                          </a>
-                        ))}
+                      <div className="media-resource-stack">
+                        <ExerciseMediaLinks exercise={exercise} planDay={selectedDay} compact />
+                        <div className="resource-links">
+                          {exercise.resources.map((resource) => (
+                            <a
+                              key={resource.url}
+                              href={resource.url}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {resource.label}
+                            </a>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
@@ -2929,15 +3145,9 @@ export default function Home() {
           {filteredLibrary.map((exercise) => (
             <article key={exercise.id} className={`library-card ${exercise.family}`}>
               <div className="library-media">
-                {exercise.youtubeId ? (
-                  <a href={youtubeUrl(exercise.youtubeId)} target="_blank" rel="noreferrer">
-                    <img src={youtubeThumb(exercise.youtubeId)} alt="" loading="lazy" />
-                    <span>Video</span>
-                  </a>
-                ) : (
-                  <span className="library-no-video">Guide</span>
-                )}
+                <ExerciseMedia exercise={exercise} variant="library" />
               </div>
+              <ExerciseMediaLinks exercise={exercise} compact />
               <span className="family-chip">{familyLabel(exercise.family)}</span>
               <h3>{exercise.name}</h3>
               <p>{exercise.target}</p>

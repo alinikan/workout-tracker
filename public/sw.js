@@ -1,5 +1,5 @@
-const CACHE_NAME = "recomp-gym-console-v3";
-const APP_VERSION = "2026-08-25-pwa-standalone-v3";
+const CACHE_NAME = "recomp-gym-console-v5";
+const APP_VERSION = "2026-08-31-motion-gifs-v5";
 const APP_FALLBACK_URL = "/";
 
 const CORE_ASSETS = [

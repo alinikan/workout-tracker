@@ -16,7 +16,7 @@ test("ships the finished workout tracker instead of the starter preview", async 
   ]);
 
   assert.match(app, /Recomp Gym Console/);
-  assert.match(app, /START_DATE = "2026-08-25"/);
+  assert.match(app, /START_DATE = "2026-08-31"/);
   assert.match(app, /PROGRAM_DAYS = 182/);
   assert.match(app, /Strength A/);
   assert.match(app, /Cardio Base/);
@@ -54,6 +54,10 @@ test("includes researched movement resources and autosave controls", async () =>
     "Workout Flow",
     "Jump to week",
     "Selected workout day",
+    "ExerciseMedia",
+    "motionDemo",
+    "workoutXGifUrl",
+    "Reference GIF",
     "Completion trend",
     "Weekly consistency",
     "Last time:",
@@ -67,7 +71,7 @@ test("includes researched movement resources and autosave controls", async () =>
   }
 
   assert.doesNotMatch(page, /Reps\/sec|RIR|Daily Foundations|Export JSON|Import/);
-  assert.doesNotMatch(page, /Starts Tuesday, Aug 25, 2026/);
+  assert.doesNotMatch(page, /Starts Tuesday/);
   assert.match(page, /acefitness\.org/);
   assert.match(page, /nasm\.org/);
   assert.match(page, /youtube\.com/);
@@ -117,10 +121,33 @@ test("includes Supabase cloud sync with protected schema", async () => {
   assert.match(schema, /with check \(\(select auth\.uid\(\)\) = user_id\)/);
 });
 
-test("starts Aug 25 on the PDF Monday workout slot and ignores scratch folders", async () => {
+test("includes API-backed autoplay exercise GIF support", async () => {
+  const [app, apiRoute, envExample, readme] = await Promise.all([
+    text("src/App.tsx"),
+    text("api/workoutx-gif.js"),
+    text(".env.example"),
+    text("README.md"),
+  ]);
+
+  assert.match(app, /motionDemoForExercise/);
+  assert.match(app, /\/api\/workoutx-gif\?id=/);
+  assert.match(app, /workoutXId: "0739"/);
+  assert.match(app, /workoutXId: "0314"/);
+  assert.match(app, /workoutXId: "1459"/);
+  assert.match(app, /workoutXId: "0227"/);
+  assert.match(app, /onError=\{\(\) => setGifFailed\(true\)\}/);
+  assert.match(apiRoute, /process\.env\.WORKOUTX_API_KEY/);
+  assert.match(apiRoute, /api\.workoutxapp\.com\/v1\/gifs/);
+  assert.match(apiRoute, /X-WorkoutX-Key/);
+  assert.match(envExample, /WORKOUTX_API_KEY/);
+  assert.match(readme, /Optional Autoplay GIF Setup/);
+  assert.match(readme, /npx vercel dev/);
+});
+
+test("starts Aug 31 on the PDF Monday workout slot and ignores scratch folders", async () => {
   const [page, viteConfig] = await Promise.all([text("src/App.tsx"), text("vite.config.ts")]);
 
-  assert.match(page, /START_DATE = "2026-08-25"/);
+  assert.match(page, /START_DATE = "2026-08-31"/);
   assert.match(page, /const scheduleOrder = \[/);
   assert.match(page, /planDayName: planName/);
   assert.match(viteConfig, /\*\*\/work\/\*\*/);
@@ -161,7 +188,7 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v3/);
+  assert.match(serviceWorker, /recomp-gym-console-v5/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);

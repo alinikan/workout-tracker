@@ -11,6 +11,7 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
 - Compact Today day picker so you can choose any day in the current week or jump weeks without leaving Today.
 - Gym Mode with one move at a time, large video access, set logging, previous/next move controls, and a complete-set action.
 - Ordered workout cards so you can follow each day from move 1 to the final move, including warm-ups and finishers.
+- Autoplaying exercise GIF panels for the workout flow, Gym Mode, and Move Library when a WorkoutX key is configured.
 - Previous-load suggestions that show the last logged weights for each weighted exercise.
 - Strength-day logging with only weight and completion checks. Reps, time, rest, and cardio targets are shown by phase, not entered by you.
 - Dynamic set and target recommendations from the PDF:
@@ -39,6 +40,8 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
 - Browser `localStorage` for local fallback persistence
 - Supabase Auth for email + password sign-in
 - Supabase Postgres with Row Level Security for cloud progress
+- Vercel serverless function for private WorkoutX GIF proxying
+- WorkoutX exercise GIF API for optional autoplaying movement demos
 - Vercel-ready static deployment
 
 ## Important Data Note
@@ -50,6 +53,81 @@ For true cross-device sync, configure Supabase and sign in with the same email o
 Important limitation: the cloud sync needs the same deployed app URL and the same Supabase account. If you use a different Vercel preview URL, a different Supabase project, or a different email login, it will behave like a separate account.
 
 iPhone Home Screen note: email + password sign-in happens directly inside the Home Screen app. It does not depend on a magic link opening in the right browser.
+
+## Optional Autoplay GIF Setup
+
+The app has GIF support built in for every workout move. GIFs are loaded through `api/workoutx-gif.js`, which keeps your WorkoutX key private on Vercel. The browser only sees same-origin URLs such as `/api/workoutx-gif?id=0739`.
+
+Why this uses a proxy: WorkoutX requires an API key, and browser image tags cannot safely attach private request headers. Do not put the key in a `VITE_` variable.
+
+### 1. Get a WorkoutX key
+
+1. Go to [WorkoutX](https://workoutxapp.com/).
+2. Create a developer account.
+3. Choose the free Exercise API plan if you only need the included monthly quota.
+4. Copy your API key from the developer dashboard.
+
+WorkoutX says the free plan includes 500 requests/month and GIF animations. Successful GIF responses are cached by the browser service worker and by Vercel, but the free quota can still be used up if you browse many moves on several devices.
+
+### 2. Add the key locally
+
+If you already created `.env.local`, open it and add this line:
+
+```bash
+WORKOUTX_API_KEY=YOUR_WORKOUTX_API_KEY
+```
+
+If you have not created `.env.local` yet:
+
+```bash
+cd /Users/alinikan/Documents/Codex/2026-08-24/i-w
+cp .env.example .env.local
+```
+
+Then fill in Supabase plus WorkoutX:
+
+```bash
+VITE_SUPABASE_URL=https://YOUR-PROJECT-REF.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
+WORKOUTX_API_KEY=YOUR_WORKOUTX_API_KEY
+```
+
+### 3. Test GIFs locally
+
+Normal Vite local dev still works:
+
+```bash
+npm run dev
+```
+
+However, Vite does not run Vercel serverless functions by itself, so GIFs will fall back to YouTube/resource links in plain `npm run dev`.
+
+To test the GIF proxy locally, run the app through Vercel's local dev server:
+
+```bash
+npx vercel dev
+```
+
+Open the local URL printed by Vercel. With `WORKOUTX_API_KEY` in `.env.local`, the GIF panels should autoplay in Today, Gym Mode, and the Library.
+
+### 4. Add the key in Vercel
+
+1. Open your `workout-tracker` project in Vercel.
+2. Go to **Settings -> Environment Variables**.
+3. Add a variable named `WORKOUTX_API_KEY`.
+4. Paste the WorkoutX key as the value.
+5. Select **Production**, and optionally **Preview** if you test preview deployments.
+6. Save.
+7. Redeploy the site.
+
+On iPhone, delete and re-add the Home Screen app only if it keeps an old cached version after deployment. The GIFs are normal image assets from your own domain, so they autoplay in Safari, Chrome, and iPhone Home Screen mode.
+
+### Current GIF Matching
+
+Most plan movements use exact ExerciseDB-style IDs. A few warm-up/recovery items are intentionally labeled as reference GIFs because they are movement patterns rather than one exact lift.
+
+- Exact GIFs: treadmill walking, incline push-up, leg press, incline dumbbell press, lat pulldown, dumbbell Romanian deadlift, goblet squat, one-arm dumbbell row, push-up, seated dumbbell shoulder press, incline rear lateral raise, barbell Romanian deadlift, cable standing fly.
+- Reference GIFs: easy treadmill warm-up, cool-down walk, bodyweight squat warm-up, hip-hinge drill, warm-up/front plank, light practice sets, mobility flow.
 
 ## Run on a MacBook
 
@@ -254,6 +332,14 @@ VITE_SUPABASE_PUBLISHABLE_KEY
 
 Use the same values from your local `.env.local`.
 
+For autoplay GIF demos, also add this optional server-only variable:
+
+```text
+WORKOUTX_API_KEY
+```
+
+Use the key from your WorkoutX developer dashboard. This key should not start with `VITE_`.
+
 ### Deploy through the Vercel dashboard
 
 1. Create a GitHub repository.
@@ -266,9 +352,10 @@ Use the same values from your local `.env.local`.
 8. Install command: `npm install`.
 9. Output directory: `dist`.
 10. Add the two Supabase environment variables above.
-11. Click **Deploy**.
-12. Copy the deployed production URL.
-13. Add that URL to Supabase **Authentication -> URL Configuration** as the Site URL and as an allowed redirect URL.
+11. Add `WORKOUTX_API_KEY` if you want the GIF panels to autoplay on the live site.
+12. Click **Deploy**.
+13. Copy the deployed production URL.
+14. Add that URL to Supabase **Authentication -> URL Configuration** as the Site URL and as an allowed redirect URL.
 
 ### Push to GitHub from Terminal
 
@@ -308,6 +395,7 @@ For CLI deployment with cloud sync, add Vercel environment variables first:
 ```bash
 npx vercel env add VITE_SUPABASE_URL production
 npx vercel env add VITE_SUPABASE_PUBLISHABLE_KEY production
+npx vercel env add WORKOUTX_API_KEY production
 ```
 
 Then deploy:
@@ -335,8 +423,9 @@ In this project, `npm run lint` reuses the Vite production build gate. `npm run 
 - `src/lib/supabaseClient.ts` - optional Supabase browser client with validation so cloud config mistakes show in the app instead of causing a blank screen.
 - `src/styles.css` - the responsive visual system and mobile layout.
 - `src/main.tsx` - the React entry point.
+- `api/workoutx-gif.js` - Vercel serverless GIF proxy that keeps the WorkoutX API key out of browser code.
 - `index.html` - metadata, PWA manifest, app icon, and social card configuration.
-- `.env.example` - template for local Supabase environment variables.
+- `.env.example` - template for local Supabase and optional WorkoutX environment variables.
 - `supabase/schema.sql` - Supabase table, Row Level Security policies, grants, and update timestamp trigger.
 - `public/manifest.json` - installable app metadata.
 - `public/sw.js` - lightweight service worker that keeps installable-app assets cached while fetching fresh Vercel page HTML after deployments.
@@ -403,14 +492,14 @@ The app uses concise, paraphrased exercise cues based on the PDF plus reputable 
 Most plan data is in `src/App.tsx`:
 
 - Change `START_DATE` to shift the whole 182-day program.
-- Edit `scheduleOrder` to change the PDF day order that starts on Aug 25.
+- Edit `scheduleOrder` to change the PDF day order that starts on Aug 31.
 - Edit `exerciseMap` to change cues, resources, videos, reps, or rest times.
 - Edit `recommendedSets()`, `targetForExercise()`, and `phaseForWeek()` to change progression logic.
 
 If you change the start date, use `YYYY-MM-DD` format:
 
 ```ts
-const START_DATE = "2026-08-25";
+const START_DATE = "2026-08-31";
 ```
 
 ## Safety Note
@@ -478,6 +567,25 @@ Read the error text in the panel first. Most sync errors come from missing Row L
 ### YouTube thumbnails do not load
 
 The tracker still works. The resource links need internet access because they point to YouTube, ACE, NASM, Mayo Clinic, PureGym, and CDC.
+
+### GIF panels show video/resource fallbacks
+
+That means `WORKOUTX_API_KEY` is missing, invalid, over quota, or the app is running through plain `npm run dev` instead of `npx vercel dev`.
+
+To fix the deployed site:
+
+1. Open Vercel.
+2. Go to **Settings -> Environment Variables**.
+3. Confirm `WORKOUTX_API_KEY` exists in Production.
+4. Redeploy.
+5. Reopen the site or Home Screen app.
+
+To test locally with GIFs:
+
+```bash
+cd /Users/alinikan/Documents/Codex/2026-08-24/i-w
+npx vercel dev
+```
 
 ### Vercel deploys but the Home Screen app has old data
 
