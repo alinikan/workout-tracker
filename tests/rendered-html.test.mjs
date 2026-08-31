@@ -57,7 +57,8 @@ test("includes researched movement resources and autosave controls", async () =>
     "ExerciseMedia",
     "motionDemo",
     "workoutXGifUrl",
-    "Reference GIF",
+    "Show GIF",
+    "Show YouTube",
     "Completion trend",
     "Weekly consistency",
     "Last time:",
@@ -135,12 +136,16 @@ test("includes API-backed autoplay exercise GIF support", async () => {
   assert.match(app, /workoutXId: "0314"/);
   assert.match(app, /workoutXId: "1459"/);
   assert.match(app, /workoutXId: "0227"/);
-  assert.match(app, /onError=\{\(\) => setGifFailed\(true\)\}/);
+  assert.match(app, /aria-pressed=\{isShowingGif\}/);
+  assert.match(app, /setShowGif\(\(current\) => !current\)/);
+  assert.match(app, /setGifFailed\(true\)/);
+  assert.match(app, /setShowGif\(false\)/);
+  assert.match(app, /YouTube/);
   assert.match(apiRoute, /process\.env\.WORKOUTX_API_KEY/);
   assert.match(apiRoute, /api\.workoutxapp\.com\/v1\/gifs/);
   assert.match(apiRoute, /X-WorkoutX-Key/);
   assert.match(envExample, /WORKOUTX_API_KEY/);
-  assert.match(readme, /Optional Autoplay GIF Setup/);
+  assert.match(readme, /Optional GIF Demo Setup/);
   assert.match(readme, /npx vercel dev/);
 });
 
@@ -188,7 +193,7 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v5/);
+  assert.match(serviceWorker, /recomp-gym-console-v6/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);

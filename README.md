@@ -11,7 +11,7 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
 - Compact Today day picker so you can choose any day in the current week or jump weeks without leaving Today.
 - Gym Mode with one move at a time, large video access, set logging, previous/next move controls, and a complete-set action.
 - Ordered workout cards so you can follow each day from move 1 to the final move, including warm-ups and finishers.
-- Autoplaying exercise GIF panels for the workout flow, Gym Mode, and Move Library when a WorkoutX key is configured.
+- YouTube-first media panels with an optional **Show GIF** button for autoplaying movement demos when a WorkoutX key is configured.
 - Previous-load suggestions that show the last logged weights for each weighted exercise.
 - Strength-day logging with only weight and completion checks. Reps, time, rest, and cardio targets are shown by phase, not entered by you.
 - Dynamic set and target recommendations from the PDF:
@@ -54,9 +54,11 @@ Important limitation: the cloud sync needs the same deployed app URL and the sam
 
 iPhone Home Screen note: email + password sign-in happens directly inside the Home Screen app. It does not depend on a magic link opening in the right browser.
 
-## Optional Autoplay GIF Setup
+## Optional GIF Demo Setup
 
-The app has GIF support built in for every workout move. GIFs are loaded through `api/workoutx-gif.js`, which keeps your WorkoutX key private on Vercel. The browser only sees same-origin URLs such as `/api/workoutx-gif?id=0739`.
+The app has GIF support built in for every workout move. YouTube remains the default visual guide. Tap **Show GIF** in Gym Mode, Today, or the Move Library when you want the short looping form demo.
+
+GIFs are loaded through `api/workoutx-gif.js`, which keeps your WorkoutX key private on Vercel. The browser only sees same-origin URLs such as `/api/workoutx-gif?id=0739`.
 
 Why this uses a proxy: WorkoutX requires an API key, and browser image tags cannot safely attach private request headers. Do not put the key in a `VITE_` variable.
 
@@ -108,7 +110,7 @@ To test the GIF proxy locally, run the app through Vercel's local dev server:
 npx vercel dev
 ```
 
-Open the local URL printed by Vercel. With `WORKOUTX_API_KEY` in `.env.local`, the GIF panels should autoplay in Today, Gym Mode, and the Library.
+Open the local URL printed by Vercel. With `WORKOUTX_API_KEY` in `.env.local`, tap **Show GIF** on any exercise. The GIF should replace the media panel and autoplay.
 
 ### 4. Add the key in Vercel
 
@@ -120,7 +122,7 @@ Open the local URL printed by Vercel. With `WORKOUTX_API_KEY` in `.env.local`, t
 6. Save.
 7. Redeploy the site.
 
-On iPhone, delete and re-add the Home Screen app only if it keeps an old cached version after deployment. The GIFs are normal image assets from your own domain, so they autoplay in Safari, Chrome, and iPhone Home Screen mode.
+On iPhone, delete and re-add the Home Screen app only if it keeps an old cached version after deployment. The GIFs are normal image assets from your own domain, so they autoplay after tapping **Show GIF** in Safari, Chrome, and iPhone Home Screen mode.
 
 ### Current GIF Matching
 
@@ -352,7 +354,7 @@ Use the key from your WorkoutX developer dashboard. This key should not start wi
 8. Install command: `npm install`.
 9. Output directory: `dist`.
 10. Add the two Supabase environment variables above.
-11. Add `WORKOUTX_API_KEY` if you want the GIF panels to autoplay on the live site.
+11. Add `WORKOUTX_API_KEY` if you want the **Show GIF** buttons to load GIFs on the live site.
 12. Click **Deploy**.
 13. Copy the deployed production URL.
 14. Add that URL to Supabase **Authentication -> URL Configuration** as the Site URL and as an allowed redirect URL.
@@ -568,7 +570,7 @@ Read the error text in the panel first. Most sync errors come from missing Row L
 
 The tracker still works. The resource links need internet access because they point to YouTube, ACE, NASM, Mayo Clinic, PureGym, and CDC.
 
-### GIF panels show video/resource fallbacks
+### Show GIF does not display an animation
 
 That means `WORKOUTX_API_KEY` is missing, invalid, over quota, or the app is running through plain `npm run dev` instead of `npx vercel dev`.
 

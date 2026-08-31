@@ -1722,52 +1722,69 @@ function ExerciseMedia({
   planDay?: PlanDay;
   variant: "gym" | "thumb" | "library";
 }) {
+  const [showGif, setShowGif] = useState(false);
   const [gifFailed, setGifFailed] = useState(false);
-  const demo = gifFailed ? undefined : motionDemoForExercise(exercise, planDay);
+  const demo = motionDemoForExercise(exercise, planDay);
+  const canShowGif = Boolean(demo && !gifFailed);
+  const isShowingGif = Boolean(canShowGif && showGif);
   const className = `exercise-media exercise-media-${variant} ${
-    demo ? "has-gif" : exercise.youtubeId ? "has-video" : "placeholder"
+    isShowingGif ? "has-gif" : exercise.youtubeId ? "has-video" : "placeholder"
   }`;
 
-  if (demo) {
-    return (
-      <div className={className}>
-        <img
-          className="exercise-gif"
-          src={workoutXGifUrl(demo.workoutXId)}
-          alt={`${exercise.name}: ${demo.label} animated demonstration`}
-          loading={variant === "gym" ? "eager" : "lazy"}
-          decoding="async"
-          onError={() => setGifFailed(true)}
-        />
-        <span className="motion-badge">
-          <Icon name="video" size={variant === "gym" ? 16 : 14} />
-          {demo.match === "exact" ? "GIF demo" : "Reference GIF"}
-        </span>
-      </div>
-    );
-  }
-
-  if (exercise.youtubeId) {
-    return (
-      <a
-        className={className}
-        href={youtubeUrl(exercise.youtubeId)}
-        target="_blank"
-        rel="noreferrer"
-        aria-label={`Watch ${exercise.name} video`}
-      >
-        <img src={youtubeThumb(exercise.youtubeId)} alt="" loading="lazy" />
-        <span className="motion-badge">
-          <Icon name="video" size={variant === "gym" ? 16 : 14} />
-          Video
-        </span>
-      </a>
-    );
-  }
-
   return (
-    <div className={className}>
-      <span className="motion-badge">Guide</span>
+    <div
+      className={`exercise-media-shell exercise-media-shell-${variant} ${
+        isShowingGif ? "showing-gif" : "showing-video"
+      }`}
+    >
+      {isShowingGif && demo ? (
+        <div className={className}>
+          <img
+            className="exercise-gif"
+            src={workoutXGifUrl(demo.workoutXId)}
+            alt={`${exercise.name}: ${demo.label} animated demonstration`}
+            loading={variant === "gym" ? "eager" : "lazy"}
+            decoding="async"
+            onError={() => {
+              setGifFailed(true);
+              setShowGif(false);
+            }}
+          />
+        </div>
+      ) : exercise.youtubeId ? (
+        <a
+          className={className}
+          href={youtubeUrl(exercise.youtubeId)}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`Watch ${exercise.name} video`}
+        >
+          <img src={youtubeThumb(exercise.youtubeId)} alt="" loading="lazy" />
+          <span className="motion-badge">
+            <Icon name="video" size={variant === "gym" ? 16 : 14} />
+            YouTube
+          </span>
+        </a>
+      ) : (
+        <div className={className}>
+          <span className="motion-badge">Guide</span>
+        </div>
+      )}
+
+      {canShowGif && demo && (
+        <div className="gif-controls">
+          <button
+            className={`gif-toggle-button ${isShowingGif ? "active" : ""}`}
+            type="button"
+            onClick={() => setShowGif((current) => !current)}
+            aria-pressed={isShowingGif}
+          >
+            <Icon name={isShowingGif ? "video" : "activity"} size={14} />
+            {isShowingGif ? (exercise.youtubeId ? "Show YouTube" : "Hide GIF") : "Show GIF"}
+          </button>
+          <span>{demo.match === "exact" ? "Exact demo" : "Reference demo"}</span>
+        </div>
+      )}
     </div>
   );
 }
