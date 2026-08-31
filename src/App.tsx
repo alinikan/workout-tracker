@@ -101,7 +101,7 @@ type Exercise = {
   id: string;
   name: string;
   shortName: string;
-  family: "legs" | "push" | "pull" | "hinge" | "core" | "warmup" | "cardio";
+  family: "legs" | "push" | "pull" | "hinge" | "core" | "arms" | "warmup" | "cardio";
   equipment: string;
   target: string;
   reps: string;
@@ -789,6 +789,131 @@ const exerciseMap: Record<string, Exercise> = {
       },
     ],
   },
+  "dead-bug": {
+    id: "dead-bug",
+    name: "Dead Bug",
+    shortName: "Dead bug",
+    family: "core",
+    equipment: "Mat or open floor",
+    target: "Dynamic abs, deep core, anti-extension control",
+    reps: "8-12 each side",
+    rest: "45-60 sec",
+    cues: [
+      "Lie on your back with arms up and hips and knees bent to 90 degrees.",
+      "Exhale, bring ribs down, and keep the low back gently connected to the floor.",
+      "Extend one arm and the opposite leg slowly, then return and alternate sides.",
+    ],
+    avoid: [
+      "Do not let the low back arch away from the floor.",
+      "Do not rush the reps or twist through the hips.",
+      "Do not extend farther than you can control.",
+    ],
+    progression: "Add reps first, then slow the tempo or reach longer only while your ribs stay down.",
+    motionDemo: {
+      workoutXId: "0276",
+      label: "Dead bug",
+      match: "exact",
+    },
+    youtubeId: "bxn9FBrt4-A",
+    logType: "done",
+    loadLabel: "body",
+    resources: [
+      {
+        label: "NASM dead bug",
+        url: "https://www.nasm.org/resource-center/exercise-library/dead-bug",
+      },
+      {
+        label: "NASM core programming",
+        url: "https://www.nasm.org/resource-center/blog/training/best-abs-exercises",
+      },
+    ],
+  },
+  "dumbbell-biceps-curl": {
+    id: "dumbbell-biceps-curl",
+    name: "Dumbbell Biceps Curl",
+    shortName: "DB curl",
+    family: "arms",
+    equipment: "Dumbbells",
+    target: "Biceps, brachialis, forearms",
+    reps: "10-15",
+    rest: "60 sec",
+    cues: [
+      "Stand or sit tall with dumbbells at your sides and palms facing forward.",
+      "Keep elbows close to your body and curl smoothly without swinging.",
+      "Lower under control until the arms are long and wrists stay straight.",
+    ],
+    avoid: [
+      "Do not lean back or swing the dumbbells to start the rep.",
+      "Do not let elbows drift far forward before the curl finishes.",
+      "Do not bend the wrists to force extra range.",
+    ],
+    progression: "Use small load jumps only after every set reaches 15 clean reps without swinging.",
+    motionDemo: {
+      workoutXId: "0416",
+      label: "Dumbbell standing biceps curl",
+      match: "exact",
+    },
+    youtubeId: "2k9co4UIlEw",
+    resources: [
+      {
+        label: "FITTR dumbbell curl video",
+        url: "https://coaching.fittr.com/exercise-video/dumbbell-bicep-curls-192/",
+      },
+      {
+        label: "ACE seated biceps curl",
+        url: "https://www.acefitness.org/resources/everyone/exercise-library/44/seated-biceps-curl/",
+      },
+      {
+        label: "Mayo biceps curl",
+        url: "https://www.mayoclinic.org/healthy-lifestyle/fitness/multimedia/biceps-curl/vid-20084675",
+      },
+      {
+        label: "NASM arm exercise guide",
+        url: "https://www.nasm.org/resource-center/blog/training/9-of-the-best-arm-sculpting-exercises-to-tone-and-strengthen",
+      },
+    ],
+  },
+  "rope-triceps-pressdown": {
+    id: "rope-triceps-pressdown",
+    name: "Cable Rope Triceps Pressdown",
+    shortName: "Rope pressdown",
+    family: "arms",
+    equipment: "Cable machine and rope attachment",
+    target: "Triceps",
+    reps: "10-15",
+    rest: "60 sec",
+    cues: [
+      "Set the pulley high, stand tall, and pin elbows near your ribs.",
+      "Press the rope down until arms are straight without leaning over the cable.",
+      "Let the rope return under control until forearms rise, then repeat.",
+    ],
+    avoid: [
+      "Do not let the elbows flare or drift forward.",
+      "Do not use bodyweight to slam the rope down.",
+      "Do not let the weight stack bounce between reps.",
+    ],
+    progression: "Add load only when elbows stay pinned and the return stays quiet for every rep.",
+    motionDemo: {
+      workoutXId: "0200",
+      label: "Cable pushdown with rope attachment",
+      match: "exact",
+    },
+    youtubeId: "4GHNbhQS-Zw",
+    resources: [
+      {
+        label: "FITTR rope pressdown video",
+        url: "https://www.fittr.com/exercise-video/cable-pushdown-with-rope-attachment-2/",
+      },
+      {
+        label: "ACE tricep pressdown",
+        url: "https://www.acefitness.org/resources/everyone/exercise-library/333/tricep-pressdown/",
+      },
+      {
+        label: "NASM arm exercise guide",
+        url: "https://www.nasm.org/resource-center/blog/training/9-of-the-best-arm-sculpting-exercises-to-tone-and-strengthen",
+      },
+    ],
+  },
   "goblet-squat": {
     id: "goblet-squat",
     name: "Goblet Squat",
@@ -1246,8 +1371,8 @@ const weeklySchedule: Record<string, SessionTemplate> = {
     title: "Strength A",
     type: "strength",
     code: "A",
-    time: "50-65 min",
-    summary: "Full-body weights, then 10 minutes brisk treadmill walk.",
+    time: "55-70 min",
+    summary: "Full-body weights, dead bugs, then 10 minutes brisk treadmill walk.",
     accent: "strength-a",
     exerciseIds: [
       ...strengthWarmupIds,
@@ -1256,6 +1381,7 @@ const weeklySchedule: Record<string, SessionTemplate> = {
       "lat-pulldown",
       "db-rdl",
       "front-plank",
+      "dead-bug",
       "treadmill-finisher",
     ],
     tasks: ["Follow every move in order", "Log every working set", "Keep 2 reps in reserve unless phase says otherwise"],
@@ -1275,8 +1401,8 @@ const weeklySchedule: Record<string, SessionTemplate> = {
     title: "Strength B",
     type: "strength",
     code: "B",
-    time: "50-65 min",
-    summary: "Full-body weights, then 10 minutes brisk treadmill walk.",
+    time: "60-75 min",
+    summary: "Full-body weights, direct arms, dead bugs, then 10 minutes brisk treadmill walk.",
     accent: "strength-b",
     exerciseIds: [
       ...strengthWarmupIds,
@@ -1286,6 +1412,9 @@ const weeklySchedule: Record<string, SessionTemplate> = {
       "seated-db-overhead",
       "incline-reverse-fly",
       "front-plank",
+      "dumbbell-biceps-curl",
+      "rope-triceps-pressdown",
+      "dead-bug",
       "treadmill-finisher",
     ],
     tasks: ["Follow every move in order", "Log every working set", "Keep 2 reps in reserve unless phase says otherwise"],
@@ -1305,8 +1434,8 @@ const weeklySchedule: Record<string, SessionTemplate> = {
     title: "Strength C",
     type: "strength",
     code: "C",
-    time: "50-65 min",
-    summary: "Full-body weights, then 10 minutes brisk treadmill walk.",
+    time: "60-75 min",
+    summary: "Full-body weights, direct arms, dead bugs, then 10 minutes brisk treadmill walk.",
     accent: "strength-c",
     exerciseIds: [
       ...strengthWarmupIds,
@@ -1316,6 +1445,9 @@ const weeklySchedule: Record<string, SessionTemplate> = {
       "barbell-rdl",
       "cable-chest-fly",
       "front-plank",
+      "dumbbell-biceps-curl",
+      "rope-triceps-pressdown",
+      "dead-bug",
       "treadmill-finisher",
     ],
     tasks: ["Follow every move in order", "Log every working set", "Keep 2 reps in reserve unless phase says otherwise"],
@@ -1377,6 +1509,9 @@ const libraryOrder = [
   "db-rdl",
   "barbell-rdl",
   "front-plank",
+  "dead-bug",
+  "dumbbell-biceps-curl",
+  "rope-triceps-pressdown",
   "single-arm-row",
   "push-up",
   "seated-db-overhead",
@@ -1501,6 +1636,7 @@ function recommendedSets(planDay: PlanDay, exercise: Exercise, index: number) {
   if (planDay.week <= 2) return 2;
   if (planDay.week === 11 || planDay.week === 23) return 2;
   if (exercise.id === "front-plank") return planDay.week >= 19 && planDay.week <= 22 ? 4 : 3;
+  if (exercise.id === "dead-bug" || exercise.family === "arms") return planDay.week >= 15 ? 3 : 2;
 
   const workingIds = planDay.session.exerciseIds.filter((id) => {
     const item = exerciseMap[id];
@@ -1628,6 +1764,16 @@ function cardioTarget(planDay: PlanDay, exercise: Exercise) {
 function targetForExercise(planDay: PlanDay, exercise: Exercise) {
   if (exercise.family === "warmup") return exercise.reps;
   if (exercise.family === "cardio") return cardioTarget(planDay, exercise);
+  if (exercise.id === "dead-bug") {
+    if (planDay.week <= 2) return "8 each side";
+    if (planDay.week <= 6) return "8-10 each side";
+    if (planDay.week <= 10) return "10-12 each side";
+    if (planDay.week === 11) return "6-8 each side deload";
+    if (planDay.week <= 14) return "8-10 each side";
+    if (planDay.week <= 22) return "10-12 each side";
+    if (planDay.week === 23) return "6-8 each side deload";
+    return "10-12 each side";
+  }
   if (planDay.session.title === "Strength C" && exercise.id === "leg-press") {
     return rangedTarget("10-15", planDay.week);
   }
@@ -1943,6 +2089,7 @@ function familyLabel(family: Exercise["family"]) {
     pull: "Pull",
     hinge: "Hinge",
     core: "Core",
+    arms: "Arms",
     warmup: "Warm-up",
     cardio: "Cardio",
   }[family];
@@ -3677,6 +3824,7 @@ export default function Home() {
               <option value="pull">Pull</option>
               <option value="hinge">Hinge</option>
               <option value="core">Core</option>
+              <option value="arms">Arms</option>
               <option value="warmup">Warm-up</option>
               <option value="cardio">Cardio</option>
             </select>

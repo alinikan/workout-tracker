@@ -52,6 +52,9 @@ test("includes researched movement resources and autosave controls", async () =>
     "Warm-Up Front Plank",
     "Light Practice Sets",
     "Brisk Treadmill Finisher",
+    "Dead Bug",
+    "Dumbbell Biceps Curl",
+    "Cable Rope Triceps Pressdown",
     "Cloud sync",
     "Create account",
     "Password",
@@ -80,6 +83,9 @@ test("includes researched movement resources and autosave controls", async () =>
     "move.exerciseIndex + 1",
     "gym-action-label",
     "Weight",
+    "Arms",
+    "8-12 each side",
+    "direct arms",
   ]) {
     assert.match(page, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
@@ -154,6 +160,12 @@ test("includes API-backed autoplay exercise GIF support", async () => {
   assert.match(app, /workoutXId: "0861"/);
   assert.match(app, /workoutXId: "0603"/);
   assert.match(app, /workoutXId: "0596"/);
+  assert.match(app, /workoutXId: "0276"/);
+  assert.match(app, /workoutXId: "0416"/);
+  assert.match(app, /workoutXId: "0200"/);
+  assert.match(app, /youtubeId: "bxn9FBrt4-A"/);
+  assert.match(app, /youtubeId: "2k9co4UIlEw"/);
+  assert.match(app, /youtubeId: "4GHNbhQS-Zw"/);
   assert.match(app, /aria-pressed=\{isShowingGif\}/);
   assert.match(app, /setShowGif\(\(current\) => !current\)/);
   assert.match(app, /setGifFailed\(true\)/);
@@ -200,6 +212,8 @@ test("includes installable app assets", async () => {
   assert.match(styles, /--gym-action-bar-height/);
   assert.match(styles, /--focus-teal/);
   assert.match(styles, /--focus-coral/);
+  assert.match(styles, /\.arms/);
+  assert.match(styles, /#b83280/);
   assert.match(styles, /detail-sheet-backdrop/);
   assert.match(styles, /move-list/);
   assert.match(styles, /swap-option-grid/);
@@ -216,8 +230,8 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v7/);
-  assert.match(serviceWorker, /product-polish-swaps-v7/);
+  assert.match(serviceWorker, /recomp-gym-console-v8/);
+  assert.match(serviceWorker, /core-arms-v8/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);

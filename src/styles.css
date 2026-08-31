@@ -696,6 +696,11 @@ h5 {
   border-top: 5px solid var(--cardio-long);
 }
 
+.exercise-card.arms,
+.library-card.arms {
+  border-top: 5px solid #b83280;
+}
+
 .exercise-card.warmup,
 .library-card.warmup {
   border-top: 5px solid var(--movement);
@@ -1799,6 +1804,10 @@ h3 {
   border-left-color: var(--cardio-long);
 }
 
+.exercise-card.arms {
+  border-left-color: #b83280;
+}
+
 .exercise-card.warmup {
   border-left-color: var(--movement);
 }
@@ -2364,6 +2373,10 @@ textarea {
 
 .gym-card.core {
   border-left-color: var(--cardio-long);
+}
+
+.gym-card.arms {
+  border-left-color: #b83280;
 }
 
 .gym-card.warmup {
@@ -3005,6 +3018,11 @@ body {
 .core {
   --move-color: var(--focus-amber);
   --move-soft: #fff1d1;
+}
+
+.arms {
+  --move-color: #b83280;
+  --move-soft: #fde7f3;
 }
 
 .warmup {

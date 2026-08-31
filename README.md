@@ -24,6 +24,8 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
   - Week 12: normal loads plus progress comparison.
   - Weeks 13-26: repeats the same PDF weekly structure with a second build block, higher cardio targets, longer plank targets, a deload week, and final comparison weeks.
 - Warm-up moves are first-class cards with cues, resources, video links where available, targets, and completion checks.
+- Dynamic ab work after every lifting session: dead bugs are added after the main lift/core block before the treadmill finisher.
+- Direct biceps and triceps work twice weekly: dumbbell curls and cable rope pressdowns are added to Strength B and Strength C as small accessory blocks.
 - Body check-ins for weight, waist, and weekly notes.
 - Progress dashboard with completion streaks, strength sessions, completed sets, estimated cardio minutes, body check-ins, best logged loads, weekly consistency bars, recent workout history, achievements, and body trend.
 - Exercise library with cues, mistakes to avoid, progression notes, YouTube videos, ACE/NASM/Mayo/PureGym resources, and thumbnails.
@@ -60,13 +62,23 @@ iPhone Home Screen note: email + password sign-in happens directly inside the Ho
 
 1. Open **Today** to see the selected day's ordered workout flow.
 2. Use the week strip or **Jump to week** selector if you want a different date.
-3. Follow the moves from top to bottom. Each row is color-coded by movement family: warm-up, legs, push, pull, hinge, core, or cardio.
+3. Follow the moves from top to bottom. Each row is color-coded by movement family: warm-up, legs, push, pull, hinge, core, arms, or cardio.
 4. Tap the numbered check button to mark a whole move complete, or tap **Details / Swap** for the full set-by-set log.
 5. In the Exercise Detail sheet, use YouTube as the main form reference. Tap **Show GIF** when you want the looping movement demo.
 6. If a movement is unavailable, use **Swap Options** and choose a listed substitute. The app keeps the original available so you can switch back later.
 7. Use **Gym Mode** when you want the largest, simplest training view: one movement, one set table, previous/next controls, and the complete-set button.
 8. Check **Progress** for program completion, streak, sets, cardio minutes, best logged loads, weekly consistency, achievements, and body trend.
 9. Use **Account** to sign in with email + password so the same data syncs across your iPhone, MacBook, and any other device.
+
+## New Core and Arm Additions
+
+The PDF remains the backbone of the program. These additions are small accessories layered after the lifting work so the plan stays beginner-friendly and recoverable.
+
+- **Dead Bug** appears after each Strength A, Strength B, and Strength C lifting block. It starts at 2 sets, moves toward 3 sets in the later build block, and stays easy on deload weeks.
+- **Dumbbell Biceps Curl** appears twice weekly on Strength B and Strength C.
+- **Cable Rope Triceps Pressdown** appears twice weekly on Strength B and Strength C.
+- Arm accessories use 10-15 rep targets. Start light, keep the reps controlled, and only increase load after every set reaches the top of the target cleanly.
+- The app includes YouTube-first media, WorkoutX GIF IDs, cues, mistakes to avoid, progression notes, and external resources for all three additions.
 
 ## Optional GIF Demo Setup
 
@@ -142,7 +154,7 @@ On iPhone, delete and re-add the Home Screen app only if it keeps an old cached 
 
 Most plan movements use exact ExerciseDB-style IDs. A few warm-up/recovery items are intentionally labeled as reference GIFs because they are movement patterns rather than one exact lift.
 
-- Exact GIFs: treadmill walking, incline push-up, leg press, incline dumbbell press, machine chest press, lat pulldown, assisted pull-up, seated cable row, dumbbell Romanian deadlift, goblet squat, one-arm dumbbell row, push-up, seated dumbbell shoulder press, machine shoulder press, incline rear lateral raise, barbell Romanian deadlift, cable standing fly, pec deck fly.
+- Exact GIFs: treadmill walking, incline push-up, leg press, incline dumbbell press, machine chest press, lat pulldown, assisted pull-up, seated cable row, dumbbell Romanian deadlift, goblet squat, one-arm dumbbell row, push-up, seated dumbbell shoulder press, machine shoulder press, incline rear lateral raise, barbell Romanian deadlift, cable standing fly, pec deck fly, dead bug, dumbbell biceps curl, cable rope triceps pressdown.
 - Reference GIFs: easy treadmill warm-up, cool-down walk, bodyweight squat warm-up, hip-hinge drill, warm-up/front plank, light practice sets, mobility flow.
 
 ## Run on a MacBook
@@ -474,6 +486,8 @@ The app uses concise, paraphrased exercise cues based on the PDF plus reputable 
   - Seated lat pulldown: https://www.acefitness.org/resources/everyone/exercise-library/158/seated-lat-pulldown/
   - Romanian deadlift: https://www.acefitness.org/resources/everyone/exercise-library/317/romanian-deadlift/
   - Front plank: https://www.acefitness.org/resources/everyone/exercise-library/32/front-plank/
+  - Seated biceps curl: https://www.acefitness.org/resources/everyone/exercise-library/44/seated-biceps-curl/
+  - Tricep pressdown: https://www.acefitness.org/resources/everyone/exercise-library/333/tricep-pressdown/
   - Goblet squat: https://www.acefitness.org/resources/everyone/exercise-library/362/goblet-squat/
   - Single-arm row: https://www.acefitness.org/resources/everyone/exercise-library/126/single-arm-row/
   - Push-up: https://www.acefitness.org/resources/everyone/exercise-library/41/push-up/
@@ -485,6 +499,8 @@ The app uses concise, paraphrased exercise cues based on the PDF plus reputable 
   - Two-arm incline dumbbell chest press: https://www.nasm.org/resource-center/exercise-library/two-arm-incline-dumbbell-chest-press
   - Dumbbell Romanian deadlift: https://www.nasm.org/resource-center/exercise-library/dumbbell-romanian-deadlift
   - Plank: https://www.nasm.org/resource-center/exercise-library/plank
+  - Dead bug: https://www.nasm.org/resource-center/exercise-library/dead-bug
+  - Core exercise programming: https://www.nasm.org/resource-center/blog/training/best-abs-exercises
   - Goblet squat: https://www.nasm.org/resource-center/exercise-library/goblet-squat
   - Push-up: https://www.nasm.org/resource-center/exercise-library/push-up
   - Cable crossover: https://www.nasm.org/resource-center/exercise-library/cable-crossover
@@ -493,11 +509,13 @@ The app uses concise, paraphrased exercise cues based on the PDF plus reputable 
   - Chest press machine: https://www.nasm.org/resource-center/exercise-library/chest-press-machine
   - Band-assisted pull-up: https://www.nasm.org/resource-center/exercise-library/band-assisted-pull-up
   - Seated machine row: https://www.nasm.org/resource-center/exercise-library/seated-machine-row-close-grip
+  - Arm exercise guide: https://www.nasm.org/resource-center/blog/training/9-of-the-best-arm-sculpting-exercises-to-tone-and-strengthen
 - Mayo Clinic videos:
   - Hip hinge: https://www.youtube.com/watch?v=sinpFajtRPw
   - Seated lat pull: https://www.youtube.com/watch?v=NbHnnvHkajg
   - Knee push-up option: https://www.youtube.com/watch?v=WcHtt6zT3Go
   - Front plank: https://www.youtube.com/watch?v=GgOnCjmyTfY
+  - Biceps curl: https://www.mayoclinic.org/healthy-lifestyle/fitness/multimedia/biceps-curl/vid-20084675
   - Leg press demo: https://www.mayoclinic.org/healthy-lifestyle/fitness/multimedia/leg-press/vid-20084684
   - Chest press demo: https://www.mayoclinic.org/healthy-lifestyle/fitness/multimedia/chest-press/vid-20084687
 - PureGym demos:
@@ -509,6 +527,8 @@ The app uses concise, paraphrased exercise cues based on the PDF plus reputable 
   - Assisted machine pull-up: https://macrosinc.net/exercises/back/assisted-machine-pull-up/
   - Machine shoulder press: https://www.muscleandstrength.com/exercises/machine-shoulder-press
   - Pec deck fly: https://www.fittr.com/exercise-video/lever-pec-deck-fly-13/
+  - Dumbbell biceps curl: https://coaching.fittr.com/exercise-video/dumbbell-bicep-curls-192/
+  - Cable rope pressdown: https://www.fittr.com/exercise-video/cable-pushdown-with-rope-attachment-2/
   - Pec deck fly form notes: https://www.liveleantv.com/how-to-do-a-pec-deck-fly/
 - Cardio intensity:
   - CDC intensity guide: https://www.cdc.gov/physical-activity-basics/measuring/index.html
