@@ -1,6 +1,6 @@
 # Workout Tracker
 
-A mobile-first workout tracker built from the 12-week body recomposition PDF and extended into a conservative 6-month training calendar. It turns the plan into a phone-friendly app with daily sessions, ordered exercise checklists, researched video/resource links, weight-only set logging, body check-ins, achievements, automatic local saving, and optional Supabase cloud sync across every device you sign in to.
+A mobile-first workout tracker built from the 12-week body recomposition PDF and extended into a conservative 6-month training calendar. It turns the plan into a phone-friendly app with daily sessions, ordered exercise checklists, researched video/resource links, weight-only set logging in pounds, body check-ins, achievements, automatic local saving, and optional Supabase cloud sync across every device you sign in to.
 
 ## Features
 
@@ -13,22 +13,27 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
 - Ordered workout flow so you can follow each day from move 1 to the final move, including warm-ups and finishers, without every detail cluttering the screen at once.
 - Exercise Detail bottom sheet with the selected move's YouTube/GIF media, cue list, common mistakes, progression note, resource links, swap options, and set log.
 - Legit exercise swaps for matching movement patterns such as machine chest press, assisted pull-up, seated cable row, machine shoulder press, pec deck fly, goblet squat, and Romanian deadlift variations.
-- YouTube-first media panels with an optional **Show GIF** button for autoplaying movement demos when a WorkoutX key is configured.
+- YouTube-first media panels that play inline in the app, plus a separate YouTube button for opening the full video externally.
+- Optional **Show GIF** button for autoplaying movement demos when a WorkoutX key is configured.
 - Smart load suggestions that use your last logged load, completed sets, and deload weeks to suggest whether to start light, repeat, nudge up, or reduce load.
 - Strength-day logging with only weight and completion checks. Reps, time, rest, and cardio targets are shown by phase, not entered by you.
-- Dynamic set and target recommendations from the PDF:
+- Strength weights and body weight are treated as pounds/lbs throughout the app.
+- Dynamic set, warm-up, cardio, and target recommendations from the PDF plus conservative trainer-style progression:
   - Weeks 1-2: 2 working sets.
-  - Weeks 3-6: 3 sets for the first 4 lifts, planks at 3 rounds.
-  - Weeks 7-10: same structure, optional extra set if recovery is good.
-  - Week 11: deload with 10-15 percent lighter loads and 2 sets.
-  - Week 12: normal loads plus progress comparison.
-  - Weeks 13-26: repeats the same PDF weekly structure with a second build block, higher cardio targets, longer plank targets, a deload week, and final comparison weeks.
-- Warm-up moves are first-class cards with cues, resources, video links where available, targets, and completion checks.
+  - Weeks 3-6: 3 sets for the first 4 lifts, longer brisk cardio blocks, and slightly higher warm-up drill targets.
+  - Weeks 7-10: same structure, optional extra set if recovery is good, plus a 12-minute strength finisher.
+  - Week 11: deload with 10-15 percent lighter loads, easier cardio, and 2 sets.
+  - Weeks 13-18: second build block with longer warm-ups, longer cardio, and 12-15 minute strength finishers.
+  - Weeks 19-22: advanced consistency block with the first 4 lifts allowed to reach 4 sets if recovery is good, 15-minute warm-ups, and 15-minute strength finishers.
+  - Week 23: deload with easier cardio and lighter loads.
+  - Weeks 24-26: final compare block with normal loads, higher cardio targets, and body/strength comparison.
+- Warm-up moves are first-class cards with cues, resources, inline videos where available, targets, and completion checks.
+- The old generic warm-up item is replaced by two lift-specific warm-up ramp cards that match the first two lifts of that strength day.
 - Dynamic ab work after every lifting session: dead bugs are added after the main lift/core block before the treadmill finisher.
 - Direct biceps and triceps work twice weekly: dumbbell curls and cable rope pressdowns are added to Strength B and Strength C as small accessory blocks.
 - Body check-ins for weight, waist, and weekly notes.
 - Progress dashboard with completion streaks, strength sessions, completed sets, estimated cardio minutes, body check-ins, best logged loads, weekly consistency bars, recent workout history, achievements, and body trend.
-- Exercise library with cues, mistakes to avoid, progression notes, YouTube videos, ACE/NASM/Mayo/PureGym resources, and thumbnails.
+- Exercise library with cues, mistakes to avoid, progression notes, inline YouTube videos, ACE/NASM/Mayo/PureGym resources, and GIF controls.
 - No-gym fallback workout from the PDF.
 - Automatic local saving through browser storage, plus account-based Supabase cloud sync when configured.
 - Email + password sign-in so the same data appears on your MacBook, iPhone, and any other logged-in device, including the iPhone Home Screen app.
@@ -64,7 +69,7 @@ iPhone Home Screen note: email + password sign-in happens directly inside the Ho
 2. Use the week strip or **Jump to week** selector if you want a different date.
 3. Follow the moves from top to bottom. Each row is color-coded by movement family: warm-up, legs, push, pull, hinge, core, arms, or cardio.
 4. Tap the numbered check button to mark a whole move complete, or tap **Details / Swap** for the full set-by-set log.
-5. In the Exercise Detail sheet, use YouTube as the main form reference. Tap **Show GIF** when you want the looping movement demo.
+5. In the Exercise Detail sheet, tap the video area to play the YouTube demo inline. Tap the **YouTube** button only when you want to open the full video externally.
 6. If a movement is unavailable, use **Swap Options** and choose a listed substitute. The app keeps the original available so you can switch back later.
 7. Use **Gym Mode** when you want the largest, simplest training view: one movement, one set table, previous/next controls, and the complete-set button.
 8. Check **Progress** for program completion, streak, sets, cardio minutes, best logged loads, weekly consistency, achievements, and body trend.
@@ -79,6 +84,17 @@ The PDF remains the backbone of the program. These additions are small accessori
 - **Cable Rope Triceps Pressdown** appears twice weekly on Strength B and Strength C.
 - Arm accessories use 10-15 rep targets. Start light, keep the reps controlled, and only increase load after every set reaches the top of the target cleanly.
 - The app includes YouTube-first media, WorkoutX GIF IDs, cues, mistakes to avoid, progression notes, and external resources for all three additions.
+
+## Progression Logic
+
+The plan does not simply repeat the same week for 6 months. It uses training blocks so difficulty rises, then drops briefly during deload weeks so you can keep improving.
+
+- **Treadmill warm-up:** starts at 10 minutes, then builds toward 12-15 minutes. Later blocks may include short brisk pickups, but it should never ruin your first lift.
+- **Movement prep:** bodyweight squats, hinge drills, incline push-ups, and warm-up planks add reps, pauses, lower inclines, or cleaner tempo over time.
+- **Lift-specific ramp warm-ups:** each strength day now has two specific ramp cards after the general warm-up. Strength A/C warm up Leg Press and Incline Dumbbell Press. Strength B warms up Goblet Squat and Single-Arm Dumbbell Row.
+- **Ramp weights:** log these in pounds. They are intentionally lighter than working sets, usually around 40-85 percent depending on phase and exercise.
+- **Cardio:** the Tuesday base walk, Thursday movement walk, Saturday long walk, and post-lift treadmill finishers all increase by phase.
+- **Deload weeks:** Weeks 11 and 23 intentionally get easier so joints, energy, and technique can recover before the next build.
 
 ## Optional GIF Demo Setup
 
@@ -155,7 +171,7 @@ On iPhone, delete and re-add the Home Screen app only if it keeps an old cached 
 Most plan movements use exact ExerciseDB-style IDs. A few warm-up/recovery items are intentionally labeled as reference GIFs because they are movement patterns rather than one exact lift.
 
 - Exact GIFs: treadmill walking, incline push-up, leg press, incline dumbbell press, machine chest press, lat pulldown, assisted pull-up, seated cable row, dumbbell Romanian deadlift, goblet squat, one-arm dumbbell row, push-up, seated dumbbell shoulder press, machine shoulder press, incline rear lateral raise, barbell Romanian deadlift, cable standing fly, pec deck fly, dead bug, dumbbell biceps curl, cable rope triceps pressdown.
-- Reference GIFs: easy treadmill warm-up, cool-down walk, bodyweight squat warm-up, hip-hinge drill, warm-up/front plank, light practice sets, mobility flow.
+- Reference GIFs: easy treadmill warm-up, cool-down walk, bodyweight squat warm-up, hip-hinge drill, warm-up/front plank, lift-specific ramp warm-ups, mobility flow.
 
 ## Run on a MacBook
 
@@ -532,6 +548,11 @@ The app uses concise, paraphrased exercise cues based on the PDF plus reputable 
   - Pec deck fly form notes: https://www.liveleantv.com/how-to-do-a-pec-deck-fly/
 - Cardio intensity:
   - CDC intensity guide: https://www.cdc.gov/physical-activity-basics/measuring/index.html
+- Programming and progression:
+  - CDC adult activity guidelines: https://www.cdc.gov/physical-activity-basics/guidelines/adults.html
+  - ACSM progression model abstract: https://pubmed.ncbi.nlm.nih.gov/11828249/
+  - NSCA dynamic warm-up guide: https://www.nsca.com/education/articles/kinetic-select/introduction-to-dynamic-warm-up/
+  - NASM beginner fitness routine: https://www.nasm.org/resource-center/blog/training/beginner-fitness-routine
 
 ## Editing the Plan
 
@@ -611,9 +632,9 @@ That is normal on iPhone. Safari and the Home Screen app can have separate login
 
 Read the error text in the panel first. Most sync errors come from missing Row Level Security policies, missing environment variables, or using a Supabase key from a different project than the SQL table.
 
-### YouTube thumbnails do not load
+### Inline YouTube videos do not load
 
-The tracker still works. The resource links need internet access because they point to YouTube, ACE, NASM, Mayo Clinic, PureGym, and CDC.
+The tracker still works. The inline video panels and resource links need internet access because they point to YouTube, ACE, NASM, Mayo Clinic, PureGym, NSCA, and CDC.
 
 ### Show GIF does not display an animation
 

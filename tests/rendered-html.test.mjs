@@ -50,7 +50,10 @@ test("includes researched movement resources and autosave controls", async () =>
     "Pec Deck Fly",
     "Treadmill Easy Walk",
     "Warm-Up Front Plank",
-    "Light Practice Sets",
+    "Warm-Up Ramp: Leg Press",
+    "Warm-Up Ramp: Incline Dumbbell Press",
+    "Warm-Up Ramp: Goblet Squat",
+    "Warm-Up Ramp: Single-Arm Dumbbell Row",
     "Brisk Treadmill Finisher",
     "Dead Bug",
     "Dumbbell Biceps Curl",
@@ -83,14 +86,21 @@ test("includes researched movement resources and autosave controls", async () =>
     "move.exerciseIndex + 1",
     "gym-action-label",
     "Weight",
+    "Weight (lbs)",
+    "Body weight (lbs)",
     "Arms",
     "8-12 each side",
     "direct arms",
+    "Inline video",
+    "youtube-nocookie.com/embed",
+    "sessionTimeForDay",
+    "warmupTarget",
+    "rampWarmupTarget",
   ]) {
     assert.match(page, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
 
-  assert.doesNotMatch(page, /Reps\/sec|RIR|Daily Foundations|Export JSON|Import/);
+  assert.doesNotMatch(page, /Reps\/sec|RIR|Daily Foundations|Export JSON|Import|Light Practice Sets|lb\/kg/);
   assert.doesNotMatch(page, /Starts Tuesday/);
   assert.match(page, /acefitness\.org/);
   assert.match(page, /nasm\.org/);
@@ -106,6 +116,9 @@ test("extends the PDF progression to roughly 6 months", async () => {
   assert.match(page, /Weeks 19-22/);
   assert.match(page, /Weeks 24-26/);
   assert.match(page, /targetForExercise/);
+  assert.match(page, /10 min easy/);
+  assert.match(page, /15 min brisk/);
+  assert.match(page, /working lbs/);
   assert.match(page, /rangedTarget/);
   assert.match(page, /double-progression rule/);
 });
@@ -149,7 +162,6 @@ test("includes API-backed autoplay exercise GIF support", async () => {
     text("README.md"),
   ]);
 
-  assert.match(app, /motionDemoForExercise/);
   assert.match(app, /\/api\/workoutx-gif\?id=/);
   assert.match(app, /workoutXId: "0739"/);
   assert.match(app, /workoutXId: "0314"/);
@@ -171,6 +183,8 @@ test("includes API-backed autoplay exercise GIF support", async () => {
   assert.match(app, /setGifFailed\(true\)/);
   assert.match(app, /setShowGif\(false\)/);
   assert.match(app, /YouTube/);
+  assert.match(app, /youtubeEmbedUrl/);
+  assert.match(app, /allowFullScreen/);
   assert.match(apiRoute, /process\.env\.WORKOUTX_API_KEY/);
   assert.match(apiRoute, /api\.workoutxapp\.com\/v1\/gifs/);
   assert.match(apiRoute, /X-WorkoutX-Key/);
@@ -230,8 +244,8 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v8/);
-  assert.match(serviceWorker, /core-arms-v8/);
+  assert.match(serviceWorker, /recomp-gym-console-v9/);
+  assert.match(serviceWorker, /progressive-warmups-inline-video-v9/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);

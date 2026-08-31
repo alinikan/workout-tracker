@@ -183,7 +183,6 @@ const strengthWarmupIds = [
   "hip-hinge-drill",
   "incline-push-up",
   "warmup-front-plank",
-  "light-practice-sets",
 ];
 
 const emptySet = (): SetLog => ({
@@ -233,7 +232,7 @@ const exerciseMap: Record<string, Exercise> = {
     family: "warmup",
     equipment: "Treadmill",
     target: "General warm-up",
-    reps: "5 min easy",
+    reps: "10 min easy",
     rest: "None",
     cues: [
       "Start at an easy pace that raises body temperature without making you breathe hard.",
@@ -244,7 +243,7 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not turn the warm-up into cardio training.",
       "Do not hold the treadmill rails unless you need balance.",
     ],
-    progression: "Keep this easy every time; progression belongs in the workout, not the warm-up.",
+    progression: "Build from 10 minutes toward 12-15 minutes as fitness improves, but keep it easy enough that the lifting still feels sharp.",
     motionDemo: {
       workoutXId: "3666",
       label: "Walking on incline treadmill",
@@ -365,7 +364,7 @@ const exerciseMap: Record<string, Exercise> = {
     family: "warmup",
     equipment: "Bodyweight",
     target: "Squat pattern",
-    reps: "8 warm-up reps",
+    reps: "8-12 warm-up reps",
     rest: "Easy",
     cues: [
       "Feet about hip to shoulder width, chest tall, weight balanced across the full foot.",
@@ -373,7 +372,7 @@ const exerciseMap: Record<string, Exercise> = {
       "Use this to rehearse knee tracking before goblet squats or leg press.",
     ],
     avoid: ["Knees collapsing inward.", "Rounding the low back at the bottom."],
-    progression: "Move slowly enough that every rep looks the same.",
+    progression: "Add reps and tempo before adding fatigue; this should prepare your knees and hips without draining your working sets.",
     motionDemo: {
       workoutXId: "1685",
       label: "Squat to overhead reach",
@@ -396,7 +395,7 @@ const exerciseMap: Record<string, Exercise> = {
     family: "warmup",
     equipment: "Bodyweight",
     target: "Hinge pattern",
-    reps: "8 warm-up reps",
+    reps: "8-12 warm-up reps",
     rest: "Easy",
     cues: [
       "Soften the knees, push hips back, and keep ribs and pelvis stacked.",
@@ -404,7 +403,7 @@ const exerciseMap: Record<string, Exercise> = {
       "Imagine closing a car door with your hips.",
     ],
     avoid: ["Squatting the drill.", "Reaching down by rounding your back."],
-    progression: "Use the same pattern before every Romanian deadlift set.",
+    progression: "Add reps first, then use a slower hinge and brief hamstring stretch in later phases.",
     motionDemo: {
       workoutXId: "0044",
       label: "Hip-hinge pattern reference",
@@ -431,7 +430,7 @@ const exerciseMap: Record<string, Exercise> = {
     family: "warmup",
     equipment: "Bench",
     target: "Pressing warm-up",
-    reps: "6 warm-up reps",
+    reps: "6-10 warm-up reps",
     rest: "Easy",
     cues: [
       "Hands on a bench, body in one line, elbows roughly 45 degrees from your body.",
@@ -439,7 +438,7 @@ const exerciseMap: Record<string, Exercise> = {
       "Choose a higher surface if the rep slows or your hips sag.",
     ],
     avoid: ["Sagging hips.", "Elbows flaring straight out."],
-    progression: "Lower the bench height gradually as strength improves.",
+    progression: "Add reps first, then use a slightly lower bench only if shoulder position stays clean.",
     motionDemo: {
       workoutXId: "0493",
       label: "Incline push-up",
@@ -462,7 +461,7 @@ const exerciseMap: Record<string, Exercise> = {
     family: "warmup",
     equipment: "Mat or floor",
     target: "Core brace rehearsal",
-    reps: "20 sec",
+    reps: "20-30 sec",
     rest: "Easy",
     cues: [
       "Elbows under shoulders, ribs down, glutes lightly squeezed.",
@@ -470,7 +469,7 @@ const exerciseMap: Record<string, Exercise> = {
       "Stop before your hips sag or shoulders shrug.",
     ],
     avoid: ["Holding your breath.", "Sagging hips.", "Turning it into a max plank test."],
-    progression: "Keep the warm-up plank at 20 seconds; progress the main plank later.",
+    progression: "Build the warm-up hold gradually, but stop before it turns into fatigue.",
     motionDemo: {
       workoutXId: "0464",
       label: "Front plank reference",
@@ -490,37 +489,151 @@ const exerciseMap: Record<string, Exercise> = {
       },
     ],
   },
-  "light-practice-sets": {
-    id: "light-practice-sets",
-    name: "Light Practice Sets",
-    shortName: "Practice sets",
+  "warmup-ramp-leg-press": {
+    id: "warmup-ramp-leg-press",
+    name: "Warm-Up Ramp: Leg Press",
+    shortName: "Leg press ramp",
     family: "warmup",
-    equipment: "First two workout stations",
-    target: "Technique rehearsal",
+    equipment: "Leg press machine",
+    target: "Specific warm-up for the first working lift",
     reps: "2 lighter sets",
     rest: "45-60 sec",
     cues: [
-      "Use the first two exercises of the workout and choose clearly lighter weight.",
-      "Rehearse setup, range of motion, breathing, and control.",
-      "Stop each set feeling sharper, not fatigued.",
+      "Use the same seat, foot position, and range of motion planned for your Leg Press.",
+      "Set 1 should feel very easy and teach the path.",
+      "Set 2 should feel closer to working weight but still clearly lighter.",
     ],
     avoid: [
-      "Do not count practice sets as working sets.",
-      "Do not go near failure.",
-      "Do not skip setup just because the load is light.",
+      "Do not count ramp sets as working sets.",
+      "Do not tire out your legs before the real Leg Press work.",
+      "Do not change depth or foot position from warm-up to working sets.",
     ],
-    progression: "As working weights rise, keep practice sets light enough to feel crisp.",
+    progression: "As your working weight rises, let the ramp weights rise too, but keep both sets crisp and non-fatiguing.",
     motionDemo: {
       workoutXId: "0739",
-      label: "Practice-set reference",
+      label: "Sled 45 degree leg press",
       match: "reference",
     },
-    logType: "done",
-    loadLabel: "light",
+    youtubeId: "cDGOn-yfKJA",
     resources: [
       {
+        label: "NASM beginner routine",
+        url: "https://www.nasm.org/resource-center/blog/training/beginner-fitness-routine",
+      },
+      {
         label: "ACSM progression model",
-        url: "https://www.sportgeneeskunde.com/wp-content/uploads/ACSM-Position-Stand-Progression-Models-in-Resistance-Training-for-Healthy-Adults.pdf",
+        url: "https://pubmed.ncbi.nlm.nih.gov/11828249/",
+      },
+    ],
+  },
+  "warmup-ramp-incline-db-press": {
+    id: "warmup-ramp-incline-db-press",
+    name: "Warm-Up Ramp: Incline Dumbbell Press",
+    shortName: "Incline ramp",
+    family: "warmup",
+    equipment: "Incline bench and lighter dumbbells",
+    target: "Specific warm-up for the second working lift",
+    reps: "2 lighter sets",
+    rest: "45-60 sec",
+    cues: [
+      "Use the same bench angle and shoulder setup planned for Incline Dumbbell Press.",
+      "Set 1 should feel like rehearsal with very light dumbbells.",
+      "Set 2 should move smoothly while still leaving your chest and shoulders fresh.",
+    ],
+    avoid: [
+      "Do not turn these into hard pressing sets.",
+      "Do not bounce the dumbbells or change the bench angle.",
+      "Do not use warm-up weight that makes the first working set weaker.",
+    ],
+    progression: "Use slightly heavier ramp dumbbells only when the working sets have clearly moved up.",
+    motionDemo: {
+      workoutXId: "0314",
+      label: "Dumbbell incline bench press",
+      match: "reference",
+    },
+    youtubeId: "JKnpHchOWPU",
+    resources: [
+      {
+        label: "NASM beginner routine",
+        url: "https://www.nasm.org/resource-center/blog/training/beginner-fitness-routine",
+      },
+      {
+        label: "NSCA dynamic warm-up",
+        url: "https://www.nsca.com/education/articles/kinetic-select/introduction-to-dynamic-warm-up/",
+      },
+    ],
+  },
+  "warmup-ramp-goblet-squat": {
+    id: "warmup-ramp-goblet-squat",
+    name: "Warm-Up Ramp: Goblet Squat",
+    shortName: "Goblet ramp",
+    family: "warmup",
+    equipment: "Bodyweight, light dumbbell, or light kettlebell",
+    target: "Specific warm-up for the first working lift",
+    reps: "2 lighter sets",
+    rest: "45-60 sec",
+    cues: [
+      "Use the same stance and depth planned for Goblet Squat.",
+      "Start with bodyweight or a very light weight, then use a second light set.",
+      "Treat both sets as skill practice for bracing, depth, and knee tracking.",
+    ],
+    avoid: [
+      "Do not rush the descent.",
+      "Do not let knees collapse inward.",
+      "Do not make the second warm-up set feel like a working set.",
+    ],
+    progression: "The warm-up load can rise as your goblet squat improves, but the goal stays rehearsal, not fatigue.",
+    motionDemo: {
+      workoutXId: "1760",
+      label: "Dumbbell goblet squat",
+      match: "reference",
+    },
+    youtubeId: "nfX7IFK9UNI",
+    resources: [
+      {
+        label: "NASM beginner routine",
+        url: "https://www.nasm.org/resource-center/blog/training/beginner-fitness-routine",
+      },
+      {
+        label: "NSCA dynamic warm-up",
+        url: "https://www.nsca.com/education/articles/kinetic-select/introduction-to-dynamic-warm-up/",
+      },
+    ],
+  },
+  "warmup-ramp-single-arm-row": {
+    id: "warmup-ramp-single-arm-row",
+    name: "Warm-Up Ramp: Single-Arm Dumbbell Row",
+    shortName: "Row ramp",
+    family: "warmup",
+    equipment: "Bench and lighter dumbbell",
+    target: "Specific warm-up for the second working lift",
+    reps: "2 lighter sets each side",
+    rest: "45-60 sec",
+    cues: [
+      "Use the same bench support and torso angle planned for Single-Arm Dumbbell Row.",
+      "Do one light set each side, then one slightly heavier but still easy set each side.",
+      "Feel the shoulder blade move before the working sets begin.",
+    ],
+    avoid: [
+      "Do not twist your torso to lift the warm-up dumbbell.",
+      "Do not shrug the shoulder toward your ear.",
+      "Do not use these sets to test strength.",
+    ],
+    progression: "Let the ramp dumbbell rise only after the main row loads rise and the movement stays controlled.",
+    motionDemo: {
+      workoutXId: "0292",
+      label: "Dumbbell one-arm bent-over row",
+      match: "reference",
+    },
+    youtubeId: "k0cTJCfxa0Y",
+    resources: [
+      {
+        label: "NASM beginner routine",
+        url: "https://www.nasm.org/resource-center/blog/training/beginner-fitness-routine",
+      },
+      {
+        label: "ACSM progression model",
+        url: "https://pubmed.ncbi.nlm.nih.gov/11828249/",
       },
     ],
   },
@@ -542,7 +655,7 @@ const exerciseMap: Record<string, Exercise> = {
       "Do not sprint after a full-body lift.",
       "Do not hold the rails to force a higher incline.",
     ],
-    progression: "Keep it at 10 minutes; add a small incline only if recovery stays good.",
+    progression: "Start at 10 minutes, build toward 12-15 minutes in later phases, and add incline only if recovery stays good.",
     motionDemo: {
       workoutXId: "3666",
       label: "Walking on incline treadmill",
@@ -1371,11 +1484,13 @@ const weeklySchedule: Record<string, SessionTemplate> = {
     title: "Strength A",
     type: "strength",
     code: "A",
-    time: "55-70 min",
-    summary: "Full-body weights, dead bugs, then 10 minutes brisk treadmill walk.",
+    time: "60-85 min",
+    summary: "Phase-scaled warm-up, two specific ramp warm-ups, full-body weights, dead bugs, and a brisk treadmill finisher.",
     accent: "strength-a",
     exerciseIds: [
       ...strengthWarmupIds,
+      "warmup-ramp-leg-press",
+      "warmup-ramp-incline-db-press",
       "leg-press",
       "incline-db-press",
       "lat-pulldown",
@@ -1384,28 +1499,30 @@ const weeklySchedule: Record<string, SessionTemplate> = {
       "dead-bug",
       "treadmill-finisher",
     ],
-    tasks: ["Follow every move in order", "Log every working set", "Keep 2 reps in reserve unless phase says otherwise"],
-    finisher: "10 min brisk treadmill walk at talk-test pace.",
+    tasks: ["Follow every move in order", "Log weights in pounds", "Keep every rep clean and stop before form breaks"],
+    finisher: "Brisk treadmill walk at talk-test pace; duration progresses by phase.",
   },
   Tuesday: {
     title: "Cardio Base",
     type: "cardio",
     code: "CB",
-    time: "35-40 min",
-    summary: "Treadmill walk: 5 min easy, 25-30 min brisk, 5 min easy.",
+    time: "40-65 min",
+    summary: "Treadmill walk: phase-scaled easy warm-up, brisk walking block, and easy cool-down.",
     accent: "cardio",
     exerciseIds: ["warmup-treadmill-walk", "treadmill-walk", "cardio-cooldown-walk"],
-    tasks: ["5 min easy warm-up", "25-30 min brisk walk", "5 min easy cool-down"],
+    tasks: ["Complete the easy warm-up", "Complete the brisk walking block", "Complete the easy cool-down"],
   },
   Wednesday: {
     title: "Strength B",
     type: "strength",
     code: "B",
-    time: "60-75 min",
-    summary: "Full-body weights, direct arms, dead bugs, then 10 minutes brisk treadmill walk.",
+    time: "65-90 min",
+    summary: "Phase-scaled warm-up, two specific ramp warm-ups, full-body weights, direct arms, dead bugs, and a brisk treadmill finisher.",
     accent: "strength-b",
     exerciseIds: [
       ...strengthWarmupIds,
+      "warmup-ramp-goblet-squat",
+      "warmup-ramp-single-arm-row",
       "goblet-squat",
       "single-arm-row",
       "push-up",
@@ -1417,8 +1534,8 @@ const weeklySchedule: Record<string, SessionTemplate> = {
       "dead-bug",
       "treadmill-finisher",
     ],
-    tasks: ["Follow every move in order", "Log every working set", "Keep 2 reps in reserve unless phase says otherwise"],
-    finisher: "10 min brisk treadmill walk at talk-test pace.",
+    tasks: ["Follow every move in order", "Log weights in pounds", "Keep every rep clean and stop before form breaks"],
+    finisher: "Brisk treadmill walk at talk-test pace; duration progresses by phase.",
   },
   Thursday: {
     title: "Easy Movement",
@@ -1434,11 +1551,13 @@ const weeklySchedule: Record<string, SessionTemplate> = {
     title: "Strength C",
     type: "strength",
     code: "C",
-    time: "60-75 min",
-    summary: "Full-body weights, direct arms, dead bugs, then 10 minutes brisk treadmill walk.",
+    time: "65-90 min",
+    summary: "Phase-scaled warm-up, two specific ramp warm-ups, full-body weights, direct arms, dead bugs, and a brisk treadmill finisher.",
     accent: "strength-c",
     exerciseIds: [
       ...strengthWarmupIds,
+      "warmup-ramp-leg-press",
+      "warmup-ramp-incline-db-press",
       "leg-press",
       "incline-db-press",
       "lat-pulldown",
@@ -1450,8 +1569,8 @@ const weeklySchedule: Record<string, SessionTemplate> = {
       "dead-bug",
       "treadmill-finisher",
     ],
-    tasks: ["Follow every move in order", "Log every working set", "Keep 2 reps in reserve unless phase says otherwise"],
-    finisher: "10 min brisk treadmill walk at talk-test pace.",
+    tasks: ["Follow every move in order", "Log weights in pounds", "Keep every rep clean and stop before form breaks"],
+    finisher: "Brisk treadmill walk at talk-test pace; duration progresses by phase.",
   },
   Saturday: {
     title: "Long Cardio",
@@ -1498,7 +1617,10 @@ const libraryOrder = [
   "hip-hinge-drill",
   "incline-push-up",
   "warmup-front-plank",
-  "light-practice-sets",
+  "warmup-ramp-leg-press",
+  "warmup-ramp-incline-db-press",
+  "warmup-ramp-goblet-squat",
+  "warmup-ramp-single-arm-row",
   "leg-press",
   "goblet-squat",
   "incline-db-press",
@@ -1563,21 +1685,21 @@ function phaseForWeek(week: number) {
     return {
       label: "Weeks 1-2",
       sets: "2 working sets",
-      note: "Stop with about 2 reps left in the tank. The main win is clean form.",
+      note: "Build the habit, use 10-minute treadmill warm-ups, and keep every rep clean before adding weight.",
     };
   }
   if (week <= 6) {
     return {
       label: "Weeks 3-6",
       sets: "3 sets for the first 4 lifts",
-      note: "Keep planks at 3 rounds. Add load only after clean top-range reps.",
+      note: "Warm-up drills add reps, cardio blocks grow, and load increases only after clean top-range reps.",
     };
   }
   if (week <= 10) {
     return {
       label: "Weeks 7-10",
       sets: "Same structure, optional extra set",
-      note: "Add one extra set to one big lift only if recovery and joints feel good.",
+      note: "Use slower warm-up reps, a 12-minute lift finisher, and one extra set on one big lift only if recovery feels good.",
     };
   }
   if (week === 11) {
@@ -1598,21 +1720,21 @@ function phaseForWeek(week: number) {
     return {
       label: "Weeks 13-14",
       sets: "Rebuild block",
-      note: "Start the second block slightly below your best week-12 loads, then rebuild clean top-range reps.",
+      note: "Start the second block slightly below your best week-12 loads, keep the longer warm-up, then rebuild clean top-range reps.",
     };
   }
   if (week <= 18) {
     return {
       label: "Weeks 15-18",
       sets: "3-4 working sets",
-      note: "Use the PDF double-progression rule: hit the top of the range cleanly, then add the smallest load jump.",
+      note: "Use the double-progression rule, longer cardio blocks, and 12-15 minute lift finishers.",
     };
   }
   if (week <= 22) {
     return {
       label: "Weeks 19-22",
       sets: "Advanced consistency",
-      note: "First 4 lifts can use 4 sets if recovery is good. Accessories stay controlled and joint-friendly.",
+      note: "First 4 lifts can use 4 sets if recovery is good. Warm-ups reach 15 minutes and accessories stay controlled.",
     };
   }
   if (week === 23) {
@@ -1630,7 +1752,8 @@ function phaseForWeek(week: number) {
 }
 
 function recommendedSets(planDay: PlanDay, exercise: Exercise, index: number) {
-  if (exercise.family === "warmup") return exercise.id === "light-practice-sets" ? 2 : 1;
+  if (isRampWarmup(exercise)) return 2;
+  if (exercise.family === "warmup") return 1;
   if (exercise.family === "cardio") return 1;
   if (planDay.session.type !== "strength") return 1;
   if (planDay.week <= 2) return 2;
@@ -1655,6 +1778,127 @@ function recommendedSets(planDay: PlanDay, exercise: Exercise, index: number) {
   if (planDay.week <= 18) return workingIndex === 0 ? 4 : workingIndex < 4 ? 3 : 2;
   if (planDay.week <= 22) return workingIndex < 4 ? 4 : 3;
   return workingIndex < 4 ? 3 : 2;
+}
+
+function isRampWarmup(exercise: Exercise) {
+  return exercise.id.startsWith("warmup-ramp-");
+}
+
+function warmupTarget(planDay: PlanDay, exercise: Exercise) {
+  if (exercise.id === "warmup-treadmill-walk") {
+    if (planDay.week <= 2) return "10 min easy";
+    if (planDay.week <= 6) return "10 min easy, last 2 min a little brisker";
+    if (planDay.week <= 10) return "12 min easy-to-moderate";
+    if (planDay.week === 11) return "8-10 min easy deload";
+    if (planDay.week <= 14) return "12 min easy-to-moderate";
+    if (planDay.week <= 18) return "12 min with 3 brisk 30-sec pickups";
+    if (planDay.week <= 22) return "15 min easy-to-moderate";
+    if (planDay.week === 23) return "8-10 min easy deload";
+    return "12-15 min easy-to-moderate";
+  }
+
+  if (exercise.id === "bodyweight-squat") {
+    if (planDay.week <= 2) return "8 smooth reps";
+    if (planDay.week <= 6) return "10 smooth reps";
+    if (planDay.week <= 10) return "10 reps with a 2-sec bottom pause";
+    if (planDay.week === 11) return "8 easy reps";
+    if (planDay.week <= 14) return "10 controlled reps";
+    if (planDay.week <= 18) return "12 reps with a 2-sec bottom pause";
+    if (planDay.week <= 22) return "12 controlled reps";
+    if (planDay.week === 23) return "8 easy reps";
+    return "12 crisp reps";
+  }
+
+  if (exercise.id === "hip-hinge-drill") {
+    if (planDay.week <= 2) return "8 smooth reps";
+    if (planDay.week <= 6) return "10 smooth reps";
+    if (planDay.week <= 10) return "10 reps with a 2-sec hamstring stretch";
+    if (planDay.week === 11) return "8 easy reps";
+    if (planDay.week <= 14) return "10 controlled reps";
+    if (planDay.week <= 18) return "12 reps with a 2-sec hamstring stretch";
+    if (planDay.week <= 22) return "12 slow reps";
+    if (planDay.week === 23) return "8 easy reps";
+    return "12 crisp reps";
+  }
+
+  if (exercise.id === "incline-push-up") {
+    if (planDay.week <= 2) return "6 clean reps";
+    if (planDay.week <= 6) return "8 clean reps";
+    if (planDay.week <= 10) return "10 clean reps";
+    if (planDay.week === 11) return "6 easy reps";
+    if (planDay.week <= 14) return "8 reps, slightly lower bench if easy";
+    if (planDay.week <= 18) return "10 reps, controlled lowering";
+    if (planDay.week <= 22) return "10 reps, lower incline if form is solid";
+    if (planDay.week === 23) return "6 easy reps";
+    return "10 crisp reps";
+  }
+
+  if (exercise.id === "warmup-front-plank") {
+    if (planDay.week <= 2) return "20 sec";
+    if (planDay.week <= 6) return "25 sec";
+    if (planDay.week <= 10) return "30 sec";
+    if (planDay.week === 11) return "20 sec easy";
+    if (planDay.week <= 14) return "25 sec";
+    if (planDay.week <= 18) return "30 sec";
+    if (planDay.week <= 22) return "30 sec with slower breathing";
+    if (planDay.week === 23) return "20 sec easy";
+    return "30 sec crisp brace";
+  }
+
+  if (exercise.id === "mobility-flow") {
+    if (planDay.week <= 6) return "5-10 min";
+    if (planDay.week <= 14) return "8-12 min";
+    if (planDay.week === 23) return "5-8 min easy";
+    return "10-12 min";
+  }
+
+  return exercise.reps;
+}
+
+function rampWarmupTarget(planDay: PlanDay, exercise: Exercise) {
+  const isUpperBody = exercise.id.includes("press") || exercise.id.includes("row");
+  if (planDay.week === 11 || planDay.week === 23) {
+    return isUpperBody
+      ? "2 easy sets: 40-55% working lbs"
+      : "2 easy sets: 45-60% working lbs";
+  }
+  if (planDay.week <= 2) {
+    return isUpperBody
+      ? "2 lighter sets: 40-60% working lbs"
+      : "2 lighter sets: 50-65% working lbs";
+  }
+  if (planDay.week <= 10) {
+    return isUpperBody
+      ? "2 ramp sets: 50-70% working lbs"
+      : "2 ramp sets: 55-75% working lbs";
+  }
+  if (planDay.week <= 18) {
+    return isUpperBody
+      ? "2 ramp sets: 55-75% working lbs"
+      : "2 ramp sets: 60-80% working lbs";
+  }
+  return isUpperBody
+    ? "2 ramp sets: 60-80% working lbs"
+    : "2 ramp sets: 65-85% working lbs";
+}
+
+function warmupProgressionForExercise(planDay: PlanDay, exercise: Exercise) {
+  if (isRampWarmup(exercise)) {
+    if (planDay.week === 11 || planDay.week === 23) {
+      return "Deload week: keep both ramp sets lighter than usual and use them only to rehearse the movement.";
+    }
+    return `${exercise.progression} These are logged in pounds so you can see how your warm-up weights rise as your working weights rise.`;
+  }
+
+  if (exercise.id === "warmup-treadmill-walk") {
+    return "The warm-up starts at 10 minutes, grows toward 12-15 minutes in later phases, and stays easy enough that the first lift still feels powerful.";
+  }
+
+  if (exercise.family === "warmup") {
+    return `${exercise.progression} The target changes by phase so the prep work keeps matching your fitness level.`;
+  }
+
+  return exercise.progression;
 }
 
 function rangedTarget(base: string, week: number) {
@@ -1731,38 +1975,121 @@ function rangedTarget(base: string, week: number) {
 
 function cardioTarget(planDay: PlanDay, exercise: Exercise) {
   if (exercise.id === "treadmill-walk" && planDay.session.title === "Cardio Base") {
-    if (planDay.week <= 6) return "25-30 min brisk";
-    if (planDay.week <= 14) return "30-35 min brisk";
-    if (planDay.week <= 22) return "35-40 min brisk";
-    if (planDay.week === 23) return "25-30 min easy";
-    return "35-45 min brisk";
+    if (planDay.week <= 2) return "25-30 min brisk";
+    if (planDay.week <= 6) return "30-35 min brisk";
+    if (planDay.week <= 10) return "35-40 min brisk";
+    if (planDay.week === 11) return "25-30 min easy";
+    if (planDay.week <= 14) return "35-40 min brisk";
+    if (planDay.week <= 18) return "40-45 min brisk";
+    if (planDay.week <= 22) return "45 min brisk";
+    if (planDay.week === 23) return "30 min easy";
+    return "45-50 min brisk";
   }
 
   if (exercise.id === "treadmill-walk" && planDay.session.title === "Easy Movement") {
-    if (planDay.week <= 6) return "20-30 min moderate";
-    if (planDay.week <= 14) return "25-35 min moderate";
-    if (planDay.week <= 22) return "30-40 min moderate";
+    if (planDay.week <= 2) return "20-30 min moderate";
+    if (planDay.week <= 6) return "25-35 min moderate";
+    if (planDay.week <= 10) return "30-40 min moderate";
+    if (planDay.week === 11) return "20-30 min easy";
+    if (planDay.week <= 14) return "30-40 min moderate";
+    if (planDay.week <= 18) return "35-45 min moderate";
+    if (planDay.week <= 22) return "40-45 min moderate";
     if (planDay.week === 23) return "20-30 min easy";
-    return "30-40 min moderate";
+    return "35-45 min moderate";
   }
 
   if (exercise.id === "long-cardio-walk") {
-    if (planDay.week <= 6) return "45-60 min brisk";
-    if (planDay.week <= 14) return "50-65 min brisk";
-    if (planDay.week <= 22) return "55-70 min brisk";
+    if (planDay.week <= 2) return "45-55 min brisk";
+    if (planDay.week <= 6) return "50-60 min brisk";
+    if (planDay.week <= 10) return "55-65 min brisk";
+    if (planDay.week === 11) return "40-50 min easy";
+    if (planDay.week <= 14) return "55-65 min brisk";
+    if (planDay.week <= 18) return "60-70 min brisk";
+    if (planDay.week <= 22) return "65-75 min brisk";
     if (planDay.week === 23) return "40-50 min easy";
-    return "55-75 min brisk";
+    return "60-75 min brisk";
   }
 
   if (exercise.id === "treadmill-finisher") {
-    return planDay.week === 23 ? "8-10 min easy" : "10 min brisk";
+    if (planDay.week <= 6) return "10 min brisk";
+    if (planDay.week <= 10) return "12 min brisk";
+    if (planDay.week === 11) return "8-10 min easy";
+    if (planDay.week <= 14) return "12 min brisk";
+    if (planDay.week <= 18) return "12-15 min brisk";
+    if (planDay.week <= 22) return "15 min brisk";
+    if (planDay.week === 23) return "8-10 min easy";
+    return "15 min brisk";
   }
 
   return exercise.reps;
 }
 
+function sessionTimeForDay(planDay: PlanDay) {
+  if (planDay.session.type === "strength") {
+    const hasDirectArms = planDay.session.exerciseIds.includes("dumbbell-biceps-curl");
+    if (planDay.week === 11 || planDay.week === 23) return hasDirectArms ? "55-70 min" : "50-65 min";
+    if (planDay.week <= 2) return hasDirectArms ? "65-80 min" : "60-75 min";
+    if (planDay.week <= 10) return hasDirectArms ? "70-85 min" : "65-80 min";
+    if (planDay.week <= 18) return hasDirectArms ? "75-90 min" : "70-85 min";
+    return hasDirectArms ? "80-95 min" : "75-90 min";
+  }
+
+  if (planDay.session.title === "Cardio Base") {
+    if (planDay.week === 11 || planDay.week === 23) return "40-45 min";
+    if (planDay.week <= 2) return "40-45 min";
+    if (planDay.week <= 6) return "45-50 min";
+    if (planDay.week <= 10) return "50-55 min";
+    if (planDay.week <= 18) return "55-60 min";
+    return "60-65 min";
+  }
+
+  if (planDay.session.title === "Easy Movement") {
+    if (planDay.week === 11 || planDay.week === 23) return "25-35 min";
+    if (planDay.week <= 2) return "25-40 min";
+    if (planDay.week <= 6) return "30-45 min";
+    return "40-55 min";
+  }
+
+  if (planDay.session.title === "Long Cardio") {
+    if (planDay.week === 11 || planDay.week === 23) return "40-50 min";
+    if (planDay.week <= 2) return "45-55 min";
+    if (planDay.week <= 6) return "50-60 min";
+    if (planDay.week <= 10) return "55-65 min";
+    return "60-75 min";
+  }
+
+  return planDay.session.time;
+}
+
+function sessionSummaryForDay(planDay: PlanDay) {
+  if (planDay.session.type === "strength") {
+    const finisher = cardioTarget(planDay, exerciseMap["treadmill-finisher"]);
+    const hasDirectArms = planDay.session.exerciseIds.includes("dumbbell-biceps-curl");
+    const armText = hasDirectArms ? "direct arms, " : "";
+    return `Phase-scaled warm-up, two lift-specific ramp warm-ups, full-body weights, ${armText}dead bugs, and ${finisher}.`;
+  }
+
+  if (planDay.session.title === "Cardio Base") {
+    return `Treadmill walk: ${warmupTarget(planDay, exerciseMap["warmup-treadmill-walk"])}, ${cardioTarget(
+      planDay,
+      exerciseMap["treadmill-walk"],
+    )}, then 5 min easy cool-down.`;
+  }
+
+  if (planDay.session.title === "Easy Movement") {
+    return `Moderate walk, ${warmupTarget(planDay, exerciseMap["mobility-flow"])}, and easy movement prep without turning it into a hard workout.`;
+  }
+
+  if (planDay.session.title === "Long Cardio") {
+    return `${cardioTarget(planDay, exerciseMap["long-cardio-walk"])} at talk-test pace.`;
+  }
+
+  return planDay.session.summary;
+}
+
 function targetForExercise(planDay: PlanDay, exercise: Exercise) {
-  if (exercise.family === "warmup") return exercise.reps;
+  if (isRampWarmup(exercise)) return rampWarmupTarget(planDay, exercise);
+  if (exercise.family === "warmup") return warmupTarget(planDay, exercise);
   if (exercise.family === "cardio") return cardioTarget(planDay, exercise);
   if (exercise.id === "dead-bug") {
     if (planDay.week <= 2) return "8 each side";
@@ -1789,9 +2116,9 @@ function restForExercise(planDay: PlanDay, exercise: Exercise) {
 }
 
 function progressionForExercise(planDay: PlanDay, exercise: Exercise) {
-  if (exercise.family === "warmup") return exercise.progression;
+  if (exercise.family === "warmup") return warmupProgressionForExercise(planDay, exercise);
   if (planDay.week === 11 || planDay.week === 23) {
-    return "Deload week: reduce load about 10-15 percent, leave several reps in reserve, and focus on clean movement.";
+    return "Deload week: reduce load about 10-15 percent, stop well before form breaks, and focus on clean movement.";
   }
   if (planDay.week >= 13) {
     return `${exercise.progression} For this extended block, use the PDF double-progression rule: when all sets hit the top target cleanly, add the smallest available load next time.`;
@@ -1826,11 +2153,43 @@ function formatLoadValue(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1).replace(/\.0$/, "");
 }
 
+function formatLoggedWeightText(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return /[a-z]/i.test(trimmed) ? trimmed : `${trimmed} lb`;
+}
+
 function estimatedCardioMinutes(planDay: PlanDay) {
-  if (planDay.session.title === "Cardio Base") return planDay.week >= 15 ? 45 : planDay.week >= 7 ? 40 : 35;
-  if (planDay.session.title === "Long Cardio") return planDay.week >= 15 ? 65 : planDay.week >= 7 ? 55 : 45;
-  if (planDay.session.title === "Easy Movement") return planDay.week >= 15 ? 30 : 20;
-  if (planDay.session.type === "strength") return 10;
+  if (planDay.session.title === "Cardio Base") {
+    if (planDay.week === 11 || planDay.week === 23) return 40;
+    if (planDay.week <= 2) return 40;
+    if (planDay.week <= 6) return 45;
+    if (planDay.week <= 10) return 50;
+    if (planDay.week <= 18) return 55;
+    return 60;
+  }
+  if (planDay.session.title === "Long Cardio") {
+    if (planDay.week === 11 || planDay.week === 23) return 45;
+    if (planDay.week <= 2) return 50;
+    if (planDay.week <= 6) return 55;
+    if (planDay.week <= 10) return 60;
+    if (planDay.week <= 18) return 65;
+    return 70;
+  }
+  if (planDay.session.title === "Easy Movement") {
+    if (planDay.week === 11 || planDay.week === 23) return 25;
+    if (planDay.week <= 2) return 25;
+    if (planDay.week <= 6) return 30;
+    if (planDay.week <= 10) return 35;
+    return 40;
+  }
+  if (planDay.session.type === "strength") {
+    if (planDay.week === 11 || planDay.week === 23) return 18;
+    if (planDay.week <= 6) return 20;
+    if (planDay.week <= 10) return 24;
+    if (planDay.week <= 18) return 27;
+    return 30;
+  }
   return 0;
 }
 
@@ -2019,8 +2378,10 @@ function youtubeUrl(id?: string) {
   return id ? `https://www.youtube.com/watch?v=${id}` : "";
 }
 
-function youtubeThumb(id?: string) {
-  return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : "";
+function youtubeEmbedUrl(id?: string) {
+  return id
+    ? `https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1&playsinline=1`
+    : "";
 }
 
 function workoutXGifUrl(workoutXId?: string) {
@@ -2142,7 +2503,7 @@ function smartLoadSuggestion(
   if (!previousLoad) {
     return {
       label: "Start conservative",
-      detail: `Choose a load you can control for ${setCount} ${setCount === 1 ? "set" : "sets"} of ${target}. The first win is repeatable form.`,
+      detail: `Choose a weight in pounds you can control for ${setCount} ${setCount === 1 ? "set" : "sets"} of ${target}. The first win is repeatable form.`,
       tone: "start",
     };
   }
@@ -2152,7 +2513,7 @@ function smartLoadSuggestion(
     const high = formatLoadValue(previousLoad.maxLoad * 0.9);
     return {
       label: "Deload load",
-      detail: `Last top logged load was ${previousLoad.weights}. Use about ${low}-${high} today and make every rep smooth.`,
+      detail: `Last top logged load was ${formatLoggedWeightText(previousLoad.weights)}. Use about ${low}-${high} lb today and make every rep smooth.`,
       tone: "deload",
     };
   }
@@ -2160,14 +2521,14 @@ function smartLoadSuggestion(
   if (previousLoad.allDone) {
     return {
       label: "Hold or nudge up",
-      detail: `Last time was ${previousLoad.weights} on ${previousLoad.date}. Start there; if set 1 feels clean, take the smallest available jump.`,
+      detail: `Last time was ${formatLoggedWeightText(previousLoad.weights)} on ${previousLoad.date}. Start there; if set 1 feels clean, take the smallest available jump.`,
       tone: "build",
     };
   }
 
   return {
     label: "Repeat and own it",
-    detail: `Last logged load was ${previousLoad.weights} on ${previousLoad.date}. Repeat that before increasing.`,
+    detail: `Last logged load was ${formatLoggedWeightText(previousLoad.weights)} on ${previousLoad.date}. Repeat that before increasing.`,
     tone: "steady",
   };
 }
@@ -2176,42 +2537,16 @@ function completedRows(rows: SetLog[]) {
   return rows.filter((row) => row.done).length;
 }
 
-function firstWeightedExerciseForDay(planDay?: PlanDay) {
-  if (!planDay) return null;
-
-  const firstWeightedId = planDay.session.exerciseIds.find((id) => {
-    const item = exerciseMap[id];
-    return item ? tracksWeight(item) : false;
-  });
-
-  return firstWeightedId ? exerciseMap[firstWeightedId] : null;
-}
-
-function motionDemoForExercise(exercise: Exercise, planDay?: PlanDay) {
-  if (exercise.id !== "light-practice-sets") return exercise.motionDemo;
-
-  const firstWeightedMove = firstWeightedExerciseForDay(planDay);
-  if (!firstWeightedMove?.motionDemo) return exercise.motionDemo;
-
-  return {
-    ...firstWeightedMove.motionDemo,
-    label: `Practice-set reference: ${firstWeightedMove.shortName}`,
-    match: "reference" as const,
-  };
-}
-
 function ExerciseMedia({
   exercise,
-  planDay,
   variant,
 }: {
   exercise: Exercise;
-  planDay?: PlanDay;
   variant: "gym" | "thumb" | "library";
 }) {
   const [showGif, setShowGif] = useState(false);
   const [gifFailed, setGifFailed] = useState(false);
-  const demo = motionDemoForExercise(exercise, planDay);
+  const demo = exercise.motionDemo;
   const canShowGif = Boolean(demo && !gifFailed);
   const isShowingGif = Boolean(canShowGif && showGif);
   const className = `exercise-media exercise-media-${variant} ${
@@ -2239,19 +2574,19 @@ function ExerciseMedia({
           />
         </div>
       ) : exercise.youtubeId ? (
-        <a
-          className={className}
-          href={youtubeUrl(exercise.youtubeId)}
-          target="_blank"
-          rel="noreferrer"
-          aria-label={`Watch ${exercise.name} video`}
-        >
-          <img src={youtubeThumb(exercise.youtubeId)} alt="" loading="lazy" />
+        <div className={className}>
+          <iframe
+            title={`${exercise.name} YouTube demo`}
+            src={youtubeEmbedUrl(exercise.youtubeId)}
+            loading={variant === "gym" ? "eager" : "lazy"}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
           <span className="motion-badge">
             <Icon name="video" size={variant === "gym" ? 16 : 14} />
-            YouTube
+            Inline video
           </span>
-        </a>
+        </div>
       ) : (
         <div className={className}>
           <span className="motion-badge">Guide</span>
@@ -2535,6 +2870,8 @@ export default function Home() {
   const selectedLog = normalizeDayLog(store.days[selectedDay.iso]);
   const selectedMetric = store.metrics[selectedDay.iso] ?? createEmptyMetric();
   const phase = phaseForWeek(selectedDay.week);
+  const selectedSessionTime = sessionTimeForDay(selectedDay);
+  const selectedSessionSummary = sessionSummaryForDay(selectedDay);
   const selectedExercises = selectedDay.session.exerciseIds.flatMap((id) =>
     exerciseMap[id] ? [exerciseMap[id]] : [],
   );
@@ -2935,7 +3272,7 @@ export default function Home() {
   const bestLiftRows = libraryOrder
     .map((id) => {
       const exercise = exerciseMap[id];
-      if (!exercise || !tracksWeight(exercise)) return null;
+      if (!exercise || !tracksWeight(exercise) || exercise.family === "warmup") return null;
 
       const allLoads = Object.values(store.days).flatMap((log) =>
         (log.exercises[id] ?? [])
@@ -3217,7 +3554,7 @@ export default function Home() {
                 <p>{currentGymExercise.target}</p>
               </div>
               <div className="gym-media-stack">
-                <ExerciseMedia exercise={currentGymExercise} planDay={selectedDay} variant="gym" />
+                <ExerciseMedia exercise={currentGymExercise} variant="gym" />
                 <ExerciseMediaLinks exercise={currentGymExercise} />
               </div>
             </div>
@@ -3237,7 +3574,9 @@ export default function Home() {
               </div>
               <div>
                 <span>Last load</span>
-                <strong>{currentGymPreviousLoad?.weights ?? "New"}</strong>
+                <strong>
+                  {currentGymPreviousLoad ? formatLoggedWeightText(currentGymPreviousLoad.weights) : "New"}
+                </strong>
               </div>
             </div>
 
@@ -3280,7 +3619,7 @@ export default function Home() {
               <div className="set-head">
                 <span>Set</span>
                 <span>Target</span>
-                <span>Weight</span>
+                <span>Weight (lbs)</span>
                 <span>Done</span>
               </div>
               {currentGymRows.map((set, setIndex) => (
@@ -3291,11 +3630,11 @@ export default function Home() {
                     <input
                       inputMode="decimal"
                       value={set.weight}
-                      placeholder="lb/kg"
+                      placeholder="lbs"
                       onChange={(event) =>
                         updateSet(currentGymExercise.id, setIndex, "weight", event.target.value)
                       }
-                      aria-label={`${currentGymExercise.name} set ${setIndex + 1} weight`}
+                      aria-label={`${currentGymExercise.name} set ${setIndex + 1} weight in pounds`}
                     />
                   ) : (
                     <span className="load-pill">{currentGymExercise.loadLabel ?? "body"}</span>
@@ -3368,7 +3707,7 @@ export default function Home() {
           <section className="empty-gym-card">
             <p className="eyebrow">{selectedDay.session.title}</p>
             <h2>No gym moves today</h2>
-            <p>{selectedDay.session.summary}</p>
+            <p>{selectedSessionSummary}</p>
             <button type="button" onClick={() => setActiveSection("today")}>
               Back to Today
             </button>
@@ -3420,16 +3759,16 @@ export default function Home() {
             <div className="command-progress-card">
               <span>Next</span>
               <strong>{nextOpenMove?.activeExercise.shortName ?? "Recovery"}</strong>
-              <small>{nextOpenMove?.target ?? selectedDay.session.summary}</small>
+              <small>{nextOpenMove?.target ?? selectedSessionSummary}</small>
             </div>
             <div className="command-progress-card">
               <span>Session</span>
-              <strong>{selectedDay.session.time}</strong>
+              <strong>{selectedSessionTime}</strong>
               <small>{phase.sets}</small>
             </div>
           </div>
 
-          <p className="plan-note">{selectedDay.session.summary}</p>
+          <p className="plan-note">{selectedSessionSummary}</p>
           <p className="phase-note">{phase.note}</p>
 
           <section className="checklist-block compact-targets" aria-labelledby="tasks-heading">
@@ -3521,7 +3860,7 @@ export default function Home() {
           ) : (
             <section className="recovery-flow" aria-label="Recovery day">
               <h3>Recovery Day</h3>
-              <p>{selectedDay.session.summary}</p>
+              <p>{selectedSessionSummary}</p>
             </section>
           )}
 
@@ -3697,7 +4036,7 @@ export default function Home() {
                     {bestLiftRows.map((lift) => (
                       <div key={lift.id} className={`best-load-row ${lift.family}`}>
                         <span>{lift.name}</span>
-                        <strong>{formatLoadValue(lift.load)}</strong>
+                        <strong>{formatLoadValue(lift.load)} lb</strong>
                       </div>
                     ))}
                   </div>
@@ -3711,7 +4050,7 @@ export default function Home() {
                   <div className="trend-list">
                     <span>{bodyTrend.from} to {bodyTrend.to}</span>
                     <strong>
-                      Weight {bodyTrend.weightDelta === null ? "n/a" : `${formatLoadValue(bodyTrend.weightDelta)} kg`}
+                      Weight {bodyTrend.weightDelta === null ? "n/a" : `${formatLoadValue(bodyTrend.weightDelta)} lb`}
                     </strong>
                     <strong>
                       Waist {bodyTrend.waistDelta === null ? "n/a" : `${formatLoadValue(bodyTrend.waistDelta)} cm`}
@@ -3751,7 +4090,7 @@ export default function Home() {
                   <div key={day.iso} className="history-row">
                     <span>{formatDate(day.iso, "short")}</span>
                     <strong>{day.session.title}</strong>
-                    <small>{day.session.time}</small>
+                    <small>{sessionTimeForDay(day)}</small>
                   </div>
                 ))
               ) : (
@@ -3765,11 +4104,11 @@ export default function Home() {
             <h2>{formatDate(selectedDay.iso, "short")}</h2>
             <div className="foundation-grid two">
               <label>
-                Weight
+                Body weight (lbs)
                 <input
                   inputMode="decimal"
                   value={selectedMetric.weight}
-                  placeholder="kg"
+                  placeholder="lbs"
                   onChange={(event) =>
                     updateMetric(selectedDay.iso, (metric) => ({
                       ...metric,
@@ -3923,7 +4262,7 @@ export default function Home() {
 
             <div className="detail-media-grid">
               <div className="detail-media-panel">
-                <ExerciseMedia exercise={detailExercise} planDay={selectedDay} variant="gym" />
+                <ExerciseMedia exercise={detailExercise} variant="gym" />
                 <ExerciseMediaLinks exercise={detailExercise} />
                 <div className="resource-links detail-resources">
                   {detailExercise.resources.map((resource) => (
@@ -3949,7 +4288,9 @@ export default function Home() {
                 </div>
                 <div>
                   <span>Last load</span>
-                  <strong>{detailPreviousLoad?.weights ?? "New"}</strong>
+                  <strong>
+                    {detailPreviousLoad ? formatLoggedWeightText(detailPreviousLoad.weights) : "New"}
+                  </strong>
                 </div>
               </div>
             </div>
@@ -4023,7 +4364,7 @@ export default function Home() {
               <div className="set-head">
                 <span>Set</span>
                 <span>Target</span>
-                <span>Weight</span>
+                <span>Weight (lbs)</span>
                 <span>Done</span>
               </div>
               {detailRows.map((set, setIndex) => (
@@ -4034,11 +4375,11 @@ export default function Home() {
                     <input
                       inputMode="decimal"
                       value={set.weight}
-                      placeholder="lb/kg"
+                      placeholder="lbs"
                       onChange={(event) =>
                         updateSet(detailExercise.id, setIndex, "weight", event.target.value)
                       }
-                      aria-label={`${detailExercise.name} set ${setIndex + 1} weight`}
+                      aria-label={`${detailExercise.name} set ${setIndex + 1} weight in pounds`}
                     />
                   ) : (
                     <span className="load-pill">{detailExercise.loadLabel ?? "body"}</span>
