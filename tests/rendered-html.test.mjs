@@ -220,6 +220,16 @@ test("starts Aug 31 on the PDF Monday workout slot and ignores scratch folders",
   assert.match(page, /START_DATE = "2026-08-31"/);
   assert.match(page, /const scheduleOrder = \[/);
   assert.match(page, /planDayName: planName/);
+  assert.match(page, /const \[selectedDate, setSelectedDate\] = useState\(\(\) => closestProgramDate\(\)\)/);
+  assert.match(page, /function closestProgramDate\(\)/);
+  assert.match(page, /date\.getFullYear\(\)/);
+  assert.match(page, /date\.getMonth\(\) \+ 1/);
+  assert.match(page, /date\.getDate\(\)/);
+  assert.match(page, /lastAutoAlignedDateRef/);
+  assert.match(page, /visibilitychange/);
+  assert.match(page, /document\.visibilityState === "visible"/);
+  assert.match(page, /window\.addEventListener\("focus", alignWithCurrentProgramDate\)/);
+  assert.match(page, /setActiveSection\("today"\)/);
   assert.match(viteConfig, /\*\*\/work\/\*\*/);
   assert.match(viteConfig, /\*\*\/\.npm-cache\/\*\*/);
 });
@@ -267,12 +277,12 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v12/);
-  assert.match(serviceWorker, /finisher-before-either-v12/);
+  assert.match(serviceWorker, /recomp-gym-console-v13/);
+  assert.match(serviceWorker, /auto-today-v13/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
   assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
-  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v11/);
+  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v12/);
 });

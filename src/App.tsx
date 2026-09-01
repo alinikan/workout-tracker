@@ -1691,7 +1691,10 @@ function dateFromIso(iso: string) {
 }
 
 function isoFromDate(date: Date) {
-  return date.toISOString().slice(0, 10);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function addDays(iso: string, amount: number) {
@@ -2716,7 +2719,7 @@ function ExerciseMediaLinks({
 
 export default function Home() {
   const planDays = useMemo(buildPlanDays, []);
-  const [selectedDate, setSelectedDate] = useState(START_DATE);
+  const [selectedDate, setSelectedDate] = useState(() => closestProgramDate());
   const [store, setStore] = useState<TrackerStore>(() => loadStore());
   const [isHydrated, setIsHydrated] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
@@ -2738,13 +2741,34 @@ export default function Home() {
   const [librarySearch, setLibrarySearch] = useState("");
   const [detailExerciseId, setDetailExerciseId] = useState<string | null>(null);
   const latestStoreRef = useRef(store);
+  const lastAutoAlignedDateRef = useRef(selectedDate);
   const firstLocalSaveRef = useRef(true);
   const suppressLocalChangeMetaRef = useRef(false);
   const suppressNextCloudSaveRef = useRef(false);
 
   useEffect(() => {
-    setSelectedDate(closestProgramDate());
     setIsHydrated(true);
+
+    const alignWithCurrentProgramDate = () => {
+      const nextProgramDate = closestProgramDate();
+      if (lastAutoAlignedDateRef.current === nextProgramDate) return;
+
+      lastAutoAlignedDateRef.current = nextProgramDate;
+      setSelectedDate(nextProgramDate);
+      setActiveSection("today");
+    };
+
+    const alignWhenVisible = () => {
+      if (document.visibilityState === "visible") alignWithCurrentProgramDate();
+    };
+
+    window.addEventListener("focus", alignWithCurrentProgramDate);
+    document.addEventListener("visibilitychange", alignWhenVisible);
+
+    return () => {
+      window.removeEventListener("focus", alignWithCurrentProgramDate);
+      document.removeEventListener("visibilitychange", alignWhenVisible);
+    };
   }, []);
 
   useEffect(() => {

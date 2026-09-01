@@ -5,6 +5,7 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
 ## Features
 
 - 182-day program calendar, which is about 6 months of training.
+- Auto-opens to the current program day and current week, including when launched from the iPhone Home Screen app.
 - Color-coded app sections for Today, Gym Mode, Week, Progress, Library, and Account.
 - iPhone-friendly bottom navigation plus a desktop tab bar for MacBook use.
 - Color-coded weekly planner with a week selector for jumping through the full 6-month calendar without a cluttered 182-day rail.
@@ -64,9 +65,11 @@ Important limitation: the cloud sync needs the same deployed app URL and the sam
 
 iPhone Home Screen note: email + password sign-in happens directly inside the Home Screen app. It does not depend on a magic link opening in the right browser.
 
+Launch behavior: the app opens on the current program day automatically. If the iPhone Home Screen app stays in memory overnight, it moves to the new current day the next time it becomes active.
+
 ## Using the Redesigned Tracker
 
-1. Open **Today** to see the selected day's ordered workout flow.
+1. Open the app to land on today's program day and the related week automatically.
 2. Use the week strip or **Jump to week** selector if you want a different date.
 3. Follow the moves from top to bottom. Each row is color-coded by movement family: warm-up, legs, push, pull, hinge, core, arms, or cardio.
 4. Use the location chip beside each move to decide whether it can happen upstairs or should stay in the downstairs gym.
