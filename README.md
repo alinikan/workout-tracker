@@ -10,8 +10,11 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
 - iPhone-friendly bottom navigation plus a desktop tab bar for MacBook use.
 - Color-coded weekly planner with a week selector for jumping through the full 6-month calendar without a cluttered 182-day rail.
 - Compact Today day picker so you can choose any day in the current week or jump weeks without leaving Today.
-- Gym Mode with one move at a time, large video access, set logging, previous/next move controls, smart load guidance, swap controls, and a complete-set action.
+- Gym Mode always opens the actual current program day, starts on the first unfinished move, skips completed moves with smart previous/next controls, and keeps the big complete button visually different before and after a move is finished.
 - Ordered workout flow so you can follow each day from move 1 to the final move, including warm-ups and finishers, without every detail cluttering the screen at once.
+- Every workout move has a clear status: **Not started**, **In progress**, **Done**, or **Skipped**.
+- Skip tracking asks for a reason: **Time**, **Pain**, **Equipment**, **Fatigue**, or **Other**.
+- Progress separates perfect **Complete** days from **Finished with skips** days, so skipped workouts stay honest instead of inflating completion.
 - Home/gym split labels show whether a movement is **Upstairs OK**, **Downstairs**, **Downstairs/outside**, or **Either**.
 - Exercise Detail bottom sheet with the selected move's YouTube/GIF media, cue list, common mistakes, progression note, resource links, swap options, and set log.
 - Legit exercise swaps for matching movement patterns such as machine chest press, assisted pull-up, seated cable row, machine shoulder press, pec deck fly, goblet squat, and Romanian deadlift variations.
@@ -19,6 +22,7 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
 - Optional **Show GIF** button for autoplaying movement demos when a WorkoutX key is configured.
 - Smart load suggestions that use your last logged load, completed sets, and deload weeks to suggest whether to start light, repeat, nudge up, or reduce load.
 - Strength-day logging with only weight and completion checks. Reps, time, rest, and cardio targets are shown by phase, not entered by you.
+- Done-only warm-ups, cardio, and bodyweight moves show Set, Target, and Done only, with no fake weight or pace input.
 - Strength weights and body weight are treated as pounds/lbs throughout the app.
 - Dynamic set, warm-up, cardio, and target recommendations from the PDF plus conservative trainer-style progression:
   - Weeks 1-2: 2 working sets.
@@ -31,7 +35,7 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
   - Weeks 24-26: final compare block with normal loads, higher cardio targets, and body/strength comparison.
 - Warm-up moves are first-class cards with cues, resources, inline videos where available, targets, and completion checks.
 - The old generic warm-up item is replaced by two lift-specific warm-up ramp cards that match the first two lifts of that strength day.
-- Dynamic ab work after every lifting session: dead bugs are added after the main lift/core block before the treadmill finisher.
+- Dynamic ab work after every lifting session: dead bugs are added after the downstairs treadmill finisher so the final floor block can happen upstairs or downstairs.
 - Direct biceps and triceps work twice weekly: dumbbell curls and cable rope pressdowns are added to Strength B and Strength C as small accessory blocks.
 - Body check-ins for weight, waist, and weekly notes.
 - Progress dashboard with completion streaks, strength sessions, completed sets, estimated cardio minutes, body check-ins, best logged loads, weekly consistency bars, recent workout history, achievements, and body trend.
@@ -65,7 +69,7 @@ Important limitation: the cloud sync needs the same deployed app URL and the sam
 
 iPhone Home Screen note: email + password sign-in happens directly inside the Home Screen app. It does not depend on a magic link opening in the right browser.
 
-Launch behavior: the app opens on the current program day automatically. If the iPhone Home Screen app stays in memory overnight, it moves to the new current day the next time it becomes active.
+Launch behavior: the app opens on the current program day automatically. If the iPhone Home Screen app stays in memory overnight, it moves to the new current day the next time it becomes active. You can browse other dates in Today or Week, but Gym Mode always uses the actual current program day.
 
 ## Using the Redesigned Tracker
 
@@ -73,14 +77,32 @@ Launch behavior: the app opens on the current program day automatically. If the 
 2. Use the week strip or **Jump to week** selector if you want a different date.
 3. Follow the moves from top to bottom. Each row is color-coded by movement family: warm-up, legs, push, pull, hinge, core, arms, or cardio.
 4. Use the location chip beside each move to decide whether it can happen upstairs or should stay in the downstairs gym.
-5. Tap the numbered check button to mark a whole move complete, or tap **Details / Swap** for the full set-by-set log.
+5. Tap the numbered check button to mark a whole move complete, use **Skip** when you cannot do a move, or tap **Details / Swap** for the full set-by-set log.
 6. Use **Upstairs OK** prep only when you can head downstairs soon after; do equipment ramp sets downstairs right before the working lift.
 7. Use **Either** for mat/bodyweight work that can happen upstairs or downstairs without disrupting the session.
 8. In the Exercise Detail sheet, tap the video area to play the YouTube demo inline. Tap the **YouTube** button only when you want to open the full video externally.
 9. If a movement is unavailable, use **Swap Options** and choose a listed substitute. The app keeps the original available so you can switch back later.
-10. Use **Gym Mode** when you want the largest, simplest training view: one movement, one set table, previous/next controls, and the complete-set button.
-11. Check **Progress** for program completion, streak, sets, cardio minutes, best logged loads, weekly consistency, achievements, and body trend.
+10. Use **Gym Mode** when you want the largest, simplest training view. It always loads today, starts on the first unfinished move, and skips moves that are already complete.
+11. Check **Progress** for program completion, streak, sets, cardio minutes, skipped days, best logged loads, weekly consistency, achievements, and body trend. A day counts as complete once every move in that day is fully checked off.
 12. Use **Account** to sign in with email + password so the same data syncs across your iPhone, MacBook, and any other device.
+
+## Skipping Moves Properly
+
+Skipping is built in because real gym days are not always perfect. Use it when you truly cannot do a movement that day.
+
+- Tap **Skip** beside the move in Today, Gym Mode, or Exercise Detail.
+- Choose the reason: **Time**, **Pain**, **Equipment**, **Fatigue**, or **Other**.
+- The move becomes amber and shows the skip reason.
+- Gym Mode treats skipped moves as resolved, so **Next Open Move** jumps to the next unfinished, unskipped exercise.
+- If you change your mind, tap **Reopen** and the move goes back to the normal pending state.
+
+Day status rules:
+
+- **Complete:** every planned move is fully checked off.
+- **Finished with skips:** all remaining work is either done or intentionally skipped.
+- **Incomplete:** at least one move is still open.
+
+Trainer rule: skipping for pain is different from skipping for time. If pain is sharp, joint-based, or unusual, stop that movement and use the note field so you can remember what happened next time.
 
 ## Home/Gym Split
 

@@ -1,5 +1,5 @@
-const CACHE_NAME = "recomp-gym-console-v13";
-const APP_VERSION = "2026-08-31-auto-today-v13";
+const CACHE_NAME = "recomp-gym-console-v15";
+const APP_VERSION = "2026-09-01-skipped-move-tracking-v15";
 const APP_FALLBACK_URL = "/";
 
 const CORE_ASSETS = [

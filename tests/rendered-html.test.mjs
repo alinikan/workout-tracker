@@ -104,11 +104,54 @@ test("includes researched movement resources and autosave controls", async () =>
     "locationGuideForExercise",
     "locationFlowNoteForDay",
     "location-chip",
+    "currentProgramDate",
+    "gymDay",
+    "gymLog",
+    "gymMoveRows",
+    "updateSetForDay",
+    "updateGymSet",
+    "setGymExerciseSwap",
+    "withAutomaticDayCompletion",
+    "isPlanDayComplete",
+    "firstUnfinishedMoveIndex",
+    "nextUnfinishedMoveIndex",
+    "currentGymTracksWeight",
+    "currentGymNextSetNumber",
+    "gymPrimaryIsResolved",
+    "Next Open Move",
+    "All Done",
+    "no-load",
+    "SkipReason",
+    "MoveStatus",
+    "DayStatus",
+    "SkipRequest",
+    "skipReasonOptions",
+    "Time",
+    "Pain",
+    "Equipment",
+    "Fatigue",
+    "Other",
+    "normalizeSkips",
+    "mergeSkips",
+    "moveStatusForExercise",
+    "dayStatusForDay",
+    "Finished with skips",
+    "finished-with-skips",
+    "move-status-chip",
+    "move-skip-button",
+    "skip-control-strip",
+    "skip-reason-grid",
+    "skipRequest",
+    "requestSkipReason",
+    "submitSkipReason",
+    "reopenSkippedExerciseForDay",
+    "With skips",
   ]) {
     assert.match(page, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
 
   assert.doesNotMatch(page, /Reps\/sec|RIR|Daily Foundations|Export JSON|Import|Light Practice Sets|lb\/kg|Inline video/);
+  assert.doesNotMatch(page, /className="load-pill"/);
   assert.doesNotMatch(page, /Starts Tuesday/);
   assert.match(page, /acefitness\.org/);
   assert.match(page, /nasm\.org/);
@@ -226,10 +269,14 @@ test("starts Aug 31 on the PDF Monday workout slot and ignores scratch folders",
   assert.match(page, /date\.getMonth\(\) \+ 1/);
   assert.match(page, /date\.getDate\(\)/);
   assert.match(page, /lastAutoAlignedDateRef/);
+  assert.match(page, /setCurrentProgramDate\(nextProgramDate\)/);
   assert.match(page, /visibilitychange/);
   assert.match(page, /document\.visibilityState === "visible"/);
   assert.match(page, /window\.addEventListener\("focus", alignWithCurrentProgramDate\)/);
   assert.match(page, /setActiveSection\("today"\)/);
+  assert.match(page, /const nextProgramDate = closestProgramDate\(\)/);
+  assert.match(page, /const nextGymRows = buildWorkoutMoveRows\(nextGymDay, nextGymLog, nextGymExercises\)/);
+  assert.match(page, /setGymExerciseIndex\(firstUnfinishedMoveIndex\(nextGymRows\)\)/);
   assert.match(viteConfig, /\*\*\/work\/\*\*/);
   assert.match(viteConfig, /\*\*\/\.npm-cache\/\*\*/);
 });
@@ -264,6 +311,18 @@ test("includes installable app assets", async () => {
   assert.match(styles, /swap-option-grid/);
   assert.match(styles, /location-chip/);
   assert.match(styles, /location-flow-note/);
+  assert.match(styles, /set-table\.no-load/);
+  assert.match(styles, /primary\.is-pending/);
+  assert.match(styles, /primary\.is-complete/);
+  assert.match(styles, /primary\.is-skipped/);
+  assert.match(styles, /move-item\.skipped/);
+  assert.match(styles, /day-status-chip\.finished-with-skips/);
+  assert.match(styles, /move-status-chip\.skipped/);
+  assert.match(styles, /skip-control-strip/);
+  assert.match(styles, /skip-sheet/);
+  assert.match(styles, /skip-reason-grid/);
+  assert.match(styles, /move-actions/);
+  assert.match(styles, /mini-check input:checked \+ span::after/);
   assert.match(styles, /section-today\.app-shell/);
   assert.match(styles, /section-gym\.app-shell/);
   assert.match(styles, /overflow-x: clip/);
@@ -271,18 +330,18 @@ test("includes installable app assets", async () => {
   assert.match(styles, /scroll-margin-bottom/);
   assert.match(styles, /grid-template-columns: 46px minmax\(0, 1fr\) 46px/);
   assert.match(app, /controllerchange/);
-  assert.match(app, /aria-label="Complete next set"/);
+  assert.match(app, /aria-label=\{gymPrimaryFullLabel\}/);
 });
 
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v13/);
-  assert.match(serviceWorker, /auto-today-v13/);
+  assert.match(serviceWorker, /recomp-gym-console-v15/);
+  assert.match(serviceWorker, /skipped-move-tracking-v15/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
   assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
-  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v12/);
+  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v14/);
 });

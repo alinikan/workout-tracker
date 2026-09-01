@@ -36,6 +36,14 @@ type MotionDemo = {
 };
 
 type TrainingLocation = "upstairs" | "downstairs" | "downstairs-outside" | "either";
+type SkipReason = "time" | "pain" | "equipment" | "fatigue" | "other";
+type MoveStatus = "pending" | "done" | "skipped";
+type DayStatus = "incomplete" | "complete" | "finished-with-skips";
+type SkipRequest = {
+  date: string;
+  originalExerciseId: string;
+  source: "today" | "gym" | "detail";
+};
 
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   const commonProps = {
@@ -143,6 +151,7 @@ type DayLog = {
   warmup: Record<string, boolean>;
   tasks: Record<string, boolean>;
   exercises: Record<string, SetLog[]>;
+  skips: Record<string, SkipReason>;
   swaps: Record<string, string>;
   notes: string;
 };
@@ -189,6 +198,14 @@ const strengthWarmupIds = [
   "warmup-treadmill-walk",
 ];
 
+const skipReasonOptions: Array<{ id: SkipReason; label: string }> = [
+  { id: "time", label: "Time" },
+  { id: "pain", label: "Pain" },
+  { id: "equipment", label: "Equipment" },
+  { id: "fatigue", label: "Fatigue" },
+  { id: "other", label: "Other" },
+];
+
 const emptySet = (): SetLog => ({
   weight: "",
   done: false,
@@ -199,6 +216,7 @@ const createEmptyDay = (): DayLog => ({
   warmup: {},
   tasks: {},
   exercises: {},
+  skips: {},
   swaps: {},
   notes: "",
 });
@@ -216,6 +234,7 @@ function normalizeDayLog(log: DayLog | undefined): DayLog {
     warmup: log?.warmup ?? {},
     tasks: log?.tasks ?? {},
     exercises: log?.exercises ?? {},
+    skips: normalizeSkips(log?.skips),
     swaps: log?.swaps ?? {},
     notes: log?.notes ?? "",
   };
@@ -226,6 +245,23 @@ function normalizeMetricLogShape(metric: MetricLog | undefined): MetricLog {
     ...createEmptyMetric(),
     ...metric,
   };
+}
+
+function isSkipReason(value: unknown): value is SkipReason {
+  return skipReasonOptions.some((reason) => reason.id === value);
+}
+
+function normalizeSkips(value: unknown): Record<string, SkipReason> {
+  if (!isRecord(value)) return {};
+
+  return Object.entries(value).reduce<Record<string, SkipReason>>((merged, [exerciseId, reason]) => {
+    if (isSkipReason(reason)) merged[exerciseId] = reason;
+    return merged;
+  }, {});
+}
+
+function skipReasonLabel(reason: SkipReason) {
+  return skipReasonOptions.find((option) => option.id === reason)?.label ?? "Other";
 }
 
 const exerciseMap: Record<string, Exercise> = {
@@ -2324,6 +2360,16 @@ function mergeSwaps(
   };
 }
 
+function mergeSkips(
+  cloudSkips: Record<string, SkipReason> = {},
+  localSkips: Record<string, SkipReason> = {},
+) {
+  return {
+    ...cloudSkips,
+    ...localSkips,
+  };
+}
+
 function preferFilled(localValue = "", cloudValue = "") {
   return localValue.trim() ? localValue : cloudValue;
 }
@@ -2359,6 +2405,7 @@ function mergeDayLog(cloudLog: DayLog | undefined, localLog: DayLog | undefined)
     warmup: mergeChecks(normalizedCloudLog.warmup, normalizedLocalLog.warmup),
     tasks: mergeChecks(normalizedCloudLog.tasks, normalizedLocalLog.tasks),
     swaps: mergeSwaps(normalizedCloudLog.swaps, normalizedLocalLog.swaps),
+    skips: mergeSkips(normalizedCloudLog.skips, normalizedLocalLog.skips),
     exercises: [...exerciseIds].reduce<Record<string, SetLog[]>>((merged, id) => {
       merged[id] = mergeSetRows(cloudExercises[id], localExercises[id]);
       return merged;
@@ -2629,6 +2676,88 @@ function completedRows(rows: SetLog[]) {
   return rows.filter((row) => row.done).length;
 }
 
+function moveStatusForExercise(
+  planDay: PlanDay,
+  log: DayLog,
+  originalExercise: Exercise,
+  exerciseIndex: number,
+): MoveStatus {
+  const activeExercise = activeExerciseFor(originalExercise, log);
+  const setCount = recommendedSets(planDay, activeExercise, exerciseIndex);
+  const rows = ensureSetRows(log.exercises[activeExercise.id], setCount);
+  if (rows.length > 0 && completedRows(rows) >= rows.length) return "done";
+  if (log.skips[originalExercise.id]) return "skipped";
+  return "pending";
+}
+
+function areDayExercisesComplete(planDay: PlanDay, log: DayLog) {
+  const exercises = planDay.session.exerciseIds.flatMap((id) => (exerciseMap[id] ? [exerciseMap[id]] : []));
+  if (!exercises.length) return false;
+
+  return exercises.every((originalExercise, exerciseIndex) => {
+    return moveStatusForExercise(planDay, log, originalExercise, exerciseIndex) === "done";
+  });
+}
+
+function dayStatusForDay(planDay: PlanDay, log: DayLog): DayStatus {
+  const exercises = planDay.session.exerciseIds.flatMap((id) => (exerciseMap[id] ? [exerciseMap[id]] : []));
+  if (!exercises.length) return log.completed ? "complete" : "incomplete";
+
+  const statuses = exercises.map((exercise, index) =>
+    moveStatusForExercise(planDay, log, exercise, index),
+  );
+  const hasSkipped = statuses.includes("skipped");
+  const hasPending = statuses.includes("pending");
+  const everyDone = statuses.every((status) => status === "done");
+
+  if (everyDone || (log.completed && !hasSkipped)) return "complete";
+  if (hasSkipped && !hasPending) return "finished-with-skips";
+  return "incomplete";
+}
+
+function withAutomaticDayCompletion(planDay: PlanDay, log: DayLog) {
+  if (!planDay.session.exerciseIds.length) return log;
+  return {
+    ...log,
+    completed: areDayExercisesComplete(planDay, log),
+  };
+}
+
+function isPlanDayComplete(planDay: PlanDay, log: DayLog) {
+  return dayStatusForDay(planDay, log) === "complete";
+}
+
+function dayStatusLabel(status: DayStatus) {
+  return {
+    incomplete: "Incomplete",
+    complete: "Complete",
+    "finished-with-skips": "Finished with skips",
+  }[status];
+}
+
+function firstUnfinishedMoveIndex(moves: Array<{ isComplete: boolean; isSkipped: boolean }>) {
+  const firstOpenIndex = moves.findIndex((move) => !move.isComplete && !move.isSkipped);
+  return firstOpenIndex >= 0 ? firstOpenIndex : 0;
+}
+
+function nextUnfinishedMoveIndex(
+  moves: Array<{ isComplete: boolean; isSkipped: boolean }>,
+  currentIndex: number,
+  direction: "previous" | "next",
+) {
+  const step = direction === "next" ? 1 : -1;
+
+  for (
+    let index = currentIndex + step;
+    index >= 0 && index < moves.length;
+    index += step
+  ) {
+    if (!moves[index].isComplete && !moves[index].isSkipped) return index;
+  }
+
+  return currentIndex;
+}
+
 function ExerciseMedia({
   exercise,
   variant,
@@ -2719,6 +2848,7 @@ function ExerciseMediaLinks({
 
 export default function Home() {
   const planDays = useMemo(buildPlanDays, []);
+  const [currentProgramDate, setCurrentProgramDate] = useState(() => closestProgramDate());
   const [selectedDate, setSelectedDate] = useState(() => closestProgramDate());
   const [store, setStore] = useState<TrackerStore>(() => loadStore());
   const [isHydrated, setIsHydrated] = useState(false);
@@ -2740,8 +2870,9 @@ export default function Home() {
   const [libraryFilter, setLibraryFilter] = useState("all");
   const [librarySearch, setLibrarySearch] = useState("");
   const [detailExerciseId, setDetailExerciseId] = useState<string | null>(null);
+  const [skipRequest, setSkipRequest] = useState<SkipRequest | null>(null);
   const latestStoreRef = useRef(store);
-  const lastAutoAlignedDateRef = useRef(selectedDate);
+  const lastAutoAlignedDateRef = useRef(currentProgramDate);
   const firstLocalSaveRef = useRef(true);
   const suppressLocalChangeMetaRef = useRef(false);
   const suppressNextCloudSaveRef = useRef(false);
@@ -2751,6 +2882,7 @@ export default function Home() {
 
     const alignWithCurrentProgramDate = () => {
       const nextProgramDate = closestProgramDate();
+      setCurrentProgramDate(nextProgramDate);
       if (lastAutoAlignedDateRef.current === nextProgramDate) return;
 
       lastAutoAlignedDateRef.current = nextProgramDate;
@@ -2774,14 +2906,17 @@ export default function Home() {
   useEffect(() => {
     setGymExerciseIndex(0);
     setDetailExerciseId(null);
+    setSkipRequest(null);
   }, [selectedDate]);
 
   useEffect(() => {
-    if (!detailExerciseId || typeof window === "undefined") return undefined;
+    if ((!detailExerciseId && !skipRequest) || typeof window === "undefined") return undefined;
 
     const previousOverflow = document.body.style.overflow;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setDetailExerciseId(null);
+      if (event.key !== "Escape") return;
+      setDetailExerciseId(null);
+      setSkipRequest(null);
     };
 
     document.body.style.overflow = "hidden";
@@ -2791,7 +2926,7 @@ export default function Home() {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", closeOnEscape);
     };
-  }, [detailExerciseId]);
+  }, [detailExerciseId, skipRequest]);
 
   useEffect(() => {
     latestStoreRef.current = store;
@@ -2976,7 +3111,10 @@ export default function Home() {
 
   const selectedDay =
     planDays.find((day) => day.iso === selectedDate) ?? planDays[0];
+  const gymDay =
+    planDays.find((day) => day.iso === currentProgramDate) ?? selectedDay;
   const selectedLog = normalizeDayLog(store.days[selectedDay.iso]);
+  const gymLog = normalizeDayLog(store.days[gymDay.iso]);
   const selectedMetric = store.metrics[selectedDay.iso] ?? createEmptyMetric();
   const phase = phaseForWeek(selectedDay.week);
   const selectedSessionTime = sessionTimeForDay(selectedDay);
@@ -2985,6 +3123,15 @@ export default function Home() {
   const selectedExercises = selectedDay.session.exerciseIds.flatMap((id) =>
     exerciseMap[id] ? [exerciseMap[id]] : [],
   );
+  const gymExercises = gymDay.session.exerciseIds.flatMap((id) =>
+    exerciseMap[id] ? [exerciseMap[id]] : [],
+  );
+  const selectedDayStatus = dayStatusForDay(selectedDay, selectedLog);
+  const selectedDayComplete = selectedDayStatus === "complete";
+  const selectedDayStatusText = dayStatusLabel(selectedDayStatus);
+  const selectedCompletionButtonLabel =
+    selectedDayStatus === "incomplete" ? "Mark Complete" : selectedDayStatusText;
+  const gymSessionSummary = sessionSummaryForDay(gymDay);
   const currentWeekStartIndex = Math.floor(selectedDay.index / 7) * 7;
   const currentWeekDays = planDays.slice(currentWeekStartIndex, currentWeekStartIndex + 7);
   const selectedWeekStart = planDays[currentWeekStartIndex]?.iso ?? selectedDay.iso;
@@ -3003,10 +3150,15 @@ export default function Home() {
   );
 
   const stats = useMemo(() => {
+    const skippedDates = new Set(
+      planDays
+        .filter((day) => dayStatusForDay(day, normalizeDayLog(store.days[day.iso])) === "finished-with-skips")
+        .map((day) => day.iso),
+    );
     const completedDates = new Set(
-      Object.entries(store.days)
-        .filter(([, log]) => log.completed)
-        .map(([date]) => date),
+      planDays
+        .filter((day) => isPlanDayComplete(day, normalizeDayLog(store.days[day.iso])))
+        .map((day) => day.iso),
     );
 
     const completedDays = completedDates.size;
@@ -3033,13 +3185,14 @@ export default function Home() {
     ).length;
 
     let streak = 0;
-    for (let index = selectedDay.index; index >= 0; index -= 1) {
+    for (let index = gymDay.index; index >= 0; index -= 1) {
       if (completedDates.has(planDays[index].iso)) streak += 1;
       else break;
     }
 
     return {
       completedDays,
+      skippedDays: skippedDates.size,
       strengthSessions,
       cardioMinutes,
       completedSets,
@@ -3047,7 +3200,7 @@ export default function Home() {
       streak,
       percent: Math.round((completedDays / PROGRAM_DAYS) * 100),
     };
-  }, [planDays, selectedDay.index, store.days, store.metrics]);
+  }, [gymDay.index, planDays, store.days, store.metrics]);
 
   const achievements = [
     {
@@ -3077,7 +3230,7 @@ export default function Home() {
     },
     {
       label: "Week one locked",
-      earned: planDays.slice(0, 7).every((day) => store.days[day.iso]?.completed),
+      earned: planDays.slice(0, 7).every((day) => isPlanDayComplete(day, normalizeDayLog(store.days[day.iso]))),
       detail: "Complete the first 7 program days.",
     },
   ];
@@ -3108,19 +3261,25 @@ export default function Home() {
     });
   };
 
-  const updateSet = (
+  const updateSetForDay = (
+    planDay: PlanDay,
+    exercises: Exercise[],
     exerciseId: string,
     setIndex: number,
     field: keyof SetLog,
     value: string | boolean,
   ) => {
-    updateDay(selectedDay.iso, (log) => {
+    updateDay(planDay.iso, (log) => {
       const exercise = exerciseMap[exerciseId];
-      const exerciseIndex = selectedExercises.findIndex(
-        (item) => item.id === exerciseId || activeExerciseFor(item, selectedLog).id === exerciseId,
+      if (!exercise || setIndex < 0) return log;
+
+      const originalExercise = exercises.find(
+        (item) => item.id === exerciseId || activeExerciseFor(item, log).id === exerciseId,
       );
+      const exerciseIndex = originalExercise ? exercises.indexOf(originalExercise) : -1;
+      const originalExerciseId = originalExercise?.id ?? exerciseId;
       const count = Math.max(
-        recommendedSets(selectedDay, exercise, exerciseIndex),
+        recommendedSets(planDay, exercise, Math.max(exerciseIndex, 0)),
         log.exercises[exerciseId]?.length ?? 0,
       );
       const rows = ensureSetRows(log.exercises[exerciseId], count);
@@ -3131,47 +3290,172 @@ export default function Home() {
       if (field === "weight" && typeof value === "string" && value.trim()) {
         rows[setIndex].done = true;
       }
-      return {
+      const nextSkips = { ...log.skips };
+      if (
+        (field === "done" && value === true) ||
+        (field === "weight" && typeof value === "string" && value.trim())
+      ) {
+        delete nextSkips[originalExerciseId];
+      }
+      const nextLog = {
         ...log,
+        skips: nextSkips,
         exercises: {
           ...log.exercises,
           [exerciseId]: rows,
         },
       };
+
+      return withAutomaticDayCompletion(planDay, nextLog);
     });
   };
 
-  const setExerciseSwap = (originalExerciseId: string, nextExerciseId: string) => {
-    updateDay(selectedDay.iso, (log) => {
+  const updateSet = (
+    exerciseId: string,
+    setIndex: number,
+    field: keyof SetLog,
+    value: string | boolean,
+  ) => {
+    updateSetForDay(selectedDay, selectedExercises, exerciseId, setIndex, field, value);
+  };
+
+  const updateGymSet = (
+    exerciseId: string,
+    setIndex: number,
+    field: keyof SetLog,
+    value: string | boolean,
+  ) => {
+    updateSetForDay(gymDay, gymExercises, exerciseId, setIndex, field, value);
+  };
+
+  const setExerciseSwapForDay = (
+    planDay: PlanDay,
+    originalExerciseId: string,
+    nextExerciseId: string,
+  ) => {
+    updateDay(planDay.iso, (log) => {
       const nextSwaps = { ...(log.swaps ?? {}) };
+      const nextSkips = { ...log.skips };
       if (nextExerciseId === originalExerciseId) {
         delete nextSwaps[originalExerciseId];
       } else {
         nextSwaps[originalExerciseId] = nextExerciseId;
       }
+      delete nextSkips[originalExerciseId];
 
-      return {
+      const nextLog = {
         ...log,
         swaps: nextSwaps,
+        skips: nextSkips,
       };
+
+      return withAutomaticDayCompletion(planDay, nextLog);
     });
   };
 
-  const toggleExerciseDone = (exerciseId: string, setCount: number, isComplete: boolean) => {
-    updateDay(selectedDay.iso, (log) => {
+  const setExerciseSwap = (originalExerciseId: string, nextExerciseId: string) => {
+    setExerciseSwapForDay(selectedDay, originalExerciseId, nextExerciseId);
+  };
+
+  const setGymExerciseSwap = (originalExerciseId: string, nextExerciseId: string) => {
+    setExerciseSwapForDay(gymDay, originalExerciseId, nextExerciseId);
+  };
+
+  const skipExerciseForDay = (
+    planDay: PlanDay,
+    originalExerciseId: string,
+    reason: SkipReason,
+  ) => {
+    updateDay(planDay.iso, (log) => {
+      const originalExercise = exerciseMap[originalExerciseId];
+      const activeExercise = originalExercise ? activeExerciseFor(originalExercise, log) : null;
+      const activeExerciseId = activeExercise?.id ?? originalExerciseId;
+      const existingRows = log.exercises[activeExerciseId];
+      const nextExercises = existingRows
+        ? {
+            ...log.exercises,
+            [activeExerciseId]: existingRows.map((row) => ({
+              ...row,
+              done: false,
+            })),
+          }
+        : log.exercises;
+
+      const nextLog = {
+        ...log,
+        completed: false,
+        exercises: nextExercises,
+        skips: {
+          ...log.skips,
+          [originalExerciseId]: reason,
+        },
+      };
+
+      return withAutomaticDayCompletion(planDay, nextLog);
+    });
+  };
+
+  const reopenSkippedExerciseForDay = (planDay: PlanDay, originalExerciseId: string) => {
+    updateDay(planDay.iso, (log) => {
+      const nextSkips = { ...log.skips };
+      delete nextSkips[originalExerciseId];
+
+      return withAutomaticDayCompletion(planDay, {
+        ...log,
+        completed: false,
+        skips: nextSkips,
+      });
+    });
+  };
+
+  const requestSkipReason = (
+    planDay: PlanDay,
+    originalExerciseId: string,
+    source: SkipRequest["source"],
+  ) => {
+    setSkipRequest({ date: planDay.iso, originalExerciseId, source });
+  };
+
+  const submitSkipReason = (reason: SkipReason) => {
+    if (!skipRequest) return;
+    const planDay = planDays.find((day) => day.iso === skipRequest.date);
+    if (!planDay) return;
+    skipExerciseForDay(planDay, skipRequest.originalExerciseId, reason);
+    setSkipRequest(null);
+  };
+
+  const toggleExerciseDoneForDay = (
+    planDay: PlanDay,
+    exerciseId: string,
+    setCount: number,
+    isComplete: boolean,
+  ) => {
+    updateDay(planDay.iso, (log) => {
       const rows = ensureSetRows(log.exercises[exerciseId], setCount).map((row) => ({
         ...row,
         done: !isComplete,
       }));
+      const originalExercise = planDay.session.exerciseIds
+        .map((id) => exerciseMap[id])
+        .find((item) => item && (item.id === exerciseId || activeExerciseFor(item, log).id === exerciseId));
+      const nextSkips = { ...log.skips };
+      delete nextSkips[originalExercise?.id ?? exerciseId];
 
-      return {
+      const nextLog = {
         ...log,
+        skips: nextSkips,
         exercises: {
           ...log.exercises,
           [exerciseId]: rows,
         },
       };
+
+      return withAutomaticDayCompletion(planDay, nextLog);
     });
+  };
+
+  const toggleExerciseDone = (exerciseId: string, setCount: number, isComplete: boolean) => {
+    toggleExerciseDoneForDay(selectedDay, exerciseId, setCount, isComplete);
   };
 
   const toggleTask = (taskId: string) => {
@@ -3313,7 +3597,9 @@ export default function Home() {
     () =>
       weekOptions.map((week, weekIndex) => {
         const days = planDays.slice(weekIndex * 7, weekIndex * 7 + 7);
-        const completed = days.filter((day) => store.days[day.iso]?.completed).length;
+        const completed = days.filter((day) =>
+          isPlanDayComplete(day, normalizeDayLog(store.days[day.iso])),
+        ).length;
         return {
           ...week,
           completed,
@@ -3324,55 +3610,100 @@ export default function Home() {
     [planDays, store.days, weekOptions],
   );
   const recentCompletedDays = planDays
-    .filter((day) => store.days[day.iso]?.completed)
+    .filter((day) => isPlanDayComplete(day, normalizeDayLog(store.days[day.iso])))
     .slice(-6)
     .reverse();
-  const workoutMoveRows = selectedExercises.map((originalExercise, exerciseIndex) => {
-    const activeExercise = activeExerciseFor(originalExercise, selectedLog);
-    const setCount = recommendedSets(selectedDay, activeExercise, exerciseIndex);
-    const rows = ensureSetRows(selectedLog.exercises[activeExercise.id], setCount);
-    const doneCount = completedRows(rows);
-    const isComplete = rows.length > 0 && doneCount >= rows.length;
+  const buildWorkoutMoveRows = (planDay: PlanDay, dayLog: DayLog, exercises: Exercise[]) =>
+    exercises.map((originalExercise, exerciseIndex) => {
+      const activeExercise = activeExerciseFor(originalExercise, dayLog);
+      const setCount = recommendedSets(planDay, activeExercise, exerciseIndex);
+      const rows = ensureSetRows(dayLog.exercises[activeExercise.id], setCount);
+      const doneCount = completedRows(rows);
+      const isComplete = rows.length > 0 && doneCount >= rows.length;
+      const skipReason = dayLog.skips[originalExercise.id] ?? null;
+      const isSkipped = Boolean(skipReason && !isComplete);
+      const status: MoveStatus = isComplete ? "done" : isSkipped ? "skipped" : "pending";
+      const statusLabel =
+        status === "done"
+          ? "Done"
+          : status === "skipped" && skipReason
+            ? `Skipped: ${skipReasonLabel(skipReason)}`
+            : doneCount > 0
+              ? "In progress"
+              : "Not started";
 
-    return {
-      originalExercise,
-      activeExercise,
-      exerciseIndex,
-      setCount,
-      rows,
-      doneCount,
-      isComplete,
-      target: targetForExercise(selectedDay, activeExercise),
-      rest: restForExercise(selectedDay, activeExercise),
-      location: locationGuideForExercise(activeExercise),
-      progression: progressionForExercise(selectedDay, activeExercise),
-      suggestion: smartLoadSuggestion(planDays, store, selectedDay, activeExercise, exerciseIndex),
-      swaps: swapOptionsFor(originalExercise),
-      isSwapped: isSwappedExercise(originalExercise, selectedLog),
-    };
-  });
+      return {
+        originalExercise,
+        activeExercise,
+        exerciseIndex,
+        setCount,
+        rows,
+        doneCount,
+        isComplete,
+        isSkipped,
+        skipReason,
+        status,
+        statusLabel,
+        target: targetForExercise(planDay, activeExercise),
+        rest: restForExercise(planDay, activeExercise),
+        location: locationGuideForExercise(activeExercise),
+        progression: progressionForExercise(planDay, activeExercise),
+        suggestion: smartLoadSuggestion(planDays, store, planDay, activeExercise, exerciseIndex),
+        swaps: swapOptionsFor(originalExercise),
+        isSwapped: isSwappedExercise(originalExercise, dayLog),
+      };
+    });
+  const workoutMoveRows = buildWorkoutMoveRows(selectedDay, selectedLog, selectedExercises);
+  const gymMoveRows = buildWorkoutMoveRows(gymDay, gymLog, gymExercises);
+  const gymCompletionSignature = gymMoveRows.map((move) => move.status).join("");
   const completedMoveCount = workoutMoveRows.filter((move) => move.isComplete).length;
+  const skippedMoveCount = workoutMoveRows.filter((move) => move.isSkipped).length;
   const moveCompletionPercent = workoutMoveRows.length
     ? Math.round((completedMoveCount / workoutMoveRows.length) * 100)
-    : selectedLog.completed
+    : selectedDayComplete
       ? 100
       : 0;
   const completedTaskCount = selectedDay.session.tasks.filter((task) => selectedLog.tasks[task]).length;
   const taskCompletionPercent = selectedDay.session.tasks.length
     ? Math.round((completedTaskCount / selectedDay.session.tasks.length) * 100)
     : 0;
-  const nextOpenMove = workoutMoveRows.find((move) => !move.isComplete) ?? workoutMoveRows[0] ?? null;
-  const currentGymMove = workoutMoveRows[gymExerciseIndex] ?? null;
+  const nextOpenMove =
+    workoutMoveRows.find((move) => !move.isComplete && !move.isSkipped) ??
+    workoutMoveRows[0] ??
+    null;
+  const currentGymMove = gymMoveRows[gymExerciseIndex] ?? null;
   const currentGymExercise = currentGymMove?.activeExercise ?? null;
   const currentGymOriginalExercise = currentGymMove?.originalExercise ?? null;
   const currentGymRows = currentGymMove?.rows ?? null;
   const currentGymPreviousLoad = currentGymExercise
-    ? lastExerciseLoad(planDays, store, selectedDay, currentGymExercise.id)
+    ? lastExerciseLoad(planDays, store, gymDay, currentGymExercise.id)
     : null;
   const currentGymTarget = currentGymMove?.target ?? "";
   const currentGymRest = currentGymMove?.rest ?? "";
   const currentGymLocation = currentGymMove?.location ?? null;
   const currentGymSuggestion = currentGymMove?.suggestion ?? null;
+  const currentGymTracksWeight = currentGymExercise ? tracksWeight(currentGymExercise) : false;
+  const currentGymNextSetIndex = currentGymRows?.findIndex((row) => !row.done) ?? -1;
+  const currentGymNextSetNumber = currentGymNextSetIndex >= 0 ? currentGymNextSetIndex + 1 : null;
+  const previousUnfinishedGymIndex = nextUnfinishedMoveIndex(
+    gymMoveRows,
+    gymExerciseIndex,
+    "previous",
+  );
+  const nextUnfinishedGymIndex = nextUnfinishedMoveIndex(gymMoveRows, gymExerciseIndex, "next");
+  const hasPreviousUnfinishedGymMove = previousUnfinishedGymIndex !== gymExerciseIndex;
+  const hasNextUnfinishedGymMove = nextUnfinishedGymIndex !== gymExerciseIndex;
+  const gymPrimaryIsResolved = Boolean(currentGymMove?.isComplete || currentGymMove?.isSkipped);
+  const gymPrimaryFullLabel = gymPrimaryIsResolved
+    ? hasNextUnfinishedGymMove
+      ? "Next Open Move"
+      : "All Done"
+    : `Complete Set${currentGymNextSetNumber ? ` ${currentGymNextSetNumber}` : ""}`;
+  const gymPrimaryShortLabel = gymPrimaryIsResolved
+    ? hasNextUnfinishedGymMove
+      ? "Next"
+      : "Done"
+    : "Complete";
   const detailMove = detailExerciseId
     ? workoutMoveRows.find((move) => move.originalExercise.id === detailExerciseId) ?? null
     : null;
@@ -3382,6 +3713,24 @@ export default function Home() {
     ? lastExerciseLoad(planDays, store, selectedDay, detailExercise.id)
     : null;
   const detailLocation = detailMove?.location ?? null;
+  const skipRequestDay = skipRequest
+    ? planDays.find((day) => day.iso === skipRequest.date) ?? null
+    : null;
+  const skipRequestOriginalExercise = skipRequest
+    ? exerciseMap[skipRequest.originalExerciseId] ?? null
+    : null;
+  const skipRequestLog = skipRequestDay ? normalizeDayLog(store.days[skipRequestDay.iso]) : null;
+  const skipRequestExercise =
+    skipRequestOriginalExercise && skipRequestLog
+      ? activeExerciseFor(skipRequestOriginalExercise, skipRequestLog)
+      : skipRequestOriginalExercise;
+  const skipRequestContext = skipRequest
+    ? {
+        today: "Today",
+        gym: "Gym Mode",
+        detail: "Exercise Detail",
+      }[skipRequest.source]
+    : "";
   const bestLiftRows = libraryOrder
     .map((id) => {
       const exercise = exerciseMap[id];
@@ -3432,6 +3781,18 @@ export default function Home() {
       waistDelta,
     };
   }, [store.metrics]);
+
+  useEffect(() => {
+    if (activeSection !== "gym") return;
+
+    setGymExerciseIndex((index) => {
+      const boundedIndex = Math.min(index, Math.max(gymMoveRows.length - 1, 0));
+      const currentMove = gymMoveRows[boundedIndex];
+      if (currentMove && !currentMove.isComplete) return boundedIndex;
+      return firstUnfinishedMoveIndex(gymMoveRows);
+    });
+  }, [activeSection, gymCompletionSignature, gymDay.iso, gymMoveRows.length]);
+
   const activeSectionLabel = {
     today: "Today",
     gym: "Gym Mode",
@@ -3449,23 +3810,53 @@ export default function Home() {
     { id: "account" as const, label: "Account", icon: "user" as const },
   ];
 
+  const goToCurrentProgramDay = () => {
+    const nextProgramDate = closestProgramDate();
+    setCurrentProgramDate(nextProgramDate);
+    setSelectedDate(nextProgramDate);
+  };
+
+  const switchSection = (section: AppSection) => {
+    if (section === "gym") {
+      const nextProgramDate = closestProgramDate();
+      const nextGymDay = planDays.find((day) => day.iso === nextProgramDate) ?? gymDay;
+      const nextGymLog = normalizeDayLog(store.days[nextGymDay.iso]);
+      const nextGymExercises = nextGymDay.session.exerciseIds.flatMap((id) =>
+        exerciseMap[id] ? [exerciseMap[id]] : [],
+      );
+      const nextGymRows = buildWorkoutMoveRows(nextGymDay, nextGymLog, nextGymExercises);
+
+      setCurrentProgramDate(nextProgramDate);
+      setGymExerciseIndex(firstUnfinishedMoveIndex(nextGymRows));
+    }
+
+    setActiveSection(section);
+  };
+
   const completeNextGymSet = () => {
     if (!currentGymExercise || !currentGymRows) return;
+    if (currentGymMove?.isComplete || currentGymMove?.isSkipped) {
+      goToNextGymMove();
+      return;
+    }
+
     const nextSetIndex = currentGymRows.findIndex((row) => !row.done);
-    updateSet(currentGymExercise.id, nextSetIndex >= 0 ? nextSetIndex : 0, "done", true);
+    updateGymSet(currentGymExercise.id, nextSetIndex >= 0 ? nextSetIndex : 0, "done", true);
   };
 
   const goToNextGymMove = () => {
-    setGymExerciseIndex((index) => Math.min(index + 1, Math.max(selectedExercises.length - 1, 0)));
+    setGymExerciseIndex((index) => nextUnfinishedMoveIndex(gymMoveRows, index, "next"));
   };
 
   const goToPreviousGymMove = () => {
-    setGymExerciseIndex((index) => Math.max(index - 1, 0));
+    setGymExerciseIndex((index) => nextUnfinishedMoveIndex(gymMoveRows, index, "previous"));
   };
+
+  const headerDay = activeSection === "gym" ? gymDay : selectedDay;
 
   return (
     <main className={`app-shell section-${activeSection}`}>
-      <header className={`app-header ${selectedDay.session.accent}`}>
+      <header className={`app-header ${headerDay.session.accent}`}>
         <div className="brand-lockup">
           <span className="brand-mark">RG</span>
           <div>
@@ -3477,9 +3868,9 @@ export default function Home() {
         <div className="header-status-grid" aria-label="Current status">
           <div className="header-status-card">
             <span>Today</span>
-            <strong>{selectedDay.session.title}</strong>
+            <strong>{headerDay.session.title}</strong>
             <small>
-              {formatDate(selectedDay.iso)} · Week {selectedDay.week} · Day {selectedDay.index + 1}
+              {formatDate(headerDay.iso)} · Week {headerDay.week} · Day {headerDay.index + 1}
             </small>
           </div>
           <div className={`header-status-card sync-mini ${cloudStatus}`}>
@@ -3496,7 +3887,7 @@ export default function Home() {
             key={id}
             className={activeSection === id ? "active" : ""}
             type="button"
-            onClick={() => setActiveSection(id)}
+            onClick={() => switchSection(id)}
             aria-current={activeSection === id ? "page" : undefined}
           >
             <Icon name={icon} size={18} />
@@ -3532,7 +3923,11 @@ export default function Home() {
             <button
               key={day.iso}
               className={`week-day-card ${day.iso === selectedDay.iso ? "active" : ""} ${
-                store.days[day.iso]?.completed ? "complete" : ""
+                isPlanDayComplete(day, normalizeDayLog(store.days[day.iso])) ? "complete" : ""
+              } ${
+                dayStatusForDay(day, normalizeDayLog(store.days[day.iso])) === "finished-with-skips"
+                  ? "finished-with-skips"
+                  : ""
               } ${day.session.type}`}
               onClick={() => setSelectedDate(day.iso)}
               type="button"
@@ -3570,7 +3965,7 @@ export default function Home() {
           <button type="button" onClick={() => setSelectedDate(previousDay.iso)}>
             Prev
           </button>
-          <button type="button" onClick={() => setSelectedDate(closestProgramDate())}>
+          <button type="button" onClick={goToCurrentProgramDay}>
             Today
           </button>
           <button type="button" onClick={() => setSelectedDate(nextDay.iso)}>
@@ -3611,7 +4006,11 @@ export default function Home() {
             <button
               key={day.iso}
               className={`today-day-button ${day.iso === selectedDay.iso ? "active" : ""} ${
-                store.days[day.iso]?.completed ? "complete" : ""
+                isPlanDayComplete(day, normalizeDayLog(store.days[day.iso])) ? "complete" : ""
+              } ${
+                dayStatusForDay(day, normalizeDayLog(store.days[day.iso])) === "finished-with-skips"
+                  ? "finished-with-skips"
+                  : ""
               } ${day.session.type}`}
               onClick={() => setSelectedDate(day.iso)}
               type="button"
@@ -3627,23 +4026,23 @@ export default function Home() {
 
       <section className="gym-mode-shell" aria-label="Gym mode">
         {currentGymMove && currentGymExercise && currentGymRows ? (
-          <article className={`gym-card ${currentGymExercise.family}`}>
+          <article className={`gym-card ${currentGymExercise.family} ${currentGymMove.isSkipped ? "skipped" : ""}`}>
             <div className="gym-topbar">
               <button
                 type="button"
                 onClick={goToPreviousGymMove}
-                disabled={gymExerciseIndex === 0}
+                disabled={!hasPreviousUnfinishedGymMove}
                 aria-label="Previous move"
               >
                 <Icon name="chevronLeft" size={18} />
               </button>
               <span>
-                Move {gymExerciseIndex + 1} of {selectedExercises.length}
+                Move {gymExerciseIndex + 1} of {gymExercises.length}
               </span>
               <button
                 type="button"
                 onClick={goToNextGymMove}
-                disabled={gymExerciseIndex >= selectedExercises.length - 1}
+                disabled={!hasNextUnfinishedGymMove}
                 aria-label="Next move"
               >
                 <Icon name="chevronRight" size={18} />
@@ -3654,6 +4053,9 @@ export default function Home() {
               <div>
                 <div className="exercise-labels">
                   <span className="family-chip">{familyLabel(currentGymExercise.family)}</span>
+                  <span className={`move-status-chip ${currentGymMove.status}`}>
+                    {currentGymMove.statusLabel}
+                  </span>
                   {currentGymLocation && (
                     <span className={`location-chip ${currentGymLocation.type}`}>
                       {currentGymLocation.label}
@@ -3713,7 +4115,7 @@ export default function Home() {
                 <button
                   className={!currentGymMove.isSwapped ? "selected" : ""}
                   type="button"
-                  onClick={() => setExerciseSwap(currentGymOriginalExercise.id, currentGymOriginalExercise.id)}
+                  onClick={() => setGymExerciseSwap(currentGymOriginalExercise.id, currentGymOriginalExercise.id)}
                 >
                   Original
                 </button>
@@ -3722,7 +4124,7 @@ export default function Home() {
                     key={swap.id}
                     className={currentGymExercise.id === swap.id ? "selected" : ""}
                     type="button"
-                    onClick={() => setExerciseSwap(currentGymOriginalExercise.id, swap.id)}
+                    onClick={() => setGymExerciseSwap(currentGymOriginalExercise.id, swap.id)}
                   >
                     {swap.shortName}
                   </button>
@@ -3740,36 +4142,57 @@ export default function Home() {
               </div>
             )}
 
-            <div className="set-table gym-set-table" aria-label={`${currentGymExercise.name} gym set log`}>
+            {currentGymOriginalExercise && (
+              <div className={`skip-control-strip ${currentGymMove.isSkipped ? "is-skipped" : ""}`}>
+                <span>
+                  {currentGymMove.isSkipped
+                    ? `Skipped because of ${skipReasonLabel(currentGymMove.skipReason ?? "other")}`
+                    : "Need to skip this move?"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    currentGymMove.isSkipped
+                      ? reopenSkippedExerciseForDay(gymDay, currentGymOriginalExercise.id)
+                      : requestSkipReason(gymDay, currentGymOriginalExercise.id, "gym")
+                  }
+                >
+                  {currentGymMove.isSkipped ? "Reopen Move" : "Skip Move"}
+                </button>
+              </div>
+            )}
+
+            <div
+              className={`set-table gym-set-table ${currentGymTracksWeight ? "" : "no-load"}`}
+              aria-label={`${currentGymExercise.name} gym set log`}
+            >
               <div className="set-head">
                 <span>Set</span>
                 <span>Target</span>
-                <span>Weight (lbs)</span>
+                {currentGymTracksWeight && <span>Weight (lbs)</span>}
                 <span>Done</span>
               </div>
               {currentGymRows.map((set, setIndex) => (
                 <div className="set-row" key={`${currentGymExercise.id}-gym-${setIndex}`}>
                   <span>{setIndex + 1}</span>
                   <strong className="target-pill">{currentGymTarget}</strong>
-                  {tracksWeight(currentGymExercise) ? (
+                  {currentGymTracksWeight ? (
                     <input
                       inputMode="decimal"
                       value={set.weight}
                       placeholder="lbs"
                       onChange={(event) =>
-                        updateSet(currentGymExercise.id, setIndex, "weight", event.target.value)
+                        updateGymSet(currentGymExercise.id, setIndex, "weight", event.target.value)
                       }
                       aria-label={`${currentGymExercise.name} set ${setIndex + 1} weight in pounds`}
                     />
-                  ) : (
-                    <span className="load-pill">{currentGymExercise.loadLabel ?? "body"}</span>
-                  )}
+                  ) : null}
                   <label className="mini-check">
                     <input
                       type="checkbox"
                       checked={set.done}
                       onChange={(event) =>
-                        updateSet(currentGymExercise.id, setIndex, "done", event.target.checked)
+                        updateGymSet(currentGymExercise.id, setIndex, "done", event.target.checked)
                       }
                     />
                     <span />
@@ -3801,26 +4224,32 @@ export default function Home() {
               <button
                 type="button"
                 onClick={goToPreviousGymMove}
-                disabled={gymExerciseIndex === 0}
+                disabled={!hasPreviousUnfinishedGymMove}
                 aria-label="Previous move"
               >
                 <Icon name="chevronLeft" size={18} />
                 <span className="gym-action-label optional">Previous</span>
               </button>
               <button
-                className="primary"
+                className={`primary ${
+                  gymPrimaryIsResolved
+                    ? currentGymMove?.isSkipped
+                      ? "is-skipped"
+                      : "is-complete"
+                    : "is-pending"
+                }`}
                 type="button"
                 onClick={completeNextGymSet}
-                aria-label="Complete next set"
+                aria-label={gymPrimaryFullLabel}
               >
-                <Icon name="check" size={18} />
-                <span className="gym-action-label gym-action-full">Complete Set</span>
-                <span className="gym-action-label gym-action-short">Done</span>
+                <Icon name={gymPrimaryIsResolved ? "check" : "activity"} size={18} />
+                <span className="gym-action-label gym-action-full">{gymPrimaryFullLabel}</span>
+                <span className="gym-action-label gym-action-short">{gymPrimaryShortLabel}</span>
               </button>
               <button
                 type="button"
                 onClick={goToNextGymMove}
-                disabled={gymExerciseIndex >= selectedExercises.length - 1}
+                disabled={!hasNextUnfinishedGymMove}
                 aria-label="Next move"
               >
                 <span className="gym-action-label optional">Next</span>
@@ -3830,9 +4259,9 @@ export default function Home() {
           </article>
         ) : (
           <section className="empty-gym-card">
-            <p className="eyebrow">{selectedDay.session.title}</p>
+            <p className="eyebrow">{gymDay.session.title}</p>
             <h2>No gym moves today</h2>
-            <p>{selectedSessionSummary}</p>
+            <p>{gymSessionSummary}</p>
             <button type="button" onClick={() => setActiveSection("today")}>
               Back to Today
             </button>
@@ -3849,24 +4278,30 @@ export default function Home() {
               <p className="today-command-date">
                 {formatDate(selectedDay.iso)} · Day {selectedDay.index + 1} · {phase.label}
               </p>
+              <span className={`day-status-chip ${selectedDayStatus}`}>
+                {selectedDayStatusText}
+              </span>
             </div>
             <div className="today-actions">
               {selectedExercises.length > 0 && (
-                <button className="gym-launch-button" type="button" onClick={() => setActiveSection("gym")}>
+                <button className="gym-launch-button" type="button" onClick={() => switchSection("gym")}>
                   <Icon name="play" size={18} /> Gym Mode
                 </button>
               )}
               <button
-                className={`complete-button ${selectedLog.completed ? "is-complete" : ""}`}
+                className={`complete-button ${selectedDayComplete ? "is-complete" : ""} ${
+                  selectedDayStatus === "finished-with-skips" ? "is-skipped" : ""
+                }`}
                 type="button"
+                disabled={selectedDayStatus === "finished-with-skips"}
                 onClick={() =>
                   updateDay(selectedDay.iso, (log) => ({
                     ...log,
-                    completed: !log.completed,
+                    completed: !selectedDayComplete,
                   }))
                 }
               >
-                {selectedLog.completed ? "Completed" : "Mark Complete"}
+                {selectedCompletionButtonLabel}
               </button>
             </div>
           </div>
@@ -3927,7 +4362,10 @@ export default function Home() {
             <section className="exercise-stack compact-flow" aria-labelledby="exercise-heading">
               <div className="flow-heading">
                 <h3 id="exercise-heading">Workout Flow</h3>
-                <span>{completedMoveCount}/{workoutMoveRows.length} complete</span>
+                <span>
+                  {completedMoveCount}/{workoutMoveRows.length} done
+                  {skippedMoveCount > 0 ? ` · ${skippedMoveCount} skipped` : ""}
+                </span>
               </div>
               <div className="move-list">
                 {workoutMoveRows.map((move) => (
@@ -3935,6 +4373,7 @@ export default function Home() {
                     key={move.originalExercise.id}
                     className={`move-item ${move.activeExercise.family} ${
                       move.isComplete ? "complete" : ""
+                    } ${move.isSkipped ? "skipped" : ""
                     } ${nextOpenMove?.originalExercise.id === move.originalExercise.id ? "next-up" : ""}`}
                   >
                     <button
@@ -3954,6 +4393,7 @@ export default function Home() {
                     >
                       <span className="move-title-row">
                         <strong>{move.activeExercise.name}</strong>
+                        <span className={`move-status-chip ${move.status}`}>{move.statusLabel}</span>
                         <span className="family-chip">{familyLabel(move.activeExercise.family)}</span>
                         <span className={`location-chip ${move.location.type}`}>{move.location.label}</span>
                         {move.isSwapped && <span className="swap-chip">Swap active</span>}
@@ -3974,14 +4414,27 @@ export default function Home() {
                         </span>
                       </span>
                     </button>
-                    <button
-                      className="move-detail-button"
-                      type="button"
-                      onClick={() => setDetailExerciseId(move.originalExercise.id)}
-                    >
-                      <Icon name={move.swaps.length ? "swap" : "video"} size={16} />
-                      <span>{move.swaps.length ? "Details / Swap" : "Details"}</span>
-                    </button>
+                    <div className="move-actions">
+                      <button
+                        className={`move-skip-button ${move.isSkipped ? "is-skipped" : ""}`}
+                        type="button"
+                        onClick={() =>
+                          move.isSkipped
+                            ? reopenSkippedExerciseForDay(selectedDay, move.originalExercise.id)
+                            : requestSkipReason(selectedDay, move.originalExercise.id, "today")
+                        }
+                      >
+                        {move.isSkipped ? "Reopen" : "Skip"}
+                      </button>
+                      <button
+                        className="move-detail-button"
+                        type="button"
+                        onClick={() => setDetailExerciseId(move.originalExercise.id)}
+                      >
+                        <Icon name={move.swaps.length ? "swap" : "video"} size={16} />
+                        <span>{move.swaps.length ? "Details / Swap" : "Details"}</span>
+                      </button>
+                    </div>
                   </article>
                 ))}
               </div>
@@ -4139,6 +4592,11 @@ export default function Home() {
                 <span>Program</span>
                 <strong>{stats.percent}%</strong>
                 <small>{stats.completedDays} of {PROGRAM_DAYS} days</small>
+              </div>
+              <div className="dashboard-stat skipped">
+                <span>With skips</span>
+                <strong>{stats.skippedDays}</strong>
+                <small>finished but not perfect</small>
               </div>
               <div className="dashboard-stat cardio">
                 <span>Cardio</span>
@@ -4382,6 +4840,9 @@ export default function Home() {
               <div>
                 <p className="eyebrow">Exercise Detail</p>
                 <h2 id="detail-heading">{detailExercise.name}</h2>
+                <span className={`move-status-chip ${detailMove.status}`}>
+                  {detailMove.statusLabel}
+                </span>
                 {detailMove.isSwapped && (
                   <p>Swapped from {detailMove.originalExercise.name}</p>
                 )}
@@ -4503,11 +4964,14 @@ export default function Home() {
               </details>
             </div>
 
-            <div className="set-table detail-set-table" aria-label={`${detailExercise.name} detail set log`}>
+            <div
+              className={`set-table detail-set-table ${tracksWeight(detailExercise) ? "" : "no-load"}`}
+              aria-label={`${detailExercise.name} detail set log`}
+            >
               <div className="set-head">
                 <span>Set</span>
                 <span>Target</span>
-                <span>Weight (lbs)</span>
+                {tracksWeight(detailExercise) && <span>Weight (lbs)</span>}
                 <span>Done</span>
               </div>
               {detailRows.map((set, setIndex) => (
@@ -4524,9 +4988,7 @@ export default function Home() {
                       }
                       aria-label={`${detailExercise.name} set ${setIndex + 1} weight in pounds`}
                     />
-                  ) : (
-                    <span className="load-pill">{detailExercise.loadLabel ?? "body"}</span>
-                  )}
+                  ) : null}
                   <label className="mini-check">
                     <input
                       type="checkbox"
@@ -4551,10 +5013,71 @@ export default function Home() {
                 <Icon name="check" size={17} />
                 {detailMove.isComplete ? "Reopen Move" : "Complete Move"}
               </button>
+              <button
+                className={`secondary skip-detail-button ${detailMove.isSkipped ? "is-skipped" : ""}`}
+                type="button"
+                onClick={() =>
+                  detailMove.isSkipped
+                    ? reopenSkippedExerciseForDay(selectedDay, detailMove.originalExercise.id)
+                    : requestSkipReason(selectedDay, detailMove.originalExercise.id, "detail")
+                }
+              >
+                {detailMove.isSkipped ? "Reopen Skipped Move" : "Skip Move"}
+              </button>
               <button className="secondary" type="button" onClick={() => setDetailExerciseId(null)}>
                 Close
               </button>
             </div>
+          </section>
+        </div>
+      )}
+
+      {skipRequest && skipRequestDay && skipRequestExercise && (
+        <div
+          className="detail-sheet-backdrop skip-sheet-backdrop"
+          role="presentation"
+          onClick={() => setSkipRequest(null)}
+        >
+          <section
+            className="skip-sheet"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="skip-heading"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="sheet-handle" />
+            <div className="skip-sheet-header">
+              <div>
+                <p className="eyebrow">Skip from {skipRequestContext}</p>
+                <h2 id="skip-heading">Why skip {skipRequestExercise.shortName}?</h2>
+                {skipRequestOriginalExercise &&
+                  skipRequestExercise.id !== skipRequestOriginalExercise.id && (
+                    <p>Current swap for {skipRequestOriginalExercise.shortName}</p>
+                  )}
+              </div>
+              <button
+                className="sheet-close-button"
+                type="button"
+                onClick={() => setSkipRequest(null)}
+                aria-label="Close skip reason"
+              >
+                <Icon name="x" size={20} />
+              </button>
+            </div>
+            <p className="skip-sheet-copy">
+              Choose the reason so your progress shows the truth: finished with skips is different
+              from a fully completed day.
+            </p>
+            <div className="skip-reason-grid">
+              {skipReasonOptions.map((reason) => (
+                <button key={reason.id} type="button" onClick={() => submitSkipReason(reason.id)}>
+                  {reason.label}
+                </button>
+              ))}
+            </div>
+            <button className="skip-cancel-button" type="button" onClick={() => setSkipRequest(null)}>
+              Keep Move Open
+            </button>
           </section>
         </div>
       )}
@@ -4565,7 +5088,7 @@ export default function Home() {
             key={id}
             className={activeSection === id ? "active" : ""}
             type="button"
-            onClick={() => setActiveSection(id)}
+            onClick={() => switchSection(id)}
             aria-current={activeSection === id ? "page" : undefined}
           >
             <Icon name={icon} size={20} />
