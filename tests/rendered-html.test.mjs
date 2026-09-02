@@ -168,7 +168,7 @@ test("includes researched movement resources and autosave controls", async () =>
   assert.match(page, /puregym\.com/);
 });
 
-test("includes PDF-based diet tracker with meal swaps and kg weigh-ins", async () => {
+test("includes built-in diet tracker with meal swaps and kg weigh-ins", async () => {
   const [app, styles, readme] = await Promise.all([
     text("src/App.tsx"),
     text("src/styles.css"),
@@ -286,9 +286,9 @@ test("includes PDF-based diet tracker with meal swaps and kg weigh-ins", async (
   assert.doesNotMatch(styles, /\.diet-meal-card img\s*\{[^}]*height: 168px/);
   assert.doesNotMatch(styles, /\.diet-meal-card img\s*\{[^}]*min-height: 260px/);
 
-  assert.match(readme, /Using the Diet Tracker/);
-  assert.match(readme, /Diet Plan PDF/);
-  assert.match(readme, /morning weight in kg/);
+  assert.match(readme, /Diet Features/);
+  assert.match(readme, /built-in fat-loss diet plan/);
+  assert.match(readme, /Morning weight in kg/);
   assert.match(readme, /store-neutral ingredient list/);
   assert.match(readme, /npm run dev -- --port 3001/);
   assert.doesNotMatch(app, /Body weight \(lbs\)/);
@@ -393,7 +393,7 @@ test("includes API-backed autoplay exercise GIF support", async () => {
   assert.match(apiRoute, /api\.workoutxapp\.com\/v1\/gifs/);
   assert.match(apiRoute, /X-WorkoutX-Key/);
   assert.match(envExample, /WORKOUTX_API_KEY/);
-  assert.match(readme, /Optional GIF Demo Setup/);
+  assert.match(readme, /WorkoutX GIF Setup/);
   assert.match(readme, /npx vercel dev/);
 });
 
