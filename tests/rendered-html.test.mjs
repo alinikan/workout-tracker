@@ -261,11 +261,16 @@ test("includes PDF-based diet tracker with meal swaps and kg weigh-ins", async (
     "object-fit: contain",
     "height: 104px",
     "height: 82px",
+    "align-content: start",
+    "align-self: start",
   ]) {
     assert.match(styles, new RegExp(requiredStyle));
   }
 
   assert.match(app, /className="diet-meal-header"/);
+  assert.match(styles, /\.diet-layout\s*\{[^}]*align-items: start/);
+  assert.match(styles, /\.diet-meal-stack\s*\{[^}]*align-content: start/);
+  assert.match(styles, /\.diet-meal-card\s*\{[^}]*align-self: start/);
   assert.doesNotMatch(styles, /\.diet-meal-card img\s*\{[^}]*height: 100%/);
   assert.doesNotMatch(styles, /\.diet-meal-card img\s*\{[^}]*height: 168px/);
   assert.doesNotMatch(styles, /\.diet-meal-card img\s*\{[^}]*min-height: 260px/);
@@ -462,13 +467,14 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v20/);
-  assert.match(serviceWorker, /compact-diet-cards-v20/);
+  assert.match(serviceWorker, /recomp-gym-console-v21/);
+  assert.match(serviceWorker, /no-stretched-diet-cards-v21/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
   assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
+  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v20/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v19/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v18/);
   assert.doesNotMatch(serviceWorker, /diet-tracker-v17/);

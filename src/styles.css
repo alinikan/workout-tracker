@@ -4789,12 +4789,15 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
   gap: 14px;
+  align-items: start;
   margin-top: 14px;
 }
 
 .diet-meal-stack {
   display: grid;
   gap: 9px;
+  align-content: start;
+  align-items: start;
   min-width: 0;
 }
 
@@ -4802,6 +4805,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  align-self: start;
   min-width: 0;
   overflow: hidden;
   padding: 10px;

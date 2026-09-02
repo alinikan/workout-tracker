@@ -1,5 +1,5 @@
-const CACHE_NAME = "recomp-gym-console-v20";
-const APP_VERSION = "2026-09-02-compact-diet-cards-v20";
+const CACHE_NAME = "recomp-gym-console-v21";
+const APP_VERSION = "2026-09-02-no-stretched-diet-cards-v21";
 const APP_FALLBACK_URL = "/";
 
 const CORE_ASSETS = [
