@@ -36,6 +36,7 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
 - Warm-up moves are first-class cards with cues, resources, inline videos where available, targets, and completion checks.
 - The old generic warm-up item is replaced by two lift-specific warm-up ramp cards that match the first two lifts of that strength day.
 - Dynamic ab work after every lifting session: dead bugs are added after the downstairs treadmill finisher so the final floor block can happen upstairs or downstairs.
+- Direct lower-body machine accessories twice weekly: seated leg extensions and seated leg curls are added to Strength A and Strength C for quads and hamstrings.
 - Direct biceps and triceps work twice weekly: dumbbell curls and cable rope pressdowns are added to Strength B and Strength C as small accessory blocks.
 - Body check-ins for weight, waist, and weekly notes.
 - Progress dashboard with completion streaks, strength sessions, completed sets, estimated cardio minutes, body check-ins, best logged loads, weekly consistency bars, recent workout history, achievements, and body trend.
@@ -132,6 +133,17 @@ The PDF remains the backbone of the program. These additions are small accessori
 - Arm accessories use 10-15 rep targets. Start light, keep the reps controlled, and only increase load after every set reaches the top of the target cleanly.
 - The app includes YouTube-first media, WorkoutX GIF IDs, cues, mistakes to avoid, progression notes, and external resources for all three additions.
 
+## New Lower-Body Machine Additions
+
+Seated leg extensions and seated leg curls were added where they make the most training sense: Strength A and Strength C.
+
+- **Seated Leg Extension** appears after Leg Press so the main compound lift still comes first, then quads get direct controlled work.
+- **Seated Leg Curl Machine** appears after the Romanian deadlift pattern so hamstrings get both hip-hinge work and knee-flexion work.
+- Both moves start at 2 sets, progress to 3 sets in later phases, and stay at 2 lighter sets on deload weeks.
+- Both are logged in pounds/lbs.
+- These are accessories, not ego lifts. Use smooth reps, quiet weight stacks, and stop if your knees feel irritated.
+- The app includes YouTube-first media, WorkoutX GIF IDs, cues, mistakes to avoid, progression notes, and external resources for both machine additions.
+
 ## Progression Logic
 
 The plan does not simply repeat the same week for 6 months. It uses training blocks so difficulty rises, then drops briefly during deload weeks so you can keep improving.
@@ -217,7 +229,7 @@ On iPhone, delete and re-add the Home Screen app only if it keeps an old cached 
 
 Most plan movements use exact ExerciseDB-style IDs. A few warm-up/recovery items are intentionally labeled as reference GIFs because they are movement patterns rather than one exact lift.
 
-- Exact GIFs: treadmill walking, incline push-up, leg press, incline dumbbell press, machine chest press, lat pulldown, assisted pull-up, seated cable row, dumbbell Romanian deadlift, goblet squat, one-arm dumbbell row, push-up, seated dumbbell shoulder press, machine shoulder press, incline rear lateral raise, barbell Romanian deadlift, cable standing fly, pec deck fly, dead bug, dumbbell biceps curl, cable rope triceps pressdown.
+- Exact GIFs: treadmill walking, incline push-up, leg press, seated leg extension, incline dumbbell press, machine chest press, lat pulldown, assisted pull-up, seated cable row, dumbbell Romanian deadlift, seated leg curl, goblet squat, one-arm dumbbell row, push-up, seated dumbbell shoulder press, machine shoulder press, incline rear lateral raise, barbell Romanian deadlift, cable standing fly, pec deck fly, dead bug, dumbbell biceps curl, cable rope triceps pressdown.
 - Reference GIFs: easy treadmill warm-up, cool-down walk, bodyweight squat warm-up, hip-hinge drill, warm-up/front plank, lift-specific ramp warm-ups, mobility flow.
 
 ## Run on a MacBook
@@ -593,6 +605,11 @@ The app uses concise, paraphrased exercise cues based on the PDF plus reputable 
   - Dumbbell biceps curl: https://coaching.fittr.com/exercise-video/dumbbell-bicep-curls-192/
   - Cable rope pressdown: https://www.fittr.com/exercise-video/cable-pushdown-with-rope-attachment-2/
   - Pec deck fly form notes: https://www.liveleantv.com/how-to-do-a-pec-deck-fly/
+  - Seated leg extension: https://repfitness.com/blogs/training/leg-extensions
+  - Leg extension machine demo: https://gym.com/exercises/leg-extension-machine
+  - Seated leg curl: https://www.nasm.org/resource-center/exercise-library/seated-leg-curl
+  - Seated leg curl setup guide: https://www.nasm.org/workout-exercise-guidance/how-to-seated-leg-curl
+  - Hamstrings blueprint: https://www.acefitness.org/resources/pros/expert-articles/9015/the-hamstrings-blueprint-evidence-based-exercises-for-better-function/
 - Cardio intensity:
   - CDC intensity guide: https://www.cdc.gov/physical-activity-basics/measuring/index.html
 - Programming and progression:

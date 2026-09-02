@@ -36,9 +36,11 @@ test("includes researched movement resources and autosave controls", async () =>
 
   for (const required of [
     "Leg Press",
+    "Seated Leg Extension",
     "Incline Dumbbell Press",
     "Seated Lat Pulldown",
     "Dumbbell Romanian Deadlift",
+    "Seated Leg Curl Machine",
     "Goblet Squat",
     "Single-Arm Dumbbell Row",
     "Seated Dumbbell Overhead Press",
@@ -68,6 +70,10 @@ test("includes researched movement resources and autosave controls", async () =>
     "ExerciseMedia",
     "motionDemo",
     "workoutXGifUrl",
+    "workoutXId: \"0585\"",
+    "workoutXId: \"0599\"",
+    "youtubeId: \"m0FOpMEgero\"",
+    "youtubeId: \"_2Kd0d-JEUM\"",
     "Show GIF",
     "Show YouTube",
     "Completion trend",
@@ -121,6 +127,8 @@ test("includes researched movement resources and autosave controls", async () =>
     "Next Open Move",
     "All Done",
     "no-load",
+    "lowerMachineAccessoryIds",
+    "quad/hamstring machine accessories",
     "SkipReason",
     "MoveStatus",
     "DayStatus",
@@ -176,14 +184,15 @@ test("extends the PDF progression to roughly 6 months", async () => {
     page,
     /const strengthWarmupIds = \[\s*"bodyweight-squat",\s*"hip-hinge-drill",\s*"incline-push-up",\s*"warmup-front-plank",\s*"warmup-treadmill-walk",\s*\]/,
   );
-  assert.match(page, /"db-rdl",\s*"treadmill-finisher",\s*"front-plank",\s*"dead-bug"/);
+  assert.match(page, /"leg-press",\s*"seated-leg-extension",\s*"incline-db-press"/);
+  assert.match(page, /"db-rdl",\s*"seated-leg-curl",\s*"treadmill-finisher",\s*"front-plank",\s*"dead-bug"/);
   assert.match(
     page,
     /"incline-reverse-fly",\s*"dumbbell-biceps-curl",\s*"rope-triceps-pressdown",\s*"treadmill-finisher",\s*"front-plank",\s*"dead-bug"/,
   );
   assert.match(
     page,
-    /"cable-chest-fly",\s*"dumbbell-biceps-curl",\s*"rope-triceps-pressdown",\s*"treadmill-finisher",\s*"front-plank",\s*"dead-bug"/,
+    /"barbell-rdl",\s*"seated-leg-curl",\s*"cable-chest-fly",\s*"dumbbell-biceps-curl",\s*"rope-triceps-pressdown",\s*"treadmill-finisher",\s*"front-plank",\s*"dead-bug"/,
   );
 });
 
@@ -336,12 +345,12 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v15/);
-  assert.match(serviceWorker, /skipped-move-tracking-v15/);
+  assert.match(serviceWorker, /recomp-gym-console-v16/);
+  assert.match(serviceWorker, /lower-machine-accessories-v16/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
   assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
-  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v14/);
+  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v15/);
 });

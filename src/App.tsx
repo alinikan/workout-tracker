@@ -206,6 +206,8 @@ const skipReasonOptions: Array<{ id: SkipReason; label: string }> = [
   { id: "other", label: "Other" },
 ];
 
+const lowerMachineAccessoryIds = ["seated-leg-extension", "seated-leg-curl"];
+
 const emptySet = (): SetLog => ({
   weight: "",
   done: false,
@@ -814,6 +816,47 @@ const exerciseMap: Record<string, Exercise> = {
       },
     ],
   },
+  "seated-leg-extension": {
+    id: "seated-leg-extension",
+    name: "Seated Leg Extension",
+    shortName: "Leg extension",
+    family: "legs",
+    equipment: "Leg extension machine",
+    target: "Quadriceps",
+    reps: "10-15",
+    rest: "60-75 sec",
+    cues: [
+      "Set the seat so your knees line up with the machine pivot and the shin pad sits just above your ankles.",
+      "Keep hips and back pressed into the pad, hold the handles, and extend smoothly.",
+      "Pause with quads squeezed, then lower under control without letting the stack slam.",
+    ],
+    avoid: [
+      "Do not kick the weight up with momentum.",
+      "Do not lock the knees hard at the top.",
+      "Do not let hips lift or your back arch away from the pad.",
+    ],
+    progression: "Treat this as a quad accessory: add load only after every set reaches 15 controlled reps without knee discomfort.",
+    motionDemo: {
+      workoutXId: "0585",
+      label: "Lever leg extension",
+      match: "exact",
+    },
+    youtubeId: "m0FOpMEgero",
+    resources: [
+      {
+        label: "Verywell Fit guide",
+        url: "https://www.verywellfit.com/how-to-do-the-machine-back-extension-3498285",
+      },
+      {
+        label: "REP Fitness guide",
+        url: "https://repfitness.com/blogs/training/leg-extensions",
+      },
+      {
+        label: "Gym.com demo",
+        url: "https://gym.com/exercises/leg-extension-machine",
+      },
+    ],
+  },
   "incline-db-press": {
     id: "incline-db-press",
     name: "Incline Dumbbell Press",
@@ -928,6 +971,47 @@ const exerciseMap: Record<string, Exercise> = {
       {
         label: "ACE guide",
         url: "https://www.acefitness.org/resources/everyone/exercise-library/317/romanian-deadlift/",
+      },
+    ],
+  },
+  "seated-leg-curl": {
+    id: "seated-leg-curl",
+    name: "Seated Leg Curl Machine",
+    shortName: "Seated leg curl",
+    family: "hinge",
+    equipment: "Seated leg curl machine",
+    target: "Hamstrings, calves",
+    reps: "10-15",
+    rest: "60-75 sec",
+    cues: [
+      "Adjust the seat so your knees line up with the machine pivot and the ankle pad sits just above your heels.",
+      "Pin your thighs with the top pad, brace, and keep your back against the seat.",
+      "Curl down by squeezing hamstrings, pause briefly, then return slowly with tension.",
+    ],
+    avoid: [
+      "Do not lift hips or arch your lower back to finish the rep.",
+      "Do not let the weight snap back on the return.",
+      "Do not use a setup that pulls your knees away from the machine pivot.",
+    ],
+    progression: "Use controlled accessory reps. Add load only after every set reaches 15 clean reps with hips pinned and no knee irritation.",
+    motionDemo: {
+      workoutXId: "0599",
+      label: "Lever seated leg curl",
+      match: "exact",
+    },
+    youtubeId: "_2Kd0d-JEUM",
+    resources: [
+      {
+        label: "NASM seated leg curl",
+        url: "https://www.nasm.org/resource-center/exercise-library/seated-leg-curl",
+      },
+      {
+        label: "NASM setup guide",
+        url: "https://www.nasm.org/workout-exercise-guidance/how-to-seated-leg-curl",
+      },
+      {
+        label: "ACE hamstrings blueprint",
+        url: "https://www.acefitness.org/resources/pros/expert-articles/9015/the-hamstrings-blueprint-evidence-based-exercises-for-better-function/",
       },
     ],
   },
@@ -1559,16 +1643,18 @@ const weeklySchedule: Record<string, SessionTemplate> = {
     type: "strength",
     code: "A",
     time: "60-85 min",
-    summary: "Phase-scaled warm-up, two specific ramp warm-ups, full-body weights, a brisk treadmill finisher, then floor core work.",
+    summary: "Phase-scaled warm-up, two specific ramp warm-ups, full-body weights, quad and hamstring machine accessories, a brisk treadmill finisher, then floor core work.",
     accent: "strength-a",
     exerciseIds: [
       ...strengthWarmupIds,
       "warmup-ramp-leg-press",
       "warmup-ramp-incline-db-press",
       "leg-press",
+      "seated-leg-extension",
       "incline-db-press",
       "lat-pulldown",
       "db-rdl",
+      "seated-leg-curl",
       "treadmill-finisher",
       "front-plank",
       "dead-bug",
@@ -1591,7 +1677,7 @@ const weeklySchedule: Record<string, SessionTemplate> = {
     type: "strength",
     code: "B",
     time: "65-90 min",
-    summary: "Phase-scaled warm-up, two specific ramp warm-ups, full-body weights, direct arms, a brisk treadmill finisher, then floor core work.",
+    summary: "Phase-scaled warm-up, two specific ramp warm-ups, full-body weights, direct arms, quad and hamstring machine accessories, a brisk treadmill finisher, then floor core work.",
     accent: "strength-b",
     exerciseIds: [
       ...strengthWarmupIds,
@@ -1633,9 +1719,11 @@ const weeklySchedule: Record<string, SessionTemplate> = {
       "warmup-ramp-leg-press",
       "warmup-ramp-incline-db-press",
       "leg-press",
+      "seated-leg-extension",
       "incline-db-press",
       "lat-pulldown",
       "barbell-rdl",
+      "seated-leg-curl",
       "cable-chest-fly",
       "dumbbell-biceps-curl",
       "rope-triceps-pressdown",
@@ -1696,6 +1784,7 @@ const libraryOrder = [
   "warmup-ramp-goblet-squat",
   "warmup-ramp-single-arm-row",
   "leg-press",
+  "seated-leg-extension",
   "goblet-squat",
   "incline-db-press",
   "machine-chest-press",
@@ -1704,6 +1793,7 @@ const libraryOrder = [
   "seated-cable-row",
   "db-rdl",
   "barbell-rdl",
+  "seated-leg-curl",
   "front-plank",
   "dead-bug",
   "dumbbell-biceps-curl",
@@ -1837,6 +1927,7 @@ function recommendedSets(planDay: PlanDay, exercise: Exercise, index: number) {
   if (planDay.week === 11 || planDay.week === 23) return 2;
   if (exercise.id === "front-plank") return planDay.week >= 19 && planDay.week <= 22 ? 4 : 3;
   if (exercise.id === "dead-bug" || exercise.family === "arms") return planDay.week >= 15 ? 3 : 2;
+  if (lowerMachineAccessoryIds.includes(exercise.id)) return planDay.week >= 15 ? 3 : 2;
 
   const workingIds = planDay.session.exerciseIds.filter((id) => {
     const item = exerciseMap[id];
@@ -2104,11 +2195,29 @@ function cardioTarget(planDay: PlanDay, exercise: Exercise) {
 function sessionTimeForDay(planDay: PlanDay) {
   if (planDay.session.type === "strength") {
     const hasDirectArms = planDay.session.exerciseIds.includes("dumbbell-biceps-curl");
-    if (planDay.week === 11 || planDay.week === 23) return hasDirectArms ? "55-70 min" : "50-65 min";
-    if (planDay.week <= 2) return hasDirectArms ? "65-80 min" : "60-75 min";
-    if (planDay.week <= 10) return hasDirectArms ? "70-85 min" : "65-80 min";
-    if (planDay.week <= 18) return hasDirectArms ? "75-90 min" : "70-85 min";
-    return hasDirectArms ? "80-95 min" : "75-90 min";
+    const hasLowerMachines = lowerMachineAccessoryIds.some((id) =>
+      planDay.session.exerciseIds.includes(id),
+    );
+    const accessoryKinds = Number(hasDirectArms) + Number(hasLowerMachines);
+
+    if (planDay.week === 11 || planDay.week === 23) {
+      if (accessoryKinds >= 2) return "60-75 min";
+      return accessoryKinds === 1 ? "55-70 min" : "50-65 min";
+    }
+    if (planDay.week <= 2) {
+      if (accessoryKinds >= 2) return "70-90 min";
+      return accessoryKinds === 1 ? "65-85 min" : "60-75 min";
+    }
+    if (planDay.week <= 10) {
+      if (accessoryKinds >= 2) return "75-95 min";
+      return accessoryKinds === 1 ? "70-90 min" : "65-80 min";
+    }
+    if (planDay.week <= 18) {
+      if (accessoryKinds >= 2) return "80-100 min";
+      return accessoryKinds === 1 ? "75-95 min" : "70-85 min";
+    }
+    if (accessoryKinds >= 2) return "85-105 min";
+    return accessoryKinds === 1 ? "80-100 min" : "75-90 min";
   }
 
   if (planDay.session.title === "Cardio Base") {
@@ -2142,8 +2251,12 @@ function sessionSummaryForDay(planDay: PlanDay) {
   if (planDay.session.type === "strength") {
     const finisher = cardioTarget(planDay, exerciseMap["treadmill-finisher"]);
     const hasDirectArms = planDay.session.exerciseIds.includes("dumbbell-biceps-curl");
+    const hasLowerMachines = lowerMachineAccessoryIds.some((id) =>
+      planDay.session.exerciseIds.includes(id),
+    );
+    const lowerMachineText = hasLowerMachines ? "quad/hamstring machine accessories, " : "";
     const armText = hasDirectArms ? "direct arms, " : "";
-    return `Phase-scaled warm-up, two lift-specific ramp warm-ups, full-body weights, ${armText}dead bugs, and ${finisher}.`;
+    return `Phase-scaled warm-up, two lift-specific ramp warm-ups, full-body weights, ${lowerMachineText}${armText}dead bugs, and ${finisher}.`;
   }
 
   if (planDay.session.title === "Cardio Base") {
