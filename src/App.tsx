@@ -5334,103 +5334,105 @@ export default function Home() {
                   meal.isSwapped ? "swapped" : ""
                 }`}
               >
-                <img src={meal.recipe.photo} alt={`${meal.recipe.title} plate`} loading="lazy" />
-                <div className="diet-meal-content">
-                  <div className="diet-meal-topline">
-                    <span className="diet-slot-chip">{meal.label}</span>
-                    <span className="diet-timing-chip">{meal.timing}</span>
-                    {meal.isSwapped && <span className="diet-swap-chip">Swap active</span>}
+                <div className="diet-meal-header">
+                  <img src={meal.recipe.photo} alt={`${meal.recipe.title} plate`} loading="lazy" />
+                  <div className="diet-meal-content">
+                    <div className="diet-meal-topline">
+                      <span className="diet-slot-chip">{meal.label}</span>
+                      <span className="diet-timing-chip">{meal.timing}</span>
+                      {meal.isSwapped && <span className="diet-swap-chip">Swap active</span>}
+                    </div>
+                    <h3>{meal.recipe.title}</h3>
+                    <div className="diet-macro-row">
+                      <span>{meal.recipe.calories}</span>
+                      <span>{meal.recipe.protein}</span>
+                    </div>
+                    <div className="diet-tag-row">
+                      {meal.recipe.tags.slice(0, 4).map((tag) => (
+                        <span key={tag}>{tag}</span>
+                      ))}
+                    </div>
                   </div>
-                  <h3>{meal.recipe.title}</h3>
-                  <div className="diet-macro-row">
-                    <span>{meal.recipe.calories}</span>
-                    <span>{meal.recipe.protein}</span>
-                  </div>
-                  <div className="diet-tag-row">
-                    {meal.recipe.tags.slice(0, 4).map((tag) => (
-                      <span key={tag}>{tag}</span>
-                    ))}
-                  </div>
+                </div>
 
-                  <div className="diet-card-grid">
-                    <div>
-                      <h4>Ingredients</h4>
-                      <ul>
-                        {meal.recipe.ingredients.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <h4>Plate</h4>
-                      <ul>
-                        {meal.recipe.plate.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <h4>Make It</h4>
-                      <ol>
-                        {meal.recipe.prep.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ol>
-                    </div>
+                <div className="diet-card-grid">
+                  <div>
+                    <h4>Ingredients</h4>
+                    <ul>
+                      {meal.recipe.ingredients.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
                   </div>
+                  <div>
+                    <h4>Plate</h4>
+                    <ul>
+                      {meal.recipe.plate.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h4>Make It</h4>
+                    <ol>
+                      {meal.recipe.prep.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ol>
+                  </div>
+                </div>
 
-                  <div className="diet-meal-actions">
+                <div className="diet-meal-actions">
+                  <button
+                    className={`diet-complete-button ${meal.isComplete ? "complete" : ""}`}
+                    type="button"
+                    onClick={() => toggleDietMeal(meal.slot)}
+                  >
+                    <Icon name="check" size={16} />
+                    {meal.isComplete ? "Done" : "Mark eaten"}
+                  </button>
+                  <button
+                    className="diet-swap-button"
+                    type="button"
+                    onClick={() =>
+                      setOpenDietSwapSlot((slot) => (slot === meal.slot ? null : meal.slot))
+                    }
+                  >
+                    <Icon name="swap" size={16} />
+                    Swap
+                  </button>
+                  {meal.isSwapped && (
                     <button
-                      className={`diet-complete-button ${meal.isComplete ? "complete" : ""}`}
+                      className="diet-original-button"
                       type="button"
-                      onClick={() => toggleDietMeal(meal.slot)}
+                      onClick={() => setDietSwap(meal.slot, meal.baseRecipe.id)}
                     >
-                      <Icon name="check" size={16} />
-                      {meal.isComplete ? "Done" : "Mark eaten"}
+                      Use original
                     </button>
-                    <button
-                      className="diet-swap-button"
-                      type="button"
-                      onClick={() =>
-                        setOpenDietSwapSlot((slot) => (slot === meal.slot ? null : meal.slot))
-                      }
-                    >
-                      <Icon name="swap" size={16} />
-                      Swap
-                    </button>
-                    {meal.isSwapped && (
-                      <button
-                        className="diet-original-button"
-                        type="button"
-                        onClick={() => setDietSwap(meal.slot, meal.baseRecipe.id)}
-                      >
-                        Use original
-                      </button>
-                    )}
-                  </div>
-
-                  {openDietSwapSlot === meal.slot && (
-                    <div className="diet-swap-panel">
-                      <div className="flow-heading">
-                        <h4>Swap {meal.label}</h4>
-                        <span>Same meal category</span>
-                      </div>
-                      <div className="diet-swap-grid">
-                        {meal.swaps.map((recipe) => (
-                          <button
-                            key={recipe.id}
-                            type="button"
-                            onClick={() => setDietSwap(meal.slot, recipe.id)}
-                          >
-                            <strong>{recipe.shortTitle}</strong>
-                            <span>{recipe.calories} · {recipe.protein}</span>
-                            <small>{recipe.tags.slice(0, 3).join(" / ")}</small>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
                   )}
                 </div>
+
+                {openDietSwapSlot === meal.slot && (
+                  <div className="diet-swap-panel">
+                    <div className="flow-heading">
+                      <h4>Swap {meal.label}</h4>
+                      <span>Same meal category</span>
+                    </div>
+                    <div className="diet-swap-grid">
+                      {meal.swaps.map((recipe) => (
+                        <button
+                          key={recipe.id}
+                          type="button"
+                          onClick={() => setDietSwap(meal.slot, recipe.id)}
+                        >
+                          <strong>{recipe.shortTitle}</strong>
+                          <span>{recipe.calories} · {recipe.protein}</span>
+                          <small>{recipe.tags.slice(0, 3).join(" / ")}</small>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </article>
             ))}
           </section>
