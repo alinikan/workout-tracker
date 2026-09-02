@@ -4116,6 +4116,7 @@ export default function Home() {
   const selectedDietType = dietDayTypeForPlanDay(selectedDietDay);
   const selectedDietTarget = dietTargets[selectedDietType];
   const selectedDietCoachNote = dietCoachNoteForDay(selectedDietDay);
+  const selectedDietAccent = selectedDietDay.session.accent;
   const selectedExercises = selectedDay.session.exerciseIds.flatMap((id) =>
     exerciseMap[id] ? [exerciseMap[id]] : [],
   );
@@ -5198,7 +5199,7 @@ export default function Home() {
 
   if (appMode === "diet") {
     return (
-      <main className="app-shell diet-shell">
+      <main className={`app-shell diet-shell diet-${selectedDietType} ${selectedDietAccent}`}>
         <header className="app-header diet-app-header">
           <div className="brand-lockup">
             <span className="brand-mark diet-mark">DP</span>
@@ -5284,7 +5285,7 @@ export default function Home() {
                   key={day.iso}
                   className={`diet-day-button ${day.iso === selectedDietDay.iso ? "active" : ""} ${
                     log.completed ? "complete" : ""
-                  } ${dietDayTypeForPlanDay(day)}`}
+                  } ${dietDayTypeForPlanDay(day)} ${day.session.accent}`}
                   onClick={() => setSelectedDietDate(day.iso)}
                   type="button"
                 >
@@ -5330,7 +5331,7 @@ export default function Home() {
             {dietMealRows.map((meal) => (
               <article
                 key={meal.slot}
-                className={`diet-meal-card ${meal.isComplete ? "complete" : ""} ${
+                className={`diet-meal-card slot-${meal.slot} ${meal.isComplete ? "complete" : ""} ${
                   meal.isSwapped ? "swapped" : ""
                 }`}
               >

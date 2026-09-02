@@ -249,9 +249,14 @@ test("includes PDF-based diet tracker with meal swaps and kg weigh-ins", async (
     "coach-hub-hero",
     "hub-choice-card",
     "diet-shell",
+    "diet-strength",
     "diet-summary-panel",
     "diet-meal-card",
     "diet-meal-header",
+    "slot-breakfast",
+    "slot-lunch",
+    "slot-snack",
+    "slot-dinner",
     "diet-swap-panel",
     "diet-week-strip",
     "diet-bottom-bar",
@@ -263,10 +268,16 @@ test("includes PDF-based diet tracker with meal swaps and kg weigh-ins", async (
     "height: 82px",
     "align-content: start",
     "align-self: start",
+    "--diet-accent",
+    "--meal-color",
+    "--day-color",
   ]) {
     assert.match(styles, new RegExp(requiredStyle));
   }
 
+  assert.match(app, /diet-\$\{selectedDietType\}/);
+  assert.match(app, /\$\{selectedDietAccent\}/);
+  assert.match(app, /slot-\$\{meal\.slot\}/);
   assert.match(app, /className="diet-meal-header"/);
   assert.match(styles, /\.diet-layout\s*\{[^}]*align-items: start/);
   assert.match(styles, /\.diet-meal-stack\s*\{[^}]*align-content: start/);
@@ -467,13 +478,14 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v21/);
-  assert.match(serviceWorker, /no-stretched-diet-cards-v21/);
+  assert.match(serviceWorker, /recomp-gym-console-v22/);
+  assert.match(serviceWorker, /color-coded-diet-tab-v22/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
   assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
+  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v21/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v20/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v19/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v18/);
