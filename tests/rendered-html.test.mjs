@@ -257,9 +257,14 @@ test("includes PDF-based diet tracker with meal swaps and kg weigh-ins", async (
     "hub-weight-panel",
     "daily-weight-grid",
     "shopping-list-card",
+    "object-fit: contain",
+    "height: 168px",
   ]) {
     assert.match(styles, new RegExp(requiredStyle));
   }
+
+  assert.doesNotMatch(styles, /\.diet-meal-card img\s*\{[^}]*height: 100%/);
+  assert.doesNotMatch(styles, /\.diet-meal-card img\s*\{[^}]*min-height: 260px/);
 
   assert.match(readme, /Using the Diet Tracker/);
   assert.match(readme, /Diet Plan PDF/);
