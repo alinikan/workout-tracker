@@ -1,5 +1,5 @@
-const CACHE_NAME = "recomp-gym-console-v16";
-const APP_VERSION = "2026-09-01-lower-machine-accessories-v16";
+const CACHE_NAME = "recomp-gym-console-v17";
+const APP_VERSION = "2026-09-02-diet-tracker-v17";
 const APP_FALLBACK_URL = "/";
 
 const CORE_ASSETS = [

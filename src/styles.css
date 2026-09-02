@@ -4235,3 +4235,726 @@ body {
     max-height: calc(94svh - env(safe-area-inset-top));
   }
 }
+
+/* Coach hub and diet tracker */
+.mode-inline-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.mode-inline-actions button,
+.diet-bottom-bar button {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 950;
+}
+
+.coach-hub-shell,
+.diet-shell {
+  --diet-green: #0f7f66;
+  --diet-mint: #e5f6ef;
+  --diet-lime: #d6eb7f;
+  --diet-orange: #f0a43a;
+  --diet-rose: #d85f6f;
+}
+
+.coach-hub-shell {
+  display: grid;
+  gap: 14px;
+  min-height: 100svh;
+  align-content: center;
+}
+
+.coach-hub-hero,
+.diet-summary-panel,
+.diet-control-panel,
+.diet-progress-panel,
+.diet-meal-card,
+.diet-side-card,
+.morning-weighin-card,
+.hub-mini-grid,
+.hub-sync {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: var(--shadow-soft);
+}
+
+.coach-hub-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 42%);
+  gap: 18px;
+  align-items: stretch;
+  padding: clamp(18px, 3vw, 30px);
+  border-left: 6px solid var(--diet-green);
+  background:
+    linear-gradient(135deg, #ffffff, #eff9f4 58%),
+    #fff;
+}
+
+.hub-brand {
+  align-items: flex-start;
+}
+
+.hub-brand .brand-mark,
+.diet-mark {
+  background: var(--diet-green);
+}
+
+.hub-brand h1 {
+  margin-bottom: 10px;
+}
+
+.hub-choice-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.hub-choice-card {
+  display: grid;
+  min-height: 154px;
+  gap: 8px;
+  align-content: end;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #fff;
+  text-align: left;
+  overflow: hidden;
+}
+
+.hub-choice-card.workout {
+  background:
+    linear-gradient(135deg, rgba(23, 107, 135, 0.92), rgba(23, 33, 43, 0.86)),
+    url("https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=900&q=80") center/cover;
+}
+
+.hub-choice-card.diet {
+  background:
+    linear-gradient(135deg, rgba(15, 127, 102, 0.92), rgba(38, 87, 68, 0.82)),
+    url("https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=900&q=80") center/cover;
+}
+
+.hub-choice-card span {
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.hub-choice-card strong {
+  font-size: clamp(1.45rem, 4vw, 2.35rem);
+  line-height: 1.05;
+}
+
+.hub-choice-card small {
+  font-weight: 850;
+  line-height: 1.4;
+}
+
+.hub-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: 14px;
+}
+
+.morning-weighin-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  gap: 14px;
+  align-items: end;
+  padding: 16px;
+}
+
+.morning-weighin-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.morning-weighin-card label,
+.weighin-card label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.morning-weighin-card input,
+.weighin-card input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 1.1rem;
+  font-weight: 900;
+}
+
+.hub-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px;
+}
+
+.hub-mini-grid div {
+  min-width: 0;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--diet-mint);
+}
+
+.hub-mini-grid span,
+.diet-target-grid span,
+.diet-macro-row span,
+.diet-variety-list span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.hub-mini-grid strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.75rem;
+}
+
+.diet-app-header {
+  border-left-color: var(--diet-green);
+  background:
+    linear-gradient(135deg, var(--diet-mint), #fff 60%),
+    #fff;
+}
+
+.diet-summary-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 48%);
+  gap: 16px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 18px;
+  border-left: 5px solid var(--diet-green);
+}
+
+.diet-summary-panel p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.diet-target-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.diet-target-grid div {
+  min-height: 72px;
+  padding: 12px;
+  border: 1px solid #cbe9dd;
+  border-radius: 8px;
+  background: var(--diet-mint);
+}
+
+.diet-target-grid strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.05rem;
+}
+
+.diet-control-panel {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.diet-week-strip {
+  display: flex;
+  gap: 7px;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.diet-day-button {
+  position: relative;
+  display: grid;
+  grid-template-rows: 18px 24px 18px;
+  flex: 0 0 92px;
+  min-height: 70px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  text-align: center;
+}
+
+.diet-day-button.active {
+  border-color: var(--diet-green);
+  background: var(--diet-mint);
+}
+
+.diet-day-button.complete::after {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--diet-green);
+  content: "";
+}
+
+.diet-day-button span,
+.diet-day-button small {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.diet-day-button strong {
+  font-size: 1.05rem;
+}
+
+.diet-day-button.strength {
+  border-bottom: 4px solid var(--strength-a);
+}
+
+.diet-day-button.cardio {
+  border-bottom: 4px solid var(--cardio);
+}
+
+.diet-day-button.recovery {
+  border-bottom: 4px solid var(--recovery);
+}
+
+.diet-progress-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.diet-status-chip {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.diet-status-chip.open {
+  border: 1px solid #f1d99c;
+  background: #fff8e8;
+  color: #744700;
+}
+
+.diet-status-chip.complete {
+  border: 1px solid #b9ddc4;
+  background: #e8f7ed;
+  color: #176339;
+}
+
+.diet-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.diet-meal-stack {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.diet-meal-card {
+  display: grid;
+  grid-template-columns: minmax(210px, 32%) minmax(0, 1fr);
+  min-width: 0;
+  overflow: hidden;
+  border-left: 5px solid var(--diet-green);
+}
+
+.diet-meal-card.complete {
+  border-left-color: var(--focus-green);
+  background: #f8fcf9;
+}
+
+.diet-meal-card.swapped {
+  border-top-color: #ded6fb;
+}
+
+.diet-meal-card img {
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  object-fit: cover;
+  background: var(--diet-mint);
+}
+
+.diet-meal-content {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+
+.diet-meal-topline,
+.diet-macro-row,
+.diet-tag-row,
+.diet-meal-actions {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.diet-slot-chip,
+.diet-timing-chip,
+.diet-swap-chip,
+.diet-tag-row span {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.diet-slot-chip {
+  background: var(--diet-green);
+  color: #fff;
+}
+
+.diet-timing-chip {
+  border: 1px solid #cbe9dd;
+  background: var(--diet-mint);
+  color: #1d6e5c;
+}
+
+.diet-swap-chip {
+  border: 1px solid #ded6fb;
+  background: #f3efff;
+  color: #4d359d;
+}
+
+.diet-meal-content h3 {
+  font-size: clamp(1.35rem, 3vw, 2rem);
+}
+
+.diet-macro-row span {
+  min-height: 28px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: var(--paper-2);
+}
+
+.diet-tag-row span {
+  border: 1px solid #e7ecef;
+  background: #fff;
+  color: #4f5e66;
+}
+
+.diet-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.diet-card-grid div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #e3ece8;
+  border-radius: 8px;
+  background: #fbfdfc;
+}
+
+.diet-card-grid h4 {
+  margin-bottom: 7px;
+  color: var(--diet-green);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.diet-card-grid ul,
+.diet-card-grid ol {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
+  color: #33434b;
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.diet-meal-actions button {
+  display: inline-flex;
+  min-height: 38px;
+  gap: 7px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-weight: 950;
+}
+
+.diet-complete-button {
+  border: 1px solid var(--diet-green);
+  background: var(--diet-green);
+  color: #fff;
+}
+
+.diet-complete-button.complete {
+  border-color: var(--focus-green);
+  background: var(--focus-green);
+}
+
+.diet-swap-button,
+.diet-original-button {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+}
+
+.diet-swap-panel {
+  padding: 10px;
+  border: 1px solid #ded6fb;
+  border-radius: 8px;
+  background: #f7f4ff;
+}
+
+.diet-swap-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.diet-swap-grid button {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid #d8d0f4;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+}
+
+.diet-swap-grid span,
+.diet-swap-grid small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 820;
+  line-height: 1.35;
+}
+
+.diet-side-panel {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.diet-side-card {
+  padding: 14px;
+}
+
+.weighin-card small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-weight: 820;
+  line-height: 1.35;
+}
+
+.diet-variety-list,
+.scenario-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.diet-variety-list div,
+.scenario-list div {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid #e3ece8;
+  border-radius: 8px;
+  background: #fbfdfc;
+}
+
+.diet-variety-list div.complete {
+  border-color: #b9ddc4;
+  background: #e8f7ed;
+}
+
+.diet-variety-list strong {
+  color: var(--diet-green);
+  font-size: 1.1rem;
+}
+
+.scenario-list strong {
+  color: var(--ink);
+}
+
+.scenario-list span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 780;
+  line-height: 1.4;
+}
+
+.diet-bottom-bar {
+  display: none;
+}
+
+@media (max-width: 980px) {
+  .coach-hub-hero,
+  .hub-dashboard-grid,
+  .diet-summary-panel,
+  .diet-control-panel,
+  .diet-layout,
+  .diet-meal-card,
+  .diet-card-grid,
+  .diet-swap-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .diet-control-panel {
+    align-items: stretch;
+  }
+
+  .diet-date-actions {
+    justify-content: stretch;
+  }
+
+  .diet-date-actions button {
+    flex: 1 1 0;
+  }
+
+  .diet-meal-card img {
+    min-height: 230px;
+    max-height: 320px;
+  }
+}
+
+@media (max-width: 720px) {
+  .coach-hub-shell,
+  .diet-shell {
+    padding-bottom: calc(var(--mobile-nav-height) + 26px + env(safe-area-inset-bottom));
+  }
+
+  .coach-hub-shell {
+    align-content: start;
+  }
+
+  .coach-hub-hero {
+    padding: 16px;
+  }
+
+  .hub-dashboard-grid,
+  .morning-weighin-card,
+  .hub-mini-grid,
+  .diet-target-grid,
+  .diet-progress-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .hub-mini-grid {
+    display: grid;
+  }
+
+  .mode-inline-actions {
+    justify-content: stretch;
+  }
+
+  .mode-inline-actions button {
+    flex: 1 1 130px;
+  }
+
+  .diet-summary-panel,
+  .diet-control-panel,
+  .diet-progress-panel {
+    margin-top: 10px;
+    padding: 12px;
+  }
+
+  .diet-week-strip {
+    padding-bottom: 4px;
+  }
+
+  .diet-day-button {
+    flex-basis: 88px;
+  }
+
+  .diet-meal-card img {
+    min-height: 210px;
+  }
+
+  .diet-meal-content {
+    padding: 12px;
+  }
+
+  .diet-card-grid ul,
+  .diet-card-grid ol {
+    font-size: 0.84rem;
+  }
+
+  .diet-meal-actions button {
+    flex: 1 1 130px;
+  }
+
+  .diet-side-card {
+    padding: 12px;
+  }
+
+  .diet-bottom-bar {
+    position: fixed;
+    right: max(10px, env(safe-area-inset-right));
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    left: max(10px, env(safe-area-inset-left));
+    z-index: 20;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    padding: 8px;
+    border: 1px solid rgba(199, 208, 219, 0.95);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 16px 40px rgba(18, 24, 32, 0.16);
+    backdrop-filter: blur(14px);
+  }
+
+  .diet-bottom-bar button {
+    min-width: 0;
+    padding: 0 6px;
+  }
+}

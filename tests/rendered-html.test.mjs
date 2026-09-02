@@ -93,7 +93,7 @@ test("includes researched movement resources and autosave controls", async () =>
     "gym-action-label",
     "Weight",
     "Weight (lbs)",
-    "Body weight (lbs)",
+    "Morning weight (kg)",
     "Arms",
     "8-12 each side",
     "direct arms",
@@ -165,6 +165,87 @@ test("includes researched movement resources and autosave controls", async () =>
   assert.match(page, /nasm\.org/);
   assert.match(page, /youtube\.com/);
   assert.match(page, /puregym\.com/);
+});
+
+test("includes PDF-based diet tracker with meal swaps and kg weigh-ins", async () => {
+  const [app, styles, readme] = await Promise.all([
+    text("src/App.tsx"),
+    text("src/styles.css"),
+    text("README.md"),
+  ]);
+
+  for (const required of [
+    "AppMode",
+    "DietMealSlot",
+    "DietDayType",
+    "DietRecipe",
+    "DietDayLog",
+    "dietDays",
+    "weightKg",
+    "Coach Hub",
+    "Choose Your Tracker",
+    "Recomp Diet Console",
+    "Diet tracker",
+    "Breakfast",
+    "Lunch",
+    "Snack",
+    "Dinner",
+    "Oats, Greek Yogurt, Berries",
+    "Chicken Rice Bowl",
+    "Cottage Cheese and Banana",
+    "Salmon Potato Plate",
+    "Tuna Chickpea Quinoa Bowl",
+    "Turkey Lentil Rice Bowl",
+    "Tofu Edamame Stir-Fry",
+    "Turkey Bean Chili",
+    "Tofu Lentil Curry",
+    "Morning weight (kg)",
+    "Weight (kg)",
+    "dietTargets",
+    "~2,050 kcal",
+    "150-165 g protein",
+    "25-40 g lifting-carb dose",
+    "dietRecipes",
+    "weeklyDietMealMap",
+    "dietDayTypeForPlanDay",
+    "dietCoachNoteForDay",
+    "activeDietRecipeFor",
+    "dietSwapOptionsFor",
+    "withAutomaticDietCompletion",
+    "updateDietDay",
+    "toggleDietMeal",
+    "setDietSwap",
+    "Weekly variety",
+    "Fruit days",
+    "Fatty fish",
+    "Legumes",
+    "Oats/grains",
+    "Scenario help",
+    "Mark eaten",
+    "Use original",
+  ]) {
+    assert.match(app, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+
+  for (const requiredStyle of [
+    "coach-hub-shell",
+    "coach-hub-hero",
+    "hub-choice-card",
+    "diet-shell",
+    "diet-summary-panel",
+    "diet-meal-card",
+    "diet-swap-panel",
+    "diet-week-strip",
+    "diet-bottom-bar",
+    "weighin-card",
+  ]) {
+    assert.match(styles, new RegExp(requiredStyle));
+  }
+
+  assert.match(readme, /Using the Diet Tracker/);
+  assert.match(readme, /Diet Plan PDF/);
+  assert.match(readme, /morning weight in kg/);
+  assert.doesNotMatch(app, /Body weight \(lbs\)/);
 });
 
 test("extends the PDF progression to roughly 6 months", async () => {
@@ -345,12 +426,13 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v16/);
-  assert.match(serviceWorker, /lower-machine-accessories-v16/);
+  assert.match(serviceWorker, /recomp-gym-console-v17/);
+  assert.match(serviceWorker, /diet-tracker-v17/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
   assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
+  assert.doesNotMatch(serviceWorker, /lower-machine-accessories-v16/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v15/);
 });

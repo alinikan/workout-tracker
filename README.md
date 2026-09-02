@@ -1,12 +1,18 @@
-# Workout Tracker
+# Workout + Diet Tracker
 
-A mobile-first workout tracker built from the 12-week body recomposition PDF and extended into a conservative 6-month training calendar. It turns the plan into a phone-friendly app with daily sessions, ordered exercise checklists, researched video/resource links, weight-only set logging in pounds, body check-ins, achievements, automatic local saving, and optional Supabase cloud sync across every device you sign in to.
+A mobile-first recomposition tracker built from the workout PDF and the revised Diet Plan PDF. It opens to a simple Coach Hub where you choose **Workout** or **Diet**, then turns both plans into phone-friendly daily checklists with meal swaps, recipe photos, weight training logs, kg morning weigh-ins, achievements, automatic local saving, and optional Supabase cloud sync across every device you sign in to.
 
 ## Features
 
 - 182-day program calendar, which is about 6 months of training.
-- Auto-opens to the current program day and current week, including when launched from the iPhone Home Screen app.
+- Coach Hub first screen with two clear choices: **Workout** and **Diet**.
+- Workout and Diet pages land on the current program day and current week, including when launched from the iPhone Home Screen app.
 - Color-coded app sections for Today, Gym Mode, Week, Progress, Library, and Account.
+- Diet section based on the Diet Plan PDF with Breakfast, Lunch, Snack, and Dinner cards for each day.
+- Diet meal cards include recipe photos, simple prep steps, exact plate portions, timing labels, calorie/protein estimates, and completion tracking.
+- Meal swaps stay inside the same meal category so calories and protein stay close while variety improves.
+- Weekly diet variety checks track fruit days, fatty fish, legumes, and oats/whole-grain appearances.
+- Morning weigh-ins are logged in kilograms and shared by the workout and diet sides of the app.
 - iPhone-friendly bottom navigation plus a desktop tab bar for MacBook use.
 - Color-coded weekly planner with a week selector for jumping through the full 6-month calendar without a cluttered 182-day rail.
 - Compact Today day picker so you can choose any day in the current week or jump weeks without leaving Today.
@@ -23,7 +29,7 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
 - Smart load suggestions that use your last logged load, completed sets, and deload weeks to suggest whether to start light, repeat, nudge up, or reduce load.
 - Strength-day logging with only weight and completion checks. Reps, time, rest, and cardio targets are shown by phase, not entered by you.
 - Done-only warm-ups, cardio, and bodyweight moves show Set, Target, and Done only, with no fake weight or pace input.
-- Strength weights and body weight are treated as pounds/lbs throughout the app.
+- Strength weights are treated as pounds/lbs, while morning body weigh-ins are treated as kilograms/kg.
 - Dynamic set, warm-up, cardio, and target recommendations from the PDF plus conservative trainer-style progression:
   - Weeks 1-2: 2 working sets.
   - Weeks 3-6: 3 sets for the first 4 lifts, longer brisk cardio blocks, and slightly higher warm-up drill targets.
@@ -64,13 +70,21 @@ A mobile-first workout tracker built from the 12-week body recomposition PDF and
 
 Your tracking data always saves automatically in the browser first. This keeps the app useful in the gym even when Wi-Fi is weak.
 
-For true cross-device sync, configure Supabase and sign in with the same email on each device. After that, every completion check, weight, workout note, and body check-in is saved locally and synced to your Supabase account.
+For true cross-device sync, configure Supabase and sign in with the same email on each device. After that, every workout check, diet meal, swap, kg weigh-in, workout note, diet note, and body check-in is saved locally and synced to your Supabase account.
 
 Important limitation: the cloud sync needs the same deployed app URL and the same Supabase account. If you use a different Vercel preview URL, a different Supabase project, or a different email login, it will behave like a separate account.
 
 iPhone Home Screen note: email + password sign-in happens directly inside the Home Screen app. It does not depend on a magic link opening in the right browser.
 
-Launch behavior: the app opens on the current program day automatically. If the iPhone Home Screen app stays in memory overnight, it moves to the new current day the next time it becomes active. You can browse other dates in Today or Week, but Gym Mode always uses the actual current program day.
+Launch behavior: the app opens to the Coach Hub. When you choose Workout or Diet, each side is aligned to the current program day automatically. If the iPhone Home Screen app stays in memory overnight, it moves to the new current day the next time it becomes active. You can browse other dates in Workout or Diet, but Gym Mode always uses the actual current program day.
+
+## Using the Coach Hub
+
+1. Open the app.
+2. Choose **Workout** for the existing training tracker.
+3. Choose **Diet** for the daily meal plan from the Diet Plan PDF.
+4. Log your morning weight in kg from the hub or inside the Diet section.
+5. Sign in from the workout **Account** section if you want everything synced across devices.
 
 ## Using the Redesigned Tracker
 
@@ -86,6 +100,27 @@ Launch behavior: the app opens on the current program day automatically. If the 
 10. Use **Gym Mode** when you want the largest, simplest training view. It always loads today, starts on the first unfinished move, and skips moves that are already complete.
 11. Check **Progress** for program completion, streak, sets, cardio minutes, skipped days, best logged loads, weekly consistency, achievements, and body trend. A day counts as complete once every move in that day is fully checked off.
 12. Use **Account** to sign in with email + password so the same data syncs across your iPhone, MacBook, and any other device.
+
+## Using the Diet Tracker
+
+The Diet section is based on the Diet Plan PDF: about 150-165 g protein per day, four planned feedings, moderate vegetables, two fruits most days, and calorie cycling by workout type.
+
+1. Open **Diet** from the Coach Hub.
+2. Check the day target: Strength, Cardio, or Recovery.
+3. Log your morning weight in kg.
+4. Follow the four meal cards in order: Breakfast, Lunch, Snack, Dinner.
+5. Use the timing chip on each card, such as **Morning**, **Midday**, **Before workout / afternoon**, or **After workout / evening**.
+6. Use the ingredient list to cook or assemble the meal.
+7. Use the **Plate** list for the final portions to put in your bowl or plate.
+8. Tap **Mark eaten** after you eat the meal.
+9. Tap **Swap** if you need variety or a different acceptable option. Swaps stay in the same meal category.
+10. Use the weekly variety card as a light guide, not another source of stress.
+
+Diet day types:
+
+- **Strength:** about 2,050 kcal with 25-40 g carbohydrate near lifting.
+- **Cardio:** about 1,950 kcal with normal measured carbs and hydration around treadmill work.
+- **Recovery:** about 1,850 kcal with protein stable and slightly lower starch.
 
 ## Skipping Moves Properly
 
@@ -522,7 +557,7 @@ In this project, `npm run lint` reuses the Vite production build gate. `npm run 
 
 ## Project Files
 
-- `src/App.tsx` - the main tracker app, workout data, exercise resources, smart load logic, exercise swaps, autosave, cloud sync flow, and UI.
+- `src/App.tsx` - the main tracker app, workout data, diet recipe data, exercise resources, smart load logic, meal swaps, exercise swaps, autosave, cloud sync flow, and UI.
 - `src/lib/supabaseClient.ts` - optional Supabase browser client with validation so cloud config mistakes show in the app instead of causing a blank screen.
 - `src/styles.css` - the responsive visual system and mobile layout.
 - `src/main.tsx` - the React entry point.
@@ -539,7 +574,7 @@ In this project, `npm run lint` reuses the Vite production build gate. `npm run 
 
 ## How Sync Works
 
-- The app always writes your latest progress to browser storage first.
+- The app always writes your latest workout, diet, meal-swap, note, and weigh-in progress to browser storage first.
 - If Supabase is not configured, the **Cloud sync** panel says `local-only`.
 - If Supabase is configured but you are signed out, local saving still works.
 - After you sign in, the app loads your cloud progress row from Supabase.
@@ -548,6 +583,7 @@ In this project, `npm run lint` reuses the Vite production build gate. `npm run 
 - Supabase Auth owns the user identity. The `workout_progress.user_id` column matches the signed-in user id.
 - Row Level Security policies in `supabase/schema.sql` prevent one account from reading or changing another account's row.
 - The app uses Supabase email + password auth for Home Screen app login. This avoids the iPhone problem where a magic link opens Safari instead of the installed web app.
+- Diet data is stored inside `dietDays`, workout data inside `days`, and kg weigh-ins inside `metrics`.
 
 This is designed for one human using several devices. If you edit the exact same field on two devices at the exact same time, the most recent cloud save may win for that field. For normal use, sign in on each device and let the **Cloud sync** panel show `synced` before switching devices.
 
@@ -636,7 +672,7 @@ const START_DATE = "2026-08-31";
 
 ## Safety Note
 
-This app helps you follow and track the PDF plan. It is not medical advice. Stop a movement if you feel sharp pain, dizziness, chest pain, unusual shortness of breath, or symptoms that feel wrong. If chest tissue is firm, painful, one-sided, associated with nipple discharge, or feels like a hard lump, get medical assessment before treating it as ordinary fat loss.
+This app helps you follow and track the workout PDF and Diet Plan PDF. It is not medical advice. Stop a movement if you feel sharp pain, dizziness, chest pain, unusual shortness of breath, or symptoms that feel wrong. If chest tissue is firm, painful, one-sided, associated with nipple discharge, or feels like a hard lump, get medical assessment before treating it as ordinary fat loss. If the diet causes unusual symptoms, severe hunger, dizziness, digestive problems, or conflicts with a medical condition or medication, check with a physician or registered dietitian.
 
 ## Troubleshooting
 

@@ -3,7 +3,9 @@ import type { Session } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase, supabaseConfigError } from "./lib/supabaseClient";
 
 type SessionType = "strength" | "cardio" | "movement" | "recovery";
+type AppMode = "hub" | "workout" | "diet";
 type AppSection = "today" | "gym" | "week" | "progress" | "library" | "account";
+type PlanWeekday = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday";
 type IconName =
   | "activity"
   | "calendar"
@@ -39,10 +41,26 @@ type TrainingLocation = "upstairs" | "downstairs" | "downstairs-outside" | "eith
 type SkipReason = "time" | "pain" | "equipment" | "fatigue" | "other";
 type MoveStatus = "pending" | "done" | "skipped";
 type DayStatus = "incomplete" | "complete" | "finished-with-skips";
+type DietMealSlot = "breakfast" | "lunch" | "snack" | "dinner";
+type DietDayType = "strength" | "cardio" | "recovery";
 type SkipRequest = {
   date: string;
   originalExerciseId: string;
   source: "today" | "gym" | "detail";
+};
+
+type DietRecipe = {
+  id: string;
+  slot: DietMealSlot;
+  title: string;
+  shortTitle: string;
+  photo: string;
+  calories: string;
+  protein: string;
+  tags: string[];
+  ingredients: string[];
+  prep: string[];
+  plate: string[];
 };
 
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
@@ -158,12 +176,21 @@ type DayLog = {
 
 type MetricLog = {
   weight: string;
+  weightKg: string;
   waist: string;
   note: string;
 };
 
+type DietDayLog = {
+  completed: boolean;
+  meals: Record<DietMealSlot, boolean>;
+  swaps: Partial<Record<DietMealSlot, string>>;
+  notes: string;
+};
+
 type TrackerStore = {
   days: Record<string, DayLog>;
+  dietDays: Record<string, DietDayLog>;
   metrics: Record<string, MetricLog>;
 };
 
@@ -181,7 +208,7 @@ type PlanDay = {
   index: number;
   week: number;
   dayName: string;
-  planDayName: string;
+  planDayName: PlanWeekday;
   session: SessionTemplate;
 };
 
@@ -208,6 +235,40 @@ const skipReasonOptions: Array<{ id: SkipReason; label: string }> = [
 
 const lowerMachineAccessoryIds = ["seated-leg-extension", "seated-leg-curl"];
 
+const dietMealSlots: Array<{ id: DietMealSlot; label: string }> = [
+  { id: "breakfast", label: "Breakfast" },
+  { id: "lunch", label: "Lunch" },
+  { id: "snack", label: "Snack" },
+  { id: "dinner", label: "Dinner" },
+];
+
+const dietTargets: Record<DietDayType, { label: string; calories: string; protein: string; carbs: string; fat: string }> = {
+  strength: {
+    label: "Strength day",
+    calories: "~2,050 kcal",
+    protein: "150-165 g protein",
+    carbs: "205-230 g carbs",
+    fat: "55-65 g fat",
+  },
+  cardio: {
+    label: "Cardio day",
+    calories: "~1,950 kcal",
+    protein: "150-165 g protein",
+    carbs: "175-205 g carbs",
+    fat: "55-65 g fat",
+  },
+  recovery: {
+    label: "Recovery day",
+    calories: "~1,850 kcal",
+    protein: "150-165 g protein",
+    carbs: "135-165 g carbs",
+    fat: "60-75 g fat",
+  },
+};
+
+const foodPhoto = (photoId: string) =>
+  `https://images.unsplash.com/${photoId}?auto=format&fit=crop&w=900&q=80`;
+
 const emptySet = (): SetLog => ({
   weight: "",
   done: false,
@@ -225,8 +286,21 @@ const createEmptyDay = (): DayLog => ({
 
 const createEmptyMetric = (): MetricLog => ({
   weight: "",
+  weightKg: "",
   waist: "",
   note: "",
+});
+
+const createEmptyDietDay = (): DietDayLog => ({
+  completed: false,
+  meals: {
+    breakfast: false,
+    lunch: false,
+    snack: false,
+    dinner: false,
+  },
+  swaps: {},
+  notes: "",
 });
 
 function normalizeDayLog(log: DayLog | undefined): DayLog {
@@ -246,6 +320,35 @@ function normalizeMetricLogShape(metric: MetricLog | undefined): MetricLog {
   return {
     ...createEmptyMetric(),
     ...metric,
+  };
+}
+
+function normalizeDietMeals(value: unknown): Record<DietMealSlot, boolean> {
+  const base = createEmptyDietDay().meals;
+  if (!isRecord(value)) return base;
+
+  return dietMealSlots.reduce<Record<DietMealSlot, boolean>>((merged, slot) => {
+    merged[slot.id] = Boolean(value[slot.id]);
+    return merged;
+  }, base);
+}
+
+function normalizeDietSwaps(value: unknown): Partial<Record<DietMealSlot, string>> {
+  if (!isRecord(value)) return {};
+
+  return dietMealSlots.reduce<Partial<Record<DietMealSlot, string>>>((merged, slot) => {
+    const recipeId = value[slot.id];
+    if (typeof recipeId === "string") merged[slot.id] = recipeId;
+    return merged;
+  }, {});
+}
+
+function normalizeDietDayLog(log: DietDayLog | undefined): DietDayLog {
+  return {
+    completed: Boolean(log?.completed),
+    meals: normalizeDietMeals(log?.meals),
+    swaps: normalizeDietSwaps(log?.swaps),
+    notes: log?.notes ?? "",
   };
 }
 
@@ -844,8 +947,8 @@ const exerciseMap: Record<string, Exercise> = {
     youtubeId: "m0FOpMEgero",
     resources: [
       {
-        label: "Verywell Fit guide",
-        url: "https://www.verywellfit.com/how-to-do-the-machine-back-extension-3498285",
+        label: "GoodLife machine guide",
+        url: "https://blog.goodlifefitness.com/video/how-to-use-the-leg-extension-and-curl-machines",
       },
       {
         label: "REP Fitness guide",
@@ -1637,6 +1740,436 @@ const exerciseMap: Record<string, Exercise> = {
   },
 };
 
+const dietRecipes: DietRecipe[] = [
+  {
+    id: "oats-yogurt-berries",
+    slot: "breakfast",
+    title: "Oats, Greek Yogurt, Berries",
+    shortTitle: "Oats + yogurt",
+    photo: foodPhoto("photo-1511690743698-d9d85f2fbf38"),
+    calories: "~470 kcal",
+    protein: "~39 g",
+    tags: ["fruit", "oats", "whole grain", "lifting friendly"],
+    ingredients: ["200 g Greek yogurt", "50 g oats", "15 g whey", "100 g berries", "10 g chia"],
+    prep: ["Mix yogurt, oats, whey, berries, and chia.", "Add water or milk for texture and refrigerate overnight if you want."],
+    plate: ["One bowl", "Use the full yogurt/oat mix", "Berries on top"],
+  },
+  {
+    id: "egg-wrap-orange",
+    slot: "breakfast",
+    title: "Egg Wrap With Orange",
+    shortTitle: "Egg wrap",
+    photo: foodPhoto("photo-1525351484163-7529414344d8"),
+    calories: "~430-500 kcal",
+    protein: "~36 g",
+    tags: ["fruit", "whole grain", "hot meal"],
+    ingredients: ["2 eggs", "150 g egg whites", "1 whole-wheat wrap", "100-150 g peppers or spinach", "Salsa", "1 orange"],
+    prep: ["Cook vegetables first, then add egg whites and eggs.", "Wrap with salsa and eat the orange on the side."],
+    plate: ["One filled wrap", "One orange", "Keep added oil measured or use spray"],
+  },
+  {
+    id: "cottage-bowl-kiwi",
+    slot: "breakfast",
+    title: "Cottage Cheese Oat Bowl",
+    shortTitle: "Cottage bowl",
+    photo: foodPhoto("photo-1494597564530-871f2b93ac55"),
+    calories: "~460 kcal",
+    protein: "~36 g",
+    tags: ["fruit", "oats", "no cook"],
+    ingredients: ["250 g cottage cheese", "40 g oats", "1 apple or kiwi", "Cinnamon"],
+    prep: ["Add cottage cheese to a bowl.", "Stir in oats, fruit, and cinnamon."],
+    plate: ["One bowl", "Use one fruit serving", "No extra nuts unless planned"],
+  },
+  {
+    id: "yogurt-muesli-pear",
+    slot: "breakfast",
+    title: "Greek Yogurt Muesli Bowl",
+    shortTitle: "Yogurt muesli",
+    photo: foodPhoto("photo-1488477181946-6428a0291777"),
+    calories: "~430 kcal",
+    protein: "~36-38 g",
+    tags: ["fruit", "whole grain", "no cook"],
+    ingredients: ["300 g Greek yogurt", "45 g unsweetened whole-grain muesli", "1 kiwi or pear"],
+    prep: ["Spoon yogurt into a bowl.", "Add muesli and sliced fruit."],
+    plate: ["One bowl", "Check muesli added sugar", "Keep fruit to one serving"],
+  },
+  {
+    id: "egg-potato-citrus",
+    slot: "breakfast",
+    title: "Egg and Potato Plate",
+    shortTitle: "Egg + potato",
+    photo: foodPhoto("photo-1533089860892-a7c6f0a88666"),
+    calories: "~445 kcal",
+    protein: "~37 g",
+    tags: ["fruit", "potato", "hot meal"],
+    ingredients: ["2 eggs", "180 g egg whites", "200 g potato", "150 g tomatoes or mushrooms", "1 citrus fruit"],
+    prep: ["Cook potato ahead or microwave it.", "Cook vegetables, add whites and eggs, then plate with fruit."],
+    plate: ["Eggs and whites", "200 g potato", "Moderate vegetables"],
+  },
+  {
+    id: "yogurt-bowl-kiwi",
+    slot: "breakfast",
+    title: "Yogurt Bowl With Kiwi",
+    shortTitle: "Yogurt bowl",
+    photo: foodPhoto("photo-1490474418585-ba9bad8fd0ea"),
+    calories: "~390 kcal",
+    protein: "~39 g",
+    tags: ["fruit", "oats", "recovery friendly"],
+    ingredients: ["250 g Greek yogurt", "40 g oats", "10 g whey", "100 g berries or 1 kiwi"],
+    prep: ["Mix yogurt, oats, and whey.", "Top with berries or sliced kiwi."],
+    plate: ["One bowl", "Keep oats at 40 g on recovery days", "Use one fruit serving"],
+  },
+  {
+    id: "chicken-rice-bowl",
+    slot: "lunch",
+    title: "Chicken Rice Bowl",
+    shortTitle: "Chicken rice",
+    photo: foodPhoto("photo-1546069901-ba9599a7e63c"),
+    calories: "~500-600 kcal",
+    protein: "~37-40 g",
+    tags: ["lean protein", "rice", "vegetables", "lifting friendly"],
+    ingredients: ["100 g cooked chicken", "150-180 g cooked rice", "180-220 g mixed vegetables", "5-10 g olive oil", "Salsa"],
+    prep: ["Warm chicken, rice, and vegetables.", "Add salsa and measured olive oil."],
+    plate: ["100 g chicken", "150-180 g cooked rice", "About 200 g vegetables"],
+  },
+  {
+    id: "turkey-lentil-rice",
+    slot: "lunch",
+    title: "Turkey Lentil Rice Bowl",
+    shortTitle: "Turkey lentil",
+    photo: foodPhoto("photo-1512621776951-a57141f2eefd"),
+    calories: "~560 kcal",
+    protein: "~39-41 g",
+    tags: ["legumes", "rice", "vegetables"],
+    ingredients: ["90 g cooked extra-lean turkey", "120 g cooked lentils", "120 g cooked rice", "180 g peppers and tomatoes", "Yogurt sauce"],
+    prep: ["Warm turkey, lentils, rice, and vegetables.", "Finish with yogurt sauce."],
+    plate: ["90 g turkey", "120 g lentils", "120 g rice", "180 g vegetables"],
+  },
+  {
+    id: "tuna-chickpea-quinoa",
+    slot: "lunch",
+    title: "Tuna Chickpea Quinoa Bowl",
+    shortTitle: "Tuna chickpea",
+    photo: foodPhoto("photo-1547496502-affa22d38842"),
+    calories: "~500 kcal",
+    protein: "~38-40 g",
+    tags: ["legumes", "whole grain", "no cook", "vegetables"],
+    ingredients: ["80-90 g light tuna", "100 g chickpeas", "120 g cooked quinoa", "180 g salad vegetables"],
+    prep: ["Rinse chickpeas and drain tuna.", "Toss with quinoa and salad vegetables."],
+    plate: ["One large bowl", "100 g chickpeas", "180 g vegetables"],
+  },
+  {
+    id: "tofu-edamame-stir-fry",
+    slot: "lunch",
+    title: "Tofu Edamame Stir-Fry",
+    shortTitle: "Tofu edamame",
+    photo: foodPhoto("photo-1512058564366-18510be2db19"),
+    calories: "~600 kcal",
+    protein: "~35-40 g",
+    tags: ["plant protein", "legumes", "brown rice", "vegetables"],
+    ingredients: ["180 g firm tofu", "100 g shelled edamame", "120 g cooked brown rice", "200 g mixed vegetables"],
+    prep: ["Pan-cook tofu and vegetables.", "Add edamame and serve over brown rice."],
+    plate: ["180 g tofu", "100 g edamame", "120 g rice", "200 g vegetables"],
+  },
+  {
+    id: "beef-whole-grain-pasta",
+    slot: "dinner",
+    title: "Beef Whole-Grain Pasta",
+    shortTitle: "Beef pasta",
+    photo: foodPhoto("photo-1551183053-bf91a1d81141"),
+    calories: "~560 kcal",
+    protein: "~38-40 g",
+    tags: ["whole grain", "red meat", "vegetables"],
+    ingredients: ["100 g extra-lean beef", "150 g cooked whole-grain pasta", "100 g marinara", "180 g mushrooms or zucchini"],
+    prep: ["Cook beef, vegetables, and marinara together.", "Serve over measured pasta."],
+    plate: ["100 g beef", "150 g cooked pasta", "180 g vegetables"],
+  },
+  {
+    id: "egg-lentil-quinoa",
+    slot: "lunch",
+    title: "Egg Lentil Quinoa Bowl",
+    shortTitle: "Egg lentil",
+    photo: foodPhoto("photo-1511690656952-34342bb7c2f2"),
+    calories: "~565 kcal",
+    protein: "~38 g",
+    tags: ["legumes", "whole grain", "vegetables"],
+    ingredients: ["2 eggs", "150 g cooked lentils", "100 g cooked quinoa", "200 g vegetables", "30 g feta"],
+    prep: ["Warm lentils, quinoa, and vegetables.", "Top with eggs and measured feta."],
+    plate: ["2 eggs", "150 g lentils", "100 g quinoa", "200 g vegetables"],
+  },
+  {
+    id: "turkey-bean-chili-lunch",
+    slot: "lunch",
+    title: "Turkey Bean Chili Bowl",
+    shortTitle: "Turkey chili",
+    photo: foodPhoto("photo-1528712306091-ed0763094c98"),
+    calories: "~560 kcal",
+    protein: "~39-42 g",
+    tags: ["legumes", "rice", "vegetables"],
+    ingredients: ["90 g cooked extra-lean turkey", "140 g kidney or black beans", "180 g tomatoes and peppers", "100 g cooked rice"],
+    prep: ["Simmer turkey, beans, tomatoes, and peppers.", "Serve with measured rice."],
+    plate: ["90 g turkey", "140 g beans", "100 g rice", "180 g vegetables"],
+  },
+  {
+    id: "cottage-banana",
+    slot: "snack",
+    title: "Cottage Cheese and Banana",
+    shortTitle: "Cottage banana",
+    photo: foodPhoto("photo-1505253716362-afaea1d3d1af"),
+    calories: "~330 kcal",
+    protein: "~31 g",
+    tags: ["fruit", "lifting carb", "pre-workout"],
+    ingredients: ["250 g cottage cheese", "1 medium banana"],
+    prep: ["Add cottage cheese to a bowl.", "Slice banana on top or eat it beside the bowl."],
+    plate: ["250 g cottage cheese", "1 banana", "No extra toppings unless planned"],
+  },
+  {
+    id: "yogurt-rice-cakes",
+    slot: "snack",
+    title: "Greek Yogurt, Rice Cakes, Jam",
+    shortTitle: "Yogurt cakes",
+    photo: foodPhoto("photo-1505576399279-565b52d4ac71"),
+    calories: "~315 kcal",
+    protein: "~27 g",
+    tags: ["low fibre", "lifting carb", "pre-workout"],
+    ingredients: ["250 g Greek yogurt", "2 rice cakes", "15 g jam"],
+    prep: ["Spoon yogurt into a bowl.", "Add jam to rice cakes and eat together."],
+    plate: ["250 g yogurt", "2 rice cakes", "15 g jam"],
+  },
+  {
+    id: "yogurt-oats-bowl",
+    slot: "snack",
+    title: "Greek Yogurt Oats Bowl",
+    shortTitle: "Yogurt oats",
+    photo: foodPhoto("photo-1488477304112-4944851de03d"),
+    calories: "~410 kcal",
+    protein: "~39 g",
+    tags: ["fruit", "oats", "filling"],
+    ingredients: ["250 g Greek yogurt", "40 g oats", "100 g berries", "10 g whey"],
+    prep: ["Mix yogurt, oats, berries, and whey.", "Let it sit if you want softer oats."],
+    plate: ["One bowl", "40 g oats", "100 g berries"],
+  },
+  {
+    id: "turkey-sandwich-fruit",
+    slot: "snack",
+    title: "Turkey Sandwich and Fruit",
+    shortTitle: "Turkey sandwich",
+    photo: foodPhoto("photo-1528735602780-2552fd46c7af"),
+    calories: "~420 kcal",
+    protein: "~35-39 g",
+    tags: ["fruit", "whole grain", "portable", "lifting carb"],
+    ingredients: ["100 g turkey slices", "2 slices whole-grain bread", "Mustard", "1 orange or apple"],
+    prep: ["Build sandwich with turkey and mustard.", "Eat fruit on the side."],
+    plate: ["One sandwich", "100 g turkey", "One fruit serving"],
+  },
+  {
+    id: "savoury-tuna-plate",
+    slot: "snack",
+    title: "Savoury Tuna Plate",
+    shortTitle: "Tuna plate",
+    photo: foodPhoto("photo-1512621776951-a57141f2eefd"),
+    calories: "~390 kcal",
+    protein: "~36-39 g",
+    tags: ["legumes", "portable", "recovery friendly"],
+    ingredients: ["100 g light tuna", "60 g hummus", "Whole-grain crackers", "Cucumber"],
+    prep: ["Drain tuna and plate with hummus.", "Add crackers and cucumber."],
+    plate: ["100 g tuna", "60 g hummus", "One measured cracker serving"],
+  },
+  {
+    id: "emergency-shake-meal",
+    slot: "snack",
+    title: "Emergency Shake Meal",
+    shortTitle: "Shake meal",
+    photo: foodPhoto("photo-1553530666-ba11a7da3888"),
+    calories: "~420 kcal",
+    protein: "~36-40 g",
+    tags: ["emergency", "fruit", "lifting carb"],
+    ingredients: ["30 g whey", "300 mL milk", "1 banana", "20 g oats"],
+    prep: ["Blend whey, milk, banana, and oats.", "Use when solid food is impractical."],
+    plate: ["One shake", "Do not add another routine shake afterward"],
+  },
+  {
+    id: "greek-yogurt-melon",
+    slot: "snack",
+    title: "Greek Yogurt and Melon",
+    shortTitle: "Yogurt melon",
+    photo: foodPhoto("photo-1505252585461-04db1eb84625"),
+    calories: "~400 kcal",
+    protein: "~36 g",
+    tags: ["fruit", "oats", "cardio friendly"],
+    ingredients: ["300 g Greek yogurt", "30 g oats", "150 g melon or berries", "10 g nuts"],
+    prep: ["Add yogurt and oats to a bowl.", "Top with fruit and measured nuts."],
+    plate: ["300 g yogurt", "30 g oats", "150 g fruit", "10 g nuts"],
+  },
+  {
+    id: "cottage-apple",
+    slot: "snack",
+    title: "Cottage Cheese and Apple",
+    shortTitle: "Cottage apple",
+    photo: foodPhoto("photo-1568702846914-96b305d2aaeb"),
+    calories: "~365 kcal",
+    protein: "~36 g",
+    tags: ["fruit", "no cook", "recovery friendly"],
+    ingredients: ["300 g cottage cheese", "1 apple"],
+    prep: ["Add cottage cheese to a bowl.", "Slice apple and add cinnamon if you want."],
+    plate: ["300 g cottage cheese", "One apple"],
+  },
+  {
+    id: "salmon-potato-dinner",
+    slot: "dinner",
+    title: "Salmon Potato Plate",
+    shortTitle: "Salmon potato",
+    photo: foodPhoto("photo-1467003909585-2f8a72700288"),
+    calories: "~650 kcal",
+    protein: "~41 g",
+    tags: ["fatty fish", "potato", "vegetables", "post-workout"],
+    ingredients: ["125-150 g cooked salmon", "250 g potato", "200 g vegetables", "40 g avocado"],
+    prep: ["Cook salmon close to dinner.", "Plate with potato, vegetables, and avocado."],
+    plate: ["125-150 g salmon", "250 g potato", "200 g vegetables", "40 g avocado"],
+  },
+  {
+    id: "chicken-potato-apple",
+    slot: "dinner",
+    title: "Chicken Potato Plate With Apple",
+    shortTitle: "Chicken potato",
+    photo: foodPhoto("photo-1543352634-a1c51d9f1fa7"),
+    calories: "~550 kcal",
+    protein: "~39 g",
+    tags: ["fruit", "potato", "lean protein", "vegetables"],
+    ingredients: ["100 g cooked chicken", "250 g potato", "200 g vegetables", "60 g avocado", "1 apple"],
+    prep: ["Warm chicken, potato, and vegetables.", "Add avocado and eat apple on the side."],
+    plate: ["100 g chicken", "250 g potato", "200 g vegetables", "60 g avocado"],
+  },
+  {
+    id: "chicken-sweet-potato",
+    slot: "dinner",
+    title: "Chicken Sweet Potato Plate",
+    shortTitle: "Chicken sweet potato",
+    photo: foodPhoto("photo-1504674900247-0877df9cc836"),
+    calories: "~510 kcal",
+    protein: "~40 g",
+    tags: ["lean protein", "potato", "vegetables"],
+    ingredients: ["105 g cooked chicken", "250 g sweet potato", "200 g vegetables", "5 g olive oil"],
+    prep: ["Warm chicken and sweet potato.", "Add vegetables and measured olive oil."],
+    plate: ["105 g chicken", "250 g sweet potato", "200 g vegetables", "5 g oil"],
+  },
+  {
+    id: "white-fish-plate",
+    slot: "dinner",
+    title: "White Fish Plate",
+    shortTitle: "White fish",
+    photo: foodPhoto("photo-1519708227418-c8fd9a32b7a2"),
+    calories: "~520 kcal",
+    protein: "~40 g",
+    tags: ["lean protein", "potato", "vegetables"],
+    ingredients: ["150 g white fish", "250 g potato", "200 g vegetables", "10 g olive oil"],
+    prep: ["Bake or pan-cook fish gently.", "Serve with potato, vegetables, and measured oil."],
+    plate: ["150 g white fish", "250 g potato", "200 g vegetables"],
+  },
+  {
+    id: "salmon-quinoa",
+    slot: "dinner",
+    title: "Salmon Quinoa Plate",
+    shortTitle: "Salmon quinoa",
+    photo: foodPhoto("photo-1467003909585-2f8a72700288"),
+    calories: "~550 kcal",
+    protein: "~39-41 g",
+    tags: ["fatty fish", "whole grain", "vegetables"],
+    ingredients: ["130 g cooked salmon", "140 g cooked quinoa", "180 g red or green vegetables"],
+    prep: ["Cook salmon and vegetables.", "Serve over measured quinoa."],
+    plate: ["130 g salmon", "140 g quinoa", "180 g vegetables"],
+  },
+  {
+    id: "turkey-bean-chili",
+    slot: "dinner",
+    title: "Turkey Bean Chili",
+    shortTitle: "Turkey chili",
+    photo: foodPhoto("photo-1528712306091-ed0763094c98"),
+    calories: "~560 kcal",
+    protein: "~39-42 g",
+    tags: ["legumes", "rice", "vegetables"],
+    ingredients: ["90 g cooked extra-lean turkey", "140 g kidney or black beans", "180 g tomatoes and peppers", "100 g cooked rice"],
+    prep: ["Simmer turkey, beans, tomatoes, and peppers.", "Serve with measured rice."],
+    plate: ["90 g turkey", "140 g beans", "100 g rice", "180 g vegetables"],
+  },
+  {
+    id: "egg-fried-rice",
+    slot: "dinner",
+    title: "Egg Fried Rice",
+    shortTitle: "Egg fried rice",
+    photo: foodPhoto("photo-1603133872878-684f208fb84b"),
+    calories: "~560 kcal",
+    protein: "~39-41 g",
+    tags: ["whole grain", "vegetables", "hot meal"],
+    ingredients: ["2 eggs", "180 g egg whites", "150 g cooked brown rice", "200 g peas and carrots"],
+    prep: ["Cook eggs, whites, vegetables, and rice in a pan.", "Use measured oil or spray."],
+    plate: ["2 eggs plus whites", "150 g brown rice", "200 g vegetables"],
+  },
+  {
+    id: "tofu-lentil-curry",
+    slot: "dinner",
+    title: "Tofu Lentil Curry",
+    shortTitle: "Tofu curry",
+    photo: foodPhoto("photo-1585937421612-70a008356fbe"),
+    calories: "~600 kcal",
+    protein: "~35-40 g",
+    tags: ["plant protein", "legumes", "rice", "vegetables"],
+    ingredients: ["200 g firm tofu", "120 g lentils", "150 g vegetables", "100 g cooked rice", "Light curry sauce"],
+    prep: ["Warm tofu, lentils, vegetables, and light curry sauce.", "Serve over measured rice."],
+    plate: ["200 g tofu", "120 g lentils", "100 g rice", "150 g vegetables"],
+  },
+];
+
+const dietRecipeMap = dietRecipes.reduce<Record<string, DietRecipe>>((map, recipe) => {
+  map[recipe.id] = recipe;
+  return map;
+}, {});
+
+const weeklyDietMealMap: Record<PlanWeekday, Record<DietMealSlot, string>> = {
+  Monday: {
+    breakfast: "oats-yogurt-berries",
+    lunch: "chicken-rice-bowl",
+    snack: "cottage-banana",
+    dinner: "salmon-potato-dinner",
+  },
+  Tuesday: {
+    breakfast: "egg-wrap-orange",
+    lunch: "tuna-chickpea-quinoa",
+    snack: "yogurt-oats-bowl",
+    dinner: "chicken-potato-apple",
+  },
+  Wednesday: {
+    breakfast: "cottage-bowl-kiwi",
+    lunch: "turkey-lentil-rice",
+    snack: "yogurt-rice-cakes",
+    dinner: "beef-whole-grain-pasta",
+  },
+  Thursday: {
+    breakfast: "yogurt-muesli-pear",
+    lunch: "tofu-edamame-stir-fry",
+    snack: "turkey-sandwich-fruit",
+    dinner: "white-fish-plate",
+  },
+  Friday: {
+    breakfast: "oats-yogurt-berries",
+    lunch: "chicken-rice-bowl",
+    snack: "cottage-banana",
+    dinner: "salmon-quinoa",
+  },
+  Saturday: {
+    breakfast: "egg-potato-citrus",
+    lunch: "turkey-bean-chili-lunch",
+    snack: "greek-yogurt-melon",
+    dinner: "chicken-sweet-potato",
+  },
+  Sunday: {
+    breakfast: "yogurt-bowl-kiwi",
+    lunch: "egg-lentil-quinoa",
+    snack: "cottage-apple",
+    dinner: "tofu-lentil-curry",
+  },
+};
+
 const weeklySchedule: Record<string, SessionTemplate> = {
   Monday: {
     title: "Strength A",
@@ -2277,6 +2810,67 @@ function sessionSummaryForDay(planDay: PlanDay) {
   return planDay.session.summary;
 }
 
+function dietDayTypeForPlanDay(planDay: PlanDay): DietDayType {
+  if (planDay.session.type === "strength") return "strength";
+  if (planDay.session.type === "cardio") return "cardio";
+  return "recovery";
+}
+
+function dietSlotLabel(slot: DietMealSlot) {
+  return dietMealSlots.find((item) => item.id === slot)?.label ?? slot;
+}
+
+function dietTimingForSlot(planDay: PlanDay, slot: DietMealSlot) {
+  if (slot === "breakfast") return "Morning";
+  if (slot === "lunch") return "Midday";
+  if (slot === "dinner") {
+    return planDay.session.type === "strength" ? "After workout / evening" : "Evening";
+  }
+  if (planDay.session.type === "strength") return "Before workout / afternoon";
+  if (planDay.session.type === "cardio") return "Around cardio or afternoon";
+  return "Afternoon";
+}
+
+function dietCoachNoteForDay(planDay: PlanDay) {
+  if (planDay.session.type === "strength") {
+    return "Use the snack as your 25-40 g lifting-carb dose if you train later. If you lift in the morning, move the banana/rice cakes before training and eat breakfast afterward.";
+  }
+  if (planDay.session.type === "cardio") {
+    return "Keep normal measured carbs and hydrate around the treadmill work. No need to eat back machine calories.";
+  }
+  return "Keep protein stable, use slightly lower starch portions, and let this be an easier nutrition day.";
+}
+
+function baseDietRecipeFor(planDay: PlanDay, slot: DietMealSlot) {
+  return dietRecipeMap[weeklyDietMealMap[planDay.planDayName][slot]];
+}
+
+function activeDietRecipeFor(planDay: PlanDay, log: DietDayLog, slot: DietMealSlot) {
+  const baseRecipe = baseDietRecipeFor(planDay, slot);
+  const swappedRecipe = log.swaps[slot] ? dietRecipeMap[log.swaps[slot] ?? ""] : null;
+  return swappedRecipe?.slot === slot ? swappedRecipe : baseRecipe;
+}
+
+function dietSwapOptionsFor(slot: DietMealSlot, currentRecipeId: string) {
+  return dietRecipes.filter((recipe) => recipe.slot === slot && recipe.id !== currentRecipeId);
+}
+
+function withAutomaticDietCompletion(log: DietDayLog) {
+  const completed = dietMealSlots.every((slot) => log.meals[slot.id]);
+  return {
+    ...log,
+    completed,
+  };
+}
+
+function weightKgFromMetric(metric: MetricLog) {
+  const directKg = parseLoadValue(metric.weightKg);
+  if (directKg !== null) return directKg;
+
+  const legacyPounds = parseLoadValue(metric.weight);
+  return legacyPounds !== null ? legacyPounds * 0.45359237 : null;
+}
+
 function targetForExercise(planDay: PlanDay, exercise: Exercise) {
   if (isRampWarmup(exercise)) return rampWarmupTarget(planDay, exercise);
   if (exercise.family === "warmup") return warmupTarget(planDay, exercise);
@@ -2407,6 +3001,12 @@ function normalizeStore(value: unknown): TrackerStore | null {
         return merged;
       }, {})
     : {};
+  const dietDays = isRecord(value.dietDays)
+    ? Object.entries(value.dietDays).reduce<Record<string, DietDayLog>>((merged, [date, log]) => {
+        merged[date] = normalizeDietDayLog(log as DietDayLog | undefined);
+        return merged;
+      }, {})
+    : {};
   const metrics = isRecord(value.metrics)
     ? Object.entries(value.metrics).reduce<Record<string, MetricLog>>((merged, [date, metric]) => {
         merged[date] = normalizeMetricLogShape(metric as MetricLog | undefined);
@@ -2416,18 +3016,19 @@ function normalizeStore(value: unknown): TrackerStore | null {
 
   return {
     days,
+    dietDays,
     metrics,
   };
 }
 
 function loadStore(): TrackerStore {
-  if (typeof window === "undefined") return { days: {}, metrics: {} };
+  if (typeof window === "undefined") return { days: {}, dietDays: {}, metrics: {} };
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (!saved) return { days: {}, metrics: {} };
-    return normalizeStore(JSON.parse(saved)) ?? { days: {}, metrics: {} };
+    if (!saved) return { days: {}, dietDays: {}, metrics: {} };
+    return normalizeStore(JSON.parse(saved)) ?? { days: {}, dietDays: {}, metrics: {} };
   } catch {
-    return { days: {}, metrics: {} };
+    return { days: {}, dietDays: {}, metrics: {} };
   }
 }
 
@@ -2449,7 +3050,11 @@ function saveStoreMeta(meta: StoreMeta) {
 }
 
 function hasStoreData(store: TrackerStore) {
-  return Object.keys(store.days).length > 0 || Object.keys(store.metrics).length > 0;
+  return (
+    Object.keys(store.days).length > 0 ||
+    Object.keys(store.dietDays).length > 0 ||
+    Object.keys(store.metrics).length > 0
+  );
 }
 
 function mergeChecks(
@@ -2527,11 +3132,33 @@ function mergeDayLog(cloudLog: DayLog | undefined, localLog: DayLog | undefined)
   };
 }
 
+function mergeDietDayLog(cloudLog: DietDayLog | undefined, localLog: DietDayLog | undefined) {
+  if (!cloudLog) return normalizeDietDayLog(localLog);
+  if (!localLog) return normalizeDietDayLog(cloudLog);
+
+  const normalizedCloudLog = normalizeDietDayLog(cloudLog);
+  const normalizedLocalLog = normalizeDietDayLog(localLog);
+
+  return withAutomaticDietCompletion({
+    completed: Boolean(normalizedLocalLog.completed ?? normalizedCloudLog.completed),
+    meals: dietMealSlots.reduce<Record<DietMealSlot, boolean>>((merged, slot) => {
+      merged[slot.id] = Boolean(normalizedLocalLog.meals[slot.id] ?? normalizedCloudLog.meals[slot.id]);
+      return merged;
+    }, createEmptyDietDay().meals),
+    swaps: {
+      ...normalizedCloudLog.swaps,
+      ...normalizedLocalLog.swaps,
+    },
+    notes: preferFilled(normalizedLocalLog.notes, normalizedCloudLog.notes),
+  });
+}
+
 function mergeMetricLog(metric: MetricLog | undefined, localMetric: MetricLog | undefined) {
   if (!metric) return localMetric ?? createEmptyMetric();
   if (!localMetric) return metric;
   return {
     weight: preferFilled(localMetric.weight, metric.weight),
+    weightKg: preferFilled(localMetric.weightKg, metric.weightKg),
     waist: preferFilled(localMetric.waist, metric.waist),
     note: preferFilled(localMetric.note, metric.note),
   };
@@ -2539,6 +3166,10 @@ function mergeMetricLog(metric: MetricLog | undefined, localMetric: MetricLog | 
 
 function mergeStores(localStore: TrackerStore, cloudStore: TrackerStore) {
   const dayIds = new Set([...Object.keys(cloudStore.days), ...Object.keys(localStore.days)]);
+  const dietDayIds = new Set([
+    ...Object.keys(cloudStore.dietDays),
+    ...Object.keys(localStore.dietDays),
+  ]);
   const metricIds = new Set([
     ...Object.keys(cloudStore.metrics),
     ...Object.keys(localStore.metrics),
@@ -2547,6 +3178,10 @@ function mergeStores(localStore: TrackerStore, cloudStore: TrackerStore) {
   return {
     days: [...dayIds].reduce<Record<string, DayLog>>((merged, id) => {
       merged[id] = mergeDayLog(cloudStore.days[id], localStore.days[id]);
+      return merged;
+    }, {}),
+    dietDays: [...dietDayIds].reduce<Record<string, DietDayLog>>((merged, id) => {
+      merged[id] = mergeDietDayLog(cloudStore.dietDays[id], localStore.dietDays[id]);
       return merged;
     }, {}),
     metrics: [...metricIds].reduce<Record<string, MetricLog>>((merged, id) => {
@@ -2590,7 +3225,7 @@ function workoutXGifUrl(workoutXId?: string) {
 }
 
 async function fetchCloudStore(userId: string) {
-  if (!supabase) return { store: { days: {}, metrics: {} }, updatedAt: null };
+  if (!supabase) return { store: { days: {}, dietDays: {}, metrics: {} }, updatedAt: null };
 
   const { data, error } = await supabase
     .from("workout_progress")
@@ -2602,7 +3237,7 @@ async function fetchCloudStore(userId: string) {
 
   const row = data?.[0] as { data: unknown; updated_at: string } | undefined;
   return {
-    store: normalizeStore(row?.data) ?? { days: {}, metrics: {} },
+    store: normalizeStore(row?.data) ?? { days: {}, dietDays: {}, metrics: {} },
     updatedAt: row?.updated_at ?? null,
   };
 }
@@ -2978,7 +3613,10 @@ export default function Home() {
   const [lastCloudSyncedAt, setLastCloudSyncedAt] = useState<string | null>(
     () => formatClock(loadStoreMeta().lastCloudSyncedAt),
   );
+  const [appMode, setAppMode] = useState<AppMode>("hub");
   const [activeSection, setActiveSection] = useState<AppSection>("today");
+  const [selectedDietDate, setSelectedDietDate] = useState(() => closestProgramDate());
+  const [openDietSwapSlot, setOpenDietSwapSlot] = useState<DietMealSlot | null>(null);
   const [gymExerciseIndex, setGymExerciseIndex] = useState(0);
   const [libraryFilter, setLibraryFilter] = useState("all");
   const [librarySearch, setLibrarySearch] = useState("");
@@ -3000,6 +3638,7 @@ export default function Home() {
 
       lastAutoAlignedDateRef.current = nextProgramDate;
       setSelectedDate(nextProgramDate);
+      setSelectedDietDate(nextProgramDate);
       setActiveSection("today");
     };
 
@@ -3021,6 +3660,10 @@ export default function Home() {
     setDetailExerciseId(null);
     setSkipRequest(null);
   }, [selectedDate]);
+
+  useEffect(() => {
+    setOpenDietSwapSlot(null);
+  }, [selectedDietDate]);
 
   useEffect(() => {
     if ((!detailExerciseId && !skipRequest) || typeof window === "undefined") return undefined;
@@ -3226,13 +3869,21 @@ export default function Home() {
     planDays.find((day) => day.iso === selectedDate) ?? planDays[0];
   const gymDay =
     planDays.find((day) => day.iso === currentProgramDate) ?? selectedDay;
+  const selectedDietDay =
+    planDays.find((day) => day.iso === selectedDietDate) ?? gymDay;
   const selectedLog = normalizeDayLog(store.days[selectedDay.iso]);
   const gymLog = normalizeDayLog(store.days[gymDay.iso]);
-  const selectedMetric = store.metrics[selectedDay.iso] ?? createEmptyMetric();
+  const selectedDietLog = normalizeDietDayLog(store.dietDays[selectedDietDay.iso]);
+  const currentProgramMetric = normalizeMetricLogShape(store.metrics[currentProgramDate]);
+  const selectedMetric = normalizeMetricLogShape(store.metrics[selectedDay.iso]);
+  const selectedDietMetric = normalizeMetricLogShape(store.metrics[selectedDietDay.iso]);
   const phase = phaseForWeek(selectedDay.week);
   const selectedSessionTime = sessionTimeForDay(selectedDay);
   const selectedSessionSummary = sessionSummaryForDay(selectedDay);
   const selectedLocationNote = locationFlowNoteForDay(selectedDay);
+  const selectedDietType = dietDayTypeForPlanDay(selectedDietDay);
+  const selectedDietTarget = dietTargets[selectedDietType];
+  const selectedDietCoachNote = dietCoachNoteForDay(selectedDietDay);
   const selectedExercises = selectedDay.session.exerciseIds.flatMap((id) =>
     exerciseMap[id] ? [exerciseMap[id]] : [],
   );
@@ -3248,6 +3899,9 @@ export default function Home() {
   const currentWeekStartIndex = Math.floor(selectedDay.index / 7) * 7;
   const currentWeekDays = planDays.slice(currentWeekStartIndex, currentWeekStartIndex + 7);
   const selectedWeekStart = planDays[currentWeekStartIndex]?.iso ?? selectedDay.iso;
+  const dietWeekStartIndex = Math.floor(selectedDietDay.index / 7) * 7;
+  const currentDietWeekDays = planDays.slice(dietWeekStartIndex, dietWeekStartIndex + 7);
+  const selectedDietWeekStart = planDays[dietWeekStartIndex]?.iso ?? selectedDietDay.iso;
   const weekOptions = useMemo(
     () =>
       Array.from({ length: Math.ceil(PROGRAM_DAYS / 7) }, (_, weekIndex) => {
@@ -3261,6 +3915,41 @@ export default function Home() {
       }),
     [planDays],
   );
+  const dietMealRows = dietMealSlots.map((slot) => {
+    const baseRecipe = baseDietRecipeFor(selectedDietDay, slot.id);
+    const activeRecipe = activeDietRecipeFor(selectedDietDay, selectedDietLog, slot.id);
+    return {
+      slot: slot.id,
+      label: slot.label,
+      timing: dietTimingForSlot(selectedDietDay, slot.id),
+      baseRecipe,
+      recipe: activeRecipe,
+      isComplete: Boolean(selectedDietLog.meals[slot.id]),
+      isSwapped: activeRecipe.id !== baseRecipe.id,
+      swaps: dietSwapOptionsFor(slot.id, activeRecipe.id),
+    };
+  });
+  const dietCompletedMealCount = dietMealRows.filter((meal) => meal.isComplete).length;
+  const dietCompletionPercent = Math.round((dietCompletedMealCount / dietMealRows.length) * 100);
+  const dietDayComplete = dietCompletedMealCount === dietMealRows.length;
+  const dietWeekDiversity = useMemo(() => {
+    const weekRecipes = currentDietWeekDays.flatMap((day) => {
+      const log = normalizeDietDayLog(store.dietDays[day.iso]);
+      return dietMealSlots.map((slot) => activeDietRecipeFor(day, log, slot.id));
+    });
+    const fruitDays = currentDietWeekDays.filter((day) => {
+      const log = normalizeDietDayLog(store.dietDays[day.iso]);
+      return dietMealSlots.some((slot) => activeDietRecipeFor(day, log, slot.id).tags.includes("fruit"));
+    }).length;
+    const countTag = (tag: string) => weekRecipes.filter((recipe) => recipe.tags.includes(tag)).length;
+
+    return [
+      { label: "Fruit days", value: `${Math.min(fruitDays, 5)}/5`, complete: fruitDays >= 5 },
+      { label: "Fatty fish", value: `${Math.min(countTag("fatty fish"), 2)}/2`, complete: countTag("fatty fish") >= 2 },
+      { label: "Legumes", value: `${Math.min(countTag("legumes"), 3)}/3`, complete: countTag("legumes") >= 3 },
+      { label: "Oats/grains", value: `${Math.min(countTag("oats") + countTag("whole grain"), 4)}/4`, complete: countTag("oats") + countTag("whole grain") >= 4 },
+    ];
+  }, [currentDietWeekDays, store.dietDays]);
 
   const stats = useMemo(() => {
     const skippedDates = new Set(
@@ -3293,9 +3982,18 @@ export default function Home() {
         ),
       0,
     );
-    const bodyCheckIns = Object.values(store.metrics).filter(
-      (metric) => metric.weight.trim() || metric.waist.trim() || metric.note.trim(),
+    const normalizedMetrics = Object.values(store.metrics).map(normalizeMetricLogShape);
+    const bodyCheckIns = normalizedMetrics.filter(
+      (metric) => metric.weightKg.trim() || metric.weight.trim() || metric.waist.trim() || metric.note.trim(),
     ).length;
+    const weighIns = normalizedMetrics.filter((metric) => weightKgFromMetric(metric) !== null).length;
+    const completedDietDays = Object.values(store.dietDays).filter(
+      (log) => normalizeDietDayLog(log).completed,
+    ).length;
+    const completedDietMeals = Object.values(store.dietDays).reduce((sum, log) => {
+      const normalizedLog = normalizeDietDayLog(log);
+      return sum + dietMealSlots.filter((slot) => normalizedLog.meals[slot.id]).length;
+    }, 0);
 
     let streak = 0;
     for (let index = gymDay.index; index >= 0; index -= 1) {
@@ -3310,10 +4008,13 @@ export default function Home() {
       cardioMinutes,
       completedSets,
       bodyCheckIns,
+      weighIns,
+      completedDietDays,
+      completedDietMeals,
       streak,
       percent: Math.round((completedDays / PROGRAM_DAYS) * 100),
     };
-  }, [gymDay.index, planDays, store.days, store.metrics]);
+  }, [gymDay.index, planDays, store.days, store.dietDays, store.metrics]);
 
   const achievements = [
     {
@@ -3363,7 +4064,7 @@ export default function Home() {
 
   const updateMetric = (date: string, updater: (log: MetricLog) => MetricLog) => {
     setStore((current) => {
-      const nextLog = updater(current.metrics[date] ?? createEmptyMetric());
+      const nextLog = updater(normalizeMetricLogShape(current.metrics[date]));
       return {
         ...current,
         metrics: {
@@ -3372,6 +4073,51 @@ export default function Home() {
         },
       };
     });
+  };
+
+  const updateDietDay = (date: string, updater: (log: DietDayLog) => DietDayLog) => {
+    setStore((current) => {
+      const nextLog = updater(normalizeDietDayLog(current.dietDays[date]));
+      return {
+        ...current,
+        dietDays: {
+          ...current.dietDays,
+          [date]: withAutomaticDietCompletion(nextLog),
+        },
+      };
+    });
+  };
+
+  const toggleDietMeal = (slot: DietMealSlot) => {
+    updateDietDay(selectedDietDay.iso, (log) => ({
+      ...log,
+      meals: {
+        ...log.meals,
+        [slot]: !log.meals[slot],
+      },
+    }));
+  };
+
+  const setDietSwap = (slot: DietMealSlot, recipeId: string) => {
+    updateDietDay(selectedDietDay.iso, (log) => {
+      const nextSwaps = { ...log.swaps };
+      const baseRecipe = baseDietRecipeFor(selectedDietDay, slot);
+      if (recipeId === baseRecipe.id) {
+        delete nextSwaps[slot];
+      } else {
+        nextSwaps[slot] = recipeId;
+      }
+
+      return {
+        ...log,
+        swaps: nextSwaps,
+        meals: {
+          ...log.meals,
+          [slot]: false,
+        },
+      };
+    });
+    setOpenDietSwapSlot(null);
   };
 
   const updateSetForDay = (
@@ -3685,6 +4431,8 @@ export default function Home() {
 
   const nextDay = planDays[Math.min(selectedDay.index + 1, planDays.length - 1)];
   const previousDay = planDays[Math.max(selectedDay.index - 1, 0)];
+  const nextDietDay = planDays[Math.min(selectedDietDay.index + 1, planDays.length - 1)];
+  const previousDietDay = planDays[Math.max(selectedDietDay.index - 1, 0)];
   const syncHeadline = supabaseConfigError
     ? "Check Supabase settings"
     : !isSupabaseConfigured
@@ -3703,7 +4451,7 @@ export default function Home() {
     : !isSupabaseConfigured
     ? "Local saving still works. Add your Supabase URL and publishable key to unlock the same data on your MacBook and iPhone."
     : session
-      ? "You are signed in, so every workout check, weight, note, and body check-in saves locally and to your cloud account."
+      ? "You are signed in, so every workout check, diet meal, swap, kg weigh-in, note, and body check-in saves locally and to your cloud account."
       : "Sign in or create an account with email and password. This works inside the iPhone Home Screen app without magic links or custom SMTP.";
 
   const weeklyCompletion = useMemo(
@@ -3871,11 +4619,14 @@ export default function Home() {
     .slice(0, 5);
   const bodyTrend = useMemo(() => {
     const entries = Object.entries(store.metrics)
-      .map(([date, metric]) => ({
-        date,
-        weight: parseLoadValue(metric.weight),
-        waist: parseLoadValue(metric.waist),
-      }))
+      .map(([date, metric]) => {
+        const normalizedMetric = normalizeMetricLogShape(metric);
+        return {
+          date,
+          weight: weightKgFromMetric(normalizedMetric),
+          waist: parseLoadValue(normalizedMetric.waist),
+        };
+      })
       .filter((entry) => entry.weight !== null || entry.waist !== null)
       .sort((a, b) => a.date.localeCompare(b.date));
 
@@ -3967,6 +4718,430 @@ export default function Home() {
 
   const headerDay = activeSection === "gym" ? gymDay : selectedDay;
 
+  if (appMode === "hub") {
+    return (
+      <main className="app-shell coach-hub-shell">
+        <section className="coach-hub-hero" aria-labelledby="coach-hub-heading">
+          <div className="brand-lockup hub-brand">
+            <span className="brand-mark">RC</span>
+            <div>
+              <p className="eyebrow">Recomp coach</p>
+              <h1 id="coach-hub-heading">Choose Your Tracker</h1>
+              <p className="hero-text">
+                Open the workout plan or today&apos;s diet plan. Both use the same saved progress,
+                account sync, and morning weigh-ins.
+              </p>
+            </div>
+          </div>
+
+          <div className="hub-choice-grid">
+            <button
+              className="hub-choice-card workout"
+              type="button"
+              onClick={() => setAppMode("workout")}
+            >
+              <span>Workout</span>
+              <strong>{gymDay.session.title}</strong>
+              <small>
+                {formatDate(gymDay.iso)} · Week {gymDay.week} · {stats.completedDays}/{PROGRAM_DAYS} done
+              </small>
+            </button>
+            <button
+              className="hub-choice-card diet"
+              type="button"
+              onClick={() => setAppMode("diet")}
+            >
+              <span>Diet</span>
+              <strong>{dietTargets[dietDayTypeForPlanDay(gymDay)].label}</strong>
+              <small>
+                {dietTargets[dietDayTypeForPlanDay(gymDay)].calories} · {stats.completedDietDays} diet days done
+              </small>
+            </button>
+          </div>
+        </section>
+
+        <section className="hub-dashboard-grid" aria-label="Daily coach overview">
+          <div className="morning-weighin-card">
+            <div>
+              <p className="eyebrow">Morning weigh-in</p>
+              <h2>{formatDate(currentProgramDate, "short")}</h2>
+              <p>Use the same scale, after bathroom, before food or drink.</p>
+            </div>
+            <label>
+              Weight (kg)
+              <input
+                inputMode="decimal"
+                value={currentProgramMetric.weightKg}
+                placeholder="78.0"
+                onChange={(event) =>
+                  updateMetric(currentProgramDate, (metric) => ({
+                    ...metric,
+                    weightKg: event.target.value,
+                  }))
+                }
+              />
+            </label>
+          </div>
+
+          <div className="hub-mini-grid">
+            <div>
+              <span>Workout streak</span>
+              <strong>{stats.streak}</strong>
+            </div>
+            <div>
+              <span>Diet meals</span>
+              <strong>{stats.completedDietMeals}</strong>
+            </div>
+            <div>
+              <span>Weigh-ins</span>
+              <strong>{stats.weighIns}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section className={`metric-panel sync-panel account-card hub-sync ${cloudStatus}`}>
+          <div className="sync-heading">
+            <div>
+              <p className="eyebrow">
+                <Icon name="cloud" size={14} /> Cloud sync
+              </p>
+              <h2>{syncHeadline}</h2>
+            </div>
+            <span>{cloudStatus}</span>
+          </div>
+          <p className="side-copy">{syncCopy}</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (appMode === "diet") {
+    return (
+      <main className="app-shell diet-shell">
+        <header className="app-header diet-app-header">
+          <div className="brand-lockup">
+            <span className="brand-mark diet-mark">DP</span>
+            <div>
+              <p className="eyebrow">Diet tracker · {selectedDietTarget.label}</p>
+              <h1>Recomp Diet Console</h1>
+            </div>
+          </div>
+
+          <div className="header-status-grid" aria-label="Diet status">
+            <div className="header-status-card">
+              <span>Selected day</span>
+              <strong>{selectedDietDay.session.title}</strong>
+              <small>
+                {formatDate(selectedDietDay.iso)} · Week {selectedDietDay.week} · Day {selectedDietDay.index + 1}
+              </small>
+            </div>
+            <div className={`header-status-card sync-mini ${cloudStatus}`}>
+              <span>Save</span>
+              <strong>{lastSavedAt ?? "Ready"}</strong>
+              <small>{syncHeadline}</small>
+            </div>
+          </div>
+
+          <div className="mode-inline-actions">
+            <button type="button" onClick={() => setAppMode("hub")}>
+              Coach Hub
+            </button>
+            <button type="button" onClick={() => setAppMode("workout")}>
+              Workout
+            </button>
+          </div>
+        </header>
+
+        <section className="diet-summary-panel" aria-labelledby="diet-heading">
+          <div>
+            <p className="eyebrow">Today&apos;s diet plan</p>
+            <h2 id="diet-heading">
+              {formatDate(selectedDietDay.iso)} · {selectedDietTarget.label}
+            </h2>
+            <p>{selectedDietCoachNote}</p>
+          </div>
+          <div className="diet-target-grid">
+            <div>
+              <span>Calories</span>
+              <strong>{selectedDietTarget.calories}</strong>
+            </div>
+            <div>
+              <span>Protein</span>
+              <strong>{selectedDietTarget.protein}</strong>
+            </div>
+            <div>
+              <span>Carbs</span>
+              <strong>{selectedDietTarget.carbs}</strong>
+            </div>
+            <div>
+              <span>Fat</span>
+              <strong>{selectedDietTarget.fat}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="diet-control-panel" aria-label="Diet day controls">
+          <label className="week-jump">
+            <span>Jump to week</span>
+            <select
+              value={selectedDietWeekStart}
+              onChange={(event) => setSelectedDietDate(event.target.value)}
+              aria-label="Jump to diet week"
+            >
+              {weekOptions.map((week) => (
+                <option key={week.value} value={week.value}>
+                  {week.label} · {week.detail}
+                </option>
+              ))}
+            </select>
+          </label>
+          <nav className="diet-week-strip" aria-label="Choose diet day">
+            {currentDietWeekDays.map((day) => {
+              const log = normalizeDietDayLog(store.dietDays[day.iso]);
+              return (
+                <button
+                  key={day.iso}
+                  className={`diet-day-button ${day.iso === selectedDietDay.iso ? "active" : ""} ${
+                    log.completed ? "complete" : ""
+                  } ${dietDayTypeForPlanDay(day)}`}
+                  onClick={() => setSelectedDietDate(day.iso)}
+                  type="button"
+                >
+                  <span>{day.dayName.slice(0, 3)}</span>
+                  <strong>{day.session.code}</strong>
+                  <small>{dietTargets[dietDayTypeForPlanDay(day)].calories}</small>
+                </button>
+              );
+            })}
+          </nav>
+          <div className="strip-actions diet-date-actions">
+            <button type="button" onClick={() => setSelectedDietDate(previousDietDay.iso)}>
+              Prev
+            </button>
+            <button type="button" onClick={() => setSelectedDietDate(closestProgramDate())}>
+              Today
+            </button>
+            <button type="button" onClick={() => setSelectedDietDate(nextDietDay.iso)}>
+              Next
+            </button>
+          </div>
+        </section>
+
+        <section className="diet-progress-panel" aria-label="Diet progress">
+          <div className="progress-meter">
+            <div>
+              <span>Meal progress</span>
+              <strong>
+                {dietCompletedMealCount}/{dietMealRows.length}
+              </strong>
+            </div>
+            <div className="progress-track">
+              <span style={{ width: `${dietCompletionPercent}%` }} />
+            </div>
+          </div>
+          <span className={`diet-status-chip ${dietDayComplete ? "complete" : "open"}`}>
+            {dietDayComplete ? "Diet day complete" : "Meals open"}
+          </span>
+        </section>
+
+        <div className="diet-layout">
+          <section className="diet-meal-stack" aria-label="Meals for selected day">
+            {dietMealRows.map((meal) => (
+              <article
+                key={meal.slot}
+                className={`diet-meal-card ${meal.isComplete ? "complete" : ""} ${
+                  meal.isSwapped ? "swapped" : ""
+                }`}
+              >
+                <img src={meal.recipe.photo} alt={`${meal.recipe.title} plate`} loading="lazy" />
+                <div className="diet-meal-content">
+                  <div className="diet-meal-topline">
+                    <span className="diet-slot-chip">{meal.label}</span>
+                    <span className="diet-timing-chip">{meal.timing}</span>
+                    {meal.isSwapped && <span className="diet-swap-chip">Swap active</span>}
+                  </div>
+                  <h3>{meal.recipe.title}</h3>
+                  <div className="diet-macro-row">
+                    <span>{meal.recipe.calories}</span>
+                    <span>{meal.recipe.protein}</span>
+                  </div>
+                  <div className="diet-tag-row">
+                    {meal.recipe.tags.slice(0, 4).map((tag) => (
+                      <span key={tag}>{tag}</span>
+                    ))}
+                  </div>
+
+                  <div className="diet-card-grid">
+                    <div>
+                      <h4>Ingredients</h4>
+                      <ul>
+                        {meal.recipe.ingredients.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <h4>Plate</h4>
+                      <ul>
+                        {meal.recipe.plate.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <h4>Make It</h4>
+                      <ol>
+                        {meal.recipe.prep.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ol>
+                    </div>
+                  </div>
+
+                  <div className="diet-meal-actions">
+                    <button
+                      className={`diet-complete-button ${meal.isComplete ? "complete" : ""}`}
+                      type="button"
+                      onClick={() => toggleDietMeal(meal.slot)}
+                    >
+                      <Icon name="check" size={16} />
+                      {meal.isComplete ? "Done" : "Mark eaten"}
+                    </button>
+                    <button
+                      className="diet-swap-button"
+                      type="button"
+                      onClick={() =>
+                        setOpenDietSwapSlot((slot) => (slot === meal.slot ? null : meal.slot))
+                      }
+                    >
+                      <Icon name="swap" size={16} />
+                      Swap
+                    </button>
+                    {meal.isSwapped && (
+                      <button
+                        className="diet-original-button"
+                        type="button"
+                        onClick={() => setDietSwap(meal.slot, meal.baseRecipe.id)}
+                      >
+                        Use original
+                      </button>
+                    )}
+                  </div>
+
+                  {openDietSwapSlot === meal.slot && (
+                    <div className="diet-swap-panel">
+                      <div className="flow-heading">
+                        <h4>Swap {meal.label}</h4>
+                        <span>Same meal category</span>
+                      </div>
+                      <div className="diet-swap-grid">
+                        {meal.swaps.map((recipe) => (
+                          <button
+                            key={recipe.id}
+                            type="button"
+                            onClick={() => setDietSwap(meal.slot, recipe.id)}
+                          >
+                            <strong>{recipe.shortTitle}</strong>
+                            <span>{recipe.calories} · {recipe.protein}</span>
+                            <small>{recipe.tags.slice(0, 3).join(" / ")}</small>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </article>
+            ))}
+          </section>
+
+          <aside className="diet-side-panel" aria-label="Diet notes and tracking">
+            <section className="diet-side-card weighin-card">
+              <p className="eyebrow">Morning weigh-in</p>
+              <h2>{formatDate(selectedDietDay.iso, "short")}</h2>
+              <label>
+                Weight (kg)
+                <input
+                  inputMode="decimal"
+                  value={selectedDietMetric.weightKg}
+                  placeholder="78.0"
+                  onChange={(event) =>
+                    updateMetric(selectedDietDay.iso, (metric) => ({
+                      ...metric,
+                      weightKg: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <small>Use the 7-day average, not one weigh-in.</small>
+            </section>
+
+            <section className="diet-side-card">
+              <p className="eyebrow">Weekly variety</p>
+              <h2>This week</h2>
+              <div className="diet-variety-list">
+                {dietWeekDiversity.map((item) => (
+                  <div key={item.label} className={item.complete ? "complete" : ""}>
+                    <span>{item.label}</span>
+                    <strong>{item.value}</strong>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="diet-side-card">
+              <p className="eyebrow">Scenario help</p>
+              <h2>Smart swaps</h2>
+              <div className="scenario-list">
+                <div>
+                  <strong>Need lifting fuel</strong>
+                  <span>Use cottage banana, yogurt rice cakes, turkey sandwich, or shake meal.</span>
+                </div>
+                <div>
+                  <strong>No cooked protein</strong>
+                  <span>Use a yogurt bowl, cottage bowl, tuna plate, or emergency shake.</span>
+                </div>
+                <div>
+                  <strong>Sensitive stomach</strong>
+                  <span>Choose banana, rice cakes, toast, or lower-fibre meals near training.</span>
+                </div>
+              </div>
+            </section>
+
+            <section className="diet-side-card">
+              <p className="eyebrow">Diet notes</p>
+              <h2>Today</h2>
+              <label className="notes-field">
+                Note
+                <textarea
+                  value={selectedDietLog.notes}
+                  placeholder="Hunger, digestion, swaps, meal prep, or anything to remember..."
+                  onChange={(event) =>
+                    updateDietDay(selectedDietDay.iso, (log) => ({
+                      ...log,
+                      notes: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+            </section>
+          </aside>
+        </div>
+
+        <nav className="diet-bottom-bar" aria-label="Diet mode navigation">
+          <button type="button" onClick={() => setAppMode("hub")}>
+            Hub
+          </button>
+          <button type="button" onClick={() => setAppMode("workout")}>
+            Workout
+          </button>
+          <button type="button" onClick={() => setSelectedDietDate(closestProgramDate())}>
+            Today
+          </button>
+        </nav>
+      </main>
+    );
+  }
+
   return (
     <main className={`app-shell section-${activeSection}`}>
       <header className={`app-header ${headerDay.session.accent}`}>
@@ -3991,6 +5166,14 @@ export default function Home() {
             <strong>{lastSavedAt ?? "Ready"}</strong>
             <small>{syncHeadline}</small>
           </div>
+        </div>
+        <div className="mode-inline-actions">
+          <button type="button" onClick={() => setAppMode("hub")}>
+            Coach Hub
+          </button>
+          <button type="button" onClick={() => setAppMode("diet")}>
+            Diet
+          </button>
         </div>
       </header>
 
@@ -4750,7 +5933,7 @@ export default function Home() {
                   <div className="trend-list">
                     <span>{bodyTrend.from} to {bodyTrend.to}</span>
                     <strong>
-                      Weight {bodyTrend.weightDelta === null ? "n/a" : `${formatLoadValue(bodyTrend.weightDelta)} lb`}
+                      Weight {bodyTrend.weightDelta === null ? "n/a" : `${formatLoadValue(bodyTrend.weightDelta)} kg`}
                     </strong>
                     <strong>
                       Waist {bodyTrend.waistDelta === null ? "n/a" : `${formatLoadValue(bodyTrend.waistDelta)} cm`}
@@ -4804,15 +5987,15 @@ export default function Home() {
             <h2>{formatDate(selectedDay.iso, "short")}</h2>
             <div className="foundation-grid two">
               <label>
-                Body weight (lbs)
+                Morning weight (kg)
                 <input
                   inputMode="decimal"
-                  value={selectedMetric.weight}
-                  placeholder="lbs"
+                  value={selectedMetric.weightKg}
+                  placeholder="78.0"
                   onChange={(event) =>
                     updateMetric(selectedDay.iso, (metric) => ({
                       ...metric,
-                      weight: event.target.value,
+                      weightKg: event.target.value,
                     }))
                   }
                 />
