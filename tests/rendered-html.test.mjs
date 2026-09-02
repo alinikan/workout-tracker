@@ -174,6 +174,13 @@ test("includes PDF-based diet tracker with meal swaps and kg weigh-ins", async (
     text("src/styles.css"),
     text("README.md"),
   ]);
+  const removedMeasure = ["wa", "ist"].join("");
+  const removedMeasureTitle = `${removedMeasure[0].toUpperCase()}${removedMeasure.slice(1)}`;
+  const removedWarehouse = ["Preferred", " warehouse"].join("");
+  const removedAddress = ["2370", " Ottawa"].join("");
+  const removedPattern = new RegExp(
+    `${removedMeasure}|${removedMeasureTitle}|${removedWarehouse}|${removedAddress}`,
+  );
 
   for (const required of [
     "AppMode",
@@ -216,9 +223,10 @@ test("includes PDF-based diet tracker with meal swaps and kg weigh-ins", async (
     "withAutomaticDietCompletion",
     "shoppingItemsForRecipes",
     "shoppingIngredientFor",
-    "Costco Port Coquitlam",
-    "2370 Ottawa St",
     "To buy",
+    "optional; skip to save calories",
+    "optional; halve or skip to save calories",
+    "use water to save calories",
     "updateDietDay",
     "toggleDietMeal",
     "setDietSwap",
@@ -228,6 +236,8 @@ test("includes PDF-based diet tracker with meal swaps and kg weigh-ins", async (
     "Weight coach",
     "Daily Weight Log",
     "Weekly averages",
+    "Weight logs",
+    "Weight trend",
     "weightComparisonInsight",
     "weightWeekSummary",
   ]) {
@@ -254,8 +264,12 @@ test("includes PDF-based diet tracker with meal swaps and kg weigh-ins", async (
   assert.match(readme, /Using the Diet Tracker/);
   assert.match(readme, /Diet Plan PDF/);
   assert.match(readme, /morning weight in kg/);
-  assert.match(readme, /Costco Port Coquitlam/);
+  assert.match(readme, /store-neutral ingredient list/);
+  assert.match(readme, /npm run dev -- --port 3001/);
   assert.doesNotMatch(app, /Body weight \(lbs\)/);
+  assert.doesNotMatch(readme, /npm run dev -- -p 3001/);
+  assert.doesNotMatch(app, removedPattern);
+  assert.doesNotMatch(readme, removedPattern);
   assert.doesNotMatch(app, /Weekly variety|Fruit days|Fatty fish|Oats\/grains/);
 });
 
@@ -439,13 +453,14 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v18/);
-  assert.match(serviceWorker, /coach-hub-weight-v18/);
+  assert.match(serviceWorker, /recomp-gym-console-v19/);
+  assert.match(serviceWorker, /weight-only-diet-v19/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
   assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
+  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v18/);
   assert.doesNotMatch(serviceWorker, /diet-tracker-v17/);
   assert.doesNotMatch(serviceWorker, /lower-machine-accessories-v16/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v15/);

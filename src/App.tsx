@@ -199,7 +199,6 @@ type DayLog = {
 type MetricLog = {
   weight: string;
   weightKg: string;
-  waist: string;
   note: string;
 };
 
@@ -288,12 +287,6 @@ const dietTargets: Record<DietDayType, { label: string; calories: string; protei
   },
 };
 
-const costcoWarehouse = {
-  name: "Costco Port Coquitlam",
-  address: "2370 Ottawa St, Port Coquitlam, BC",
-  url: "https://www.costco.ca/w/-/bc/port-coquitlam/255",
-};
-
 const shoppingCategories: ShoppingCategory[] = ["Protein & dairy", "Produce", "Carbs", "Pantry"];
 
 const foodPhoto = (photoId: string) =>
@@ -317,7 +310,6 @@ const createEmptyDay = (): DayLog => ({
 const createEmptyMetric = (): MetricLog => ({
   weight: "",
   weightKg: "",
-  waist: "",
   note: "",
 });
 
@@ -346,10 +338,11 @@ function normalizeDayLog(log: DayLog | undefined): DayLog {
   };
 }
 
-function normalizeMetricLogShape(metric: MetricLog | undefined): MetricLog {
+function normalizeMetricLogShape(metric: Partial<MetricLog> | undefined): MetricLog {
   return {
-    ...createEmptyMetric(),
-    ...metric,
+    weight: typeof metric?.weight === "string" ? metric.weight : "",
+    weightKg: typeof metric?.weightKg === "string" ? metric.weightKg : "",
+    note: typeof metric?.note === "string" ? metric.note : "",
   };
 }
 
@@ -1780,8 +1773,8 @@ const dietRecipes: DietRecipe[] = [
     calories: "~470 kcal",
     protein: "~39 g",
     tags: ["fruit", "oats", "whole grain", "lifting friendly"],
-    ingredients: ["200 g Greek yogurt", "50 g oats", "15 g whey", "100 g berries", "10 g chia"],
-    prep: ["Mix yogurt, oats, whey, berries, and chia.", "Add water or milk for texture and refrigerate overnight if you want."],
+    ingredients: ["200 g Greek yogurt", "50 g oats", "15 g whey", "100 g berries", "10 g chia (optional; skip to save calories)"],
+    prep: ["Mix yogurt, oats, whey, berries, and optional chia.", "Add water for texture and refrigerate overnight if you want."],
     plate: ["One bowl", "Use the full yogurt/oat mix", "Berries on top"],
   },
   {
@@ -1793,8 +1786,8 @@ const dietRecipes: DietRecipe[] = [
     calories: "~430-500 kcal",
     protein: "~36 g",
     tags: ["fruit", "whole grain", "hot meal"],
-    ingredients: ["2 eggs", "150 g egg whites", "1 whole-wheat wrap", "100-150 g peppers or spinach", "Salsa", "1 orange"],
-    prep: ["Cook vegetables first, then add egg whites and eggs.", "Wrap with salsa and eat the orange on the side."],
+    ingredients: ["2 eggs", "150 g egg whites", "1 whole-wheat wrap", "100-150 g peppers or spinach", "Salsa (optional; choose a low-sugar salsa)", "1 orange"],
+    prep: ["Cook vegetables first, then add egg whites and eggs.", "Wrap with optional salsa and eat the orange on the side."],
     plate: ["One filled wrap", "One orange", "Keep added oil measured or use spray"],
   },
   {
@@ -1806,8 +1799,8 @@ const dietRecipes: DietRecipe[] = [
     calories: "~460 kcal",
     protein: "~36 g",
     tags: ["fruit", "oats", "no cook"],
-    ingredients: ["250 g cottage cheese", "40 g oats", "1 apple or kiwi", "Cinnamon"],
-    prep: ["Add cottage cheese to a bowl.", "Stir in oats, fruit, and cinnamon."],
+    ingredients: ["250 g cottage cheese", "40 g oats", "1 apple or kiwi", "Cinnamon (optional)"],
+    prep: ["Add cottage cheese to a bowl.", "Stir in oats, fruit, and optional cinnamon."],
     plate: ["One bowl", "Use one fruit serving", "No extra nuts unless planned"],
   },
   {
@@ -1858,8 +1851,8 @@ const dietRecipes: DietRecipe[] = [
     calories: "~500-600 kcal",
     protein: "~37-40 g",
     tags: ["lean protein", "rice", "vegetables", "lifting friendly"],
-    ingredients: ["100 g cooked chicken", "150-180 g cooked rice", "180-220 g mixed vegetables", "5-10 g olive oil", "Salsa"],
-    prep: ["Warm chicken, rice, and vegetables.", "Add salsa and measured olive oil."],
+    ingredients: ["100 g cooked chicken", "150-180 g cooked rice", "180-220 g mixed vegetables", "5-10 g olive oil (optional; use spray to save calories)", "Salsa (optional; choose a low-sugar salsa)"],
+    prep: ["Warm chicken, rice, and vegetables.", "Add optional salsa and use measured olive oil only if planned."],
     plate: ["100 g chicken", "150-180 g cooked rice", "About 200 g vegetables"],
   },
   {
@@ -1871,8 +1864,8 @@ const dietRecipes: DietRecipe[] = [
     calories: "~560 kcal",
     protein: "~39-41 g",
     tags: ["legumes", "rice", "vegetables"],
-    ingredients: ["90 g cooked extra-lean turkey", "120 g cooked lentils", "120 g cooked rice", "180 g peppers and tomatoes", "Yogurt sauce"],
-    prep: ["Warm turkey, lentils, rice, and vegetables.", "Finish with yogurt sauce."],
+    ingredients: ["90 g cooked extra-lean turkey", "120 g cooked lentils", "120 g cooked rice", "180 g peppers and tomatoes", "Yogurt sauce (optional; keep it light)"],
+    prep: ["Warm turkey, lentils, rice, and vegetables.", "Finish with optional light yogurt sauce."],
     plate: ["90 g turkey", "120 g lentils", "120 g rice", "180 g vegetables"],
   },
   {
@@ -1910,8 +1903,8 @@ const dietRecipes: DietRecipe[] = [
     calories: "~560 kcal",
     protein: "~38-40 g",
     tags: ["whole grain", "red meat", "vegetables"],
-    ingredients: ["100 g extra-lean beef", "150 g cooked whole-grain pasta", "100 g marinara", "180 g mushrooms or zucchini"],
-    prep: ["Cook beef, vegetables, and marinara together.", "Serve over measured pasta."],
+    ingredients: ["100 g extra-lean beef", "150 g cooked whole-grain pasta", "100 g marinara (optional; use crushed tomatoes to save calories)", "180 g mushrooms or zucchini"],
+    prep: ["Cook beef, vegetables, and optional marinara or crushed tomatoes together.", "Serve over measured pasta."],
     plate: ["100 g beef", "150 g cooked pasta", "180 g vegetables"],
   },
   {
@@ -1923,8 +1916,8 @@ const dietRecipes: DietRecipe[] = [
     calories: "~565 kcal",
     protein: "~38 g",
     tags: ["legumes", "whole grain", "vegetables"],
-    ingredients: ["2 eggs", "150 g cooked lentils", "100 g cooked quinoa", "200 g vegetables", "30 g feta"],
-    prep: ["Warm lentils, quinoa, and vegetables.", "Top with eggs and measured feta."],
+    ingredients: ["2 eggs", "150 g cooked lentils", "100 g cooked quinoa", "200 g vegetables", "30 g feta (optional; skip to save calories)"],
+    prep: ["Warm lentils, quinoa, and vegetables.", "Top with eggs and optional measured feta."],
     plate: ["2 eggs", "150 g lentils", "100 g quinoa", "200 g vegetables"],
   },
   {
@@ -1962,9 +1955,9 @@ const dietRecipes: DietRecipe[] = [
     calories: "~315 kcal",
     protein: "~27 g",
     tags: ["low fibre", "lifting carb", "pre-workout"],
-    ingredients: ["250 g Greek yogurt", "2 rice cakes", "15 g jam"],
-    prep: ["Spoon yogurt into a bowl.", "Add jam to rice cakes and eat together."],
-    plate: ["250 g yogurt", "2 rice cakes", "15 g jam"],
+    ingredients: ["250 g Greek yogurt", "2 rice cakes", "15 g jam (optional; skip to save calories)"],
+    prep: ["Spoon yogurt into a bowl.", "Add optional jam to rice cakes and eat together."],
+    plate: ["250 g yogurt", "2 rice cakes", "15 g jam only if planned"],
   },
   {
     id: "yogurt-oats-bowl",
@@ -1988,8 +1981,8 @@ const dietRecipes: DietRecipe[] = [
     calories: "~420 kcal",
     protein: "~35-39 g",
     tags: ["fruit", "whole grain", "portable", "lifting carb"],
-    ingredients: ["100 g turkey slices", "2 slices whole-grain bread", "Mustard", "1 orange or apple"],
-    prep: ["Build sandwich with turkey and mustard.", "Eat fruit on the side."],
+    ingredients: ["100 g turkey slices", "2 slices whole-grain bread", "Mustard (optional)", "1 orange or apple"],
+    prep: ["Build sandwich with turkey and optional mustard.", "Eat fruit on the side."],
     plate: ["One sandwich", "100 g turkey", "One fruit serving"],
   },
   {
@@ -2001,9 +1994,9 @@ const dietRecipes: DietRecipe[] = [
     calories: "~390 kcal",
     protein: "~36-39 g",
     tags: ["legumes", "portable", "recovery friendly"],
-    ingredients: ["100 g light tuna", "60 g hummus", "Whole-grain crackers", "Cucumber"],
-    prep: ["Drain tuna and plate with hummus.", "Add crackers and cucumber."],
-    plate: ["100 g tuna", "60 g hummus", "One measured cracker serving"],
+    ingredients: ["100 g light tuna", "60 g hummus (optional; use 30 g to save calories)", "Whole-grain crackers (optional; skip to save calories)", "Cucumber"],
+    prep: ["Drain tuna and plate with optional measured hummus.", "Add crackers only if planned, plus cucumber."],
+    plate: ["100 g tuna", "30-60 g hummus if used", "One measured cracker serving if used"],
   },
   {
     id: "emergency-shake-meal",
@@ -2014,8 +2007,8 @@ const dietRecipes: DietRecipe[] = [
     calories: "~420 kcal",
     protein: "~36-40 g",
     tags: ["emergency", "fruit", "lifting carb"],
-    ingredients: ["30 g whey", "300 mL milk", "1 banana", "20 g oats"],
-    prep: ["Blend whey, milk, banana, and oats.", "Use when solid food is impractical."],
+    ingredients: ["30 g whey", "300 mL milk or water (use water to save calories)", "1 banana", "20 g oats"],
+    prep: ["Blend whey, milk or water, banana, and oats.", "Use when solid food is impractical."],
     plate: ["One shake", "Do not add another routine shake afterward"],
   },
   {
@@ -2027,9 +2020,9 @@ const dietRecipes: DietRecipe[] = [
     calories: "~400 kcal",
     protein: "~36 g",
     tags: ["fruit", "oats", "cardio friendly"],
-    ingredients: ["300 g Greek yogurt", "30 g oats", "150 g melon or berries", "10 g nuts"],
-    prep: ["Add yogurt and oats to a bowl.", "Top with fruit and measured nuts."],
-    plate: ["300 g yogurt", "30 g oats", "150 g fruit", "10 g nuts"],
+    ingredients: ["300 g Greek yogurt", "30 g oats", "150 g melon or berries", "10 g nuts (optional; skip to save calories)"],
+    prep: ["Add yogurt and oats to a bowl.", "Top with fruit and optional measured nuts."],
+    plate: ["300 g yogurt", "30 g oats", "150 g fruit", "10 g nuts only if planned"],
   },
   {
     id: "cottage-apple",
@@ -2053,9 +2046,9 @@ const dietRecipes: DietRecipe[] = [
     calories: "~650 kcal",
     protein: "~41 g",
     tags: ["fatty fish", "potato", "vegetables", "post-workout"],
-    ingredients: ["125-150 g cooked salmon", "250 g potato", "200 g vegetables", "40 g avocado"],
-    prep: ["Cook salmon close to dinner.", "Plate with potato, vegetables, and avocado."],
-    plate: ["125-150 g salmon", "250 g potato", "200 g vegetables", "40 g avocado"],
+    ingredients: ["125-150 g cooked salmon", "250 g potato", "200 g vegetables", "40 g avocado (optional; halve or skip to save calories)"],
+    prep: ["Cook salmon close to dinner.", "Plate with potato, vegetables, and optional avocado."],
+    plate: ["125-150 g salmon", "250 g potato", "200 g vegetables", "0-40 g avocado"],
   },
   {
     id: "chicken-potato-apple",
@@ -2066,9 +2059,9 @@ const dietRecipes: DietRecipe[] = [
     calories: "~550 kcal",
     protein: "~39 g",
     tags: ["fruit", "potato", "lean protein", "vegetables"],
-    ingredients: ["100 g cooked chicken", "250 g potato", "200 g vegetables", "60 g avocado", "1 apple"],
-    prep: ["Warm chicken, potato, and vegetables.", "Add avocado and eat apple on the side."],
-    plate: ["100 g chicken", "250 g potato", "200 g vegetables", "60 g avocado"],
+    ingredients: ["100 g cooked chicken", "250 g potato", "200 g vegetables", "60 g avocado (optional; halve or skip to save calories)", "1 apple"],
+    prep: ["Warm chicken, potato, and vegetables.", "Add optional avocado and eat apple on the side."],
+    plate: ["100 g chicken", "250 g potato", "200 g vegetables", "0-60 g avocado"],
   },
   {
     id: "chicken-sweet-potato",
@@ -2079,9 +2072,9 @@ const dietRecipes: DietRecipe[] = [
     calories: "~510 kcal",
     protein: "~40 g",
     tags: ["lean protein", "potato", "vegetables"],
-    ingredients: ["105 g cooked chicken", "250 g sweet potato", "200 g vegetables", "5 g olive oil"],
-    prep: ["Warm chicken and sweet potato.", "Add vegetables and measured olive oil."],
-    plate: ["105 g chicken", "250 g sweet potato", "200 g vegetables", "5 g oil"],
+    ingredients: ["105 g cooked chicken", "250 g sweet potato", "200 g vegetables", "5 g olive oil (optional; use spray to save calories)"],
+    prep: ["Warm chicken and sweet potato.", "Add vegetables and measured olive oil only if planned."],
+    plate: ["105 g chicken", "250 g sweet potato", "200 g vegetables", "5 g oil only if planned"],
   },
   {
     id: "white-fish-plate",
@@ -2092,8 +2085,8 @@ const dietRecipes: DietRecipe[] = [
     calories: "~520 kcal",
     protein: "~40 g",
     tags: ["lean protein", "potato", "vegetables"],
-    ingredients: ["150 g white fish", "250 g potato", "200 g vegetables", "10 g olive oil"],
-    prep: ["Bake or pan-cook fish gently.", "Serve with potato, vegetables, and measured oil."],
+    ingredients: ["150 g white fish", "250 g potato", "200 g vegetables", "10 g olive oil (optional; use spray to save calories)"],
+    prep: ["Bake or pan-cook fish gently.", "Serve with potato, vegetables, and measured oil only if planned."],
     plate: ["150 g white fish", "250 g potato", "200 g vegetables"],
   },
   {
@@ -2144,8 +2137,8 @@ const dietRecipes: DietRecipe[] = [
     calories: "~600 kcal",
     protein: "~35-40 g",
     tags: ["plant protein", "legumes", "rice", "vegetables"],
-    ingredients: ["200 g firm tofu", "120 g lentils", "150 g vegetables", "100 g cooked rice", "Light curry sauce"],
-    prep: ["Warm tofu, lentils, vegetables, and light curry sauce.", "Serve over measured rice."],
+    ingredients: ["200 g firm tofu", "120 g lentils", "150 g vegetables", "100 g cooked rice", "Light curry sauce (optional; keep it light)"],
+    prep: ["Warm tofu, lentils, vegetables, and optional light curry sauce.", "Serve over measured rice."],
     plate: ["200 g tofu", "120 g lentils", "100 g rice", "150 g vegetables"],
   },
 ];
@@ -2312,10 +2305,10 @@ const weeklySchedule: Record<string, SessionTemplate> = {
     type: "recovery",
     code: "R",
     time: "15-30 min",
-    summary: "Rest from hard training; easy walk if you want; weigh-in average, waist check, meal prep optional.",
+    summary: "Rest from hard training; easy walk if you want; review weight average, meal prep optional.",
     accent: "recovery",
     exerciseIds: [],
-    tasks: ["Review weekly average weight", "Waist check at navel", "Meal prep optional", "Easy walk optional"],
+    tasks: ["Review weekly average weight", "Meal prep optional", "Easy walk optional"],
   },
 };
 
@@ -2443,7 +2436,7 @@ function phaseForWeek(week: number) {
     return {
       label: "Week 12",
       sets: "Compare week",
-      note: "Return to normal loads and compare waist, photos, average body weight, and strength.",
+      note: "Return to normal loads and compare photos, average body weight, and strength.",
     };
   }
   if (week <= 14) {
@@ -2477,7 +2470,7 @@ function phaseForWeek(week: number) {
   return {
     label: "Weeks 24-26",
     sets: "Final compare",
-    note: "Weeks 24-26 return to normal loads. Compare body metrics, photos, and strength against week 1 and week 12.",
+    note: "Weeks 24-26 return to normal loads. Compare average body weight, photos, and strength against week 1 and week 12.",
   };
 }
 
@@ -3346,13 +3339,16 @@ function mergeDietDayLog(cloudLog: DietDayLog | undefined, localLog: DietDayLog 
 }
 
 function mergeMetricLog(metric: MetricLog | undefined, localMetric: MetricLog | undefined) {
-  if (!metric) return localMetric ?? createEmptyMetric();
-  if (!localMetric) return metric;
+  const normalizedCloudMetric = normalizeMetricLogShape(metric);
+  const normalizedLocalMetric = normalizeMetricLogShape(localMetric);
+
+  if (!metric) return normalizedLocalMetric;
+  if (!localMetric) return normalizedCloudMetric;
+
   return {
-    weight: preferFilled(localMetric.weight, metric.weight),
-    weightKg: preferFilled(localMetric.weightKg, metric.weightKg),
-    waist: preferFilled(localMetric.waist, metric.waist),
-    note: preferFilled(localMetric.note, metric.note),
+    weight: preferFilled(normalizedLocalMetric.weight, normalizedCloudMetric.weight),
+    weightKg: preferFilled(normalizedLocalMetric.weightKg, normalizedCloudMetric.weightKg),
+    note: preferFilled(normalizedLocalMetric.note, normalizedCloudMetric.note),
   };
 }
 
@@ -4224,8 +4220,8 @@ export default function Home() {
       0,
     );
     const normalizedMetrics = Object.values(store.metrics).map(normalizeMetricLogShape);
-    const bodyCheckIns = normalizedMetrics.filter(
-      (metric) => metric.weightKg.trim() || metric.weight.trim() || metric.waist.trim() || metric.note.trim(),
+    const weightLogs = normalizedMetrics.filter(
+      (metric) => metric.weightKg.trim() || metric.weight.trim() || metric.note.trim(),
     ).length;
     const weighIns = normalizedMetrics.filter((metric) => weightKgFromMetric(metric) !== null).length;
     const completedDietDays = Object.values(store.dietDays).filter(
@@ -4248,7 +4244,7 @@ export default function Home() {
       strengthSessions,
       cardioMinutes,
       completedSets,
-      bodyCheckIns,
+      weightLogs,
       weighIns,
       completedDietDays,
       completedDietMeals,
@@ -4280,8 +4276,8 @@ export default function Home() {
     },
     {
       label: "Data-minded",
-      earned: Object.keys(store.metrics).length >= 2,
-      detail: "Log 2 body check-ins.",
+      earned: stats.weighIns >= 2,
+      detail: "Log 2 weigh-ins.",
     },
     {
       label: "Week one locked",
@@ -4696,7 +4692,7 @@ export default function Home() {
     : !isSupabaseConfigured
     ? "Local saving still works. Add your Supabase URL and publishable key to unlock the same data on your MacBook and iPhone."
     : session
-      ? "You are signed in, so every workout check, diet meal, swap, kg weigh-in, note, and body check-in saves locally and to your cloud account."
+      ? "You are signed in, so every workout check, diet meal, swap, kg weigh-in, and note saves locally and to your cloud account."
       : "Sign in or create an account with email and password. This works inside the iPhone Home Screen app without magic links or custom SMTP.";
 
   const weeklyCompletion = useMemo(
@@ -4862,17 +4858,16 @@ export default function Home() {
     )
     .sort((a, b) => b.load - a.load)
     .slice(0, 5);
-  const bodyTrend = useMemo(() => {
+  const weightTrend = useMemo(() => {
     const entries = Object.entries(store.metrics)
       .map(([date, metric]) => {
         const normalizedMetric = normalizeMetricLogShape(metric);
         return {
           date,
           weight: weightKgFromMetric(normalizedMetric),
-          waist: parseLoadValue(normalizedMetric.waist),
         };
       })
-      .filter((entry) => entry.weight !== null || entry.waist !== null)
+      .filter((entry) => entry.weight !== null)
       .sort((a, b) => a.date.localeCompare(b.date));
 
     if (entries.length < 2) return null;
@@ -4881,13 +4876,11 @@ export default function Home() {
     const last = entries[entries.length - 1];
     const weightDelta =
       first.weight !== null && last.weight !== null ? last.weight - first.weight : null;
-    const waistDelta = first.waist !== null && last.waist !== null ? last.waist - first.waist : null;
 
     return {
       from: formatDate(first.date, "short"),
       to: formatDate(last.date, "short"),
       weightDelta,
-      waistDelta,
     };
   }, [store.metrics]);
 
@@ -5021,20 +5014,6 @@ export default function Home() {
                     updateMetric(currentProgramDate, (metric) => ({
                       ...metric,
                       weightKg: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label>
-                Waist (cm)
-                <input
-                  inputMode="decimal"
-                  value={currentProgramMetric.waist}
-                  placeholder="cm"
-                  onChange={(event) =>
-                    updateMetric(currentProgramDate, (metric) => ({
-                      ...metric,
-                      waist: event.target.value,
                     }))
                   }
                 />
@@ -5462,10 +5441,7 @@ export default function Home() {
                 <Icon name="cart" size={14} /> To buy
               </p>
               <h2>This week</h2>
-              <p>
-                Preferred warehouse: <a href={costcoWarehouse.url} target="_blank" rel="noreferrer">{costcoWarehouse.name}</a>,
-                {" "}{costcoWarehouse.address}. Check availability before you go.
-              </p>
+              <p>Use this as the weekly ingredient list for the recipes currently showing, including your swaps.</p>
               <div className="shopping-list-groups">
                 {dietShoppingGroups.map((group) => (
                   <div key={group.category} className="shopping-group">
@@ -6224,9 +6200,9 @@ export default function Home() {
                 <small>completed rows</small>
               </div>
               <div className="dashboard-stat body">
-                <span>Body checks</span>
-                <strong>{stats.bodyCheckIns}</strong>
-                <small>logged check-ins</small>
+                <span>Weight logs</span>
+                <strong>{stats.weightLogs}</strong>
+                <small>logged mornings/notes</small>
               </div>
             </div>
 
@@ -6247,19 +6223,16 @@ export default function Home() {
                 )}
               </div>
               <div className="body-trend-panel">
-                <h3>Body trend</h3>
-                {bodyTrend ? (
+                <h3>Weight trend</h3>
+                {weightTrend ? (
                   <div className="trend-list">
-                    <span>{bodyTrend.from} to {bodyTrend.to}</span>
+                    <span>{weightTrend.from} to {weightTrend.to}</span>
                     <strong>
-                      Weight {bodyTrend.weightDelta === null ? "n/a" : `${formatLoadValue(bodyTrend.weightDelta)} kg`}
-                    </strong>
-                    <strong>
-                      Waist {bodyTrend.waistDelta === null ? "n/a" : `${formatLoadValue(bodyTrend.waistDelta)} cm`}
+                      Weight {weightTrend.weightDelta === null ? "n/a" : `${formatLoadValue(weightTrend.weightDelta)} kg`}
                     </strong>
                   </div>
                 ) : (
-                  <p className="side-copy">Two body check-ins unlock the trend.</p>
+                  <p className="side-copy">Two weigh-ins unlock the trend.</p>
                 )}
               </div>
             </div>

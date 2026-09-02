@@ -1,5 +1,5 @@
-const CACHE_NAME = "recomp-gym-console-v18";
-const APP_VERSION = "2026-09-02-coach-hub-weight-v18";
+const CACHE_NAME = "recomp-gym-console-v19";
+const APP_VERSION = "2026-09-02-weight-only-diet-v19";
 const APP_FALLBACK_URL = "/";
 
 const CORE_ASSETS = [

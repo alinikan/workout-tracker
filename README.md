@@ -11,8 +11,8 @@ A mobile-first recomposition tracker built from the workout PDF and the revised 
 - Diet section based on the Diet Plan PDF with Breakfast, Lunch, Snack, and Dinner cards for each day.
 - Diet meal cards include recipe photos, simple prep steps, exact plate portions, timing labels, calorie/protein estimates, and completion tracking.
 - Meal swaps stay inside the same meal category so calories and protein stay close while variety improves.
-- Diet To Buy section builds a Costco-friendly ingredient list from the selected week, including active swaps.
-- Coach Hub owns account sign-in, morning weigh-ins, waist notes, daily weight history, and weekly average comparisons.
+- Diet To Buy section builds a store-neutral ingredient list from the selected week, including active swaps.
+- Coach Hub owns account sign-in, morning weigh-ins, weight notes, daily weight history, and weekly average comparisons.
 - iPhone-friendly bottom navigation plus a desktop tab bar for MacBook use.
 - Color-coded weekly planner with a week selector for jumping through the full 6-month calendar without a cluttered 182-day rail.
 - Compact Today day picker so you can choose any day in the current week or jump weeks without leaving Today.
@@ -44,8 +44,8 @@ A mobile-first recomposition tracker built from the workout PDF and the revised 
 - Dynamic ab work after every lifting session: dead bugs are added after the downstairs treadmill finisher so the final floor block can happen upstairs or downstairs.
 - Direct lower-body machine accessories twice weekly: seated leg extensions and seated leg curls are added to Strength A and Strength C for quads and hamstrings.
 - Direct biceps and triceps work twice weekly: dumbbell curls and cable rope pressdowns are added to Strength B and Strength C as small accessory blocks.
-- Body check-ins for morning weight, waist, and notes live in Coach Hub only.
-- Progress dashboard with completion streaks, strength sessions, completed sets, estimated cardio minutes, body check-ins, best logged loads, weekly consistency bars, recent workout history, achievements, and body trend.
+- Weight logging for morning weight and notes lives in Coach Hub only.
+- Progress dashboard with completion streaks, strength sessions, completed sets, estimated cardio minutes, weight logs, best logged loads, weekly consistency bars, recent workout history, achievements, and weight trend.
 - Exercise library with cues, mistakes to avoid, progression notes, inline YouTube videos, ACE/NASM/Mayo/PureGym resources, and GIF controls.
 - No-gym fallback workout from the PDF.
 - Automatic local saving through browser storage, plus account-based Supabase cloud sync when configured.
@@ -70,7 +70,7 @@ A mobile-first recomposition tracker built from the workout PDF and the revised 
 
 Your tracking data always saves automatically in the browser first. This keeps the app useful in the gym even when Wi-Fi is weak.
 
-For true cross-device sync, configure Supabase and sign in with the same email on each device. After that, every workout check, diet meal, swap, kg weigh-in, workout note, diet note, and body check-in is saved locally and synced to your Supabase account.
+For true cross-device sync, configure Supabase and sign in with the same email on each device. After that, every workout check, diet meal, swap, kg weigh-in, workout note, diet note, and weight note is saved locally and synced to your Supabase account.
 
 Important limitation: the cloud sync needs the same deployed app URL and the same Supabase account. If you use a different Vercel preview URL, a different Supabase project, or a different email login, it will behave like a separate account.
 
@@ -99,8 +99,8 @@ Launch behavior: the app opens to the Coach Hub. When you choose Workout or Diet
 8. In the Exercise Detail sheet, tap the video area to play the YouTube demo inline. Tap the **YouTube** button only when you want to open the full video externally.
 9. If a movement is unavailable, use **Swap Options** and choose a listed substitute. The app keeps the original available so you can switch back later.
 10. Use **Gym Mode** when you want the largest, simplest training view. It always loads today, starts on the first unfinished move, and skips moves that are already complete.
-11. Check **Progress** for program completion, streak, sets, cardio minutes, skipped days, best logged loads, weekly consistency, achievements, and body trend. A day counts as complete once every move in that day is fully checked off.
-12. Return to **Coach Hub** for account sign-in, morning weigh-ins, and body trend notes.
+11. Check **Progress** for program completion, streak, sets, cardio minutes, skipped days, best logged loads, weekly consistency, achievements, and weight trend. A day counts as complete once every move in that day is fully checked off.
+12. Return to **Coach Hub** for account sign-in, morning weigh-ins, and weight notes.
 
 ## Using the Diet Tracker
 
@@ -114,7 +114,7 @@ The Diet section is based on the Diet Plan PDF: about 150-165 g protein per day,
 6. Use the **Plate** list for the final portions to put in your bowl or plate.
 7. Tap **Mark eaten** after you eat the meal.
 8. Tap **Swap** if you need variety or a different acceptable option. Swaps stay in the same meal category.
-9. Use **To buy** for the selected week's Costco-friendly ingredient list. The preferred warehouse note points to Costco Port Coquitlam, but availability can change, so check stock before you go.
+9. Use **To buy** for the selected week's ingredient list. Buy the items wherever works best for you.
 
 Diet day types:
 
@@ -286,7 +286,7 @@ open http://localhost:3000
 If port `3000` is busy:
 
 ```bash
-npm run dev -- -p 3001
+npm run dev -- --port 3001
 open http://localhost:3001
 ```
 
