@@ -7,12 +7,12 @@ A mobile-first recomposition tracker built from the workout PDF and the revised 
 - 182-day program calendar, which is about 6 months of training.
 - Coach Hub first screen with two clear choices: **Workout** and **Diet**.
 - Workout and Diet pages land on the current program day and current week, including when launched from the iPhone Home Screen app.
-- Color-coded app sections for Today, Gym Mode, Week, Progress, Library, and Account.
+- Color-coded workout sections for Today, Gym Mode, Week, Progress, and Library.
 - Diet section based on the Diet Plan PDF with Breakfast, Lunch, Snack, and Dinner cards for each day.
 - Diet meal cards include recipe photos, simple prep steps, exact plate portions, timing labels, calorie/protein estimates, and completion tracking.
 - Meal swaps stay inside the same meal category so calories and protein stay close while variety improves.
-- Weekly diet variety checks track fruit days, fatty fish, legumes, and oats/whole-grain appearances.
-- Morning weigh-ins are logged in kilograms and shared by the workout and diet sides of the app.
+- Diet To Buy section builds a Costco-friendly ingredient list from the selected week, including active swaps.
+- Coach Hub owns account sign-in, morning weigh-ins, waist notes, daily weight history, and weekly average comparisons.
 - iPhone-friendly bottom navigation plus a desktop tab bar for MacBook use.
 - Color-coded weekly planner with a week selector for jumping through the full 6-month calendar without a cluttered 182-day rail.
 - Compact Today day picker so you can choose any day in the current week or jump weeks without leaving Today.
@@ -44,7 +44,7 @@ A mobile-first recomposition tracker built from the workout PDF and the revised 
 - Dynamic ab work after every lifting session: dead bugs are added after the downstairs treadmill finisher so the final floor block can happen upstairs or downstairs.
 - Direct lower-body machine accessories twice weekly: seated leg extensions and seated leg curls are added to Strength A and Strength C for quads and hamstrings.
 - Direct biceps and triceps work twice weekly: dumbbell curls and cable rope pressdowns are added to Strength B and Strength C as small accessory blocks.
-- Body check-ins for weight, waist, and weekly notes.
+- Body check-ins for morning weight, waist, and notes live in Coach Hub only.
 - Progress dashboard with completion streaks, strength sessions, completed sets, estimated cardio minutes, body check-ins, best logged loads, weekly consistency bars, recent workout history, achievements, and body trend.
 - Exercise library with cues, mistakes to avoid, progression notes, inline YouTube videos, ACE/NASM/Mayo/PureGym resources, and GIF controls.
 - No-gym fallback workout from the PDF.
@@ -83,8 +83,9 @@ Launch behavior: the app opens to the Coach Hub. When you choose Workout or Diet
 1. Open the app.
 2. Choose **Workout** for the existing training tracker.
 3. Choose **Diet** for the daily meal plan from the Diet Plan PDF.
-4. Log your morning weight in kg from the hub or inside the Diet section.
-5. Sign in from the workout **Account** section if you want everything synced across devices.
+4. Log your morning weight in kg from Coach Hub.
+5. Review the daily weight log and weekly average cards. The comparison unlocks after two full program weeks have passed; if you missed days, the app uses only logged days and tells you how many mornings are missing.
+6. Sign in from the Coach Hub **Cloud sync** card if you want everything synced across devices.
 
 ## Using the Redesigned Tracker
 
@@ -99,7 +100,7 @@ Launch behavior: the app opens to the Coach Hub. When you choose Workout or Diet
 9. If a movement is unavailable, use **Swap Options** and choose a listed substitute. The app keeps the original available so you can switch back later.
 10. Use **Gym Mode** when you want the largest, simplest training view. It always loads today, starts on the first unfinished move, and skips moves that are already complete.
 11. Check **Progress** for program completion, streak, sets, cardio minutes, skipped days, best logged loads, weekly consistency, achievements, and body trend. A day counts as complete once every move in that day is fully checked off.
-12. Use **Account** to sign in with email + password so the same data syncs across your iPhone, MacBook, and any other device.
+12. Return to **Coach Hub** for account sign-in, morning weigh-ins, and body trend notes.
 
 ## Using the Diet Tracker
 
@@ -107,14 +108,13 @@ The Diet section is based on the Diet Plan PDF: about 150-165 g protein per day,
 
 1. Open **Diet** from the Coach Hub.
 2. Check the day target: Strength, Cardio, or Recovery.
-3. Log your morning weight in kg.
-4. Follow the four meal cards in order: Breakfast, Lunch, Snack, Dinner.
-5. Use the timing chip on each card, such as **Morning**, **Midday**, **Before workout / afternoon**, or **After workout / evening**.
-6. Use the ingredient list to cook or assemble the meal.
-7. Use the **Plate** list for the final portions to put in your bowl or plate.
-8. Tap **Mark eaten** after you eat the meal.
-9. Tap **Swap** if you need variety or a different acceptable option. Swaps stay in the same meal category.
-10. Use the weekly variety card as a light guide, not another source of stress.
+3. Follow the four meal cards in order: Breakfast, Lunch, Snack, Dinner.
+4. Use the timing chip on each card, such as **Morning**, **Midday**, **Before workout / afternoon**, or **After workout / evening**.
+5. Use the ingredient list to cook or assemble the meal.
+6. Use the **Plate** list for the final portions to put in your bowl or plate.
+7. Tap **Mark eaten** after you eat the meal.
+8. Tap **Swap** if you need variety or a different acceptable option. Swaps stay in the same meal category.
+9. Use **To buy** for the selected week's Costco-friendly ingredient list. The preferred warehouse note points to Costco Port Coquitlam, but availability can change, so check stock before you go.
 
 Diet day types:
 
@@ -402,12 +402,12 @@ https://ali-workout.vercel.app
 ### 7. Use it
 
 1. Run the app.
-2. Open the **Cloud sync** panel.
+2. Open **Coach Hub**.
 3. Enter your email.
 4. Enter a password with at least 8 characters.
 5. Click **Create account** the first time.
 6. After that, use **Sign in** with the same email and password on every device.
-7. The panel should change to **Synced across devices**.
+7. The Coach Hub cloud card should change to **Synced across devices**.
 
 When you sign in for the first time, the app keeps your existing local progress, merges it with anything already in the cloud, then saves the result to Supabase.
 
@@ -422,7 +422,7 @@ When you sign in for the first time, the app keeps your existing local progress,
 5. Name it `Recomp Gym`.
 6. Tap **Add**.
 7. Open the new Home Screen app.
-8. Open the **Cloud sync** panel.
+8. Use the **Cloud sync** card in Coach Hub.
 9. Enter your email and password.
 10. Tap **Create account** the first time, or **Sign in** if the account already exists.
 
@@ -575,7 +575,7 @@ In this project, `npm run lint` reuses the Vite production build gate. `npm run 
 ## How Sync Works
 
 - The app always writes your latest workout, diet, meal-swap, note, and weigh-in progress to browser storage first.
-- If Supabase is not configured, the **Cloud sync** panel says `local-only`.
+- If Supabase is not configured, the Coach Hub **Cloud sync** card says `local-only`.
 - If Supabase is configured but you are signed out, local saving still works.
 - After you sign in, the app loads your cloud progress row from Supabase.
 - On first sign-in, local progress and cloud progress are merged so existing work is not thrown away.
@@ -585,7 +585,7 @@ In this project, `npm run lint` reuses the Vite production build gate. `npm run 
 - The app uses Supabase email + password auth for Home Screen app login. This avoids the iPhone problem where a magic link opens Safari instead of the installed web app.
 - Diet data is stored inside `dietDays`, workout data inside `days`, and kg weigh-ins inside `metrics`.
 
-This is designed for one human using several devices. If you edit the exact same field on two devices at the exact same time, the most recent cloud save may win for that field. For normal use, sign in on each device and let the **Cloud sync** panel show `synced` before switching devices.
+This is designed for one human using several devices. If you edit the exact same field on two devices at the exact same time, the most recent cloud save may win for that field. For normal use, sign in on each device and let the Coach Hub **Cloud sync** card show `synced` before switching devices.
 
 ## Exercise Resource Sources
 
@@ -688,7 +688,7 @@ Use Node `>=22.13.0`.
 
 ### The page opens but my data is gone
 
-First, sign in with the same email in the **Cloud sync** panel. If you are signed out, the app only sees the local browser copy on that device.
+First, sign in with the same email in the Coach Hub **Cloud sync** card. If you are signed out, the app only sees the local browser copy on that device.
 
 If you are signed in and still do not see data:
 
@@ -708,7 +708,7 @@ The current service worker fixes this by using network-first page loading and cl
 3. If the Home Screen app is still blank, delete that Home Screen icon and add it again from the production URL.
 4. If Safari still shows the old blank page, clear website data for `ali-workout.vercel.app` in Safari settings, then reopen the site.
 
-### The Cloud sync panel says local-only
+### The Coach Hub Cloud sync card says local-only
 
 The app cannot see Supabase environment variables. For local development, create `.env.local` from `.env.example` and restart `npm run dev`. For Vercel, add the same variables in the project settings and redeploy.
 
@@ -726,11 +726,11 @@ If you prefer to leave email confirmation on, confirm the email once in Safari, 
 
 ### The Home Screen app does not share my Safari login
 
-That is normal on iPhone. Safari and the Home Screen app can have separate login storage. Open the Home Screen app itself, go to **Cloud sync**, and sign in there with your email and password.
+That is normal on iPhone. Safari and the Home Screen app can have separate login storage. Open the Home Screen app itself, use the Coach Hub **Cloud sync** card, and sign in there with your email and password.
 
-### The Cloud sync panel shows an error
+### The Coach Hub Cloud sync card shows an error
 
-Read the error text in the panel first. Most sync errors come from missing Row Level Security policies, missing environment variables, or using a Supabase key from a different project than the SQL table.
+Read the error text in the card first. Most sync errors come from missing Row Level Security policies, missing environment variables, or using a Supabase key from a different project than the SQL table.
 
 ### Inline YouTube videos do not load
 
@@ -757,7 +757,7 @@ npx vercel dev
 
 ### Vercel deploys but the Home Screen app has old data
 
-Open the Home Screen app, check the **Cloud sync** panel, and sign in again if needed. If you previously used a Vercel preview URL, open the production URL in Safari, sign in there, and add that production URL to Home Screen.
+Open the Home Screen app, check the Coach Hub **Cloud sync** card, and sign in again if needed. If you previously used a Vercel preview URL, open the production URL in Safari, sign in there, and add that production URL to Home Screen.
 
 ### The iPhone Home Screen web app opens half-loaded or buttons do not respond
 

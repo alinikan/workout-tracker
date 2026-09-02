@@ -4,11 +4,12 @@ import { isSupabaseConfigured, supabase, supabaseConfigError } from "./lib/supab
 
 type SessionType = "strength" | "cardio" | "movement" | "recovery";
 type AppMode = "hub" | "workout" | "diet";
-type AppSection = "today" | "gym" | "week" | "progress" | "library" | "account";
+type AppSection = "today" | "gym" | "week" | "progress" | "library";
 type PlanWeekday = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday";
 type IconName =
   | "activity"
   | "calendar"
+  | "cart"
   | "check"
   | "chevronLeft"
   | "chevronRight"
@@ -18,6 +19,7 @@ type IconName =
   | "mail"
   | "play"
   | "progress"
+  | "scale"
   | "search"
   | "spark"
   | "swap"
@@ -63,6 +65,24 @@ type DietRecipe = {
   plate: string[];
 };
 
+type ShoppingCategory = "Protein & dairy" | "Produce" | "Carbs" | "Pantry";
+
+type ShoppingItem = {
+  name: string;
+  category: ShoppingCategory;
+  portions: string[];
+  recipeNames: string[];
+};
+
+type WeightWeekSummary = {
+  week: number;
+  startIso: string;
+  endIso: string;
+  loggedDays: number;
+  missingDays: number;
+  average: number | null;
+};
+
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   const commonProps = {
     width: size,
@@ -85,6 +105,7 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
           <path d="M8 3v4M16 3v4M4 10h16" />
         </>
       )}
+      {name === "cart" && <path d="M5 6h2l2 10h8l2-7H8M10 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2ZM17 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />}
       {name === "check" && <path d="M5 13l4 4L19 7" />}
       {name === "chevronLeft" && <path d="M15 18l-6-6 6-6" />}
       {name === "chevronRight" && <path d="M9 6l6 6-6 6" />}
@@ -99,6 +120,7 @@ function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
       )}
       {name === "play" && <path d="M8 5v14l11-7Z" />}
       {name === "progress" && <path d="M4 17 9 12l4 4 7-9M4 21h16" />}
+      {name === "scale" && <path d="M12 3v18M7 6h10M5 6l-3 7h6L5 6ZM19 6l-3 7h6l-3-7ZM8 21h8" />}
       {name === "search" && (
         <>
           <circle cx="11" cy="11" r="6" />
@@ -265,6 +287,14 @@ const dietTargets: Record<DietDayType, { label: string; calories: string; protei
     fat: "60-75 g fat",
   },
 };
+
+const costcoWarehouse = {
+  name: "Costco Port Coquitlam",
+  address: "2370 Ottawa St, Port Coquitlam, BC",
+  url: "https://www.costco.ca/w/-/bc/port-coquitlam/255",
+};
+
+const shoppingCategories: ShoppingCategory[] = ["Protein & dairy", "Produce", "Carbs", "Pantry"];
 
 const foodPhoto = (photoId: string) =>
   `https://images.unsplash.com/${photoId}?auto=format&fit=crop&w=900&q=80`;
@@ -2871,6 +2901,168 @@ function weightKgFromMetric(metric: MetricLog) {
   return legacyPounds !== null ? legacyPounds * 0.45359237 : null;
 }
 
+function shoppingIngredientFor(ingredient: string): { name: string; category: ShoppingCategory } {
+  const lower = ingredient.toLowerCase();
+
+  if (lower.includes("yogurt")) return { name: "Plain Greek yogurt", category: "Protein & dairy" };
+  if (lower.includes("cottage")) return { name: "Cottage cheese", category: "Protein & dairy" };
+  if (lower.includes("whey")) return { name: "Whey protein", category: "Protein & dairy" };
+  if (lower.includes("egg whites")) return { name: "Liquid egg whites", category: "Protein & dairy" };
+  if (lower.includes("eggs") || lower.includes("2 eggs")) return { name: "Eggs", category: "Protein & dairy" };
+  if (lower.includes("chicken")) return { name: "Chicken breast or rotisserie chicken", category: "Protein & dairy" };
+  if (lower.includes("turkey")) return { name: "Extra-lean turkey", category: "Protein & dairy" };
+  if (lower.includes("salmon")) return { name: "Salmon", category: "Protein & dairy" };
+  if (lower.includes("white fish")) return { name: "White fish", category: "Protein & dairy" };
+  if (lower.includes("tuna")) return { name: "Canned light tuna", category: "Protein & dairy" };
+  if (lower.includes("tofu")) return { name: "Firm tofu", category: "Protein & dairy" };
+  if (lower.includes("edamame")) return { name: "Shelled edamame", category: "Protein & dairy" };
+  if (lower.includes("beef")) return { name: "Extra-lean beef", category: "Protein & dairy" };
+  if (lower.includes("feta")) return { name: "Feta", category: "Protein & dairy" };
+  if (lower.includes("milk")) return { name: "Milk", category: "Protein & dairy" };
+
+  if (
+    lower.includes("berries") ||
+    lower.includes("banana") ||
+    lower.includes("apple") ||
+    lower.includes("orange") ||
+    lower.includes("kiwi") ||
+    lower.includes("pear") ||
+    lower.includes("melon") ||
+    lower.includes("citrus")
+  ) {
+    return { name: "Plan fruit: berries, bananas, apples, oranges, kiwi, pears, melon", category: "Produce" };
+  }
+  if (
+    lower.includes("vegetables") ||
+    lower.includes("peppers") ||
+    lower.includes("spinach") ||
+    lower.includes("tomatoes") ||
+    lower.includes("mushrooms") ||
+    lower.includes("zucchini") ||
+    lower.includes("salad") ||
+    lower.includes("cucumber") ||
+    lower.includes("peas") ||
+    lower.includes("carrots")
+  ) {
+    return { name: "Mixed vegetables and salad vegetables", category: "Produce" };
+  }
+  if (lower.includes("avocado")) return { name: "Avocado", category: "Produce" };
+
+  if (lower.includes("oats")) return { name: "Oats", category: "Carbs" };
+  if (lower.includes("muesli")) return { name: "Unsweetened muesli", category: "Carbs" };
+  if (lower.includes("rice cakes")) return { name: "Rice cakes", category: "Carbs" };
+  if (lower.includes("rice")) return { name: "Rice or brown rice", category: "Carbs" };
+  if (lower.includes("quinoa")) return { name: "Quinoa", category: "Carbs" };
+  if (lower.includes("pasta")) return { name: "Whole-grain pasta", category: "Carbs" };
+  if (lower.includes("wrap")) return { name: "Whole-wheat wraps", category: "Carbs" };
+  if (lower.includes("bread")) return { name: "Whole-grain bread", category: "Carbs" };
+  if (lower.includes("potato")) return { name: "Potatoes and sweet potatoes", category: "Carbs" };
+  if (lower.includes("crackers")) return { name: "Whole-grain crackers", category: "Carbs" };
+  if (lower.includes("lentils")) return { name: "Lentils", category: "Carbs" };
+  if (lower.includes("beans") || lower.includes("chickpeas")) return { name: "Beans and chickpeas", category: "Carbs" };
+
+  if (lower.includes("chia")) return { name: "Chia seeds", category: "Pantry" };
+  if (lower.includes("olive oil") || lower.includes("oil")) return { name: "Olive oil or spray oil", category: "Pantry" };
+  if (lower.includes("salsa")) return { name: "Salsa", category: "Pantry" };
+  if (lower.includes("jam")) return { name: "Jam", category: "Pantry" };
+  if (lower.includes("cinnamon")) return { name: "Cinnamon", category: "Pantry" };
+  if (lower.includes("mustard")) return { name: "Mustard", category: "Pantry" };
+  if (lower.includes("hummus")) return { name: "Hummus", category: "Pantry" };
+  if (lower.includes("marinara")) return { name: "Marinara", category: "Pantry" };
+  if (lower.includes("curry")) return { name: "Light curry sauce", category: "Pantry" };
+  if (lower.includes("nuts")) return { name: "Nuts", category: "Pantry" };
+  if (lower.includes("sauce")) return { name: "Light sauces", category: "Pantry" };
+
+  return { name: ingredient.replace(/^\d+(?:-\d+)?\s*(?:g|mL)?\s*/i, ""), category: "Pantry" };
+}
+
+function shoppingItemsForRecipes(recipes: DietRecipe[]) {
+  const itemMap = new Map<string, ShoppingItem>();
+
+  recipes.forEach((recipe) => {
+    recipe.ingredients.forEach((ingredient) => {
+      const item = shoppingIngredientFor(ingredient);
+      const key = `${item.category}:${item.name}`;
+      const existing = itemMap.get(key) ?? {
+        name: item.name,
+        category: item.category,
+        portions: [],
+        recipeNames: [],
+      };
+
+      if (!existing.portions.includes(ingredient)) existing.portions.push(ingredient);
+      if (!existing.recipeNames.includes(recipe.shortTitle)) existing.recipeNames.push(recipe.shortTitle);
+      itemMap.set(key, existing);
+    });
+  });
+
+  return shoppingCategories
+    .map((category) => ({
+      category,
+      items: [...itemMap.values()]
+        .filter((item) => item.category === category)
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
+function weightWeekSummary(planDays: PlanDay[], metrics: Record<string, MetricLog>, weekIndex: number): WeightWeekSummary {
+  const days = planDays.slice(weekIndex * 7, weekIndex * 7 + 7);
+  const loggedWeights = days
+    .map((day) => weightKgFromMetric(normalizeMetricLogShape(metrics[day.iso])))
+    .filter((weight): weight is number => weight !== null);
+  const average =
+    loggedWeights.length > 0
+      ? loggedWeights.reduce((sum, weight) => sum + weight, 0) / loggedWeights.length
+      : null;
+
+  return {
+    week: weekIndex + 1,
+    startIso: days[0]?.iso ?? START_DATE,
+    endIso: days[days.length - 1]?.iso ?? START_DATE,
+    loggedDays: loggedWeights.length,
+    missingDays: Math.max(0, days.length - loggedWeights.length),
+    average,
+  };
+}
+
+function weightComparisonInsight(previous: WeightWeekSummary | null, current: WeightWeekSummary | null) {
+  if (!previous || !current) {
+    return {
+      tone: "locked",
+      headline: "Weekly comparison unlocks after Week 2 is finished.",
+      detail: "Keep logging morning weight in Coach Hub. The app will compare the first two full weeks once both weeks have passed.",
+    };
+  }
+
+  if (previous.average === null || current.average === null) {
+    return {
+      tone: "waiting",
+      headline: "Need at least one weigh-in in both weeks.",
+      detail: `Week ${previous.week}: ${previous.loggedDays}/7 logged. Week ${current.week}: ${current.loggedDays}/7 logged.`,
+    };
+  }
+
+  const delta = current.average - previous.average;
+  const absoluteDelta = Math.abs(delta);
+  const direction = delta < 0 ? "down" : delta > 0 ? "up" : "unchanged";
+  const missingTotal = previous.missingDays + current.missingDays;
+  const reliability =
+    missingTotal > 0
+      ? ` Missing ${missingTotal} of 14 mornings, so the average uses logged days only.`
+      : " All 14 mornings are logged, so this is a clean comparison.";
+  const headline =
+    absoluteDelta < 0.2
+      ? "Average weight is basically steady."
+      : `Average weight is ${direction} ${formatLoadValue(absoluteDelta)} kg.`;
+
+  return {
+    tone: delta < -0.2 ? "down" : delta > 0.2 ? "up" : "steady",
+    headline,
+    detail: `Week ${previous.week} averaged ${formatLoadValue(previous.average)} kg. Week ${current.week} averaged ${formatLoadValue(current.average)} kg.${reliability}`,
+  };
+}
+
 function targetForExercise(planDay: PlanDay, exercise: Exercise) {
   if (isRampWarmup(exercise)) return rampWarmupTarget(planDay, exercise);
   if (exercise.family === "warmup") return warmupTarget(planDay, exercise);
@@ -3464,7 +3656,15 @@ function dayStatusForDay(planDay: PlanDay, log: DayLog): DayStatus {
 }
 
 function withAutomaticDayCompletion(planDay: PlanDay, log: DayLog) {
-  if (!planDay.session.exerciseIds.length) return log;
+  if (!planDay.session.exerciseIds.length) {
+    const allTasksDone =
+      planDay.session.tasks.length > 0 &&
+      planDay.session.tasks.every((task) => Boolean(log.tasks[task]));
+    return {
+      ...log,
+      completed: planDay.session.tasks.length > 0 ? allTasksDone : log.completed,
+    };
+  }
   return {
     ...log,
     completed: areDayExercisesComplete(planDay, log),
@@ -3473,6 +3673,44 @@ function withAutomaticDayCompletion(planDay: PlanDay, log: DayLog) {
 
 function isPlanDayComplete(planDay: PlanDay, log: DayLog) {
   return dayStatusForDay(planDay, log) === "complete";
+}
+
+function completePlanDay(planDay: PlanDay, log: DayLog) {
+  const normalizedLog = normalizeDayLog(log);
+  const exercises = planDay.session.exerciseIds.flatMap((id) => (exerciseMap[id] ? [exerciseMap[id]] : []));
+  const nextExercises = { ...normalizedLog.exercises };
+  const nextSkips = { ...normalizedLog.skips };
+  const nextTasks = planDay.session.tasks.reduce<Record<string, boolean>>(
+    (tasks, task) => ({
+      ...tasks,
+      [task]: true,
+    }),
+    { ...normalizedLog.tasks },
+  );
+
+  exercises.forEach((originalExercise, exerciseIndex) => {
+    const activeExercise = activeExerciseFor(originalExercise, normalizedLog);
+    const setCount = Math.max(
+      recommendedSets(planDay, activeExercise, exerciseIndex),
+      normalizedLog.exercises[activeExercise.id]?.length ?? 0,
+    );
+    nextExercises[activeExercise.id] = ensureSetRows(
+      normalizedLog.exercises[activeExercise.id],
+      setCount,
+    ).map((row) => ({
+      ...row,
+      done: true,
+    }));
+    delete nextSkips[originalExercise.id];
+  });
+
+  return {
+    ...normalizedLog,
+    completed: true,
+    tasks: nextTasks,
+    skips: nextSkips,
+    exercises: nextExercises,
+  };
 }
 
 function dayStatusLabel(status: DayStatus) {
@@ -3875,8 +4113,6 @@ export default function Home() {
   const gymLog = normalizeDayLog(store.days[gymDay.iso]);
   const selectedDietLog = normalizeDietDayLog(store.dietDays[selectedDietDay.iso]);
   const currentProgramMetric = normalizeMetricLogShape(store.metrics[currentProgramDate]);
-  const selectedMetric = normalizeMetricLogShape(store.metrics[selectedDay.iso]);
-  const selectedDietMetric = normalizeMetricLogShape(store.metrics[selectedDietDay.iso]);
   const phase = phaseForWeek(selectedDay.week);
   const selectedSessionTime = sessionTimeForDay(selectedDay);
   const selectedSessionSummary = sessionSummaryForDay(selectedDay);
@@ -3894,7 +4130,7 @@ export default function Home() {
   const selectedDayComplete = selectedDayStatus === "complete";
   const selectedDayStatusText = dayStatusLabel(selectedDayStatus);
   const selectedCompletionButtonLabel =
-    selectedDayStatus === "incomplete" ? "Mark Complete" : selectedDayStatusText;
+    selectedDayStatus === "complete" ? "Completed" : "Mark Complete";
   const gymSessionSummary = sessionSummaryForDay(gymDay);
   const currentWeekStartIndex = Math.floor(selectedDay.index / 7) * 7;
   const currentWeekDays = planDays.slice(currentWeekStartIndex, currentWeekStartIndex + 7);
@@ -3932,24 +4168,29 @@ export default function Home() {
   const dietCompletedMealCount = dietMealRows.filter((meal) => meal.isComplete).length;
   const dietCompletionPercent = Math.round((dietCompletedMealCount / dietMealRows.length) * 100);
   const dietDayComplete = dietCompletedMealCount === dietMealRows.length;
-  const dietWeekDiversity = useMemo(() => {
-    const weekRecipes = currentDietWeekDays.flatMap((day) => {
+  const dietShoppingGroups = useMemo(() => {
+    const activeWeekRecipes = currentDietWeekDays.flatMap((day) => {
       const log = normalizeDietDayLog(store.dietDays[day.iso]);
       return dietMealSlots.map((slot) => activeDietRecipeFor(day, log, slot.id));
     });
-    const fruitDays = currentDietWeekDays.filter((day) => {
-      const log = normalizeDietDayLog(store.dietDays[day.iso]);
-      return dietMealSlots.some((slot) => activeDietRecipeFor(day, log, slot.id).tags.includes("fruit"));
-    }).length;
-    const countTag = (tag: string) => weekRecipes.filter((recipe) => recipe.tags.includes(tag)).length;
-
-    return [
-      { label: "Fruit days", value: `${Math.min(fruitDays, 5)}/5`, complete: fruitDays >= 5 },
-      { label: "Fatty fish", value: `${Math.min(countTag("fatty fish"), 2)}/2`, complete: countTag("fatty fish") >= 2 },
-      { label: "Legumes", value: `${Math.min(countTag("legumes"), 3)}/3`, complete: countTag("legumes") >= 3 },
-      { label: "Oats/grains", value: `${Math.min(countTag("oats") + countTag("whole grain"), 4)}/4`, complete: countTag("oats") + countTag("whole grain") >= 4 },
-    ];
+    return shoppingItemsForRecipes(activeWeekRecipes);
   }, [currentDietWeekDays, store.dietDays]);
+  const weightWeekSummaries = useMemo(
+    () =>
+      weekOptions.map((_week, weekIndex) =>
+        weightWeekSummary(planDays, store.metrics, weekIndex),
+      ),
+    [planDays, store.metrics, weekOptions],
+  );
+  const currentWeightWeek = weightWeekSummaries[gymDay.week - 1] ?? null;
+  const previousWeightWeek = weightWeekSummaries[gymDay.week - 2] ?? null;
+  const completedWeightWeeks = weightWeekSummaries.filter((_summary, index) => index * 7 + 6 < gymDay.index);
+  const comparableWeightWeeks = completedWeightWeeks.slice(-2);
+  const weightCoachInsight = weightComparisonInsight(
+    comparableWeightWeeks[0] ?? null,
+    comparableWeightWeeks[1] ?? null,
+  );
+  const hubWeightDays = planDays.slice(Math.max(0, gymDay.index - 13), gymDay.index + 1);
 
   const stats = useMemo(() => {
     const skippedDates = new Set(
@@ -4318,13 +4559,17 @@ export default function Home() {
   };
 
   const toggleTask = (taskId: string) => {
-    updateDay(selectedDay.iso, (log) => ({
-      ...log,
-      tasks: {
-        ...log.tasks,
-        [taskId]: !log.tasks[taskId],
-      },
-    }));
+    updateDay(selectedDay.iso, (log) => {
+      const nextLog = {
+        ...log,
+        tasks: {
+          ...log.tasks,
+          [taskId]: !log.tasks[taskId],
+        },
+      };
+
+      return withAutomaticDayCompletion(selectedDay, nextLog);
+    });
   };
 
   const getAuthCredentials = () => {
@@ -4663,7 +4908,6 @@ export default function Home() {
     week: "Week",
     progress: "Progress",
     library: "Library",
-    account: "Account",
   }[activeSection];
   const navItems = [
     { id: "today" as const, label: "Today", icon: "activity" as const },
@@ -4671,7 +4915,6 @@ export default function Home() {
     { id: "week" as const, label: "Week", icon: "calendar" as const },
     { id: "progress" as const, label: "Progress", icon: "progress" as const },
     { id: "library" as const, label: "Library", icon: "library" as const },
-    { id: "account" as const, label: "Account", icon: "user" as const },
   ];
 
   const goToCurrentProgramDay = () => {
@@ -4740,10 +4983,10 @@ export default function Home() {
               type="button"
               onClick={() => setAppMode("workout")}
             >
-              <span>Workout</span>
-              <strong>{gymDay.session.title}</strong>
+              <span>Blue training</span>
+              <strong>Workout</strong>
               <small>
-                {formatDate(gymDay.iso)} · Week {gymDay.week} · {stats.completedDays}/{PROGRAM_DAYS} done
+                {gymDay.session.title} · {formatDate(gymDay.iso)} · {stats.completedDays}/{PROGRAM_DAYS} done
               </small>
             </button>
             <button
@@ -4751,32 +4994,61 @@ export default function Home() {
               type="button"
               onClick={() => setAppMode("diet")}
             >
-              <span>Diet</span>
-              <strong>{dietTargets[dietDayTypeForPlanDay(gymDay)].label}</strong>
+              <span>Green nutrition</span>
+              <strong>Diet</strong>
               <small>
-                {dietTargets[dietDayTypeForPlanDay(gymDay)].calories} · {stats.completedDietDays} diet days done
+                {dietTargets[dietDayTypeForPlanDay(gymDay)].label} · {dietTargets[dietDayTypeForPlanDay(gymDay)].calories} · {stats.completedDietDays} days done
               </small>
             </button>
           </div>
         </section>
 
         <section className="hub-dashboard-grid" aria-label="Daily coach overview">
-          <div className="morning-weighin-card">
+          <div className="morning-weighin-card hub-body-check-card">
             <div>
               <p className="eyebrow">Morning weigh-in</p>
               <h2>{formatDate(currentProgramDate, "short")}</h2>
-              <p>Use the same scale, after bathroom, before food or drink.</p>
+              <p>Use the same scale, after bathroom, before food or drink. This is the only place for body-weight logging.</p>
             </div>
-            <label>
-              Weight (kg)
-              <input
-                inputMode="decimal"
-                value={currentProgramMetric.weightKg}
-                placeholder="78.0"
+            <div className="hub-checkin-fields">
+              <label>
+                Morning weight (kg)
+                <input
+                  inputMode="decimal"
+                  value={currentProgramMetric.weightKg}
+                  placeholder="78.0"
+                  onChange={(event) =>
+                    updateMetric(currentProgramDate, (metric) => ({
+                      ...metric,
+                      weightKg: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label>
+                Waist (cm)
+                <input
+                  inputMode="decimal"
+                  value={currentProgramMetric.waist}
+                  placeholder="cm"
+                  onChange={(event) =>
+                    updateMetric(currentProgramDate, (metric) => ({
+                      ...metric,
+                      waist: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+            </div>
+            <label className="notes-field hub-checkin-note">
+              Check-in note
+              <textarea
+                value={currentProgramMetric.note}
+                placeholder="Sleep, soreness, photos, hunger, or anything that explains today's number..."
                 onChange={(event) =>
                   updateMetric(currentProgramDate, (metric) => ({
                     ...metric,
-                    weightKg: event.target.value,
+                    note: event.target.value,
                   }))
                 }
               />
@@ -4799,6 +5071,77 @@ export default function Home() {
           </div>
         </section>
 
+        <section className={`hub-weight-panel weight-insight-${weightCoachInsight.tone}`} aria-label="Weight tracker">
+          <div className="section-heading compact">
+            <div>
+              <p className="eyebrow">
+                <Icon name="scale" size={14} /> Weight coach
+              </p>
+              <h2>Weekly averages</h2>
+            </div>
+          </div>
+          <div className="weight-summary-grid">
+            <div>
+              <span>This week</span>
+              <strong>{currentWeightWeek?.average === null || !currentWeightWeek ? "No data" : `${formatLoadValue(currentWeightWeek.average)} kg`}</strong>
+              <small>{currentWeightWeek ? `${currentWeightWeek.loggedDays}/7 mornings logged` : "Start logging today"}</small>
+            </div>
+            <div>
+              <span>Previous week</span>
+              <strong>{previousWeightWeek?.average === null || !previousWeightWeek ? "No data" : `${formatLoadValue(previousWeightWeek.average)} kg`}</strong>
+              <small>{previousWeightWeek ? `${previousWeightWeek.loggedDays}/7 mornings logged` : "Unlocks after Week 1"}</small>
+            </div>
+            <div className="weight-coach-note">
+              <span>Coach read</span>
+              <strong>{weightCoachInsight.headline}</strong>
+              <small>{weightCoachInsight.detail}</small>
+            </div>
+          </div>
+
+          <div className="daily-weight-log">
+            <div className="flow-heading">
+              <h3>Daily Weight Log</h3>
+              <span>Last {hubWeightDays.length} mornings</span>
+            </div>
+            <div className="daily-weight-grid">
+              {hubWeightDays.map((day) => {
+                const metric = normalizeMetricLogShape(store.metrics[day.iso]);
+                const hasWeight = weightKgFromMetric(metric) !== null;
+
+                return (
+                  <label key={day.iso} className={`daily-weight-cell ${hasWeight ? "logged" : ""}`}>
+                    <span>{formatDate(day.iso, "short")}</span>
+                    <small>Day {day.index + 1}</small>
+                    <input
+                      inputMode="decimal"
+                      value={metric.weightKg}
+                      placeholder="kg"
+                      onChange={(event) =>
+                        updateMetric(day.iso, (currentMetric) => ({
+                          ...currentMetric,
+                          weightKg: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="weekly-weight-list">
+            {weightWeekSummaries.slice(0, gymDay.week).map((summary) => (
+              <div key={summary.week} className={summary.loggedDays > 0 ? "logged" : ""}>
+                <span>Week {summary.week}</span>
+                <strong>{summary.average === null ? "No data" : `${formatLoadValue(summary.average)} kg`}</strong>
+                <small>
+                  {formatDate(summary.startIso, "short")} - {formatDate(summary.endIso, "short")} · {summary.loggedDays}/7 logged
+                </small>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className={`metric-panel sync-panel account-card hub-sync ${cloudStatus}`}>
           <div className="sync-heading">
             <div>
@@ -4810,6 +5153,65 @@ export default function Home() {
             <span>{cloudStatus}</span>
           </div>
           <p className="side-copy">{syncCopy}</p>
+
+          {isSupabaseConfigured && session && (
+            <div className="account-row">
+              <span>{session.user.email ?? "Signed in"}</span>
+              <button type="button" onClick={handleSignOut}>
+                Sign out
+              </button>
+            </div>
+          )}
+
+          {isSupabaseConfigured && !session && (
+            <div className="auth-stack">
+              <form className="auth-form password-auth-form" onSubmit={handleSignInWithPassword}>
+                <label>
+                  Email
+                  <input
+                    type="email"
+                    value={authEmail}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    onChange={(event) => setAuthEmail(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Password
+                  <input
+                    type="password"
+                    value={authPassword}
+                    placeholder="At least 8 characters"
+                    autoComplete="current-password"
+                    minLength={8}
+                    onChange={(event) => setAuthPassword(event.target.value)}
+                  />
+                </label>
+                <div className="auth-button-row">
+                  <button type="submit">
+                    <Icon name="user" size={17} /> Sign in
+                  </button>
+                  <button className="secondary" type="button" onClick={handleCreateAccount}>
+                    <Icon name="check" size={17} /> Create account
+                  </button>
+                </div>
+                <p>
+                  Use the same email and password on your iPhone Home Screen app, MacBook, and
+                  any other device.
+                </p>
+              </form>
+            </div>
+          )}
+
+          {!isSupabaseConfigured && (
+            <code className="env-hint">VITE_SUPABASE_URL + VITE_SUPABASE_PUBLISHABLE_KEY</code>
+          )}
+
+          {lastCloudSyncedAt && session && (
+            <p className="sync-message">Last cloud sync: {lastCloudSyncedAt}</p>
+          )}
+          {authMessage && <p className="sync-message">{authMessage}</p>}
+          {cloudError && <p className="sync-message error">{cloudError}</p>}
         </section>
       </main>
     );
@@ -5055,34 +5457,26 @@ export default function Home() {
           </section>
 
           <aside className="diet-side-panel" aria-label="Diet notes and tracking">
-            <section className="diet-side-card weighin-card">
-              <p className="eyebrow">Morning weigh-in</p>
-              <h2>{formatDate(selectedDietDay.iso, "short")}</h2>
-              <label>
-                Weight (kg)
-                <input
-                  inputMode="decimal"
-                  value={selectedDietMetric.weightKg}
-                  placeholder="78.0"
-                  onChange={(event) =>
-                    updateMetric(selectedDietDay.iso, (metric) => ({
-                      ...metric,
-                      weightKg: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <small>Use the 7-day average, not one weigh-in.</small>
-            </section>
-
-            <section className="diet-side-card">
-              <p className="eyebrow">Weekly variety</p>
+            <section className="diet-side-card shopping-list-card">
+              <p className="eyebrow">
+                <Icon name="cart" size={14} /> To buy
+              </p>
               <h2>This week</h2>
-              <div className="diet-variety-list">
-                {dietWeekDiversity.map((item) => (
-                  <div key={item.label} className={item.complete ? "complete" : ""}>
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
+              <p>
+                Preferred warehouse: <a href={costcoWarehouse.url} target="_blank" rel="noreferrer">{costcoWarehouse.name}</a>,
+                {" "}{costcoWarehouse.address}. Check availability before you go.
+              </p>
+              <div className="shopping-list-groups">
+                {dietShoppingGroups.map((group) => (
+                  <div key={group.category} className="shopping-group">
+                    <h3>{group.category}</h3>
+                    {group.items.slice(0, 8).map((item) => (
+                      <div key={`${group.category}-${item.name}`} className="shopping-item">
+                        <strong>{item.name}</strong>
+                        <span>{item.recipeNames.length} meal{item.recipeNames.length === 1 ? "" : "s"}</span>
+                        <small>{item.portions.slice(0, 2).join(" · ")}</small>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
@@ -5589,12 +5983,9 @@ export default function Home() {
                   selectedDayStatus === "finished-with-skips" ? "is-skipped" : ""
                 }`}
                 type="button"
-                disabled={selectedDayStatus === "finished-with-skips"}
+                disabled={selectedDayComplete}
                 onClick={() =>
-                  updateDay(selectedDay.iso, (log) => ({
-                    ...log,
-                    completed: !selectedDayComplete,
-                  }))
+                  updateDay(selectedDay.iso, (log) => completePlanDay(selectedDay, log))
                 }
               >
                 {selectedCompletionButtonLabel}
@@ -5761,78 +6152,6 @@ export default function Home() {
         </section>
 
         <aside className="side-panel" aria-label="Progress and check-ins">
-          <section className={`metric-panel sync-panel account-card ${cloudStatus}`}>
-            <div className="sync-heading">
-              <div>
-                <p className="eyebrow">
-                  <Icon name="cloud" size={14} /> Cloud sync
-                </p>
-                <h2>{syncHeadline}</h2>
-              </div>
-              <span>{cloudStatus}</span>
-            </div>
-            <p className="side-copy">{syncCopy}</p>
-
-            {isSupabaseConfigured && session && (
-              <div className="account-row">
-                <span>{session.user.email ?? "Signed in"}</span>
-                <button type="button" onClick={handleSignOut}>
-                  Sign out
-                </button>
-              </div>
-            )}
-
-            {isSupabaseConfigured && !session && (
-              <div className="auth-stack">
-                <form className="auth-form password-auth-form" onSubmit={handleSignInWithPassword}>
-                  <label>
-                    Email
-                    <input
-                      type="email"
-                      value={authEmail}
-                      placeholder="you@example.com"
-                      autoComplete="email"
-                      onChange={(event) => setAuthEmail(event.target.value)}
-                    />
-                  </label>
-                  <label>
-                    Password
-                    <input
-                      type="password"
-                      value={authPassword}
-                      placeholder="At least 8 characters"
-                      autoComplete="current-password"
-                      minLength={8}
-                      onChange={(event) => setAuthPassword(event.target.value)}
-                    />
-                  </label>
-                  <div className="auth-button-row">
-                    <button type="submit">
-                      <Icon name="user" size={17} /> Sign in
-                    </button>
-                    <button className="secondary" type="button" onClick={handleCreateAccount}>
-                      <Icon name="check" size={17} /> Create account
-                    </button>
-                  </div>
-                  <p>
-                    Use the same email and password on your iPhone Home Screen app, MacBook, and
-                    any other device.
-                  </p>
-                </form>
-              </div>
-            )}
-
-            {!isSupabaseConfigured && (
-              <code className="env-hint">VITE_SUPABASE_URL + VITE_SUPABASE_PUBLISHABLE_KEY</code>
-            )}
-
-            {lastCloudSyncedAt && session && (
-              <p className="sync-message">Last cloud sync: {lastCloudSyncedAt}</p>
-            )}
-            {authMessage && <p className="sync-message">{authMessage}</p>}
-            {cloudError && <p className="sync-message error">{cloudError}</p>}
-          </section>
-
           <section className="metric-panel progress-card">
             <div className="section-heading compact">
               <div>
@@ -5980,54 +6299,6 @@ export default function Home() {
                 <p className="side-copy">Completed workouts will appear here.</p>
               )}
             </div>
-          </section>
-
-          <section className="metric-panel progress-card checkin-card">
-            <p className="eyebrow">Body check-in</p>
-            <h2>{formatDate(selectedDay.iso, "short")}</h2>
-            <div className="foundation-grid two">
-              <label>
-                Morning weight (kg)
-                <input
-                  inputMode="decimal"
-                  value={selectedMetric.weightKg}
-                  placeholder="78.0"
-                  onChange={(event) =>
-                    updateMetric(selectedDay.iso, (metric) => ({
-                      ...metric,
-                      weightKg: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-              <label>
-                Waist
-                <input
-                  inputMode="decimal"
-                  value={selectedMetric.waist}
-                  placeholder="cm"
-                  onChange={(event) =>
-                    updateMetric(selectedDay.iso, (metric) => ({
-                      ...metric,
-                      waist: event.target.value,
-                    }))
-                  }
-                />
-              </label>
-            </div>
-            <label className="notes-field">
-              Check-in note
-              <textarea
-                value={selectedMetric.note}
-                placeholder="Lighting, photos, waist location, weekly average..."
-                onChange={(event) =>
-                  updateMetric(selectedDay.iso, (metric) => ({
-                    ...metric,
-                    note: event.target.value,
-                  }))
-                }
-              />
-            </label>
           </section>
         </aside>
       </div>

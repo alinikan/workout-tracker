@@ -119,6 +119,7 @@ test("includes researched movement resources and autosave controls", async () =>
     "setGymExerciseSwap",
     "withAutomaticDayCompletion",
     "isPlanDayComplete",
+    "completePlanDay",
     "firstUnfinishedMoveIndex",
     "nextUnfinishedMoveIndex",
     "currentGymTracksWeight",
@@ -186,6 +187,8 @@ test("includes PDF-based diet tracker with meal swaps and kg weigh-ins", async (
     "Choose Your Tracker",
     "Recomp Diet Console",
     "Diet tracker",
+    "Blue training",
+    "Green nutrition",
     "Breakfast",
     "Lunch",
     "Snack",
@@ -200,7 +203,6 @@ test("includes PDF-based diet tracker with meal swaps and kg weigh-ins", async (
     "Turkey Bean Chili",
     "Tofu Lentil Curry",
     "Morning weight (kg)",
-    "Weight (kg)",
     "dietTargets",
     "~2,050 kcal",
     "150-165 g protein",
@@ -212,17 +214,22 @@ test("includes PDF-based diet tracker with meal swaps and kg weigh-ins", async (
     "activeDietRecipeFor",
     "dietSwapOptionsFor",
     "withAutomaticDietCompletion",
+    "shoppingItemsForRecipes",
+    "shoppingIngredientFor",
+    "Costco Port Coquitlam",
+    "2370 Ottawa St",
+    "To buy",
     "updateDietDay",
     "toggleDietMeal",
     "setDietSwap",
-    "Weekly variety",
-    "Fruit days",
-    "Fatty fish",
-    "Legumes",
-    "Oats/grains",
     "Scenario help",
     "Mark eaten",
     "Use original",
+    "Weight coach",
+    "Daily Weight Log",
+    "Weekly averages",
+    "weightComparisonInsight",
+    "weightWeekSummary",
   ]) {
     assert.match(app, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
@@ -237,7 +244,9 @@ test("includes PDF-based diet tracker with meal swaps and kg weigh-ins", async (
     "diet-swap-panel",
     "diet-week-strip",
     "diet-bottom-bar",
-    "weighin-card",
+    "hub-weight-panel",
+    "daily-weight-grid",
+    "shopping-list-card",
   ]) {
     assert.match(styles, new RegExp(requiredStyle));
   }
@@ -245,7 +254,9 @@ test("includes PDF-based diet tracker with meal swaps and kg weigh-ins", async (
   assert.match(readme, /Using the Diet Tracker/);
   assert.match(readme, /Diet Plan PDF/);
   assert.match(readme, /morning weight in kg/);
+  assert.match(readme, /Costco Port Coquitlam/);
   assert.doesNotMatch(app, /Body weight \(lbs\)/);
+  assert.doesNotMatch(app, /Weekly variety|Fruit days|Fatty fish|Oats\/grains/);
 });
 
 test("extends the PDF progression to roughly 6 months", async () => {
@@ -415,6 +426,8 @@ test("includes installable app assets", async () => {
   assert.match(styles, /mini-check input:checked \+ span::after/);
   assert.match(styles, /section-today\.app-shell/);
   assert.match(styles, /section-gym\.app-shell/);
+  assert.match(styles, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /content: "Done"/);
   assert.match(styles, /overflow-x: clip/);
   assert.match(styles, /overscroll-behavior-x: contain/);
   assert.match(styles, /scroll-margin-bottom/);
@@ -426,13 +439,14 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v17/);
-  assert.match(serviceWorker, /diet-tracker-v17/);
+  assert.match(serviceWorker, /recomp-gym-console-v18/);
+  assert.match(serviceWorker, /coach-hub-weight-v18/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
   assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
+  assert.doesNotMatch(serviceWorker, /diet-tracker-v17/);
   assert.doesNotMatch(serviceWorker, /lower-machine-accessories-v16/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v15/);
 });
