@@ -204,6 +204,13 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "Chicken Rice Bowl",
     "Cottage Cheese and Banana",
     "Salmon Potato Plate",
+    "Greek Yogurt Oat Pear Bowl",
+    "Tuna Quinoa Cucumber Bowl",
+    "Chicken Quinoa Veg Bowl",
+    "Chicken Tomato Rice Bowl",
+    "After-Work Yogurt Banana Toast",
+    "Chicken Sandwich and Fruit",
+    "Egg Quinoa Veg Bowl",
     "Tuna Chickpea Quinoa Bowl",
     "Turkey Lentil Rice Bowl",
     "Tofu Edamame Stir-Fry",
@@ -214,6 +221,9 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "~2,050 kcal",
     "150-165 g protein",
     "25-40 g lifting-carb dose",
+    "60-120 minutes before the gym",
+    "afterWorkGymFuelForDay",
+    "If dizziness starts",
     "dietRecipes",
     "weeklyDietMealMap",
     "dietDayTypeForPlanDay",
@@ -231,6 +241,8 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "toggleDietMeal",
     "setDietSwap",
     "Scenario help",
+    "Fuel timing",
+    "After-work gym fuel",
     "Mark eaten",
     "Use original",
     "Weight coach",
@@ -242,6 +254,22 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "weightWeekSummary",
   ]) {
     assert.match(app, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+
+  const weeklyMealMap = app.match(
+    /const weeklyDietMealMap:[\s\S]*?};\n\nconst weeklySchedule/,
+  )?.[0] ?? "";
+  for (const swapOnlyRecipe of [
+    "tuna-chickpea-quinoa",
+    "turkey-lentil-rice",
+    "yogurt-rice-cakes",
+    "yogurt-muesli-pear",
+    "turkey-sandwich-fruit",
+    "turkey-bean-chili-lunch",
+    "egg-lentil-quinoa",
+    "tofu-lentil-curry",
+  ]) {
+    assert.doesNotMatch(weeklyMealMap, new RegExp(swapOnlyRecipe));
   }
 
   for (const requiredStyle of [
@@ -258,6 +286,9 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "slot-snack",
     "slot-dinner",
     "diet-swap-panel",
+    "preworkout-fuel-card",
+    "fuel-step-list",
+    "fuel-caution",
     "diet-week-strip",
     "diet-bottom-bar",
     "hub-weight-panel",
@@ -288,6 +319,8 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
 
   assert.match(readme, /Diet Features/);
   assert.match(readme, /built-in fat-loss diet plan/);
+  assert.match(readme, /Preference-aware defaults/);
+  assert.match(readme, /After-Work Training Fuel/);
   assert.match(readme, /Morning weight in kg/);
   assert.match(readme, /store-neutral ingredient list/);
   assert.match(readme, /npm run dev -- --port 3001/);
@@ -478,13 +511,14 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v22/);
-  assert.match(serviceWorker, /color-coded-diet-tab-v22/);
+  assert.match(serviceWorker, /recomp-gym-console-v23/);
+  assert.match(serviceWorker, /after-work-fuel-diet-defaults-v23/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
   assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
+  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v22/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v21/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v20/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v19/);

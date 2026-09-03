@@ -34,6 +34,7 @@
 - [Supabase Cloud Sync](#supabase-cloud-sync)
 - [WorkoutX GIF Setup](#workoutx-gif-setup)
 - [Install On iPhone](#install-on-iphone)
+- [After-Work Training Fuel](#after-work-training-fuel)
 - [Deploy To Vercel](#deploy-to-vercel)
 - [GitHub Workflow](#github-workflow)
 - [Useful Commands](#useful-commands)
@@ -119,7 +120,9 @@ That means the interface favors:
 | Prep instructions | Short steps explain how to make each meal without overloading the screen. |
 | Plate portions | Shows what to actually put on the plate after cooking. |
 | Timing labels | Uses practical labels like Morning, Midday, Before workout, and After workout. |
+| After-work gym fuel | Strength days explain what to eat 60-120 minutes before a typical 5pm+ workout. |
 | Meal swaps | Swap within the same meal category for variety while keeping the plan aligned. |
+| Preference-aware defaults | Beans, chickpeas, turkey, rice cakes, and muesli stay available as swaps but are not default meals. |
 | To-buy list | Builds a store-neutral ingredient list from the selected week and active swaps. |
 | Completion tracking | Each meal can be marked eaten; full days show clearly when complete. |
 
@@ -174,6 +177,7 @@ It includes:
 - Short prep instructions.
 - Macro targets.
 - Meal timing chips.
+- After-work pre-workout fueling guidance.
 - Same-category swaps.
 - Weekly to-buy list.
 - A notes field for hunger, digestion, swaps, or meal prep reminders.
@@ -203,6 +207,10 @@ Nutrition uses calorie cycling by day type:
 | Strength day | About 2,050 kcal, 150-165 g protein, more carbs around lifting. |
 | Cardio day | About 1,950 kcal, 150-165 g protein, moderate measured carbs. |
 | Recovery day | About 1,850 kcal, 150-165 g protein, slightly lower starch portions. |
+
+The default grocery pattern favors easy repeat purchases: Greek yogurt, cottage cheese, eggs, egg whites, chicken, tuna, salmon, white fish, tofu, oats, rice, quinoa, potatoes, fruit, and vegetables. Beans, chickpeas, turkey, rice cakes, and muesli remain in the recipe library as optional swap choices, but they are no longer default meals.
+
+For users who train after work, strength-day snacks are treated as the pre-workout fuel window. The app recommends eating the planned snack about 60-120 minutes before lifting and keeping lunch complete earlier in the day so the gym session does not start under-fueled.
 
 ---
 
@@ -472,6 +480,27 @@ https://ali-workout.vercel.app
 
 > [!NOTE]
 > Safari and Home Screen web apps can have separate login storage on iPhone. Sign in inside the Home Screen app itself if you want that installed app to sync.
+
+---
+
+## After-Work Training Fuel
+
+The app assumes many users may lift after work, often after 5pm. On strength days, the snack card is used as the main pre-workout fuel reminder.
+
+Recommended flow:
+
+| When | What To Do |
+| --- | --- |
+| Midday | Eat the planned lunch 3-4 hours before training when possible. |
+| 60-120 minutes pre-gym | Eat the planned snack, usually a carb-plus-protein option such as yogurt with banana and toast, cottage cheese with banana, yogurt oats, or a shake meal. |
+| 2-3 hours pre-gym | Drink roughly 2-3 cups of water across this window. |
+| During training | Sip water and stop if dizziness starts. |
+| After training | Eat the planned dinner as the post-workout meal. |
+
+The default pre-workout snacks avoid relying on rice cakes. Rice cakes remain available as a swap, but the main plan now favors easier grocery staples such as banana, oats, toast, yogurt, cottage cheese, and whey.
+
+> [!WARNING]
+> Feeling like you might faint during training is a stop signal. Sit or lie down, breathe slowly, sip water, and end hard sets for the day. If you actually faint, feel chest pain, notice a pounding or irregular heartbeat, have unusual shortness of breath, or this happens again, get medical care.
 
 ---
 
@@ -757,6 +786,10 @@ Exercise cues and resource links are based on reputable public training referenc
 - [PureGym Exercise Guides](https://www.puregym.com/exercises/)
 - [NSCA Dynamic Warm-Up Guide](https://www.nsca.com/education/articles/kinetic-select/introduction-to-dynamic-warm-up/)
 - [CDC Physical Activity Guidance](https://www.cdc.gov/physical-activity-basics/guidelines/adults.html)
+- [Mayo Clinic: Eating and Exercise](https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/exercise/art-20045506)
+- [Academy of Nutrition and Dietetics: Timing Your Pre- and Post-Workout Nutrition](https://www.eatright.org/fitness/physical-activity/exercise-nutrition/timing-your-pre-and-post-workout-nutrition)
+- [MedlinePlus: Fainting](https://medlineplus.gov/fainting.html)
+- [MyPlate: Protein Foods](https://www.myplate.gov/web/web/eat-healthy/protein-foods)
 - [Supabase Documentation](https://supabase.com/docs)
 - [Vercel Documentation](https://vercel.com/docs)
 

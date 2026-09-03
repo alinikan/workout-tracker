@@ -1817,6 +1817,19 @@ const dietRecipes: DietRecipe[] = [
     plate: ["One bowl", "Check muesli added sugar", "Keep fruit to one serving"],
   },
   {
+    id: "yogurt-oat-pear",
+    slot: "breakfast",
+    title: "Greek Yogurt Oat Pear Bowl",
+    shortTitle: "Yogurt oat pear",
+    photo: foodPhoto("photo-1488477181946-6428a0291777"),
+    calories: "~430 kcal",
+    protein: "~37-40 g",
+    tags: ["fruit", "oats", "no cook", "easy groceries"],
+    ingredients: ["300 g Greek yogurt", "45 g oats", "1 kiwi or pear", "Cinnamon (optional)"],
+    prep: ["Spoon yogurt into a bowl.", "Stir in oats, then add sliced fruit and optional cinnamon."],
+    plate: ["One bowl", "45 g oats", "One fruit serving"],
+  },
+  {
     id: "egg-potato-citrus",
     slot: "breakfast",
     title: "Egg and Potato Plate",
@@ -1854,6 +1867,32 @@ const dietRecipes: DietRecipe[] = [
     ingredients: ["100 g cooked chicken", "150-180 g cooked rice", "180-220 g mixed vegetables", "5-10 g olive oil (optional; use spray to save calories)", "Salsa (optional; choose a low-sugar salsa)"],
     prep: ["Warm chicken, rice, and vegetables.", "Add optional salsa and use measured olive oil only if planned."],
     plate: ["100 g chicken", "150-180 g cooked rice", "About 200 g vegetables"],
+  },
+  {
+    id: "chicken-quinoa-veg-bowl",
+    slot: "lunch",
+    title: "Chicken Quinoa Veg Bowl",
+    shortTitle: "Chicken quinoa",
+    photo: foodPhoto("photo-1546069901-ba9599a7e63c"),
+    calories: "~520 kcal",
+    protein: "~40-43 g",
+    tags: ["lean protein", "whole grain", "vegetables", "easy groceries"],
+    ingredients: ["115 g cooked chicken", "140 g cooked quinoa", "200 g vegetables", "Yogurt sauce (optional; keep it light)"],
+    prep: ["Warm chicken, quinoa, and vegetables.", "Finish with optional light yogurt sauce."],
+    plate: ["115 g chicken", "140 g quinoa", "200 g vegetables"],
+  },
+  {
+    id: "tuna-quinoa-cucumber-bowl",
+    slot: "lunch",
+    title: "Tuna Quinoa Cucumber Bowl",
+    shortTitle: "Tuna quinoa",
+    photo: foodPhoto("photo-1547496502-affa22d38842"),
+    calories: "~490 kcal",
+    protein: "~39-42 g",
+    tags: ["lean protein", "whole grain", "no cook", "vegetables"],
+    ingredients: ["100 g light tuna", "150 g cooked quinoa", "200 g cucumber and salad vegetables", "5 g olive oil (optional; use lemon or vinegar to save calories)"],
+    prep: ["Drain tuna and add it to a bowl.", "Toss with quinoa, cucumber, salad vegetables, and optional measured oil."],
+    plate: ["100 g tuna", "150 g quinoa", "200 g vegetables"],
   },
   {
     id: "turkey-lentil-rice",
@@ -1921,6 +1960,19 @@ const dietRecipes: DietRecipe[] = [
     plate: ["2 eggs", "150 g lentils", "100 g quinoa", "200 g vegetables"],
   },
   {
+    id: "egg-quinoa-veg-bowl",
+    slot: "lunch",
+    title: "Egg Quinoa Veg Bowl",
+    shortTitle: "Egg quinoa",
+    photo: foodPhoto("photo-1511690656952-34342bb7c2f2"),
+    calories: "~520 kcal",
+    protein: "~38-41 g",
+    tags: ["eggs", "whole grain", "vegetables", "easy groceries"],
+    ingredients: ["2 eggs", "200 g egg whites", "130 g cooked quinoa", "200 g vegetables", "30 g feta (optional; skip to save calories)"],
+    prep: ["Warm quinoa and vegetables.", "Cook eggs and egg whites, then plate with optional measured feta."],
+    plate: ["2 eggs plus whites", "130 g quinoa", "200 g vegetables"],
+  },
+  {
     id: "turkey-bean-chili-lunch",
     slot: "lunch",
     title: "Turkey Bean Chili Bowl",
@@ -1932,6 +1984,19 @@ const dietRecipes: DietRecipe[] = [
     ingredients: ["90 g cooked extra-lean turkey", "140 g kidney or black beans", "180 g tomatoes and peppers", "100 g cooked rice"],
     prep: ["Simmer turkey, beans, tomatoes, and peppers.", "Serve with measured rice."],
     plate: ["90 g turkey", "140 g beans", "100 g rice", "180 g vegetables"],
+  },
+  {
+    id: "chicken-tomato-rice-bowl",
+    slot: "lunch",
+    title: "Chicken Tomato Rice Bowl",
+    shortTitle: "Chicken tomato rice",
+    photo: foodPhoto("photo-1512621776951-a57141f2eefd"),
+    calories: "~540 kcal",
+    protein: "~40-43 g",
+    tags: ["lean protein", "rice", "vegetables", "meal prep"],
+    ingredients: ["120 g cooked chicken", "150 g cooked rice", "200 g tomatoes and peppers", "Salsa (optional; choose a low-sugar salsa)"],
+    prep: ["Warm chicken, rice, tomatoes, and peppers.", "Add optional salsa for flavor."],
+    plate: ["120 g chicken", "150 g rice", "200 g vegetables"],
   },
   {
     id: "cottage-banana",
@@ -1960,6 +2025,19 @@ const dietRecipes: DietRecipe[] = [
     plate: ["250 g yogurt", "2 rice cakes", "15 g jam only if planned"],
   },
   {
+    id: "after-work-yogurt-banana-toast",
+    slot: "snack",
+    title: "After-Work Yogurt Banana Toast",
+    shortTitle: "Yogurt banana toast",
+    photo: foodPhoto("photo-1494597564530-871f2b93ac55"),
+    calories: "~380-430 kcal",
+    protein: "~31-35 g",
+    tags: ["fruit", "lifting carb", "pre-workout", "easy groceries"],
+    ingredients: ["250 g Greek yogurt", "1 banana", "1 slice whole-grain bread", "10 g jam (optional; skip to save calories)"],
+    prep: ["Eat yogurt with the banana.", "Toast the bread and add optional measured jam if you need extra quick carbs."],
+    plate: ["250 g yogurt", "1 banana", "1 slice toast", "10 g jam only if planned"],
+  },
+  {
     id: "yogurt-oats-bowl",
     slot: "snack",
     title: "Greek Yogurt Oats Bowl",
@@ -1984,6 +2062,19 @@ const dietRecipes: DietRecipe[] = [
     ingredients: ["100 g turkey slices", "2 slices whole-grain bread", "Mustard (optional)", "1 orange or apple"],
     prep: ["Build sandwich with turkey and optional mustard.", "Eat fruit on the side."],
     plate: ["One sandwich", "100 g turkey", "One fruit serving"],
+  },
+  {
+    id: "chicken-sandwich-fruit",
+    slot: "snack",
+    title: "Chicken Sandwich and Fruit",
+    shortTitle: "Chicken sandwich",
+    photo: foodPhoto("photo-1528735602780-2552fd46c7af"),
+    calories: "~420 kcal",
+    protein: "~36-40 g",
+    tags: ["fruit", "whole grain", "portable", "lifting carb"],
+    ingredients: ["100 g cooked chicken", "2 slices whole-grain bread", "Mustard (optional)", "1 orange or apple"],
+    prep: ["Build sandwich with chicken and optional mustard.", "Eat fruit on the side."],
+    plate: ["One sandwich", "100 g chicken", "One fruit serving"],
   },
   {
     id: "savoury-tuna-plate",
@@ -2157,20 +2248,20 @@ const weeklyDietMealMap: Record<PlanWeekday, Record<DietMealSlot, string>> = {
   },
   Tuesday: {
     breakfast: "egg-wrap-orange",
-    lunch: "tuna-chickpea-quinoa",
+    lunch: "tuna-quinoa-cucumber-bowl",
     snack: "yogurt-oats-bowl",
     dinner: "chicken-potato-apple",
   },
   Wednesday: {
     breakfast: "cottage-bowl-kiwi",
-    lunch: "turkey-lentil-rice",
-    snack: "yogurt-rice-cakes",
+    lunch: "chicken-quinoa-veg-bowl",
+    snack: "after-work-yogurt-banana-toast",
     dinner: "beef-whole-grain-pasta",
   },
   Thursday: {
-    breakfast: "yogurt-muesli-pear",
+    breakfast: "yogurt-oat-pear",
     lunch: "tofu-edamame-stir-fry",
-    snack: "turkey-sandwich-fruit",
+    snack: "chicken-sandwich-fruit",
     dinner: "white-fish-plate",
   },
   Friday: {
@@ -2181,15 +2272,15 @@ const weeklyDietMealMap: Record<PlanWeekday, Record<DietMealSlot, string>> = {
   },
   Saturday: {
     breakfast: "egg-potato-citrus",
-    lunch: "turkey-bean-chili-lunch",
+    lunch: "chicken-tomato-rice-bowl",
     snack: "greek-yogurt-melon",
     dinner: "chicken-sweet-potato",
   },
   Sunday: {
     breakfast: "yogurt-bowl-kiwi",
-    lunch: "egg-lentil-quinoa",
+    lunch: "egg-quinoa-veg-bowl",
     snack: "cottage-apple",
-    dinner: "tofu-lentil-curry",
+    dinner: "egg-fried-rice",
   },
 };
 
@@ -2845,23 +2936,93 @@ function dietSlotLabel(slot: DietMealSlot) {
 
 function dietTimingForSlot(planDay: PlanDay, slot: DietMealSlot) {
   if (slot === "breakfast") return "Morning";
-  if (slot === "lunch") return "Midday";
-  if (slot === "dinner") {
-    return planDay.session.type === "strength" ? "After workout / evening" : "Evening";
+  if (slot === "lunch") {
+    return planDay.session.type === "strength" ? "Midday · 3-4 hr pre-gym" : "Midday";
   }
-  if (planDay.session.type === "strength") return "Before workout / afternoon";
-  if (planDay.session.type === "cardio") return "Around cardio or afternoon";
+  if (slot === "dinner") {
+    return planDay.session.type === "strength" ? "Post-workout evening" : "Evening";
+  }
+  if (planDay.session.type === "strength") return "After work · 60-120 min pre-gym";
+  if (planDay.session.type === "cardio") return "60-120 min pre-cardio if hungry";
   return "Afternoon";
 }
 
 function dietCoachNoteForDay(planDay: PlanDay) {
   if (planDay.session.type === "strength") {
-    return "Use the snack as your 25-40 g lifting-carb dose if you train later. If you lift in the morning, move the banana/rice cakes before training and eat breakfast afterward.";
+    return "After-work lifting day: keep lunch complete, then eat the snack 60-120 minutes before the gym for your 25-40 g lifting-carb dose. Bring water and do not push through dizziness.";
   }
   if (planDay.session.type === "cardio") {
-    return "Keep normal measured carbs and hydrate around the treadmill work. No need to eat back machine calories.";
+    return "Keep normal measured carbs and hydrate around the treadmill work. If cardio is after work and you feel under-fueled, use the snack 60-120 minutes before you start.";
   }
   return "Keep protein stable, use slightly lower starch portions, and let this be an easier nutrition day.";
+}
+
+function afterWorkGymFuelForDay(planDay: PlanDay, snackRecipe: DietRecipe) {
+  if (planDay.session.type === "strength") {
+    return {
+      title: "After-work gym fuel",
+      label: "5pm+ lifting",
+      steps: [
+        {
+          label: "Lunch",
+          detail: "Eat the full lunch 3-4 hours before training when possible.",
+        },
+        {
+          label: "Snack",
+          detail: `Eat ${snackRecipe.shortTitle} 60-120 minutes before lifting.`,
+        },
+        {
+          label: "Hydration",
+          detail: "Drink 2-3 cups of water across the 2-3 hours before the gym, then sip during sets.",
+        },
+      ],
+      caution:
+        "If dizziness starts, stop the set, sit or lie down, breathe slowly, sip water, and do not restart hard sets that day. If you actually faint, have chest pain, feel an irregular heartbeat, or this repeats, get medical care.",
+    };
+  }
+
+  if (planDay.session.type === "cardio") {
+    return {
+      title: "Cardio fuel check",
+      label: "Steady energy",
+      steps: [
+        {
+          label: "Before",
+          detail: "If lunch was early or light, eat the snack 60-120 minutes before cardio.",
+        },
+        {
+          label: "Hydration",
+          detail: "Bring water and keep the pace at talk-test intensity.",
+        },
+        {
+          label: "During",
+          detail: "Slow down if you feel lightheaded; do not chase the treadmill number.",
+        },
+      ],
+      caution:
+        "If you feel faint, stop, sit down, hydrate, and end the hard part for the day. Repeated dizziness deserves medical follow-up.",
+    };
+  }
+
+  return {
+    title: "Recovery fuel check",
+    label: "Easy day",
+    steps: [
+      {
+        label: "Protein",
+        detail: "Keep protein steady even when calories are lower.",
+      },
+      {
+        label: "Carbs",
+        detail: "Use the planned snack if a walk or busy workday leaves you flat.",
+      },
+      {
+        label: "Hydration",
+        detail: "Drink normally through the day and avoid starting activity dehydrated.",
+      },
+    ],
+    caution: "Recovery days should feel easy. Lightheadedness is a stop signal, not a challenge.",
+  };
 }
 
 function baseDietRecipeFor(planDay: PlanDay, slot: DietMealSlot) {
@@ -4162,6 +4323,9 @@ export default function Home() {
       swaps: dietSwapOptionsFor(slot.id, activeRecipe.id),
     };
   });
+  const selectedDietSnack =
+    dietMealRows.find((meal) => meal.slot === "snack")?.recipe ?? baseDietRecipeFor(selectedDietDay, "snack");
+  const afterWorkGymFuel = afterWorkGymFuelForDay(selectedDietDay, selectedDietSnack);
   const dietCompletedMealCount = dietMealRows.filter((meal) => meal.isComplete).length;
   const dietCompletionPercent = Math.round((dietCompletedMealCount / dietMealRows.length) * 100);
   const dietDayComplete = dietCompletedMealCount === dietMealRows.length;
@@ -5439,6 +5603,25 @@ export default function Home() {
           </section>
 
           <aside className="diet-side-panel" aria-label="Diet notes and tracking">
+            <section className="diet-side-card preworkout-fuel-card">
+              <p className="eyebrow">
+                <Icon name="activity" size={14} /> Fuel timing
+              </p>
+              <div className="flow-heading">
+                <h2>{afterWorkGymFuel.title}</h2>
+                <span>{afterWorkGymFuel.label}</span>
+              </div>
+              <div className="fuel-step-list">
+                {afterWorkGymFuel.steps.map((step) => (
+                  <div key={step.label}>
+                    <strong>{step.label}</strong>
+                    <span>{step.detail}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="fuel-caution">{afterWorkGymFuel.caution}</p>
+            </section>
+
             <section className="diet-side-card shopping-list-card">
               <p className="eyebrow">
                 <Icon name="cart" size={14} /> To buy
@@ -5467,7 +5650,7 @@ export default function Home() {
               <div className="scenario-list">
                 <div>
                   <strong>Need lifting fuel</strong>
-                  <span>Use cottage banana, yogurt rice cakes, turkey sandwich, or shake meal.</span>
+                  <span>Use cottage banana, yogurt banana toast, yogurt oats, or shake meal.</span>
                 </div>
                 <div>
                   <strong>No cooked protein</strong>
@@ -5475,7 +5658,7 @@ export default function Home() {
                 </div>
                 <div>
                   <strong>Sensitive stomach</strong>
-                  <span>Choose banana, rice cakes, toast, or lower-fibre meals near training.</span>
+                  <span>Choose banana, toast, yogurt, or lower-fibre meals near training.</span>
                 </div>
               </div>
             </section>
