@@ -117,7 +117,7 @@ That means the interface favors:
 | Color-coded meals | Breakfast, lunch, snack, and dinner each have their own visual identity. |
 | Day type targets | Strength, Cardio, and Recovery days use different calorie and macro targets. |
 | Recipe photos | Each meal has a visual recipe card. |
-| Expandable Make It guide | Meal cards stay clean, but the Make It button opens beginner-friendly cooking steps for that exact recipe. |
+| Expandable Make It guide | Meal cards stay clean, but the Make It button opens actual step-by-step instructions for that exact food. |
 | Plate portions | Shows what to actually put on the plate after cooking. |
 | Timing labels | Uses practical labels like Morning, Midday, Before workout, and After workout. |
 | After-work gym fuel | Strength days explain what to eat 60-120 minutes before a typical 5pm+ workout. |
@@ -132,6 +132,8 @@ That means the interface favors:
 | --- | --- |
 | Morning weight in kg | Daily weigh-ins live in Coach Hub. |
 | Weekly averages | Compares week-to-week averages once there is enough data. |
+| Weight trend chart | Shows the latest logged weights as a visual line chart with high, low, and window change. |
+| Expandable history | Recent daily weight inputs and weekly average history are tucked behind expandable panels to avoid a 182-day wall of data. |
 | Missing data awareness | If some mornings are not logged, the app calculates from logged days and tells the user. |
 | Workout achievements | Tracks consistency, completed sets, cardio minutes, strength days, skipped work, and best logged loads. |
 | Automatic saving | Saves locally first, then syncs to Supabase when signed in. |
@@ -149,7 +151,8 @@ Use Coach Hub to:
 - Sign in or create an account.
 - Check sync status.
 - Log morning body weight in kg.
-- Review daily weight entries.
+- Review the weight trend chart.
+- Expand recent daily weight entries only when editing older mornings.
 - Compare weekly weight averages.
 - Enter Workout or Diet mode.
 
@@ -174,7 +177,7 @@ It includes:
 - Four meals per day.
 - Recipe photos.
 - Exact plate portions.
-- Expandable beginner cooking instructions behind each Make It button.
+- Expandable recipe-specific cooking instructions behind each Make It button.
 - Macro targets.
 - Meal timing chips.
 - After-work pre-workout fueling guidance.
@@ -210,7 +213,9 @@ Nutrition uses calorie cycling by day type:
 
 The default grocery pattern favors easy repeat purchases: Greek yogurt, cottage cheese, eggs, egg whites, chicken, tuna, salmon, white fish, tofu, oats, rice, quinoa, potatoes, fruit, and vegetables. Beans, chickpeas, turkey, rice cakes, and muesli remain in the recipe library as optional swap choices, but they are no longer default meals.
 
-Each recipe has a compact card for quick gym-day scanning and an expandable Make It guide for cooking. The guide is written for beginners: it starts with setup, weighing, washing produce, safe handling, exact cooking cues, plating, optional calorie-saving ingredients, and leftover storage. This keeps the Diet page tidy while still making the cooking instructions detailed enough to follow from zero experience.
+Each recipe has a compact card for quick gym-day scanning and an expandable Make It guide for cooking. The guide skips repeated generic setup text and explains the actual food steps for that recipe, such as mixing a yogurt bowl, toasting a pre-workout snack, warming chicken and grains, cooking eggs, or plating fish with potatoes and vegetables.
+
+Coach Hub keeps weight tracking compact. The main view shows weekly averages, a recent weight trend graph, a motivating coach note, and only expands the daily log when the user wants to edit recent mornings. Weekly history shows the latest weeks first so the dashboard stays useful across the full 182-day program.
 
 For users who train after work, strength-day snacks are treated as the pre-workout fuel window. The app recommends eating the planned snack about 60-120 minutes before lifting and keeping lunch complete earlier in the day so the gym session does not start under-fueled.
 

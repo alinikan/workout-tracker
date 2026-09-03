@@ -83,6 +83,13 @@ type WeightWeekSummary = {
   average: number | null;
 };
 
+type WeightEntry = {
+  date: string;
+  dayNumber: number;
+  weight: number;
+  note: string;
+};
+
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   const commonProps = {
     width: size,
@@ -2234,143 +2241,263 @@ const dietRecipes: DietRecipe[] = [
   },
 ];
 
-function recipeHas(recipe: DietRecipe, terms: string[]) {
-  const searchableText = [
-    recipe.title,
-    recipe.shortTitle,
-    ...recipe.tags,
-    ...recipe.ingredients,
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  return terms.some((term) => searchableText.includes(term));
-}
+const recipeHowToSteps: Record<string, string[]> = {
+  "oats-yogurt-berries": [
+    "Add 200 g Greek yogurt to a bowl.",
+    "Stir in 15 g whey until the yogurt looks smooth and there are no dry powder pockets.",
+    "Add 50 g oats and mix again. If it feels too thick, stir in 1-2 tbsp cold water.",
+    "Fold in 100 g berries. Add 10 g chia only if you want the higher-calorie, thicker version.",
+    "Eat right away for chewy oats, or cover and refrigerate overnight for a softer bowl.",
+  ],
+  "egg-wrap-orange": [
+    "Slice the peppers or spinach into small pieces so they cook quickly.",
+    "Heat a nonstick pan on medium, add spray or a tiny measured amount of oil, then cook the vegetables for 2-3 minutes.",
+    "Whisk 2 eggs with 150 g egg whites in a bowl, pour them into the pan, and stir slowly until the eggs are fully set.",
+    "Warm the whole-wheat wrap for 15-20 seconds, then place the cooked eggs in the center.",
+    "Add salsa if using it, fold the sides in, roll the wrap tightly, and eat the orange on the side.",
+  ],
+  "cottage-bowl-kiwi": [
+    "Add 250 g cottage cheese to a bowl.",
+    "Stir in 40 g oats until they are evenly mixed through the cottage cheese.",
+    "Dice the apple or kiwi into small bite-size pieces.",
+    "Add the fruit on top and sprinkle cinnamon if you want more sweetness without extra calories.",
+    "Let it sit for 5 minutes if you want the oats softer, or eat it immediately.",
+  ],
+  "yogurt-muesli-pear": [
+    "Spoon 300 g Greek yogurt into a bowl.",
+    "Add 45 g unsweetened whole-grain muesli and stir until every spoonful has yogurt and grains.",
+    "Slice the kiwi or pear thinly so it spreads across the whole bowl.",
+    "Place the fruit on top and let the bowl sit for 3-5 minutes if you want the grains softer.",
+    "Keep the fruit to one serving and skip extra toppings unless you intentionally planned them.",
+  ],
+  "yogurt-oat-pear": [
+    "Spoon 300 g Greek yogurt into a bowl.",
+    "Add 45 g oats and stir until the oats are coated in yogurt.",
+    "Slice the kiwi or pear into small pieces and add it on top.",
+    "Add cinnamon if you want it sweeter without adding calories.",
+    "Let the bowl sit for 5 minutes for softer oats, or cover and refrigerate it overnight.",
+  ],
+  "egg-potato-citrus": [
+    "Poke the potato with a fork and microwave it for 5-8 minutes, until a fork slides through the center.",
+    "Slice tomatoes or mushrooms while the potato rests.",
+    "Cook the vegetables in a nonstick pan for 2-3 minutes.",
+    "Whisk 2 eggs with 180 g egg whites, add them to the pan, and cook on low-medium until fully set.",
+    "Cut the potato open, plate it beside the eggs, and eat the citrus fruit on the side.",
+  ],
+  "yogurt-bowl-kiwi": [
+    "Add 250 g Greek yogurt to a bowl.",
+    "Stir in 10 g whey first so the powder disappears into the yogurt.",
+    "Mix in 40 g oats.",
+    "Top with 100 g berries or one sliced kiwi.",
+    "Eat now for more texture, or chill it for a softer recovery-day bowl.",
+  ],
+  "chicken-rice-bowl": [
+    "Warm 150-180 g cooked rice in a bowl or pan.",
+    "Warm 100 g cooked chicken until it is hot all the way through.",
+    "Heat 180-220 g mixed vegetables in the same pan, or microwave them until hot.",
+    "Add the rice, chicken, and vegetables to one bowl.",
+    "Add salsa if using it. Add olive oil only if you measured 5-10 g and want that version.",
+  ],
+  "chicken-quinoa-veg-bowl": [
+    "Warm 140 g cooked quinoa until hot.",
+    "Warm 115 g cooked chicken until hot all the way through.",
+    "Cook or microwave 200 g vegetables until tender but not mushy.",
+    "Add quinoa first, chicken second, and vegetables around the side of the bowl.",
+    "Add a light yogurt sauce only if using it; keep it thin and measured.",
+  ],
+  "tuna-quinoa-cucumber-bowl": [
+    "Drain 100 g light tuna and flake it with a fork.",
+    "Add 150 g cooked quinoa to a bowl. Use it cold or warm, whichever you prefer.",
+    "Chop 200 g cucumber and salad vegetables into small pieces.",
+    "Mix tuna, quinoa, cucumber, and salad vegetables together.",
+    "Use lemon or vinegar for the lower-calorie version; add 5 g olive oil only if you measured it.",
+  ],
+  "turkey-lentil-rice": [
+    "Warm 90 g cooked extra-lean turkey in a pan.",
+    "Add 120 g cooked lentils, 120 g cooked rice, and 180 g peppers and tomatoes.",
+    "Stir everything together over medium heat for 3-5 minutes until hot.",
+    "Add a small spoon of light yogurt sauce if using it.",
+    "Serve as one bowl with turkey and lentils spread evenly through the rice.",
+  ],
+  "tuna-chickpea-quinoa": [
+    "Drain the tuna and flake it with a fork.",
+    "Rinse 100 g chickpeas, drain them well, and add them to a bowl.",
+    "Add 120 g cooked quinoa and 180 g salad vegetables.",
+    "Stir in the tuna until the protein is spread through the bowl.",
+    "Season with lemon, vinegar, pepper, or herbs instead of adding unplanned oil.",
+  ],
+  "tofu-edamame-stir-fry": [
+    "Drain 180 g firm tofu and cut it into cubes.",
+    "Cook the tofu in a nonstick pan over medium heat until several sides are lightly golden.",
+    "Add 200 g mixed vegetables and cook for 3-5 minutes.",
+    "Add 100 g shelled edamame and stir until hot.",
+    "Serve the tofu, edamame, and vegetables over 120 g cooked brown rice.",
+  ],
+  "beef-whole-grain-pasta": [
+    "Cook or warm 150 g cooked whole-grain pasta and set it aside.",
+    "Cook 100 g extra-lean beef in a pan over medium heat, breaking it into small pieces.",
+    "Add 180 g mushrooms or zucchini and cook until softened.",
+    "Stir in 100 g marinara, or use crushed tomatoes for the lower-calorie version.",
+    "Spoon the beef and vegetable sauce over the measured pasta.",
+  ],
+  "egg-lentil-quinoa": [
+    "Warm 150 g cooked lentils, 100 g cooked quinoa, and 200 g vegetables together in a pan or microwave-safe bowl.",
+    "Cook 2 eggs in a nonstick pan until the whites and yolks are set.",
+    "Put the lentil-quinoa vegetable mix into a bowl.",
+    "Place the eggs on top.",
+    "Add 30 g feta only if using the higher-calorie version.",
+  ],
+  "egg-quinoa-veg-bowl": [
+    "Warm 130 g cooked quinoa and 200 g vegetables together.",
+    "Whisk 2 eggs with 200 g egg whites.",
+    "Cook the egg mixture in a nonstick pan on low-medium, stirring slowly until fully set.",
+    "Add the quinoa and vegetables to a bowl, then place the eggs on top.",
+    "Add 30 g feta only if you want that optional version.",
+  ],
+  "turkey-bean-chili-lunch": [
+    "Add 90 g cooked extra-lean turkey to a small pot or pan.",
+    "Add 140 g kidney or black beans plus 180 g tomatoes and peppers.",
+    "Simmer for 8-10 minutes, stirring sometimes, until the chili thickens.",
+    "Warm 100 g cooked rice separately.",
+    "Serve the chili over the measured rice.",
+  ],
+  "chicken-tomato-rice-bowl": [
+    "Warm 150 g cooked rice.",
+    "Warm 120 g cooked chicken until hot.",
+    "Heat 200 g tomatoes and peppers in a pan until softened.",
+    "Combine rice, chicken, tomatoes, and peppers in one bowl.",
+    "Add low-sugar salsa if you want more flavor without adding much fat.",
+  ],
+  "cottage-banana": [
+    "Add 250 g cottage cheese to a bowl.",
+    "Slice one medium banana into coins.",
+    "Place the banana on top of the cottage cheese or eat it beside the bowl.",
+    "Stir only if you like a sweeter mixed texture.",
+    "Do not add extra granola, nuts, honey, or peanut butter unless you planned those calories.",
+  ],
+  "yogurt-rice-cakes": [
+    "Spoon 250 g Greek yogurt into a bowl.",
+    "Place 2 rice cakes on a plate.",
+    "Spread 15 g jam on the rice cakes only if you want the extra quick carbs.",
+    "Take bites of rice cake with spoonfuls of yogurt, or break the rice cakes into the yogurt for crunch.",
+    "Skip the jam for the lower-calorie version.",
+  ],
+  "after-work-yogurt-banana-toast": [
+    "Spoon 250 g Greek yogurt into a bowl.",
+    "Slice one banana and eat it with the yogurt.",
+    "Toast 1 slice whole-grain bread until lightly crisp.",
+    "Add 10 g jam to the toast only if you need extra quick carbs before the gym.",
+    "Eat this 60-120 minutes before lifting so it has time to settle.",
+  ],
+  "yogurt-oats-bowl": [
+    "Add 250 g Greek yogurt to a bowl.",
+    "Stir in 10 g whey until smooth.",
+    "Add 40 g oats and mix until evenly coated.",
+    "Fold in 100 g berries.",
+    "Let it sit for 5-10 minutes if you want the oats softer.",
+  ],
+  "turkey-sandwich-fruit": [
+    "Lay 2 slices whole-grain bread on a plate.",
+    "Add 100 g turkey slices evenly across one slice.",
+    "Spread mustard if using it.",
+    "Close the sandwich and cut it in half if that makes it easier to eat.",
+    "Eat one orange or apple on the side.",
+  ],
+  "chicken-sandwich-fruit": [
+    "Lay 2 slices whole-grain bread on a plate.",
+    "Add 100 g cooked chicken evenly across one slice.",
+    "Spread mustard if using it.",
+    "Close the sandwich and press it gently so it holds together.",
+    "Eat one orange or apple on the side.",
+  ],
+  "savoury-tuna-plate": [
+    "Drain 100 g light tuna and flake it with a fork.",
+    "Add the tuna to a plate beside sliced cucumber.",
+    "Add 30-60 g hummus only if using it; choose 30 g for the lower-calorie version.",
+    "Add whole-grain crackers only if planned.",
+    "Eat the tuna with cucumber slices, hummus, and crackers as one measured snack plate.",
+  ],
+  "emergency-shake-meal": [
+    "Pour 300 mL milk or water into the blender first. Use water for the lower-calorie version.",
+    "Add 30 g whey, 1 banana, and 20 g oats.",
+    "Blend for 20-30 seconds.",
+    "Stop and scrape the sides if powder sticks, then blend again until smooth.",
+    "Drink it as the meal replacement and do not add another routine shake afterward.",
+  ],
+  "greek-yogurt-melon": [
+    "Add 300 g Greek yogurt to a bowl.",
+    "Stir in 30 g oats.",
+    "Cut 150 g melon or berries into bite-size pieces and add them on top.",
+    "Add 10 g nuts only if using the higher-calorie version.",
+    "Let it sit briefly if you want the oats softer.",
+  ],
+  "cottage-apple": [
+    "Add 300 g cottage cheese to a bowl.",
+    "Slice one apple into thin pieces or small cubes.",
+    "Place the apple on top of the cottage cheese.",
+    "Add cinnamon if you want more flavor.",
+    "Eat it as one bowl; skip extra nuts, granola, or honey unless planned.",
+  ],
+  "salmon-potato-dinner": [
+    "Cook or warm 250 g potato until soft.",
+    "Cook salmon gently in a pan or oven until it flakes with a fork, or warm 125-150 g cooked salmon.",
+    "Cook 200 g vegetables until hot and tender.",
+    "Plate potato, salmon, and vegetables in separate sections.",
+    "Add 40 g avocado only if using that optional version; halve or skip it to save calories.",
+  ],
+  "chicken-potato-apple": [
+    "Cook or warm 250 g potato until soft.",
+    "Warm 100 g cooked chicken until hot.",
+    "Cook 200 g vegetables until tender.",
+    "Plate the chicken, potato, and vegetables together.",
+    "Add 60 g avocado only if using it, and eat the apple on the side.",
+  ],
+  "chicken-sweet-potato": [
+    "Cook or warm 250 g sweet potato until soft.",
+    "Warm 105 g cooked chicken until hot.",
+    "Cook 200 g vegetables until tender.",
+    "Plate chicken, sweet potato, and vegetables together.",
+    "Use spray for the lowest-calorie version; add 5 g olive oil only if measured.",
+  ],
+  "white-fish-plate": [
+    "Cook or warm 250 g potato until soft.",
+    "Pat 150 g white fish dry and season it simply.",
+    "Bake or pan-cook the fish gently until it flakes easily with a fork.",
+    "Cook 200 g vegetables until hot.",
+    "Plate fish, potato, and vegetables; use spray instead of 10 g olive oil if saving calories.",
+  ],
+  "salmon-quinoa": [
+    "Warm 140 g cooked quinoa.",
+    "Cook salmon gently until it flakes with a fork, or warm 130 g cooked salmon.",
+    "Cook 180 g red or green vegetables until tender.",
+    "Put quinoa on the plate first, then salmon, then vegetables.",
+    "Keep sauce light so this stays close to the planned calories.",
+  ],
+  "turkey-bean-chili": [
+    "Add 90 g cooked extra-lean turkey to a small pot.",
+    "Add 140 g kidney or black beans plus 180 g tomatoes and peppers.",
+    "Simmer for 8-10 minutes, stirring sometimes, until thick and hot.",
+    "Warm 100 g cooked rice separately.",
+    "Serve the chili over the rice as one measured dinner bowl.",
+  ],
+  "egg-fried-rice": [
+    "Warm 150 g cooked brown rice so it separates easily.",
+    "Cook 200 g peas and carrots in a nonstick pan for 2-3 minutes.",
+    "Whisk 2 eggs with 180 g egg whites.",
+    "Push the vegetables to one side, add the eggs, and stir until fully set.",
+    "Add the rice, mix everything together, and season lightly.",
+  ],
+  "tofu-lentil-curry": [
+    "Cut 200 g firm tofu into cubes.",
+    "Cook the tofu in a nonstick pan until lightly golden.",
+    "Add 120 g lentils, 150 g vegetables, and light curry sauce if using it.",
+    "Simmer for 5-8 minutes until hot and slightly thick.",
+    "Serve the curry over 100 g cooked rice.",
+  ],
+};
 
 function detailedRecipeHowTo(recipe: DietRecipe) {
-  const hasEggs = recipeHas(recipe, ["egg", "egg whites"]);
-  const hasPoultry = recipeHas(recipe, ["chicken", "turkey"]);
-  const hasFish = recipeHas(recipe, ["salmon", "white fish"]);
-  const hasBeef = recipeHas(recipe, ["beef"]);
-  const hasTofu = recipeHas(recipe, ["tofu"]);
-  const hasTuna = recipeHas(recipe, ["tuna"]);
-  const hasPotato = recipeHas(recipe, ["potato"]);
-  const hasGrain = recipeHas(recipe, ["rice", "quinoa", "pasta", "oats", "wrap", "bread"]);
-  const hasBlender = recipeHas(recipe, ["shake", "blend"]);
-  const hasSandwich = recipeHas(recipe, ["sandwich", "wrap", "bread"]);
-  const hasVegetables = recipeHas(recipe, ["vegetables", "pepper", "tomato", "mushroom", "zucchini", "cucumber", "spinach", "salad", "peas", "carrots"]);
-  const hasHotProtein = hasEggs || hasPoultry || hasFish || hasBeef || hasTofu;
-  const hasColdBowl =
-    recipe.tags.includes("no cook") ||
-    (!hasHotProtein &&
-      !hasSandwich &&
-      !hasBlender &&
-      (hasTuna || recipeHas(recipe, ["cottage cheese", "greek yogurt"])));
-
-  const steps = [
-    `Read the full ${recipe.shortTitle} recipe first so you know what is being cooked, what is already cooked, and what is optional.`,
-    "Wash your hands with soap for 20 seconds, clear the counter, and put out a clean plate or bowl, a cutting board, a knife, measuring spoons, and a kitchen scale.",
-    "Place the empty bowl or plate on the scale and press tare/zero before weighing each food. This keeps the portions accurate for fat loss.",
-  ];
-
-  if (hasVegetables || recipeHas(recipe, ["fruit", "apple", "banana", "berries", "kiwi", "pear", "orange", "melon"])) {
-    steps.push(
-      "Rinse fruit and vegetables under cool running water. Dry them with a clean towel so the meal does not become watery.",
-      "Cut produce into bite-size pieces before you start cooking. Keep raw meat or fish on a separate board from fruit and vegetables.",
-    );
-  }
-
-  if (hasBlender) {
-    steps.push(
-      "Add liquid to the blender first, then whey, banana, and oats. This helps the blades move smoothly and avoids dry powder stuck at the bottom.",
-      "Blend for 20-30 seconds, stop, scrape the sides if needed, then blend again until smooth. Drink it as the planned meal, not as an extra meal.",
-    );
-  } else if (hasColdBowl) {
-    steps.push(
-      "For a cold bowl, weigh the dairy or tuna first, then add oats, fruit, vegetables, or other toppings in the listed amounts.",
-      "Stir slowly from the bottom of the bowl so protein powder, oats, or tuna mix evenly instead of clumping in one area.",
-      "Taste once before adding optional toppings. If the goal is faster fat loss, skip optional jam, nuts, oil, avocado, feta, crackers, or hummus unless the app says they fit today.",
-    );
-  }
-
-  if (hasSandwich) {
-    steps.push(
-      "Lay the wrap or bread flat on a clean plate. If you want it warm, toast bread lightly or warm the wrap in a dry pan for 20-30 seconds per side.",
-      "Add the measured protein first, spread optional mustard or salsa thinly, then add vegetables if you are using them. Close the wrap or sandwich tightly so it is easy to eat before training.",
-    );
-  }
-
-  if (hasPotato) {
-    steps.push(
-      "Scrub the potato or sweet potato under water, poke it a few times with a fork, and microwave it 5-8 minutes until a fork slides through easily. Large potatoes may need more time.",
-      "Let the potato sit for 2 minutes before cutting it open. Steam inside can burn your fingers.",
-    );
-  }
-
-  if (hasGrain && !recipeHas(recipe, ["oats", "wrap", "bread"]) && !recipe.title.includes("Fried Rice")) {
-    steps.push(
-      "If rice, quinoa, lentils, or pasta are already cooked, weigh the cooked amount listed in the recipe. If you are cooking from dry, follow the package, then weigh only the cooked portion that goes on your plate.",
-      "Keep extra cooked grains in a shallow container after they cool. Do not guess the portion by eye; weigh it once it is cooked.",
-    );
-  }
-
-  if (hasPoultry) {
-    steps.push(
-      "If chicken or turkey is raw, cook it in a pan over medium heat or bake it until a food thermometer reads 165 F in the thickest part. If it is already cooked, reheat it until steaming hot.",
-      "Use a separate utensil for raw poultry and cooked poultry, or wash the utensil with hot soapy water before it touches cooked food.",
-    );
-  }
-
-  if (hasFish) {
-    steps.push(
-      "For raw fish, pat it dry, season simply, then bake or pan-cook it until it reaches 145 F or flakes easily with a fork and is no longer translucent.",
-      "Cook fish gently on medium heat. If the outside browns too quickly while the middle is still soft, lower the heat and give it more time.",
-    );
-  }
-
-  if (hasBeef) {
-    steps.push(
-      "Cook extra-lean beef in a pan over medium heat, breaking it into small pieces. Keep cooking until no pink remains and the meat reaches 160 F if it is ground beef.",
-      "Drain excess liquid if needed, then add vegetables or sauce and simmer briefly so the flavors mix.",
-    );
-  }
-
-  if (hasTofu) {
-    steps.push(
-      "Drain tofu, press it gently with paper towel, then cut it into cubes. Dry tofu browns better and does not water down the pan.",
-      "Cook tofu in a nonstick pan over medium heat with spray or measured oil, turning pieces until several sides are lightly golden.",
-    );
-  }
-
-  if (hasEggs) {
-    steps.push(
-      "Crack eggs into a small bowl first so you can remove shell pieces before they go into the pan. Add egg whites if the recipe lists them.",
-      "Heat a nonstick pan on low-medium, use spray or a measured amount of oil, then cook eggs slowly. Stir or fold until the whites and yolks are firm, not runny.",
-    );
-  }
-
-  if (hasTuna) {
-    steps.push(
-      "Open the tuna can carefully, drain it over the sink, and press the lid gently against the tuna so the bowl does not become watery.",
-      "Flake tuna with a fork before mixing it with grains, cucumber, hummus, or vegetables. This spreads the protein through the whole meal.",
-    );
-  }
-
-  if (hasVegetables && !hasColdBowl) {
-    steps.push(
-      "Cook vegetables with spray, a splash of water, or the measured oil from the recipe. Start with firmer vegetables first, then softer vegetables so nothing turns mushy.",
-      "Season with salt, pepper, lemon, vinegar, salsa, or light sauce. Measure calorie-dense sauces and oils instead of pouring freely.",
-    );
-  }
-
-  steps.push(
-    ...recipe.prep.map((step) => `Recipe-specific step: ${step}`),
-    `Build the final plate exactly like this: ${recipe.plate.join("; ")}.`,
-    "Before eating, check the plate against the ingredient list. The optional items are there for flexibility, so leave them out when you want the lower-calorie version.",
-    "If you meal-prep or have leftovers, refrigerate perishable food within 2 hours in a shallow container and reheat leftovers until steaming hot.",
-  );
-
-  return steps;
+  return recipeHowToSteps[recipe.id] ?? recipe.prep;
 }
 
 const dietRecipeMap = dietRecipes.reduce<Record<string, DietRecipe>>((map, recipe) => {
@@ -3353,6 +3480,97 @@ function weightComparisonInsight(previous: WeightWeekSummary | null, current: We
     tone: delta < -0.2 ? "down" : delta > 0.2 ? "up" : "steady",
     headline,
     detail: `Week ${previous.week} averaged ${formatLoadValue(previous.average)} kg. Week ${current.week} averaged ${formatLoadValue(current.average)} kg.${reliability}`,
+  };
+}
+
+function weightChartModel(entries: WeightEntry[]) {
+  if (entries.length === 0) return null;
+
+  const weights = entries.map((entry) => entry.weight);
+  const rawMin = Math.min(...weights);
+  const rawMax = Math.max(...weights);
+  const spread = Math.max(0.6, rawMax - rawMin);
+  const min = rawMin - spread * 0.12;
+  const max = rawMax + spread * 0.12;
+  const range = Math.max(0.6, max - min);
+  const points = entries.map((entry, index) => {
+    const x = entries.length === 1 ? 50 : (index / (entries.length - 1)) * 100;
+    const y = 64 - ((entry.weight - min) / range) * 52;
+
+    return {
+      ...entry,
+      x,
+      y,
+    };
+  });
+  const first = entries[0];
+  const last = entries[entries.length - 1];
+  const delta = last.weight - first.weight;
+
+  return {
+    delta,
+    highest: rawMax,
+    lowest: rawMin,
+    points,
+    path: points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" "),
+    windowLabel: `${formatDate(first.date, "short")} - ${formatDate(last.date, "short")}`,
+  };
+}
+
+function weightMomentumCoach(
+  entries: WeightEntry[],
+  previous: WeightWeekSummary | null,
+  current: WeightWeekSummary | null,
+) {
+  if (entries.length === 0) {
+    return {
+      headline: "Start with the first dot.",
+      detail: "Log morning weight today. The trend chart becomes useful after several logged mornings, and the weekly comparison unlocks after two finished weeks.",
+    };
+  }
+
+  if (entries.length < 4) {
+    return {
+      headline: "Good start. Build the signal.",
+      detail: `You have ${entries.length} weigh-in${entries.length === 1 ? "" : "s"}. Aim for 4-7 morning logs per week so one random high or low day does not mess with your confidence.`,
+    };
+  }
+
+  if (previous && current && previous.average !== null && current.average !== null) {
+    const delta = current.average - previous.average;
+    const absDelta = Math.abs(delta);
+
+    if (absDelta < 0.2) {
+      return {
+        headline: "Stable trend. Keep collecting data.",
+        detail: "Your weekly average is nearly unchanged. That can be normal with new training, soreness, salt, or late meals. Follow the plan and judge the next full week.",
+      };
+    }
+
+    if (delta < 0) {
+      return {
+        headline: "Fat-loss trend is moving.",
+        detail: `The latest completed weekly average is down ${formatLoadValue(absDelta)} kg. Keep meals measured, keep lifting, and avoid cutting food harder while performance feels good.`,
+      };
+    }
+
+    return {
+      headline: "Average is up. Check the context.",
+      detail: `The latest completed weekly average is up ${formatLoadValue(absDelta)} kg. Review missed meals, weekend portions, sodium, sleep, and whether workouts caused soreness before changing the plan.`,
+    };
+  }
+
+  const first = entries[0];
+  const last = entries[entries.length - 1];
+  const delta = last.weight - first.weight;
+  const movementText =
+    delta === 0
+      ? "with no net change"
+      : `${formatLoadValue(Math.abs(delta))} kg ${delta < 0 ? "down" : "up"}`;
+
+  return {
+    headline: "Trend is forming.",
+    detail: `From ${formatDate(first.date, "short")} to ${formatDate(last.date, "short")}, scale weight moved ${movementText}. Keep focusing on weekly averages, not one-day noise.`,
   };
 }
 
@@ -4493,7 +4711,38 @@ export default function Home() {
     comparableWeightWeeks[0] ?? null,
     comparableWeightWeeks[1] ?? null,
   );
+  const weightEntries = useMemo(
+    () =>
+      planDays
+        .map((day) => {
+          const metric = normalizeMetricLogShape(store.metrics[day.iso]);
+          const weight = weightKgFromMetric(metric);
+          return weight === null
+            ? null
+            : {
+                date: day.iso,
+                dayNumber: day.index + 1,
+                note: metric.note,
+                weight,
+              };
+        })
+        .filter((entry): entry is WeightEntry => Boolean(entry)),
+    [planDays, store.metrics],
+  );
+  const recentWeightEntries = weightEntries.slice(-28);
+  const weightChart = weightChartModel(recentWeightEntries);
+  const weightMomentum = weightMomentumCoach(
+    weightEntries,
+    comparableWeightWeeks[0] ?? null,
+    comparableWeightWeeks[1] ?? null,
+  );
+  const weightChartDeltaText = weightChart
+    ? weightChart.delta === 0
+      ? "0 kg"
+      : `${formatLoadValue(Math.abs(weightChart.delta))} kg ${weightChart.delta < 0 ? "down" : "up"}`
+    : "Waiting";
   const hubWeightDays = planDays.slice(Math.max(0, gymDay.index - 13), gymDay.index + 1);
+  const visibleWeightWeeks = weightWeekSummaries.slice(Math.max(0, gymDay.week - 8), gymDay.week);
 
   const stats = useMemo(() => {
     const skippedDates = new Set(
@@ -5385,11 +5634,75 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="daily-weight-log">
-            <div className="flow-heading">
-              <h3>Daily Weight Log</h3>
-              <span>Last {hubWeightDays.length} mornings</span>
-            </div>
+          <div className="weight-visual-grid">
+            <section className="weight-chart-card" aria-label="Weight trend chart">
+              <div className="flow-heading">
+                <h3>Weight Trend</h3>
+                <span>{weightChart ? weightChart.windowLabel : "Log 2+ mornings"}</span>
+              </div>
+              {weightChart ? (
+                <>
+                  <svg className="weight-line-chart" viewBox="0 0 100 72" role="img" aria-label="Recent weight trend line">
+                    <path className="chart-grid-line" d="M0 12H100M0 38H100M0 64H100" />
+                    {weightChart.points.length > 1 && (
+                      <path className="chart-trend-line" d={weightChart.path} />
+                    )}
+                    {weightChart.points.map((point, pointIndex) => (
+                      <g key={point.date}>
+                        <circle
+                          className={pointIndex === weightChart.points.length - 1 ? "latest" : ""}
+                          cx={point.x}
+                          cy={point.y}
+                          r={pointIndex === weightChart.points.length - 1 ? 2.8 : 2.1}
+                        />
+                        <title>
+                          Day {point.dayNumber}: {formatLoadValue(point.weight)} kg
+                        </title>
+                      </g>
+                    ))}
+                  </svg>
+                  <div className="weight-chart-stats">
+                    <div>
+                      <span>Window change</span>
+                      <strong>{weightChartDeltaText}</strong>
+                    </div>
+                    <div>
+                      <span>Highest</span>
+                      <strong>{formatLoadValue(weightChart.highest)} kg</strong>
+                    </div>
+                    <div>
+                      <span>Lowest</span>
+                      <strong>{formatLoadValue(weightChart.lowest)} kg</strong>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="empty-weight-chart">
+                  <Icon name="progress" size={22} />
+                  <strong>No chart yet</strong>
+                  <small>Log a few morning weigh-ins and the trend line will appear here.</small>
+                </div>
+              )}
+            </section>
+
+            <section className="weight-motivation-card" aria-label="Weight motivation">
+              <p className="eyebrow">
+                <Icon name="spark" size={14} /> Momentum
+              </p>
+              <h3>{weightMomentum.headline}</h3>
+              <p>{weightMomentum.detail}</p>
+              <div className="weight-habit-row">
+                <span>{stats.weighIns} weigh-ins</span>
+                <span>{weightEntries.length >= 14 ? "Trend ready" : "Build 2-week signal"}</span>
+              </div>
+            </section>
+          </div>
+
+          <details className="daily-weight-log compact-weight-log">
+            <summary>
+              <strong>Daily Weight Log</strong>
+              <span>Last {hubWeightDays.length} mornings · tap to edit</span>
+            </summary>
             <div className="daily-weight-grid">
               {hubWeightDays.map((day) => {
                 const metric = normalizeMetricLogShape(store.metrics[day.iso]);
@@ -5414,19 +5727,32 @@ export default function Home() {
                 );
               })}
             </div>
-          </div>
+          </details>
 
-          <div className="weekly-weight-list">
-            {weightWeekSummaries.slice(0, gymDay.week).map((summary) => (
-              <div key={summary.week} className={summary.loggedDays > 0 ? "logged" : ""}>
-                <span>Week {summary.week}</span>
-                <strong>{summary.average === null ? "No data" : `${formatLoadValue(summary.average)} kg`}</strong>
-                <small>
-                  {formatDate(summary.startIso, "short")} - {formatDate(summary.endIso, "short")} · {summary.loggedDays}/7 logged
-                </small>
-              </div>
-            ))}
-          </div>
+          <details className="weekly-weight-history">
+            <summary>
+              <strong>Weekly Average History</strong>
+              <span>Last {visibleWeightWeeks.length} weeks shown · expand for detail</span>
+            </summary>
+            <div className="weekly-weight-list">
+              {visibleWeightWeeks.map((summary) => (
+                <div key={summary.week} className={summary.loggedDays > 0 ? "logged" : ""}>
+                  <span>Week {summary.week}</span>
+                  <strong>{summary.average === null ? "No data" : `${formatLoadValue(summary.average)} kg`}</strong>
+                  <small>
+                    {formatDate(summary.startIso, "short")} - {formatDate(summary.endIso, "short")} · {summary.loggedDays}/7 logged
+                  </small>
+                </div>
+              ))}
+              {gymDay.week > visibleWeightWeeks.length && (
+                <div className="weight-history-note">
+                  <span>Earlier weeks</span>
+                  <strong>{gymDay.week - visibleWeightWeeks.length}</strong>
+                  <small>Hidden to keep Coach Hub fast and clean.</small>
+                </div>
+              )}
+            </div>
+          </details>
         </section>
 
         <section className={`metric-panel sync-panel account-card hub-sync ${cloudStatus}`}>

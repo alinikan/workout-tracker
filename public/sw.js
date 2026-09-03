@@ -1,5 +1,5 @@
-const CACHE_NAME = "recomp-gym-console-v24";
-const APP_VERSION = "2026-09-03-beginner-recipe-how-to-v24";
+const CACHE_NAME = "recomp-gym-console-v25";
+const APP_VERSION = "2026-09-03-recipe-specific-how-to-weight-chart-v25";
 const APP_FALLBACK_URL = "/";
 
 const CORE_ASSETS = [

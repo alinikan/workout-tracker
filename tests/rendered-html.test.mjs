@@ -103,13 +103,16 @@ test("includes researched movement resources and autosave controls", async () =>
     "move-revert-button",
     "setOpenDietHowToSlot",
     "detailedRecipeHowTo",
-    "recipeHas",
+    "recipeHowToSteps",
     "Beginner steps",
-    "food thermometer",
-    "165 F",
-    "145 F",
-    "whites and yolks are firm",
-    "refrigerate perishable food within 2 hours",
+    "Spoon 300 g Greek yogurt into a bowl",
+    "Slice the kiwi or pear into small pieces",
+    "Warm 115 g cooked chicken until hot all the way through",
+    "Toast 1 slice whole-grain bread until lightly crisp",
+    "Bake or pan-cook the fish gently until it flakes easily",
+    "weightChartModel",
+    "weightMomentumCoach",
+    "weightChartDeltaText",
     "sessionTimeForDay",
     "warmupTarget",
     "rampWarmupTarget",
@@ -262,7 +265,10 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "Daily Weight Log",
     "Weekly averages",
     "Weight logs",
-    "Weight trend",
+    "Weight Trend",
+    "Momentum",
+    "Window change",
+    "Weekly Average History",
     "weightComparisonInsight",
     "weightWeekSummary",
   ]) {
@@ -312,6 +318,13 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "diet-bottom-bar",
     "hub-weight-panel",
     "daily-weight-grid",
+    "weight-visual-grid",
+    "weight-chart-card",
+    "weight-line-chart",
+    "chart-trend-line",
+    "weight-motivation-card",
+    "weekly-weight-history",
+    "compact-weight-log",
     "shopping-list-card",
     "object-fit: contain",
     "height: 104px",
@@ -341,6 +354,8 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
   assert.match(readme, /Preference-aware defaults/);
   assert.match(readme, /After-Work Training Fuel/);
   assert.match(readme, /Expandable Make It guide/);
+  assert.match(readme, /weight trend chart/);
+  assert.match(readme, /Expandable history/);
   assert.match(readme, /Revert to original/);
   assert.match(readme, /Morning weight in kg/);
   assert.match(readme, /store-neutral ingredient list/);
@@ -350,6 +365,11 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
   assert.doesNotMatch(app, removedPattern);
   assert.doesNotMatch(readme, removedPattern);
   assert.doesNotMatch(app, /Weekly variety|Fruit days|Fatty fish|Oats\/grains/);
+  assert.doesNotMatch(app, /Read the full .* recipe first/);
+  assert.doesNotMatch(app, /Wash your hands with soap/);
+  assert.doesNotMatch(app, /Place the empty bowl or plate/);
+  assert.doesNotMatch(app, /Rinse fruit and vegetables under cool running water/);
+  assert.doesNotMatch(app, /Recipe-specific step/);
 });
 
 test("extends the PDF progression to roughly 6 months", async () => {
@@ -532,8 +552,8 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v24/);
-  assert.match(serviceWorker, /beginner-recipe-how-to-v24/);
+  assert.match(serviceWorker, /recomp-gym-console-v25/);
+  assert.match(serviceWorker, /recipe-specific-how-to-weight-chart-v25/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);

@@ -4598,7 +4598,9 @@ body {
 
 .weight-summary-grid > div,
 .daily-weight-cell,
-.weekly-weight-list > div {
+.weekly-weight-list > div,
+.weight-chart-card,
+.weight-motivation-card {
   min-width: 0;
   padding: 12px;
   border: 1px solid #dfe9ea;
@@ -4651,9 +4653,204 @@ body {
   background: #e8f7ed;
 }
 
+.weight-visual-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(240px, 0.8fr);
+  gap: 10px;
+}
+
+.weight-chart-card {
+  display: grid;
+  gap: 10px;
+  border-color: #cfe6d7;
+  background:
+    linear-gradient(135deg, #ffffff 0%, #eefaf3 160%),
+    #fbfdfd;
+}
+
+.weight-line-chart {
+  width: 100%;
+  min-height: 190px;
+  overflow: visible;
+}
+
+.chart-grid-line {
+  fill: none;
+  stroke: rgba(111, 133, 123, 0.18);
+  stroke-width: 0.75;
+}
+
+.chart-trend-line {
+  fill: none;
+  stroke: var(--diet-green);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.8;
+  filter: drop-shadow(0 4px 8px rgba(46, 125, 74, 0.18));
+}
+
+.weight-line-chart circle {
+  fill: #ffffff;
+  stroke: var(--diet-green);
+  stroke-width: 1.8;
+}
+
+.weight-line-chart circle.latest {
+  fill: var(--diet-green);
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.weight-chart-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.weight-chart-stats div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #dbe9dd;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.weight-chart-stats span,
+.weight-habit-row span,
+.compact-weight-log summary span,
+.weekly-weight-history summary span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.weight-chart-stats strong {
+  display: block;
+  margin-top: 5px;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.empty-weight-chart {
+  display: grid;
+  min-height: 190px;
+  place-items: center;
+  align-content: center;
+  gap: 6px;
+  border: 1px dashed #bfd7c8;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.65);
+  color: var(--diet-green);
+  text-align: center;
+}
+
+.empty-weight-chart small {
+  max-width: 260px;
+  color: var(--muted);
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.weight-motivation-card {
+  display: grid;
+  gap: 8px;
+  align-content: center;
+  border-color: #c7dfec;
+  background:
+    linear-gradient(135deg, #ffffff 0%, #e8f5fb 165%),
+    #fbfdff;
+}
+
+.weight-motivation-card h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.2rem;
+  line-height: 1.15;
+}
+
+.weight-motivation-card p:not(.eyebrow) {
+  margin: 0;
+  color: #31434a;
+  font-weight: 780;
+  line-height: 1.45;
+}
+
+.weight-habit-row {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.weight-habit-row span {
+  min-height: 25px;
+  padding: 4px 8px;
+  border: 1px solid #c7dfec;
+  border-radius: 999px;
+  background: #fff;
+  color: #245c70;
+}
+
 .daily-weight-log {
   display: grid;
   gap: 10px;
+}
+
+.compact-weight-log,
+.weekly-weight-history {
+  border: 1px solid #dfe9ea;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.compact-weight-log summary,
+.weekly-weight-history summary {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.compact-weight-log summary::-webkit-details-marker,
+.weekly-weight-history summary::-webkit-details-marker {
+  display: none;
+}
+
+.compact-weight-log summary::after,
+.weekly-weight-history summary::after {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  background: #eefaf3;
+  color: var(--diet-green);
+  font-size: 0.9rem;
+  font-weight: 950;
+  content: "+";
+}
+
+.compact-weight-log[open] summary::after,
+.weekly-weight-history[open] summary::after {
+  content: "-";
+}
+
+.compact-weight-log summary strong,
+.weekly-weight-history summary strong {
+  color: var(--ink);
+}
+
+.compact-weight-log .daily-weight-grid,
+.weekly-weight-history .weekly-weight-list {
+  padding: 0 12px 12px;
 }
 
 .daily-weight-grid {
@@ -4692,6 +4889,10 @@ body {
 .weekly-weight-list > div.logged {
   border-color: #cfe6d7;
   background: #f5fbf7;
+}
+
+.weight-history-note {
+  border-style: dashed !important;
 }
 
 .hub-mini-grid {
@@ -5490,6 +5691,7 @@ body {
   .diet-layout,
   .diet-card-grid,
   .diet-swap-grid,
+  .weight-visual-grid,
   .weight-summary-grid {
     grid-template-columns: 1fr;
   }
@@ -5538,6 +5740,7 @@ body {
   .morning-weighin-card,
   .hub-checkin-fields,
   .hub-mini-grid,
+  .weight-chart-stats,
   .diet-target-grid,
   .diet-progress-panel {
     grid-template-columns: 1fr;
@@ -5560,6 +5763,25 @@ body {
   .diet-progress-panel {
     margin-top: 10px;
     padding: 12px;
+  }
+
+  .weight-line-chart,
+  .empty-weight-chart {
+    min-height: 150px;
+  }
+
+  .compact-weight-log summary,
+  .weekly-weight-history summary {
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    padding: 10px 44px 10px 12px;
+  }
+
+  .compact-weight-log summary::after,
+  .weekly-weight-history summary::after {
+    position: absolute;
+    right: 12px;
   }
 
   .diet-week-strip {
