@@ -1,12 +1,17 @@
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
+// Vite config for local development, production builds, and local production previews.
 export default defineConfig({
+  // React plugin enables JSX, fast refresh in development, and React-specific build transforms.
   plugins: [react()],
   server: {
+    // Binding to localhost keeps the dev server private to this Mac unless the user changes it.
     host: "127.0.0.1",
     port: 3000,
     watch: {
+      // Generated or dependency-heavy folders are ignored so Vite does not restart repeatedly while
+      // tools, build output, or caches are changing.
       ignored: [
         "**/work/**",
         "**/dist/**",
@@ -18,6 +23,7 @@ export default defineConfig({
     },
   },
   preview: {
+    // Preview serves the built dist/ folder and is useful for testing PWA-like production behavior.
     host: "127.0.0.1",
     port: 4173,
   },

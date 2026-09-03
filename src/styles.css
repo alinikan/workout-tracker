@@ -1,4 +1,22 @@
+/*
+  Stylesheet map
+  --------------
+  This file is organized in layers because the app evolved from a workout tracker into a fuller
+  coach hub with diet, weight charts, Gym Mode, and iPhone PWA support.
+
+  1. Base tokens and shared layout: global colors, typography, shell width, cards, forms.
+  2. Workout foundation: Today cards, exercise rows, set tables, library, and progress panels.
+  3. Professional UI pass: a calmer dashboard layout and mobile-friendly navigation.
+  4. App-section redesign: Today, Gym, Week, Progress, and Library behave like focused workspaces.
+  5. Product polish: color-coded workout families, swaps, skip states, and detail sheets.
+  6. Coach Hub and Diet: account/weight dashboard, recipe cards, meal swaps, and to-buy lists.
+
+  JSON files cannot contain comments, so manifest/deployment choices are explained in README.md and
+  docs/code-walkthrough.md instead.
+*/
+
 :root {
+  /* Default design tokens used before later product-specific layers override some values. */
   --bg: #f4f6f8;
   --paper: #ffffff;
   --paper-2: #f7fafb;
@@ -20,6 +38,7 @@
 }
 
 * {
+  /* Border-box sizing makes fixed cards, tables, and mobile bars easier to size reliably. */
   box-sizing: border-box;
 }
 
@@ -44,6 +63,7 @@ body {
 }
 
 #root {
+  /* The React app controls the full page height, including the installed iPhone PWA shell. */
   min-height: 100%;
 }
 
@@ -74,6 +94,7 @@ a {
 }
 
 .app-shell {
+  /* The shell is full-width on phones and capped on desktop so the app feels usable in both places. */
   width: min(1220px, 100%);
   margin: 0 auto;
   padding: 20px clamp(14px, 3vw, 30px) 52px;
@@ -1426,7 +1447,12 @@ select:focus {
   }
 }
 
-/* Professional UI pass: compact hierarchy, calmer surfaces, and fewer competing panels. */
+/*
+  Professional UI pass
+  --------------------
+  This second token layer tightens the original interface. It keeps the same class names while
+  adjusting spacing, shadows, and sizing so older JSX can stay stable.
+*/
 :root {
   --bg: #f6f7f9;
   --paper: #ffffff;
@@ -2221,7 +2247,10 @@ textarea {
   }
 }
 
-/* App-section redesign: Today, Gym, Week, Progress, Library. */
+/*
+  App-section redesign: Today, Gym, Week, Progress, Library.
+  These rules make each workout area feel like a focused tab instead of one long scroll.
+*/
 .eyebrow {
   display: inline-flex;
   gap: 6px;
@@ -3086,7 +3115,12 @@ textarea {
   }
 }
 
-/* Product polish: color-coded command flow, focused detail sheet, and native-app spacing. */
+/*
+  Product polish
+  --------------
+  This layer introduces the stronger color system. Exercise families and session types set CSS
+  variables, then nested components inherit those variables for chips, borders, and action states.
+*/
 :root {
   --bg: #f4f7f3;
   --paper: #ffffff;
@@ -4354,6 +4388,10 @@ body {
 }
 
 @media (display-mode: standalone) and (max-width: 720px) {
+  /*
+    iPhone Home Screen mode has different browser chrome and safe-area behavior from Safari.
+    These rules keep sheets and bottom controls reachable inside the standalone PWA.
+  */
   .detail-sheet-backdrop {
     padding-top: env(safe-area-inset-top);
   }
@@ -4364,7 +4402,12 @@ body {
   }
 }
 
-/* Coach hub and diet tracker */
+/*
+  Coach Hub and Diet tracker
+  --------------------------
+  These sections intentionally use greener nutrition colors while still inheriting the workout
+  session accent when the selected diet day belongs to Strength, Cardio, Movement, or Recovery.
+*/
 .mode-inline-actions {
   grid-column: 1 / -1;
   display: flex;

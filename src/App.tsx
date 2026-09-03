@@ -2,6 +2,24 @@ import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase, supabaseConfigError } from "./lib/supabaseClient";
 
+/**
+ * App.tsx is intentionally the main "product brain" for this personal tracker.
+ *
+ * Tutorial map:
+ * 1. Types describe the shape of workout, diet, progress, and sync data.
+ * 2. Static data defines the exercise library, recipes, weekly schedule, and meal plan.
+ * 3. Pure helper functions calculate dates, phases, progressive targets, swaps, and summaries.
+ * 4. Storage helpers normalize/merge localStorage and Supabase data so old saves keep working.
+ * 5. React components render the coach hub, workout tracker, diet tracker, modals, and Gym Mode.
+ *
+ * Keeping those layers in one file makes the app easy to customize for a single-person project:
+ * change an exercise, recipe, or schedule in one place, then run the tests to make sure the main
+ * behaviors are still present.
+ */
+
+// These union types keep navigation, day labels, movement categories, and statuses typo-proof.
+// When TypeScript sees a value like "strength" or "diet", it can verify that the UI and helpers
+// only use the values this app actually understands.
 type SessionType = "strength" | "cardio" | "movement" | "recovery";
 type AppMode = "hub" | "workout" | "diet";
 type AppSection = "today" | "gym" | "week" | "progress" | "library";
@@ -90,6 +108,8 @@ type WeightEntry = {
   note: string;
 };
 
+// The app uses a tiny inline icon system instead of a larger icon dependency. That keeps the bundle
+// small and makes every icon available offline after the PWA shell is cached.
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
   const commonProps = {
     width: size,
@@ -240,11 +260,19 @@ type PlanDay = {
   session: SessionTemplate;
 };
 
+// Storage keys are versioned. If the saved data shape ever needs a hard migration, changing these
+// names is the simple escape hatch; otherwise the normalizers below keep older saved rows readable.
 const STORAGE_KEY = "body-recomp-gym-tracker-v1";
 const STORAGE_META_KEY = "body-recomp-gym-tracker-meta-v1";
+
+// The program calendar starts on a Monday and runs for 26 weeks. The real calendar date and the
+// program weekday are both stored on each PlanDay so the app can show "today" while still following
+// the Monday-through-Sunday training rhythm.
 const START_DATE = "2026-08-31";
 const PROGRAM_DAYS = 182;
 
+// Strength sessions begin with general prep, then two exercise-specific ramp warm-ups. The ramp
+// warm-ups are generated from this shared warm-up base and then inserted into the session order.
 const strengthWarmupIds = [
   "bodyweight-squat",
   "hip-hinge-drill",
@@ -261,8 +289,11 @@ const skipReasonOptions: Array<{ id: SkipReason; label: string }> = [
   { id: "other", label: "Other" },
 ];
 
+// These accessories were added to the lower-body days and scale separately from the main compound
+// lifts so quads and hamstrings get direct machine work without making early weeks overwhelming.
 const lowerMachineAccessoryIds = ["seated-leg-extension", "seated-leg-curl"];
 
+// Meal slots are defined once and reused by logs, UI cards, swap filtering, and completion checks.
 const dietMealSlots: Array<{ id: DietMealSlot; label: string }> = [
   { id: "breakfast", label: "Breakfast" },
   { id: "lunch", label: "Lunch" },
@@ -270,6 +301,8 @@ const dietMealSlots: Array<{ id: DietMealSlot; label: string }> = [
   { id: "dinner", label: "Dinner" },
 ];
 
+// Macro targets are intentionally presented as ranges. A beginner can follow the meals without
+// micromanaging, while still understanding why strength days carry more carbs than recovery days.
 const dietTargets: Record<DietDayType, { label: string; calories: string; protein: string; carbs: string; fat: string }> = {
   strength: {
     label: "Strength day",
@@ -294,11 +327,17 @@ const dietTargets: Record<DietDayType, { label: string; calories: string; protei
   },
 };
 
+// The to-buy list groups recipe ingredients into a small number of store sections. It is not tied
+// to one store, so it works for Costco, a normal grocery store, or whatever is convenient.
 const shoppingCategories: ShoppingCategory[] = ["Protein & dairy", "Produce", "Carbs", "Pantry"];
 
+// Unsplash image URLs are generated from stable photo IDs so recipe cards feel visual without
+// shipping large image files inside the repository.
 const foodPhoto = (photoId: string) =>
   `https://images.unsplash.com/${photoId}?auto=format&fit=crop&w=900&q=80`;
 
+// Factory helpers create fresh log objects. Returning a new object each time avoids accidentally
+// sharing nested state between days, which is a common React bug in trackers.
 const emptySet = (): SetLog => ({
   weight: "",
   done: false,
@@ -332,6 +371,8 @@ const createEmptyDietDay = (): DietDayLog => ({
   notes: "",
 });
 
+// Normalizers act like small migrations. They protect the UI when localStorage or Supabase contains
+// older data from before diet tracking, kg weigh-ins, skips, or swaps existed.
 function normalizeDayLog(log: DayLog | undefined): DayLog {
   return {
     ...createEmptyDay(),
@@ -399,6 +440,8 @@ function skipReasonLabel(reason: SkipReason) {
   return skipReasonOptions.find((option) => option.id === reason)?.label ?? "Other";
 }
 
+// Exercise library data powers every workout surface: Today, Gym Mode, detail sheets, library
+// search, swaps, YouTube embeds, optional GIF demos, and progress calculations.
 const exerciseMap: Record<string, Exercise> = {
   "warmup-treadmill-walk": {
     id: "warmup-treadmill-walk",
@@ -1770,6 +1813,9 @@ const exerciseMap: Record<string, Exercise> = {
   },
 };
 
+// Diet recipes are the nutrition equivalent of the exercise library: each recipe needs a slot,
+// portioned ingredients, a photo, and plate guidance so the daily plan can rotate variety while
+// still staying aligned with fat-loss targets.
 const dietRecipes: DietRecipe[] = [
   {
     id: "oats-yogurt-berries",
@@ -2241,6 +2287,8 @@ const dietRecipes: DietRecipe[] = [
   },
 ];
 
+// The recipe cards stay compact by default. These step lists are shown only when the user expands
+// "Make It", which keeps the daily diet page clean while still helping a beginner cook the meal.
 const recipeHowToSteps: Record<string, string[]> = {
   "oats-yogurt-berries": [
     "Add 200 g Greek yogurt to a bowl.",
@@ -2500,11 +2548,15 @@ function detailedRecipeHowTo(recipe: DietRecipe) {
   return recipeHowToSteps[recipe.id] ?? recipe.prep;
 }
 
+// Maps turn arrays into lookup tables. This is faster and less error-prone than repeatedly scanning
+// the whole recipe list when rendering swaps or restoring saved diet choices.
 const dietRecipeMap = dietRecipes.reduce<Record<string, DietRecipe>>((map, recipe) => {
   map[recipe.id] = recipe;
   return map;
 }, {});
 
+// This weekly meal map is the default nutrition calendar. Swaps are stored separately per day, so
+// changing a meal here updates future defaults without erasing a user's saved swap history.
 const weeklyDietMealMap: Record<PlanWeekday, Record<DietMealSlot, string>> = {
   Monday: {
     breakfast: "oats-yogurt-berries",
@@ -2550,6 +2602,8 @@ const weeklyDietMealMap: Record<PlanWeekday, Record<DietMealSlot, string>> = {
   },
 };
 
+// The weekly schedule is the source of truth for workout order. Every exercise ID appears exactly
+// where the user should do it: warm-ups, ramp sets, working lifts, accessories, cardio, then core.
 const weeklySchedule: Record<string, SessionTemplate> = {
   Monday: {
     title: "Strength A",
@@ -2669,6 +2723,8 @@ const weeklySchedule: Record<string, SessionTemplate> = {
   },
 };
 
+// The calendar builder loops through this order for 182 days, which is why Day 1 can stay Monday
+// even though the app still knows the user's actual calendar date.
 const scheduleOrder = [
   "Monday",
   "Tuesday",
@@ -2686,6 +2742,8 @@ const sessionTypeLabels: Record<SessionType, string> = {
   recovery: "Recovery",
 };
 
+// Library order mirrors a beginner's mental flow: warm-ups first, then major movement patterns,
+// accessories, cardio, and mobility.
 const libraryOrder = [
   "warmup-treadmill-walk",
   "bodyweight-squat",
@@ -2725,6 +2783,8 @@ const libraryOrder = [
   "mobility-flow",
 ];
 
+// Date helpers always work from noon local time instead of midnight. That avoids daylight-saving
+// edge cases where adding a day at midnight can accidentally cross an hour boundary.
 function dateFromIso(iso: string) {
   return new Date(`${iso}T12:00:00`);
 }
@@ -2760,6 +2820,8 @@ function formatDate(iso: string, style: "short" | "long" = "long") {
   });
 }
 
+// Training phases are centralized here so the app can explain why a week feels easier, harder, or
+// like a deload without scattering those messages across the UI.
 function phaseForWeek(week: number) {
   if (week <= 2) {
     return {
@@ -2831,6 +2893,9 @@ function phaseForWeek(week: number) {
   };
 }
 
+// This is the volume progression engine. It deliberately treats warm-ups, cardio, arms, machine
+// accessories, core, and main lifts differently because they should not all progress at the same
+// rate for a newer lifter.
 function recommendedSets(planDay: PlanDay, exercise: Exercise, index: number) {
   if (isRampWarmup(exercise)) return 2;
   if (exercise.family === "warmup") return 1;
@@ -2865,6 +2930,8 @@ function isRampWarmup(exercise: Exercise) {
   return exercise.id.startsWith("warmup-ramp-");
 }
 
+// Warm-up targets progress separately from lifting targets. They get the user warmer and more
+// mobile over time, but deload weeks pull them back so recovery stays part of the program.
 function warmupTarget(planDay: PlanDay, exercise: Exercise) {
   if (exercise.id === "warmup-treadmill-walk") {
     if (planDay.week <= 2) return "10 min easy";
@@ -2936,6 +3003,8 @@ function warmupTarget(planDay: PlanDay, exercise: Exercise) {
   return exercise.reps;
 }
 
+// Ramp warm-ups are expressed as percentages of the user's working pounds. The app cannot know the
+// exact load until the user logs it, so it teaches the intent instead of guessing a number.
 function rampWarmupTarget(planDay: PlanDay, exercise: Exercise) {
   const isUpperBody = exercise.id.includes("press") || exercise.id.includes("row");
   if (planDay.week === 11 || planDay.week === 23) {
@@ -2982,6 +3051,8 @@ function warmupProgressionForExercise(planDay: PlanDay, exercise: Exercise) {
   return exercise.progression;
 }
 
+// Most exercises start with a broad rep range in the library. This function narrows or advances
+// that range by phase so the same exercise gets more demanding across the 6-month plan.
 function rangedTarget(base: string, week: number) {
   if (base.includes("20-45 sec")) {
     if (week <= 2) return "20-30 sec";
@@ -3054,6 +3125,8 @@ function rangedTarget(base: string, week: number) {
   return base;
 }
 
+// Cardio targets are calculated instead of hard-coded into each day because walking duration rises
+// with fitness and drops during deload weeks.
 function cardioTarget(planDay: PlanDay, exercise: Exercise) {
   if (exercise.id === "treadmill-walk" && planDay.session.title === "Cardio Base") {
     if (planDay.week <= 2) return "25-30 min brisk";
@@ -3200,6 +3273,8 @@ function dietSlotLabel(slot: DietMealSlot) {
   return dietMealSlots.find((item) => item.id === slot)?.label ?? slot;
 }
 
+// Meal timing is intentionally relative instead of exact clock time. That keeps the app useful for
+// workdays, weekends, and after-work gym sessions without pretending everyone eats on one schedule.
 function dietTimingForSlot(planDay: PlanDay, slot: DietMealSlot) {
   if (slot === "breakfast") return "Morning";
   if (slot === "lunch") {
@@ -3223,6 +3298,8 @@ function dietCoachNoteForDay(planDay: PlanDay) {
   return "Keep protein stable, use slightly lower starch portions, and let this be an easier nutrition day.";
 }
 
+// This note exists because the user reported nearly fainting during a workout. It turns the snack
+// slot into practical pre-workout fueling guidance without adding a separate complicated feature.
 function afterWorkGymFuelForDay(planDay: PlanDay, snackRecipe: DietRecipe) {
   if (planDay.session.type === "strength") {
     return {
@@ -3295,6 +3372,8 @@ function baseDietRecipeFor(planDay: PlanDay, slot: DietMealSlot) {
   return dietRecipeMap[weeklyDietMealMap[planDay.planDayName][slot]];
 }
 
+// A saved swap is only accepted if it still belongs to the same meal slot. That prevents a stale
+// or manually edited save from putting a dinner recipe into breakfast.
 function activeDietRecipeFor(planDay: PlanDay, log: DietDayLog, slot: DietMealSlot) {
   const baseRecipe = baseDietRecipeFor(planDay, slot);
   const swappedRecipe = log.swaps[slot] ? dietRecipeMap[log.swaps[slot] ?? ""] : null;
@@ -3305,6 +3384,8 @@ function dietSwapOptionsFor(slot: DietMealSlot, currentRecipeId: string) {
   return dietRecipes.filter((recipe) => recipe.slot === slot && recipe.id !== currentRecipeId);
 }
 
+// Completion is derived from the four meal checks. This keeps "Mark eaten" and full-day completion
+// in sync instead of requiring the user to press one extra final button.
 function withAutomaticDietCompletion(log: DietDayLog) {
   const completed = dietMealSlots.every((slot) => log.meals[slot.id]);
   return {
@@ -3313,6 +3394,8 @@ function withAutomaticDietCompletion(log: DietDayLog) {
   };
 }
 
+// The app now uses kg for body weight, but this fallback preserves older saves that stored the
+// value in the legacy weight field.
 function weightKgFromMetric(metric: MetricLog) {
   const directKg = parseLoadValue(metric.weightKg);
   if (directKg !== null) return directKg;
@@ -3321,6 +3404,8 @@ function weightKgFromMetric(metric: MetricLog) {
   return legacyPounds !== null ? legacyPounds * 0.45359237 : null;
 }
 
+// The to-buy list normalizes detailed recipe lines into useful grocery names. For example, several
+// fruit portions become one "plan fruit" item instead of a noisy repeated list.
 function shoppingIngredientFor(ingredient: string): { name: string; category: ShoppingCategory } {
   const lower = ingredient.toLowerCase();
 
@@ -3396,6 +3481,8 @@ function shoppingIngredientFor(ingredient: string): { name: string; category: Sh
   return { name: ingredient.replace(/^\d+(?:-\d+)?\s*(?:g|mL)?\s*/i, ""), category: "Pantry" };
 }
 
+// Shopping groups are generated from the active recipes for the selected week, including swaps.
+// That way the list matches what the user actually plans to eat.
 function shoppingItemsForRecipes(recipes: DietRecipe[]) {
   const itemMap = new Map<string, ShoppingItem>();
 
@@ -3426,6 +3513,8 @@ function shoppingItemsForRecipes(recipes: DietRecipe[]) {
     .filter((group) => group.items.length > 0);
 }
 
+// Weekly averages use only logged mornings and report missing days. That is more honest than
+// filling blanks with guesses and helps the user understand how reliable each comparison is.
 function weightWeekSummary(planDays: PlanDay[], metrics: Record<string, MetricLog>, weekIndex: number): WeightWeekSummary {
   const days = planDays.slice(weekIndex * 7, weekIndex * 7 + 7);
   const loggedWeights = days
@@ -3446,6 +3535,8 @@ function weightWeekSummary(planDays: PlanDay[], metrics: Record<string, MetricLo
   };
 }
 
+// The coach insight waits for two completed weeks because one or two scale readings can be noisy
+// from water, salt, soreness, or late meals.
 function weightComparisonInsight(previous: WeightWeekSummary | null, current: WeightWeekSummary | null) {
   if (!previous || !current) {
     return {
@@ -3483,6 +3574,8 @@ function weightComparisonInsight(previous: WeightWeekSummary | null, current: We
   };
 }
 
+// SVG charts need normalized x/y coordinates. This model converts kg entries into a viewBox path
+// while adding padding so the highest and lowest dots do not sit on the chart edge.
 function weightChartModel(entries: WeightEntry[]) {
   if (entries.length === 0) return null;
 
@@ -3517,6 +3610,8 @@ function weightChartModel(entries: WeightEntry[]) {
   };
 }
 
+// This copy turns raw weight data into a calmer coaching message. It pushes the user toward weekly
+// averages and consistency instead of reacting emotionally to one high or low morning.
 function weightMomentumCoach(
   entries: WeightEntry[],
   previous: WeightWeekSummary | null,
@@ -3574,6 +3669,8 @@ function weightMomentumCoach(
   };
 }
 
+// Target and rest helpers are read by every workout view. Centralizing them means Today, Gym Mode,
+// detail sheets, and the library always agree about what the user should do.
 function targetForExercise(planDay: PlanDay, exercise: Exercise) {
   if (isRampWarmup(exercise)) return rampWarmupTarget(planDay, exercise);
   if (exercise.family === "warmup") return warmupTarget(planDay, exercise);
@@ -3613,10 +3710,14 @@ function progressionForExercise(planDay: PlanDay, exercise: Exercise) {
   return exercise.progression;
 }
 
+// Only true strength/ramp rows ask for pounds. Warm-ups, cardio, and bodyweight moves become clean
+// done buttons so the UI does not show unusable input placeholders.
 function tracksWeight(exercise: Exercise) {
   return exercise.logType !== "done";
 }
 
+// Swaps are resolved at render time. The original exercise stays in the schedule, while the saved
+// log says which replacement should currently be shown.
 function activeExerciseFor(originalExercise: Exercise, log: DayLog) {
   const selectedSwapId = log.swaps?.[originalExercise.id];
   if (!selectedSwapId || !originalExercise.swapIds?.includes(selectedSwapId)) return originalExercise;
@@ -3631,6 +3732,8 @@ function isSwappedExercise(originalExercise: Exercise, log: DayLog) {
   return activeExerciseFor(originalExercise, log).id !== originalExercise.id;
 }
 
+// Load parsing accepts simple entries like "45", "45 lb", or "45.5". This keeps logging relaxed
+// while still letting the app calculate best loads and kg trends.
 function parseLoadValue(value: string) {
   const match = value.replace(",", ".").match(/\d+(?:\.\d+)?/);
   return match ? Number(match[0]) : null;
@@ -3646,6 +3749,8 @@ function formatLoggedWeightText(value: string) {
   return /[a-z]/i.test(trimmed) ? trimmed : `${trimmed} lb`;
 }
 
+// Progress stats estimate cardio minutes from completed sessions. The values match the phase-scaled
+// targets rather than simply trusting the static session labels.
 function estimatedCardioMinutes(planDay: PlanDay) {
   if (planDay.session.title === "Cardio Base") {
     if (planDay.week === 11 || planDay.week === 23) return 40;
@@ -3680,6 +3785,8 @@ function estimatedCardioMinutes(planDay: PlanDay) {
   return 0;
 }
 
+// Runtime guards are needed because localStorage and Supabase return unknown JSON. TypeScript can
+// verify our code, but it cannot guarantee that saved browser data still has the expected shape.
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
@@ -3696,6 +3803,8 @@ function formatClock(iso?: string | null) {
   });
 }
 
+// normalizeStore is the main compatibility layer. It lets the app open older saves gracefully after
+// new features are added, which matters for a PWA that users may keep installed for months.
 function normalizeStore(value: unknown): TrackerStore | null {
   if (!isRecord(value)) return null;
   const days = isRecord(value.days)
@@ -3724,6 +3833,8 @@ function normalizeStore(value: unknown): TrackerStore | null {
   };
 }
 
+// Local save is the first persistence layer. The app remains useful offline and then syncs when a
+// Supabase session is available.
 function loadStore(): TrackerStore {
   if (typeof window === "undefined") return { days: {}, dietDays: {}, metrics: {} };
   try {
@@ -3735,6 +3846,8 @@ function loadStore(): TrackerStore {
   }
 }
 
+// Metadata is separated from the actual workout/diet data so sync timestamps can change without
+// touching the user's visible progress.
 function loadStoreMeta(): StoreMeta {
   if (typeof window === "undefined") return {};
   try {
@@ -3760,6 +3873,8 @@ function hasStoreData(store: TrackerStore) {
   );
 }
 
+// Merge helpers prefer user-visible progress over blank or older data. This is intentionally
+// conservative: a checked box or typed note should survive signing in on another device.
 function mergeChecks(
   cloudChecks: Record<string, boolean> = {},
   localChecks: Record<string, boolean> = {},
@@ -3795,6 +3910,8 @@ function preferFilled(localValue = "", cloudValue = "") {
   return localValue.trim() ? localValue : cloudValue;
 }
 
+// Set rows merge by index because each row represents "set 1", "set 2", and so on. We preserve
+// typed weights and checked states independently.
 function mergeSetRows(cloudRows: SetLog[] = [], localRows: SetLog[] = []) {
   const rowCount = Math.max(cloudRows.length, localRows.length);
   return Array.from({ length: rowCount }, (_, index) => {
@@ -3870,6 +3987,8 @@ function mergeMetricLog(metric: MetricLog | undefined, localMetric: MetricLog | 
   };
 }
 
+// Store merging happens once when an account loads. After that, normal autosave writes the unified
+// result back to Supabase.
 function mergeStores(localStore: TrackerStore, cloudStore: TrackerStore) {
   const dayIds = new Set([...Object.keys(cloudStore.days), ...Object.keys(localStore.days)]);
   const dietDayIds = new Set([
@@ -3897,6 +4016,8 @@ function mergeStores(localStore: TrackerStore, cloudStore: TrackerStore) {
   };
 }
 
+// This prevents old local data from overwriting a newer cloud account unless the local copy has
+// unsynced changes.
 function shouldMergeLocalWithCloud(localStore: TrackerStore, cloudStore: TrackerStore, meta: StoreMeta) {
   if (!hasStoreData(localStore)) return false;
   if (!hasStoreData(cloudStore)) return true;
@@ -3910,6 +4031,8 @@ function chooseInitialSyncedStore(localStore: TrackerStore, cloudStore: TrackerS
     : cloudStore;
 }
 
+// Plans get harder across weeks, so saved exercises may suddenly need more rows. ensureSetRows adds
+// the missing rows without deleting the pounds or checks already logged.
 function ensureSetRows(existing: SetLog[] | undefined, count: number) {
   const rows = existing ? [...existing] : [];
   while (rows.length < count) rows.push(emptySet());
@@ -3920,16 +4043,21 @@ function youtubeUrl(id?: string) {
   return id ? `https://www.youtube.com/watch?v=${id}` : "";
 }
 
+// YouTube thumbnails play inline through the privacy-enhanced youtube-nocookie domain. The separate
+// external YouTube button still exists for users who prefer opening the YouTube app.
 function youtubeEmbedUrl(id?: string) {
   return id
     ? `https://www.youtube-nocookie.com/embed/${id}?rel=0&modestbranding=1&playsinline=1`
     : "";
 }
 
+// GIF URLs point at our own API route so the private WorkoutX key never appears in browser code.
 function workoutXGifUrl(workoutXId?: string) {
   return workoutXId ? `/api/workoutx-gif?id=${encodeURIComponent(workoutXId)}` : "";
 }
 
+// Supabase stores one JSON document per user. That keeps the schema simple while Row Level Security
+// still guarantees users can only access their own progress row.
 async function fetchCloudStore(userId: string) {
   if (!supabase) return { store: { days: {}, dietDays: {}, metrics: {} }, updatedAt: null };
 
@@ -3961,6 +4089,8 @@ async function upsertCloudStore(userId: string, store: TrackerStore) {
   return (data as { updated_at: string } | null)?.updated_at ?? null;
 }
 
+// The app does not manually write 182 calendar entries. Instead, it generates them from START_DATE,
+// PROGRAM_DAYS, and the weekly schedule so long plans remain easy to maintain.
 function buildPlanDays() {
   return Array.from({ length: PROGRAM_DAYS }, (_, index) => {
     const iso = addDays(START_DATE, index);
@@ -3977,6 +4107,8 @@ function buildPlanDays() {
   });
 }
 
+// "Today" clamps to the program window. Before the plan starts, it shows Day 1; after the program
+// ends, it shows the final day instead of crashing or returning nothing.
 function closestProgramDate() {
   const today = isoFromDate(new Date());
   const offset = diffDays(START_DATE, today);
@@ -3998,6 +4130,8 @@ function familyLabel(family: Exercise["family"]) {
   }[family];
 }
 
+// Location labels support the home-gym split. They teach which prep can happen upstairs and which
+// work should happen downstairs near the equipment.
 const locationLabels: Record<TrainingLocation, { label: string; detail: string }> = {
   upstairs: {
     label: "Upstairs OK",
@@ -4049,6 +4183,8 @@ function locationFlowNoteForDay(planDay: PlanDay) {
   return "Recovery work can happen upstairs unless you choose an optional walk.";
 }
 
+// Previous-load lookup powers the "what should I lift today?" hints. It scans backward from the
+// selected day so each exercise can reference the user's own most recent log.
 function lastExerciseLoad(planDays: PlanDay[], store: TrackerStore, selectedDay: PlanDay, exerciseId: string) {
   for (let index = selectedDay.index - 1; index >= 0; index -= 1) {
     const day = planDays[index];
@@ -4130,6 +4266,8 @@ function completedRows(rows: SetLog[]) {
   return rows.filter((row) => row.done).length;
 }
 
+// Move status is derived, not manually stored. That lets Today, Gym Mode, and Progress agree when
+// a user completes all sets, skips a move, reopens it, or swaps it.
 function moveStatusForExercise(
   planDay: PlanDay,
   log: DayLog,
@@ -4189,6 +4327,8 @@ function isPlanDayComplete(planDay: PlanDay, log: DayLog) {
   return dayStatusForDay(planDay, log) === "complete";
 }
 
+// "Mark Complete" intentionally fills every move and task for that day. This keeps the top-level
+// day status and per-move checkmarks synchronized in both Today and Gym Mode.
 function completePlanDay(planDay: PlanDay, log: DayLog) {
   const normalizedLog = normalizeDayLog(log);
   const exercises = planDay.session.exerciseIds.flatMap((id) => (exerciseMap[id] ? [exerciseMap[id]] : []));
@@ -4235,6 +4375,7 @@ function dayStatusLabel(status: DayStatus) {
   }[status];
 }
 
+// Gym Mode should begin where the user actually needs attention, not always at exercise one.
 function firstUnfinishedMoveIndex(moves: Array<{ isComplete: boolean; isSkipped: boolean }>) {
   const firstOpenIndex = moves.findIndex((move) => !move.isComplete && !move.isSkipped);
   return firstOpenIndex >= 0 ? firstOpenIndex : 0;
@@ -4265,6 +4406,8 @@ function ExerciseMedia({
   exercise: Exercise;
   variant: "gym" | "thumb" | "library";
 }) {
+  // Media starts with inline YouTube because it is the most reliable free demo source. GIFs are
+  // user-triggered so the page does not waste mobile data loading every animation at once.
   const [showGif, setShowGif] = useState(false);
   const [gifFailed, setGifFailed] = useState(false);
   const demo = exercise.motionDemo;
@@ -4347,7 +4490,14 @@ function ExerciseMediaLinks({
 }
 
 export default function Home() {
+  // Build the full calendar once. The plan is deterministic, so recalculating it on every render
+  // would only make the component harder to reason about.
   const planDays = useMemo(buildPlanDays, []);
+
+  // There are three day concepts on purpose:
+  // currentProgramDate is the real "today" inside the program window,
+  // selectedDate is the browsable workout day in Today/Week/Progress/Library,
+  // selectedDietDate is the browsable diet day.
   const [currentProgramDate, setCurrentProgramDate] = useState(() => closestProgramDate());
   const [selectedDate, setSelectedDate] = useState(() => closestProgramDate());
   const [store, setStore] = useState<TrackerStore>(() => loadStore());
@@ -4382,6 +4532,8 @@ export default function Home() {
   const suppressNextCloudSaveRef = useRef(false);
 
   useEffect(() => {
+    // On iPhone Home Screen apps, the app may stay suspended overnight. When it wakes or regains
+    // focus, this effect realigns the landing day to the current program date.
     setIsHydrated(true);
 
     const alignWithCurrentProgramDate = () => {
@@ -4409,17 +4561,23 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    // Changing the browsed workout day should close detail UI from the previous day so the user
+    // never edits the wrong set by accident.
     setGymExerciseIndex(0);
     setDetailExerciseId(null);
     setSkipRequest(null);
   }, [selectedDate]);
 
   useEffect(() => {
+    // Diet panels are day-specific. Closing them on day change avoids showing a swap panel for the
+    // previous day's recipe.
     setOpenDietSwapSlot(null);
     setOpenDietHowToSlot(null);
   }, [selectedDietDate]);
 
   useEffect(() => {
+    // Modal sheets lock background scrolling and support Escape on desktop. Mobile users get the
+    // same close behavior through visible close buttons.
     if ((!detailExerciseId && !skipRequest) || typeof window === "undefined") return undefined;
 
     const previousOverflow = document.body.style.overflow;
@@ -4439,10 +4597,14 @@ export default function Home() {
   }, [detailExerciseId, skipRequest]);
 
   useEffect(() => {
+    // Keep a ref pointing at the newest store so delayed async callbacks save the latest state,
+    // not the state that existed when the timeout or request was created.
     latestStoreRef.current = store;
   }, [store]);
 
   useEffect(() => {
+    // Every change saves to localStorage first. This makes the app resilient in gyms with spotty
+    // reception and lets Supabase sync happen as an enhancement rather than a hard dependency.
     if (!isHydrated) return;
     const savedAt = nowIso();
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
@@ -4460,6 +4622,8 @@ export default function Home() {
   }, [isHydrated, store]);
 
   useEffect(() => {
+    // This effect owns Supabase auth session discovery. The app can render without Supabase, but if
+    // config is present it listens for sign-in/sign-out and lets the sync effects react.
     if (supabaseConfigError) {
       setCloudStatus("error");
       setCloudError(supabaseConfigError);
@@ -4495,6 +4659,8 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    // The first signed-in load is the only moment where local and cloud saves may need merging.
+    // After this finishes, the cloud save effect below treats the merged store as the source.
     if (!supabase || !session?.user.id || !isHydrated) return;
 
     let isCancelled = false;
@@ -4543,6 +4709,8 @@ export default function Home() {
   }, [isHydrated, session?.user.id]);
 
   useEffect(() => {
+    // Cloud saves are debounced so checking several boxes quickly creates one upsert instead of a
+    // burst of network requests.
     if (!supabase || !session?.user.id || cloudReadyForUser !== session.user.id) return;
     if (suppressNextCloudSaveRef.current) {
       suppressNextCloudSaveRef.current = false;
@@ -4575,6 +4743,8 @@ export default function Home() {
   }, [cloudReadyForUser, session?.user.id, store]);
 
   useEffect(() => {
+    // The custom service worker makes the installed PWA refresh itself after deploys. Without this,
+    // iPhone Home Screen apps can keep serving an old bundle and look broken after an update.
     if (import.meta.env.PROD && "serviceWorker" in navigator) {
       let shouldReloadForUpdate = true;
 
@@ -4619,6 +4789,9 @@ export default function Home() {
     return undefined;
   }, []);
 
+  // Derived state turns raw saves into the exact view model the UI needs. The render below can stay
+  // declarative because all date selection, active swaps, phase targets, and progress percentages
+  // are prepared here first.
   const selectedDay =
     planDays.find((day) => day.iso === selectedDate) ?? planDays[0];
   const gymDay =
@@ -4745,6 +4918,8 @@ export default function Home() {
   const visibleWeightWeeks = weightWeekSummaries.slice(Math.max(0, gymDay.week - 8), gymDay.week);
 
   const stats = useMemo(() => {
+    // Progress stats are recomputed from saved logs instead of stored separately. Derived stats are
+    // harder to corrupt because fixing a log automatically fixes the dashboard.
     const skippedDates = new Set(
       planDays
         .filter((day) => dayStatusForDay(day, normalizeDayLog(store.days[day.iso])) === "finished-with-skips")
@@ -4842,6 +5017,8 @@ export default function Home() {
     },
   ];
 
+  // These small updater wrappers keep all edits immutable. React notices the changed objects, and
+  // the autosave effects above persist the updated store.
   const updateDay = (date: string, updater: (log: DayLog) => DayLog) => {
     setStore((current) => {
       const nextLog = updater(normalizeDayLog(current.days[date]));
@@ -4922,6 +5099,8 @@ export default function Home() {
     field: keyof SetLog,
     value: string | boolean,
   ) => {
+    // A typed weight counts as a completed set because the user's natural gym workflow is usually
+    // "enter the pounds I used" rather than "enter pounds, then press another tiny checkbox".
     updateDay(planDay.iso, (log) => {
       const exercise = exerciseMap[exerciseId];
       if (!exercise || setIndex < 0) return log;
@@ -4986,6 +5165,8 @@ export default function Home() {
     originalExerciseId: string,
     nextExerciseId: string,
   ) => {
+    // Switching a movement also clears a skip for the original movement, because choosing a valid
+    // replacement means the user is attempting the training slot again.
     updateDay(planDay.iso, (log) => {
       const nextSwaps = { ...(log.swaps ?? {}) };
       const nextSkips = { ...log.skips };
@@ -5019,6 +5200,8 @@ export default function Home() {
     originalExerciseId: string,
     reason: SkipReason,
   ) => {
+    // Skipping is tracked separately from completion. The day can become "Finished with skips",
+    // which is more honest than pretending missed work was completed.
     updateDay(planDay.iso, (log) => {
       const originalExercise = exerciseMap[originalExerciseId];
       const activeExercise = originalExercise ? activeExerciseFor(originalExercise, log) : null;
@@ -5126,6 +5309,8 @@ export default function Home() {
   };
 
   const getAuthCredentials = () => {
+    // Email is normalized before auth so Ali@example.com and ali@example.com behave like the same
+    // account. Password is left exactly as typed.
     const email = authEmail.trim().toLowerCase();
     const password = authPassword;
     setCloudError("");
@@ -5214,6 +5399,8 @@ export default function Home() {
     setAuthMessage("Signed out. Your local copy stays on this device.");
   };
 
+  // Library filtering is intentionally local and instant. A gym app should keep search responsive
+  // even when the network is weak.
   const filteredLibrary = libraryOrder
     .map((id) => exerciseMap[id])
     .filter((exercise) => {
@@ -5252,6 +5439,8 @@ export default function Home() {
       ? "You are signed in, so every workout check, diet meal, swap, kg weigh-in, and note saves locally and to your cloud account."
       : "Sign in or create an account with email and password. This works inside the iPhone Home Screen app without magic links or custom SMTP.";
 
+  // Weekly completion feeds the planner bars. It reads the same derived day-completion rules as
+  // Today, so skipped days do not accidentally count as fully complete.
   const weeklyCompletion = useMemo(
     () =>
       weekOptions.map((week, weekIndex) => {
@@ -5272,6 +5461,8 @@ export default function Home() {
     .filter((day) => isPlanDayComplete(day, normalizeDayLog(store.days[day.iso])))
     .slice(-6)
     .reverse();
+  // This row builder is shared by Today and Gym Mode. Sharing it is what keeps both tabs in sync
+  // after a set is completed, a move is skipped, or a swap is chosen.
   const buildWorkoutMoveRows = (planDay: PlanDay, dayLog: DayLog, exercises: Exercise[]) =>
     exercises.map((originalExercise, exerciseIndex) => {
       const activeExercise = activeExerciseFor(originalExercise, dayLog);
@@ -5442,6 +5633,8 @@ export default function Home() {
   }, [store.metrics]);
 
   useEffect(() => {
+    // Gym Mode watches completion changes and jumps to the first unfinished, unskipped move. This
+    // is why it can continue smoothly after the user logs some sets in Today first.
     if (activeSection !== "gym") return;
 
     setGymExerciseIndex((index) => {
@@ -5474,6 +5667,7 @@ export default function Home() {
   };
 
   const switchSection = (section: AppSection) => {
+    // Gym Mode always uses actual today, even if the user has browsed a different date in Today.
     if (section === "gym") {
       const nextProgramDate = closestProgramDate();
       const nextGymDay = planDays.find((day) => day.iso === nextProgramDate) ?? gymDay;

@@ -29,6 +29,7 @@
 - [How The Program Works](#how-the-program-works)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
+- [Code Comments And Walkthrough](#code-comments-and-walkthrough)
 - [Quick Start](#quick-start)
 - [Environment Variables](#environment-variables)
 - [Supabase Cloud Sync](#supabase-cloud-sync)
@@ -260,6 +261,21 @@ flowchart TD
 ```
 
 Data always saves locally first. When Supabase is configured and the user is signed in, the local data merges with cloud data and then syncs back to the user's private row.
+
+---
+
+## Code Comments And Walkthrough
+
+This project is written to be readable for future contributors, not just functional for the original user.
+
+- Important source files include tutorial-style comments explaining why each part exists.
+- The largest file, `src/App.tsx`, has section comments for the data model, workout plan, diet plan, progression engine, local/cloud sync, PWA behavior, Gym Mode logic, and completion rules.
+- JSON files cannot contain comments, so their purpose is explained in [`docs/code-walkthrough.md`](docs/code-walkthrough.md).
+
+Read the walkthrough first if you are new to the repository:
+
+> [!TIP]
+> Start with [`docs/code-walkthrough.md`](docs/code-walkthrough.md), then open `src/App.tsx`. The walkthrough tells you which section to edit for start dates, exercises, swaps, recipes, grocery grouping, Supabase sync, and iPhone PWA behavior.
 
 ---
 
@@ -605,6 +621,8 @@ Vercel automatically redeploys after a successful push to the connected GitHub r
 workout-tracker/
   api/
     workoutx-gif.js
+  docs/
+    code-walkthrough.md
   public/
     app-icon.svg
     favicon.svg
@@ -637,6 +655,7 @@ workout-tracker/
 | `src/styles.css` | Responsive design system, workout UI, diet UI, Gym Mode, and PWA spacing. |
 | `src/lib/supabaseClient.ts` | Supabase browser client and configuration validation. |
 | `api/workoutx-gif.js` | Serverless proxy for private WorkoutX GIF requests. |
+| `docs/code-walkthrough.md` | Tutorial-style file-by-file explanation for maintainers and learners. |
 | `supabase/schema.sql` | Cloud database table, grants, RLS policies, and updated timestamp trigger. |
 | `public/sw.js` | Versioned service worker for installable app assets and fresh deploy behavior. |
 | `public/manifest.json` | PWA install metadata. |
@@ -697,6 +716,7 @@ Current test coverage verifies:
 - GIF support is wired through the API route.
 - PWA assets and service worker behavior are present.
 - Known mobile layout regressions are guarded.
+- The code walkthrough and tutorial comments remain present.
 
 ---
 

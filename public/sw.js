@@ -1,7 +1,16 @@
+// Custom service worker for the installable PWA.
+//
+// The app is mostly online-first because Supabase and YouTube require network access, but this
+// worker caches the shell assets so the Home Screen app opens reliably and can recover from spotty
+// reception in the gym.
+
+// Bump CACHE_NAME and APP_VERSION whenever deploy behavior changes. A new cache name makes old
+// assets easy to delete during activate.
 const CACHE_NAME = "recomp-gym-console-v25";
 const APP_VERSION = "2026-09-03-recipe-specific-how-to-weight-chart-v25";
 const APP_FALLBACK_URL = "/";
 
+// Core assets are safe to precache because they are small and required for the installed shell.
 const CORE_ASSETS = [
   "/manifest.json",
   "/app-icon.svg",
@@ -10,6 +19,7 @@ const CORE_ASSETS = [
 ];
 
 self.addEventListener("install", (event) => {
+  // Cache the shell immediately and activate without waiting for every old tab to close.
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS)).catch(() => undefined)
   );
@@ -17,6 +27,8 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("activate", (event) => {
+  // Delete old named caches, claim existing clients, then notify open pages that a fresh app
+  // version is available.
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
@@ -35,6 +47,7 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("message", (event) => {
+  // The React app can ask a waiting worker to activate immediately after a deploy.
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 
@@ -45,6 +58,8 @@ self.addEventListener("fetch", (event) => {
   const requestDestination = event.request.destination;
 
   if (event.request.mode === "navigate") {
+    // Navigations are network-first. If the user is offline, serve the last good app shell so the
+    // tracker can still open and show locally saved data.
     event.respondWith(
       fetch(event.request)
         .then((response) => {
@@ -72,6 +87,8 @@ self.addEventListener("fetch", (event) => {
   if (requestUrl.origin !== self.location.origin) return;
 
   if (requestDestination === "script" || requestDestination === "style") {
+    // Scripts and styles are network-first so deploys reach users quickly, with cached fallbacks for
+    // weak reception.
     event.respondWith(
       fetch(event.request)
         .then((response) => {
@@ -99,6 +116,8 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
+    // Images, manifest files, and other same-origin GET assets are cache-first after their first
+    // successful load.
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
 

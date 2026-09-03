@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
+// These tests are intentionally source-level smoke tests. They are fast, they run after a production
+// build, and they catch accidental removal of core app features without requiring a browser driver.
 const root = new URL("../", import.meta.url);
 
 async function text(path) {
+  // URL-based paths keep the tests portable no matter where the repository is cloned.
   return readFile(new URL(path, root), "utf8");
 }
 
@@ -567,4 +570,29 @@ test("service worker avoids stale Vercel app shells", async () => {
   assert.doesNotMatch(serviceWorker, /diet-tracker-v17/);
   assert.doesNotMatch(serviceWorker, /lower-machine-accessories-v16/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v15/);
+});
+
+test("documents the codebase with tutorial-style comments and a walkthrough", async () => {
+  const [app, styles, supabaseClient, walkthrough, readme] = await Promise.all([
+    text("src/App.tsx"),
+    text("src/styles.css"),
+    text("src/lib/supabaseClient.ts"),
+    text("docs/code-walkthrough.md"),
+    text("README.md"),
+  ]);
+
+  assert.match(app, /Tutorial map/);
+  assert.match(app, /Storage keys are versioned/);
+  assert.match(app, /volume progression engine/);
+  assert.match(app, /localStorage first/);
+  assert.match(app, /Gym Mode always uses actual today/);
+  assert.match(styles, /Stylesheet map/);
+  assert.match(styles, /Product polish/);
+  assert.match(styles, /Coach Hub and Diet tracker/);
+  assert.match(supabaseClient, /Supabase browser client setup/);
+  assert.match(walkthrough, /File-By-File Guide/);
+  assert.match(walkthrough, /JSON files such as `package\.json`/);
+  assert.match(walkthrough, /Commenting Philosophy/);
+  assert.match(readme, /Code Comments And Walkthrough/);
+  assert.match(readme, /docs\/code-walkthrough\.md/);
 });

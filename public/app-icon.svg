@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <!-- App icon used by browsers/PWAs when a vector icon is accepted. PNG fallbacks live beside it. -->
   <title id="title">Recomp Gym Console icon</title>
   <rect width="512" height="512" rx="88" fill="#162127"/>
   <path d="M96 344h320v38H96z" fill="#f5f7f8"/>
