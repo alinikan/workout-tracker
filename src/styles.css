@@ -3246,6 +3246,70 @@ body {
   text-transform: uppercase;
 }
 
+.swap-alert {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, #5d43c4 30%, var(--line));
+  border-left: 5px solid #5d43c4;
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, #ffffff, #f3efff),
+    #f7f4ff;
+  color: var(--ink);
+}
+
+.swap-alert div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.swap-alert strong {
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.swap-alert small {
+  color: #5d4aa3;
+  font-size: 0.82rem;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.swap-alert-label {
+  display: inline-flex;
+  width: max-content;
+  min-height: 24px;
+  gap: 6px;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid #ded6fb;
+  border-radius: 999px;
+  background: #fff;
+  color: #4d359d;
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.swap-revert-button {
+  min-height: 36px;
+  padding: 0 11px;
+  border: 1px solid #5d43c4;
+  border-radius: 8px;
+  background: #5d43c4;
+  color: #fff;
+  font-weight: 950;
+}
+
+.workout-swap-alert,
+.detail-swap-alert {
+  margin: 0 18px 14px;
+}
+
 .gym-launch-button {
   border-color: transparent;
   background: var(--accent);
@@ -3569,6 +3633,7 @@ body {
 .move-actions {
   display: grid;
   grid-template-rows: 1fr 1fr;
+  grid-auto-rows: minmax(40px, 1fr);
   min-width: 0;
   border-left: 1px solid var(--line);
   background: #fbfcfc;
@@ -3601,6 +3666,12 @@ body {
 .move-detail-button {
   background: #fbfcfc;
   color: var(--move-color);
+}
+
+.move-revert-button {
+  border-top: 1px solid var(--line) !important;
+  background: #f3efff;
+  color: #4d359d;
 }
 
 .recovery-flow {
@@ -4178,6 +4249,18 @@ body {
   .move-skip-button {
     border-right: 1px solid var(--line) !important;
     border-bottom: 0 !important;
+  }
+
+  .move-revert-button {
+    grid-column: 1 / -1;
+  }
+
+  .swap-alert {
+    grid-template-columns: 1fr;
+  }
+
+  .swap-revert-button {
+    width: 100%;
   }
 
   .smart-load-mini small {
@@ -5037,6 +5120,10 @@ body {
   width: 100%;
 }
 
+.diet-basics-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .diet-card-grid div {
   min-width: 0;
   padding: 9px;
@@ -5092,10 +5179,85 @@ body {
 }
 
 .diet-swap-button,
+.diet-howto-button,
 .diet-original-button {
   border: 1px solid color-mix(in srgb, var(--meal-color) 22%, var(--line));
   background: #fff;
   color: var(--ink);
+}
+
+.diet-howto-button[aria-expanded="true"] {
+  border-color: var(--meal-color);
+  background: color-mix(in srgb, var(--meal-soft) 80%, #ffffff);
+  color: var(--meal-color);
+}
+
+.diet-swap-alert {
+  border-color: color-mix(in srgb, var(--meal-color) 28%, #ded6fb);
+  border-left-color: var(--meal-color);
+  background:
+    linear-gradient(135deg, #ffffff, color-mix(in srgb, var(--meal-soft) 78%, #ffffff)),
+    #fff;
+}
+
+.diet-howto-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--meal-color) 26%, #dceae4);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, #ffffff, color-mix(in srgb, var(--meal-soft) 62%, #ffffff)),
+    #fbfdfc;
+}
+
+.diet-howto-panel .flow-heading {
+  align-items: center;
+}
+
+.diet-howto-panel .flow-heading h4 {
+  margin: 0;
+  color: var(--meal-color);
+  font-size: 1rem;
+}
+
+.diet-howto-panel .flow-heading span {
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--meal-color);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.diet-howto-steps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 22px;
+  color: #263841;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.diet-howto-steps li {
+  padding-left: 2px;
+}
+
+.swap-note {
+  margin: 0;
+  padding: 9px;
+  border: 1px solid #ded6fb;
+  border-radius: 8px;
+  background: #f7f4ff;
+  color: #4d359d;
+  font-size: 0.88rem;
+  font-weight: 850;
+  line-height: 1.4;
 }
 
 .diet-swap-panel {

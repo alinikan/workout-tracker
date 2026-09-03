@@ -1,5 +1,5 @@
-const CACHE_NAME = "recomp-gym-console-v23";
-const APP_VERSION = "2026-09-03-after-work-fuel-diet-defaults-v23";
+const CACHE_NAME = "recomp-gym-console-v24";
+const APP_VERSION = "2026-09-03-beginner-recipe-how-to-v24";
 const APP_FALLBACK_URL = "/";
 
 const CORE_ASSETS = [

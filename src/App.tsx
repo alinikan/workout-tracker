@@ -2234,6 +2234,145 @@ const dietRecipes: DietRecipe[] = [
   },
 ];
 
+function recipeHas(recipe: DietRecipe, terms: string[]) {
+  const searchableText = [
+    recipe.title,
+    recipe.shortTitle,
+    ...recipe.tags,
+    ...recipe.ingredients,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return terms.some((term) => searchableText.includes(term));
+}
+
+function detailedRecipeHowTo(recipe: DietRecipe) {
+  const hasEggs = recipeHas(recipe, ["egg", "egg whites"]);
+  const hasPoultry = recipeHas(recipe, ["chicken", "turkey"]);
+  const hasFish = recipeHas(recipe, ["salmon", "white fish"]);
+  const hasBeef = recipeHas(recipe, ["beef"]);
+  const hasTofu = recipeHas(recipe, ["tofu"]);
+  const hasTuna = recipeHas(recipe, ["tuna"]);
+  const hasPotato = recipeHas(recipe, ["potato"]);
+  const hasGrain = recipeHas(recipe, ["rice", "quinoa", "pasta", "oats", "wrap", "bread"]);
+  const hasBlender = recipeHas(recipe, ["shake", "blend"]);
+  const hasSandwich = recipeHas(recipe, ["sandwich", "wrap", "bread"]);
+  const hasVegetables = recipeHas(recipe, ["vegetables", "pepper", "tomato", "mushroom", "zucchini", "cucumber", "spinach", "salad", "peas", "carrots"]);
+  const hasHotProtein = hasEggs || hasPoultry || hasFish || hasBeef || hasTofu;
+  const hasColdBowl =
+    recipe.tags.includes("no cook") ||
+    (!hasHotProtein &&
+      !hasSandwich &&
+      !hasBlender &&
+      (hasTuna || recipeHas(recipe, ["cottage cheese", "greek yogurt"])));
+
+  const steps = [
+    `Read the full ${recipe.shortTitle} recipe first so you know what is being cooked, what is already cooked, and what is optional.`,
+    "Wash your hands with soap for 20 seconds, clear the counter, and put out a clean plate or bowl, a cutting board, a knife, measuring spoons, and a kitchen scale.",
+    "Place the empty bowl or plate on the scale and press tare/zero before weighing each food. This keeps the portions accurate for fat loss.",
+  ];
+
+  if (hasVegetables || recipeHas(recipe, ["fruit", "apple", "banana", "berries", "kiwi", "pear", "orange", "melon"])) {
+    steps.push(
+      "Rinse fruit and vegetables under cool running water. Dry them with a clean towel so the meal does not become watery.",
+      "Cut produce into bite-size pieces before you start cooking. Keep raw meat or fish on a separate board from fruit and vegetables.",
+    );
+  }
+
+  if (hasBlender) {
+    steps.push(
+      "Add liquid to the blender first, then whey, banana, and oats. This helps the blades move smoothly and avoids dry powder stuck at the bottom.",
+      "Blend for 20-30 seconds, stop, scrape the sides if needed, then blend again until smooth. Drink it as the planned meal, not as an extra meal.",
+    );
+  } else if (hasColdBowl) {
+    steps.push(
+      "For a cold bowl, weigh the dairy or tuna first, then add oats, fruit, vegetables, or other toppings in the listed amounts.",
+      "Stir slowly from the bottom of the bowl so protein powder, oats, or tuna mix evenly instead of clumping in one area.",
+      "Taste once before adding optional toppings. If the goal is faster fat loss, skip optional jam, nuts, oil, avocado, feta, crackers, or hummus unless the app says they fit today.",
+    );
+  }
+
+  if (hasSandwich) {
+    steps.push(
+      "Lay the wrap or bread flat on a clean plate. If you want it warm, toast bread lightly or warm the wrap in a dry pan for 20-30 seconds per side.",
+      "Add the measured protein first, spread optional mustard or salsa thinly, then add vegetables if you are using them. Close the wrap or sandwich tightly so it is easy to eat before training.",
+    );
+  }
+
+  if (hasPotato) {
+    steps.push(
+      "Scrub the potato or sweet potato under water, poke it a few times with a fork, and microwave it 5-8 minutes until a fork slides through easily. Large potatoes may need more time.",
+      "Let the potato sit for 2 minutes before cutting it open. Steam inside can burn your fingers.",
+    );
+  }
+
+  if (hasGrain && !recipeHas(recipe, ["oats", "wrap", "bread"]) && !recipe.title.includes("Fried Rice")) {
+    steps.push(
+      "If rice, quinoa, lentils, or pasta are already cooked, weigh the cooked amount listed in the recipe. If you are cooking from dry, follow the package, then weigh only the cooked portion that goes on your plate.",
+      "Keep extra cooked grains in a shallow container after they cool. Do not guess the portion by eye; weigh it once it is cooked.",
+    );
+  }
+
+  if (hasPoultry) {
+    steps.push(
+      "If chicken or turkey is raw, cook it in a pan over medium heat or bake it until a food thermometer reads 165 F in the thickest part. If it is already cooked, reheat it until steaming hot.",
+      "Use a separate utensil for raw poultry and cooked poultry, or wash the utensil with hot soapy water before it touches cooked food.",
+    );
+  }
+
+  if (hasFish) {
+    steps.push(
+      "For raw fish, pat it dry, season simply, then bake or pan-cook it until it reaches 145 F or flakes easily with a fork and is no longer translucent.",
+      "Cook fish gently on medium heat. If the outside browns too quickly while the middle is still soft, lower the heat and give it more time.",
+    );
+  }
+
+  if (hasBeef) {
+    steps.push(
+      "Cook extra-lean beef in a pan over medium heat, breaking it into small pieces. Keep cooking until no pink remains and the meat reaches 160 F if it is ground beef.",
+      "Drain excess liquid if needed, then add vegetables or sauce and simmer briefly so the flavors mix.",
+    );
+  }
+
+  if (hasTofu) {
+    steps.push(
+      "Drain tofu, press it gently with paper towel, then cut it into cubes. Dry tofu browns better and does not water down the pan.",
+      "Cook tofu in a nonstick pan over medium heat with spray or measured oil, turning pieces until several sides are lightly golden.",
+    );
+  }
+
+  if (hasEggs) {
+    steps.push(
+      "Crack eggs into a small bowl first so you can remove shell pieces before they go into the pan. Add egg whites if the recipe lists them.",
+      "Heat a nonstick pan on low-medium, use spray or a measured amount of oil, then cook eggs slowly. Stir or fold until the whites and yolks are firm, not runny.",
+    );
+  }
+
+  if (hasTuna) {
+    steps.push(
+      "Open the tuna can carefully, drain it over the sink, and press the lid gently against the tuna so the bowl does not become watery.",
+      "Flake tuna with a fork before mixing it with grains, cucumber, hummus, or vegetables. This spreads the protein through the whole meal.",
+    );
+  }
+
+  if (hasVegetables && !hasColdBowl) {
+    steps.push(
+      "Cook vegetables with spray, a splash of water, or the measured oil from the recipe. Start with firmer vegetables first, then softer vegetables so nothing turns mushy.",
+      "Season with salt, pepper, lemon, vinegar, salsa, or light sauce. Measure calorie-dense sauces and oils instead of pouring freely.",
+    );
+  }
+
+  steps.push(
+    ...recipe.prep.map((step) => `Recipe-specific step: ${step}`),
+    `Build the final plate exactly like this: ${recipe.plate.join("; ")}.`,
+    "Before eating, check the plate against the ingredient list. The optional items are there for flexibility, so leave them out when you want the lower-calorie version.",
+    "If you meal-prep or have leftovers, refrigerate perishable food within 2 hours in a shallow container and reheat leftovers until steaming hot.",
+  );
+
+  return steps;
+}
+
 const dietRecipeMap = dietRecipes.reduce<Record<string, DietRecipe>>((map, recipe) => {
   map[recipe.id] = recipe;
   return map;
@@ -4012,6 +4151,7 @@ export default function Home() {
   const [activeSection, setActiveSection] = useState<AppSection>("today");
   const [selectedDietDate, setSelectedDietDate] = useState(() => closestProgramDate());
   const [openDietSwapSlot, setOpenDietSwapSlot] = useState<DietMealSlot | null>(null);
+  const [openDietHowToSlot, setOpenDietHowToSlot] = useState<DietMealSlot | null>(null);
   const [gymExerciseIndex, setGymExerciseIndex] = useState(0);
   const [libraryFilter, setLibraryFilter] = useState("all");
   const [librarySearch, setLibrarySearch] = useState("");
@@ -4058,6 +4198,7 @@ export default function Home() {
 
   useEffect(() => {
     setOpenDietSwapSlot(null);
+    setOpenDietHowToSlot(null);
   }, [selectedDietDate]);
 
   useEffect(() => {
@@ -4318,6 +4459,7 @@ export default function Home() {
       timing: dietTimingForSlot(selectedDietDay, slot.id),
       baseRecipe,
       recipe: activeRecipe,
+      howTo: detailedRecipeHowTo(activeRecipe),
       isComplete: Boolean(selectedDietLog.meals[slot.id]),
       isSwapped: activeRecipe.id !== baseRecipe.id,
       swaps: dietSwapOptionsFor(slot.id, activeRecipe.id),
@@ -4520,6 +4662,7 @@ export default function Home() {
       };
     });
     setOpenDietSwapSlot(null);
+    setOpenDietHowToSlot(null);
   };
 
   const updateSetForDay = (
@@ -5505,7 +5648,7 @@ export default function Home() {
                     <div className="diet-meal-topline">
                       <span className="diet-slot-chip">{meal.label}</span>
                       <span className="diet-timing-chip">{meal.timing}</span>
-                      {meal.isSwapped && <span className="diet-swap-chip">Swap active</span>}
+                      {meal.isSwapped && <span className="diet-swap-chip">Swap version</span>}
                     </div>
                     <h3>{meal.recipe.title}</h3>
                     <div className="diet-macro-row">
@@ -5520,7 +5663,26 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="diet-card-grid">
+                {meal.isSwapped && (
+                  <div className="swap-alert diet-swap-alert">
+                    <div>
+                      <span className="swap-alert-label">
+                        <Icon name="swap" size={15} /> Swap version
+                      </span>
+                      <strong>{meal.recipe.title}</strong>
+                      <small>Original plan: {meal.baseRecipe.title}</small>
+                    </div>
+                    <button
+                      className="swap-revert-button"
+                      type="button"
+                      onClick={() => setDietSwap(meal.slot, meal.baseRecipe.id)}
+                    >
+                      Revert to original
+                    </button>
+                  </div>
+                )}
+
+                <div className="diet-card-grid diet-basics-grid">
                   <div>
                     <h4>Ingredients</h4>
                     <ul>
@@ -5537,14 +5699,6 @@ export default function Home() {
                       ))}
                     </ul>
                   </div>
-                  <div>
-                    <h4>Make It</h4>
-                    <ol>
-                      {meal.recipe.prep.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ol>
-                  </div>
                 </div>
 
                 <div className="diet-meal-actions">
@@ -5557,11 +5711,24 @@ export default function Home() {
                     {meal.isComplete ? "Done" : "Mark eaten"}
                   </button>
                   <button
+                    className="diet-howto-button"
+                    type="button"
+                    aria-expanded={openDietHowToSlot === meal.slot}
+                    onClick={() => {
+                      setOpenDietSwapSlot(null);
+                      setOpenDietHowToSlot((slot) => (slot === meal.slot ? null : meal.slot));
+                    }}
+                  >
+                    <Icon name="library" size={16} />
+                    Make It
+                  </button>
+                  <button
                     className="diet-swap-button"
                     type="button"
-                    onClick={() =>
-                      setOpenDietSwapSlot((slot) => (slot === meal.slot ? null : meal.slot))
-                    }
+                    onClick={() => {
+                      setOpenDietHowToSlot(null);
+                      setOpenDietSwapSlot((slot) => (slot === meal.slot ? null : meal.slot));
+                    }}
                   >
                     <Icon name="swap" size={16} />
                     Swap
@@ -5572,10 +5739,29 @@ export default function Home() {
                       type="button"
                       onClick={() => setDietSwap(meal.slot, meal.baseRecipe.id)}
                     >
-                      Use original
+                      Revert to original
                     </button>
                   )}
                 </div>
+
+                {openDietHowToSlot === meal.slot && (
+                  <div className="diet-howto-panel">
+                    <div className="flow-heading">
+                      <h4>How To: {meal.recipe.title}</h4>
+                      <span>Beginner steps</span>
+                    </div>
+                    {meal.isSwapped && (
+                      <p className="swap-note">
+                        Swap version. Original plan: {meal.baseRecipe.title}. Use the revert button above if you want the main plan meal back.
+                      </p>
+                    )}
+                    <ol className="diet-howto-steps">
+                      {meal.howTo.map((step, stepIndex) => (
+                        <li key={`${meal.recipe.id}-how-to-${stepIndex}`}>{step}</li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
 
                 {openDietSwapSlot === meal.slot && (
                   <div className="diet-swap-panel">
@@ -5917,9 +6103,7 @@ export default function Home() {
                     {completedRows(currentGymRows)}/{currentGymRows.length} sets
                   </span>
                   {currentGymMove.isSwapped && currentGymOriginalExercise && (
-                    <span className="swap-chip">
-                      Swapped from {currentGymOriginalExercise.shortName}
-                    </span>
+                    <span className="swap-chip">Swap version</span>
                   )}
                 </div>
                 <h2>{currentGymExercise.name}</h2>
@@ -5930,6 +6114,27 @@ export default function Home() {
                 <ExerciseMediaLinks exercise={currentGymExercise} />
               </div>
             </div>
+
+            {currentGymMove.isSwapped && currentGymOriginalExercise && (
+              <div className="swap-alert workout-swap-alert">
+                <div>
+                  <span className="swap-alert-label">
+                    <Icon name="swap" size={15} /> Swap version
+                  </span>
+                  <strong>{currentGymExercise.name}</strong>
+                  <small>Original plan: {currentGymOriginalExercise.name}</small>
+                </div>
+                <button
+                  className="swap-revert-button"
+                  type="button"
+                  onClick={() =>
+                    setGymExerciseSwap(currentGymOriginalExercise.id, currentGymOriginalExercise.id)
+                  }
+                >
+                  Revert to original
+                </button>
+              </div>
+            )}
 
             <div className="gym-target-grid">
               <div>
@@ -6245,7 +6450,7 @@ export default function Home() {
                         <span className={`move-status-chip ${move.status}`}>{move.statusLabel}</span>
                         <span className="family-chip">{familyLabel(move.activeExercise.family)}</span>
                         <span className={`location-chip ${move.location.type}`}>{move.location.label}</span>
-                        {move.isSwapped && <span className="swap-chip">Swap active</span>}
+                        {move.isSwapped && <span className="swap-chip">Swap version</span>}
                       </span>
                       {move.isSwapped && (
                         <small className="swap-origin">Original: {move.originalExercise.name}</small>
@@ -6283,6 +6488,16 @@ export default function Home() {
                         <Icon name={move.swaps.length ? "swap" : "video"} size={16} />
                         <span>{move.swaps.length ? "Details / Swap" : "Details"}</span>
                       </button>
+                      {move.isSwapped && (
+                        <button
+                          className="move-revert-button"
+                          type="button"
+                          onClick={() => setExerciseSwap(move.originalExercise.id, move.originalExercise.id)}
+                        >
+                          <Icon name="swap" size={16} />
+                          <span>Revert to original</span>
+                        </button>
+                      )}
                     </div>
                   </article>
                 ))}
@@ -6569,9 +6784,6 @@ export default function Home() {
                 <span className={`move-status-chip ${detailMove.status}`}>
                   {detailMove.statusLabel}
                 </span>
-                {detailMove.isSwapped && (
-                  <p>Swapped from {detailMove.originalExercise.name}</p>
-                )}
               </div>
               <button
                 className="sheet-close-button"
@@ -6582,6 +6794,27 @@ export default function Home() {
                 <Icon name="x" size={20} />
               </button>
             </div>
+
+            {detailMove.isSwapped && (
+              <div className="swap-alert detail-swap-alert">
+                <div>
+                  <span className="swap-alert-label">
+                    <Icon name="swap" size={15} /> Swap version
+                  </span>
+                  <strong>{detailExercise.name}</strong>
+                  <small>Original plan: {detailMove.originalExercise.name}</small>
+                </div>
+                <button
+                  className="swap-revert-button"
+                  type="button"
+                  onClick={() =>
+                    setExerciseSwap(detailMove.originalExercise.id, detailMove.originalExercise.id)
+                  }
+                >
+                  Revert to original
+                </button>
+              </div>
+            )}
 
             <div className="detail-media-grid">
               <div className="detail-media-panel">
@@ -6639,7 +6872,7 @@ export default function Home() {
                       setExerciseSwap(detailMove.originalExercise.id, detailMove.originalExercise.id)
                     }
                   >
-                    <strong>Use original</strong>
+                    <strong>Original</strong>
                     <small>{detailMove.originalExercise.name}</small>
                     <span>{detailMove.originalExercise.equipment}</span>
                   </button>

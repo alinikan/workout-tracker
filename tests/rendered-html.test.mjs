@@ -80,7 +80,7 @@ test("includes researched movement resources and autosave controls", async () =>
     "Weekly consistency",
     "Exercise Detail",
     "Swap Options",
-    "Use original",
+    "Revert to original",
     "smartLoadSuggestion",
     "Hold or nudge up",
     "Progress Dashboard",
@@ -98,6 +98,18 @@ test("includes researched movement resources and autosave controls", async () =>
     "8-12 each side",
     "direct arms",
     "youtube-nocookie.com/embed",
+    "Swap version",
+    "swap-alert",
+    "move-revert-button",
+    "setOpenDietHowToSlot",
+    "detailedRecipeHowTo",
+    "recipeHas",
+    "Beginner steps",
+    "food thermometer",
+    "165 F",
+    "145 F",
+    "whites and yolks are firm",
+    "refrigerate perishable food within 2 hours",
     "sessionTimeForDay",
     "warmupTarget",
     "rampWarmupTarget",
@@ -244,7 +256,8 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "Fuel timing",
     "After-work gym fuel",
     "Mark eaten",
-    "Use original",
+    "Make It",
+    "Revert to original",
     "Weight coach",
     "Daily Weight Log",
     "Weekly averages",
@@ -286,6 +299,12 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "slot-snack",
     "slot-dinner",
     "diet-swap-panel",
+    "diet-howto-panel",
+    "diet-howto-steps",
+    "diet-basics-grid",
+    "swap-alert",
+    "swap-revert-button",
+    "move-revert-button",
     "preworkout-fuel-card",
     "fuel-step-list",
     "fuel-caution",
@@ -321,6 +340,8 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
   assert.match(readme, /built-in fat-loss diet plan/);
   assert.match(readme, /Preference-aware defaults/);
   assert.match(readme, /After-Work Training Fuel/);
+  assert.match(readme, /Expandable Make It guide/);
+  assert.match(readme, /Revert to original/);
   assert.match(readme, /Morning weight in kg/);
   assert.match(readme, /store-neutral ingredient list/);
   assert.match(readme, /npm run dev -- --port 3001/);
@@ -511,8 +532,8 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v23/);
-  assert.match(serviceWorker, /after-work-fuel-diet-defaults-v23/);
+  assert.match(serviceWorker, /recomp-gym-console-v24/);
+  assert.match(serviceWorker, /beginner-recipe-how-to-v24/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
