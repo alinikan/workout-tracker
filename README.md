@@ -212,9 +212,11 @@ Nutrition uses calorie cycling by day type:
 | Cardio day | About 1,950 kcal, 150-165 g protein, moderate measured carbs. |
 | Recovery day | About 1,850 kcal, 150-165 g protein, slightly lower starch portions. |
 
-The default grocery pattern favors easy repeat purchases: Greek yogurt, cottage cheese, eggs, egg whites, chicken, tuna, salmon, white fish, tofu, oats, rice, quinoa, potatoes, fruit, and vegetables. Beans, chickpeas, turkey, rice cakes, and muesli remain in the recipe library as optional swap choices, but they are no longer default meals.
+The default grocery pattern favors easy repeat purchases: Greek yogurt, cottage cheese, eggs, egg whites, chicken breast or skinless chicken thighs, lean beef, tuna, salmon, white fish, oats, rice, quinoa, potatoes, fruit, and vegetables. The main week now includes lean beef with pasta, lean beef with rice, and lean beef with potatoes, while still keeping fish and chicken in rotation for variety. Beans, chickpeas, turkey, rice cakes, muesli, tofu, and egg-only bowls remain in the recipe library as optional swap choices, but they are no longer default meals.
 
 Each recipe has a compact card for quick gym-day scanning and an expandable Make It guide for cooking. The guide skips repeated generic setup text and explains the actual food steps for that recipe, such as mixing a yogurt bowl, toasting a pre-workout snack, warming chicken and grains, cooking eggs, or plating fish with potatoes and vegetables.
+
+Lean beef meals are portioned around extra-lean beef, measured rice or potatoes, and a large vegetable serving. Oils, marinara, salsa, and avocado-style add-ons are marked optional where skipping or measuring them better supports fat loss.
 
 Coach Hub keeps weight tracking compact. The main view shows weekly averages, a recent weight trend graph, a motivating coach note, and only expands the daily log when the user wants to edit recent mornings. Weekly history shows the latest weeks first so the dashboard stays useful across the full 182-day program.
 
@@ -817,6 +819,8 @@ Exercise cues and resource links are based on reputable public training referenc
 - [NSCA Dynamic Warm-Up Guide](https://www.nsca.com/education/articles/kinetic-select/introduction-to-dynamic-warm-up/)
 - [CDC Physical Activity Guidance](https://www.cdc.gov/physical-activity-basics/guidelines/adults.html)
 - [Mayo Clinic: Eating and Exercise](https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/exercise/art-20045506)
+- [Mayo Clinic: Lean Beef Cuts](https://www.mayoclinic.org/healthy-lifestyle/nutrition-and-healthy-eating/in-depth/cuts-of-beef/art-20043833)
+- [Mayo Clinic: Whole Grains](https://www.mayoclinic.org/healthy-lifestyle/nutrition-and-healthy-eating/in-depth/whole-grains/art-20047826)
 - [Academy of Nutrition and Dietetics: Timing Your Pre- and Post-Workout Nutrition](https://www.eatright.org/fitness/physical-activity/exercise-nutrition/timing-your-pre-and-post-workout-nutrition)
 - [MedlinePlus: Fainting](https://medlineplus.gov/fainting.html)
 - [MyPlate: Protein Foods](https://www.myplate.gov/web/web/eat-healthy/protein-foods)

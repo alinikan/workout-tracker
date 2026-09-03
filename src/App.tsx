@@ -1948,6 +1948,19 @@ const dietRecipes: DietRecipe[] = [
     plate: ["100 g tuna", "150 g quinoa", "200 g vegetables"],
   },
   {
+    id: "lean-beef-rice-bowl",
+    slot: "lunch",
+    title: "Lean Beef Rice Bowl",
+    shortTitle: "Beef rice",
+    photo: foodPhoto("photo-1559847844-5315695dadae"),
+    calories: "~520-570 kcal",
+    protein: "~39-44 g",
+    tags: ["lean protein", "rice", "vegetables", "meal prep", "lifting friendly"],
+    ingredients: ["120 g cooked extra-lean beef", "150 g cooked rice", "220 g mixed vegetables", "Salsa or crushed tomatoes (optional; choose low-sugar)", "5 g olive oil (optional; use spray to save calories)"],
+    prep: ["Cook extra-lean beef and drain visible fat.", "Serve with measured rice, vegetables, and optional salsa or crushed tomatoes."],
+    plate: ["120 g beef", "150 g rice", "220 g vegetables", "0-5 g oil"],
+  },
+  {
     id: "turkey-lentil-rice",
     slot: "lunch",
     title: "Turkey Lentil Rice Bowl",
@@ -1998,6 +2011,19 @@ const dietRecipes: DietRecipe[] = [
     ingredients: ["100 g extra-lean beef", "150 g cooked whole-grain pasta", "100 g marinara (optional; use crushed tomatoes to save calories)", "180 g mushrooms or zucchini"],
     prep: ["Cook beef, vegetables, and optional marinara or crushed tomatoes together.", "Serve over measured pasta."],
     plate: ["100 g beef", "150 g cooked pasta", "180 g vegetables"],
+  },
+  {
+    id: "lean-beef-potato-plate",
+    slot: "dinner",
+    title: "Lean Beef Potato Plate",
+    shortTitle: "Beef potato",
+    photo: foodPhoto("photo-1544025162-d76694265947"),
+    calories: "~540-600 kcal",
+    protein: "~40-45 g",
+    tags: ["lean protein", "potato", "vegetables", "post-workout", "easy groceries"],
+    ingredients: ["120 g cooked extra-lean beef", "300 g potato", "220 g vegetables", "Salsa or crushed tomatoes (optional; choose low-sugar)", "5 g olive oil (optional; use spray to save calories)"],
+    prep: ["Cook extra-lean beef and drain visible fat.", "Plate with potatoes, vegetables, and optional salsa or crushed tomatoes."],
+    plate: ["120 g beef", "300 g potato", "220 g vegetables", "0-5 g oil"],
   },
   {
     id: "egg-lentil-quinoa",
@@ -2360,6 +2386,14 @@ const recipeHowToSteps: Record<string, string[]> = {
     "Mix tuna, quinoa, cucumber, and salad vegetables together.",
     "Use lemon or vinegar for the lower-calorie version; add 5 g olive oil only if you measured it.",
   ],
+  "lean-beef-rice-bowl": [
+    "Warm 150 g cooked rice in a bowl or pan.",
+    "Cook 120 g extra-lean beef in a nonstick pan over medium heat, breaking it into small pieces as it browns.",
+    "Drain or blot away visible fat if any collects in the pan.",
+    "Add 220 g mixed vegetables to the pan and cook for 3-5 minutes, until hot and tender.",
+    "Put rice in the bowl first, spoon beef and vegetables over it, then add salsa or crushed tomatoes if using them.",
+    "Use spray for the leanest version; add 5 g olive oil only if you measured it.",
+  ],
   "turkey-lentil-rice": [
     "Warm 90 g cooked extra-lean turkey in a pan.",
     "Add 120 g cooked lentils, 120 g cooked rice, and 180 g peppers and tomatoes.",
@@ -2387,6 +2421,14 @@ const recipeHowToSteps: Record<string, string[]> = {
     "Add 180 g mushrooms or zucchini and cook until softened.",
     "Stir in 100 g marinara, or use crushed tomatoes for the lower-calorie version.",
     "Spoon the beef and vegetable sauce over the measured pasta.",
+  ],
+  "lean-beef-potato-plate": [
+    "Cook 300 g potato until soft: microwave it, boil it, or roast it without unmeasured oil.",
+    "Cook 120 g extra-lean beef in a nonstick pan over medium heat, breaking it apart until no pink remains.",
+    "Drain or blot visible fat from the beef before plating.",
+    "Cook 220 g vegetables in the same pan or microwave them until hot.",
+    "Plate potato on one side, beef on the other, and vegetables in the largest section of the plate.",
+    "Add salsa or crushed tomatoes if using them. Use spray for the leanest version; add 5 g olive oil only if measured.",
   ],
   "egg-lentil-quinoa": [
     "Warm 150 g cooked lentils, 100 g cooked quinoa, and 200 g vegetables together in a pan or microwave-safe bowl.",
@@ -2578,7 +2620,7 @@ const weeklyDietMealMap: Record<PlanWeekday, Record<DietMealSlot, string>> = {
   },
   Thursday: {
     breakfast: "yogurt-oat-pear",
-    lunch: "tofu-edamame-stir-fry",
+    lunch: "lean-beef-rice-bowl",
     snack: "chicken-sandwich-fruit",
     dinner: "white-fish-plate",
   },
@@ -2598,7 +2640,7 @@ const weeklyDietMealMap: Record<PlanWeekday, Record<DietMealSlot, string>> = {
     breakfast: "yogurt-bowl-kiwi",
     lunch: "egg-quinoa-veg-bowl",
     snack: "cottage-apple",
-    dinner: "egg-fried-rice",
+    dinner: "lean-beef-potato-plate",
   },
 };
 
@@ -3414,7 +3456,7 @@ function shoppingIngredientFor(ingredient: string): { name: string; category: Sh
   if (lower.includes("whey")) return { name: "Whey protein", category: "Protein & dairy" };
   if (lower.includes("egg whites")) return { name: "Liquid egg whites", category: "Protein & dairy" };
   if (lower.includes("eggs") || lower.includes("2 eggs")) return { name: "Eggs", category: "Protein & dairy" };
-  if (lower.includes("chicken")) return { name: "Chicken breast or rotisserie chicken", category: "Protein & dairy" };
+  if (lower.includes("chicken")) return { name: "Chicken breast or skinless chicken thighs", category: "Protein & dairy" };
   if (lower.includes("turkey")) return { name: "Extra-lean turkey", category: "Protein & dairy" };
   if (lower.includes("salmon")) return { name: "Salmon", category: "Protein & dairy" };
   if (lower.includes("white fish")) return { name: "White fish", category: "Protein & dairy" };

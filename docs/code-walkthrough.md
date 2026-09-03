@@ -122,6 +122,11 @@ an exercise's cues, video, or swap list appears everywhere.
 `recipeHowToSteps` adds longer beginner-friendly cooking instructions. The daily diet page keeps
 the card short until the user opens the expandable Make It panel.
 
+The default week emphasizes foods the user reliably buys: chicken breast or skinless chicken thighs,
+lean beef, rice, potatoes, oats, yogurt, cottage cheese, eggs, fish, fruit, and vegetables. Less-used
+foods such as beans, chickpeas, turkey, rice cakes, muesli, tofu, and egg-only bowls can still be
+chosen as swaps.
+
 ### Schedule And Program Days
 
 The app does not hand-write 182 days. Instead:
