@@ -106,6 +106,13 @@ button in production.
 The schedule stores exercise IDs instead of copying whole exercise objects. That way one update to
 an exercise's cues, video, or swap list appears everywhere.
 
+Lower-body exercise choices are intentionally knee/hip friendly by default. The user reported that
+deep squatting and sitting into squat positions feel mechanically blocked, so `strengthWarmupIds`
+starts with seated knee extension and supported hip abduction rather than bodyweight squats, and
+Wednesday's Strength B uses leg press plus glute bridge instead of goblet squat. Keep bodyweight
+squat and goblet squat as optional library/swap items unless the user later confirms that squatting
+feels comfortable and pain-free.
+
 ### Recipe Data
 
 `dietRecipes` works like the exercise library, but for meals. Each recipe has:

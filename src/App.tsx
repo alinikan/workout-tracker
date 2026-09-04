@@ -271,10 +271,12 @@ const STORAGE_META_KEY = "body-recomp-gym-tracker-meta-v1";
 const START_DATE = "2026-08-31";
 const PROGRAM_DAYS = 182;
 
-// Strength sessions begin with general prep, then two exercise-specific ramp warm-ups. The ramp
-// warm-ups are generated from this shared warm-up base and then inserted into the session order.
+// Strength sessions begin with knee/hip-friendly general prep, then two exercise-specific ramp
+// warm-ups. Squat-pattern drills stay in the library, but the default warm-up does not require a
+// deep squat or sit-down shape because that movement is not currently available for the user.
 const strengthWarmupIds = [
-  "bodyweight-squat",
+  "seated-knee-extension-warmup",
+  "standing-supported-hip-abduction",
   "hip-hinge-drill",
   "incline-push-up",
   "warmup-front-plank",
@@ -583,6 +585,96 @@ const exerciseMap: Record<string, Exercise> = {
       },
     ],
   },
+  "seated-knee-extension-warmup": {
+    id: "seated-knee-extension-warmup",
+    name: "Seated Knee Extension Warm-Up",
+    shortName: "Knee extension",
+    family: "warmup",
+    equipment: "Chair or bench",
+    trainingLocation: "upstairs",
+    locationNote: "Good upstairs before you go down. It warms the quads without asking you to squat or sit into a deep knee bend.",
+    target: "Quadriceps activation without deep knee bend",
+    reps: "8-12 each side",
+    rest: "Easy",
+    cues: [
+      "Sit tall near the front of a chair or bench with both feet flat.",
+      "Straighten one knee slowly until the thigh feels lightly active, then hold for one calm count.",
+      "Lower with control, switch sides, and keep the range pain-free instead of forcing the knee fully locked.",
+    ],
+    avoid: [
+      "Do not kick or swing the lower leg.",
+      "Do not force a locked knee if the front of the knee or hip pinches.",
+      "Do not treat this as a heavy leg-extension set; it is joint-friendly prep.",
+    ],
+    progression: "Add reps and a longer top hold only when the motion feels smooth and pain-free.",
+    motionDemo: {
+      workoutXId: "0585",
+      label: "Leg extension pattern reference",
+      match: "reference",
+    },
+    youtubeId: "AmpUL3sOz5g",
+    logType: "done",
+    loadLabel: "body",
+    resources: [
+      {
+        label: "CUH early knee exercises",
+        url: "https://www.cuh.nhs.uk/our-services/physiotherapy-outpatients/outpatient-physio-resources/resources/knee/early-knee-exercises/",
+      },
+      {
+        label: "NHS knee osteoarthritis exercises",
+        url: "https://www.nhsinform.scot/illnesses-and-conditions/muscle-bone-and-joints/leg-and-foot-problems-and-conditions/exercises-for-osteoarthritis-of-the-knee",
+      },
+      {
+        label: "Mayo patellofemoral pain overview",
+        url: "https://www.mayoclinic.org/diseases-conditions/patellofemoral-pain-syndrome/symptoms-causes/syc-20350792",
+      },
+    ],
+  },
+  "standing-supported-hip-abduction": {
+    id: "standing-supported-hip-abduction",
+    name: "Standing Supported Hip Abduction",
+    shortName: "Hip abduction",
+    family: "warmup",
+    equipment: "Wall, counter, or stable post",
+    trainingLocation: "upstairs",
+    locationNote: "Good upstairs if you have a stable counter or wall. It wakes up the side hip without squatting.",
+    target: "Side hip and knee-control prep",
+    reps: "8-12 each side",
+    rest: "Easy",
+    cues: [
+      "Hold a stable support, stand tall, and keep the working-side toes pointing mostly forward.",
+      "Move the leg out to the side from the hip, leading gently with the heel instead of twisting the foot open.",
+      "Pause briefly when the side hip tightens, then lower slowly without leaning your torso.",
+    ],
+    avoid: [
+      "Do not swing the leg or use momentum.",
+      "Do not lean your upper body away to make the leg go higher.",
+      "Do not force a big range if the hip or outside knee feels blocked.",
+    ],
+    progression: "Move from 8 to 12 clean reps, then add a two-second side hold before considering a light band.",
+    motionDemo: {
+      workoutXId: "1427",
+      label: "Straight leg outer hip abductor reference",
+      match: "reference",
+    },
+    youtubeId: "oKzLYBh4Ui0",
+    logType: "done",
+    loadLabel: "body",
+    resources: [
+      {
+        label: "South Tees hip abduction",
+        url: "https://www.southtees.nhs.uk/resources/hip-abduction-in-standing/",
+      },
+      {
+        label: "AAOS knee conditioning program",
+        url: "https://www.orthoinfo.org/recovery/knee-conditioning-program",
+      },
+      {
+        label: "Hip strengthening meta-analysis",
+        url: "https://pubmed.ncbi.nlm.nih.gov/35988215/",
+      },
+    ],
+  },
   "bodyweight-squat": {
     id: "bodyweight-squat",
     name: "Bodyweight Squat",
@@ -590,17 +682,21 @@ const exerciseMap: Record<string, Exercise> = {
     family: "warmup",
     equipment: "Bodyweight",
     trainingLocation: "upstairs",
-    locationNote: "Good to do upstairs before heading down, as long as you go downstairs soon after and do the ramp warm-ups there.",
-    target: "Squat pattern",
+    locationNote: "Optional only. Use this upstairs only if a squat pattern feels natural and pain-free; otherwise use the seated knee-extension and supported hip-abduction warm-ups.",
+    target: "Optional squat-pattern practice",
     reps: "8-12 warm-up reps",
     rest: "Easy",
     cues: [
       "Feet about hip to shoulder width, chest tall, weight balanced across the full foot.",
-      "Sit down between your knees and stand by driving through the floor.",
-      "Use this to rehearse knee tracking before goblet squats or leg press.",
+      "Use only the range that feels available; a small comfortable bend is enough for practice.",
+      "Let knees track in the same direction as your toes instead of forcing them into a textbook line.",
     ],
-    avoid: ["Knees collapsing inward.", "Rounding the low back at the bottom."],
-    progression: "Add reps and tempo before adding fatigue; this should prepare your knees and hips without draining your working sets.",
+    avoid: [
+      "Do not force a deep sit-down position.",
+      "Do not use this if the hips or knees feel physically blocked.",
+      "Do not round the low back at the bottom.",
+    ],
+    progression: "Keep this as optional skill practice. The main plan no longer depends on squats for lower-body progress.",
     motionDemo: {
       workoutXId: "1685",
       label: "Squat to overhead reach",
@@ -735,14 +831,14 @@ const exerciseMap: Record<string, Exercise> = {
     reps: "2 lighter sets",
     rest: "45-60 sec",
     cues: [
-      "Use the same seat, foot position, and range of motion planned for your Leg Press.",
+      "Use the same seat, foot position, and pain-free range of motion planned for your Leg Press.",
       "Set 1 should feel very easy and teach the path.",
       "Set 2 should feel closer to working weight but still clearly lighter.",
     ],
     avoid: [
       "Do not count ramp sets as working sets.",
       "Do not tire out your legs before the real Leg Press work.",
-      "Do not change depth or foot position from warm-up to working sets.",
+      "Do not force a deeper knee bend in warm-ups than you can repeat in working sets.",
     ],
     progression: "As your working weight rises, let the ramp weights rise too, but keep both sets crisp and non-fatiguing.",
     motionDemo: {
@@ -808,21 +904,21 @@ const exerciseMap: Record<string, Exercise> = {
     family: "warmup",
     equipment: "Bodyweight, light dumbbell, or light kettlebell",
     trainingLocation: "downstairs",
-    locationNote: "Do this downstairs right before Goblet Squat so the warm-up matches the exact weight and setup.",
-    target: "Specific warm-up for the first working lift",
+    locationNote: "Optional only. Use this downstairs only if you intentionally swap into Goblet Squat and the squat pattern feels comfortable.",
+    target: "Optional squat-specific warm-up",
     reps: "2 lighter sets",
     rest: "45-60 sec",
     cues: [
-      "Use the same stance and depth planned for Goblet Squat.",
-      "Start with bodyweight or a very light weight, then use a second light set.",
-      "Treat both sets as skill practice for bracing, depth, and knee tracking.",
+      "Use the same comfortable stance and depth planned for Goblet Squat.",
+      "Start with bodyweight or a very light weight, then use a second light set only if the first feels natural.",
+      "Treat both sets as skill practice for bracing and knee tracking, not as a required deep squat.",
     ],
     avoid: [
-      "Do not rush the descent.",
-      "Do not let knees collapse inward.",
+      "Do not force a deep squat position.",
+      "Do not use this if the hips or knees feel blocked.",
       "Do not make the second warm-up set feel like a working set.",
     ],
-    progression: "The warm-up load can rise as your goblet squat improves, but the goal stays rehearsal, not fatigue.",
+    progression: "Use this only as a swap-specific rehearsal. The default plan uses supported lower-body work instead.",
     motionDemo: {
       workoutXId: "1760",
       label: "Dumbbell goblet squat",
@@ -956,27 +1052,27 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Leg press",
     family: "legs",
     equipment: "Leg press machine",
-    target: "Quadriceps, glutes, hamstrings",
+    target: "Quadriceps, glutes, hamstrings in a supported pain-free range",
     reps: "8-12",
     rest: "90 sec",
     cues: [
-      "Back and tailbone stay flat on the pad, feet flat on the platform.",
-      "Lower until knees are around 90 degrees, then press through the whole foot.",
-      "Finish each rep without snapping or locking the knees.",
+      "Set the seat so your hips and knees feel comfortable, with back and tailbone flat on the pad.",
+      "Use the foot angle that matches your natural hip and knee line; a slight toe-out position is fine if it feels better.",
+      "Lower only as far as you can control without knee or hip pinching, then press through the whole foot without locking the knees.",
     ],
     avoid: [
-      "Do not let knees cave inward.",
-      "Do not cut depth short just to move more weight.",
+      "Do not force a 90-degree knee bend or deep position just because a demo shows it.",
+      "Do not let knees collapse inward or twist away from the toe line.",
       "Do not let hips lift off the pad.",
     ],
-    progression: "When all sets hit the top of the rep range cleanly, add the smallest available load next time.",
+    progression: "When all sets hit the top of the rep range with the same comfortable depth and no knee or hip discomfort, add the smallest available load next time.",
     motionDemo: {
       workoutXId: "0739",
       label: "Sled 45 degree leg press",
       match: "exact",
     },
     youtubeId: "cDGOn-yfKJA",
-    swapIds: ["goblet-squat"],
+    swapIds: ["seated-leg-extension", "glute-bridge"],
     resources: [
       {
         label: "NASM video guide",
@@ -1030,6 +1126,51 @@ const exerciseMap: Record<string, Exercise> = {
       {
         label: "Gym.com demo",
         url: "https://gym.com/exercises/leg-extension-machine",
+      },
+    ],
+  },
+  "glute-bridge": {
+    id: "glute-bridge",
+    name: "Glute Bridge",
+    shortName: "Glute bridge",
+    family: "hinge",
+    equipment: "Mat or floor",
+    trainingLocation: "either",
+    locationNote: "Can be done upstairs or downstairs. If it appears after downstairs lifting, stay downstairs unless you are already finished with the gym floor.",
+    target: "Glutes, hamstrings, and posterior hip without a squat",
+    reps: "10-15",
+    rest: "60-75 sec",
+    cues: [
+      "Lie on your back with knees bent, feet flat, and feet placed where your knees and hips feel comfortable.",
+      "Brace lightly, squeeze the glutes, and lift until hips feel extended without arching the low back.",
+      "Pause for one count, then lower with control and keep the knees tracking naturally over the feet.",
+    ],
+    avoid: [
+      "Do not push so high that the low back arches.",
+      "Do not let the knees collapse or flare into a painful position.",
+      "Do not load this with weight until the bodyweight version feels smooth.",
+    ],
+    progression: "Add reps first, then a longer top hold. Add a light dumbbell across the hips only when bodyweight reps feel easy and pain-free.",
+    motionDemo: {
+      workoutXId: "3013",
+      label: "Low glute bridge on floor",
+      match: "exact",
+    },
+    youtubeId: "wPM8icPu6H8",
+    logType: "done",
+    loadLabel: "body",
+    resources: [
+      {
+        label: "WorkoutX barbell glute bridge guide",
+        url: "https://workoutxapp.com/exercises/barbell-glute-bridge.html",
+      },
+      {
+        label: "NHS knee exercises",
+        url: "https://www.nhsinform.scot/illnesses-and-conditions/muscle-bone-and-joints/leg-and-foot-problems-and-conditions/exercises-for-osteoarthritis-of-the-knee",
+      },
+      {
+        label: "Mayo bridge with fitness ball demo",
+        url: "https://www.mayoclinic.org/healthy-lifestyle/fitness/multimedia/bridge-with-fitness-ball/vid-20084672",
       },
     ],
   },
@@ -1365,27 +1506,27 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Goblet squat",
     family: "legs",
     equipment: "Dumbbell or kettlebell",
-    target: "Quads, glutes, core",
+    target: "Optional squat-pattern swap for quads, glutes, and core",
     reps: "8-12",
     rest: "90 sec",
     cues: [
       "Hold one weight vertically at chest height with elbows near the ribs.",
-      "Brace, sit down between the knees, and keep the chest tall.",
-      "Stand by driving through the floor and keeping knees tracking over toes.",
+      "Brace, use only the squat depth your hips and knees clearly allow, and keep the chest tall.",
+      "Stand by driving through the floor and keeping knees tracking in the same direction as the toes.",
     ],
     avoid: [
       "Do not let the weight drift away from your chest.",
-      "Do not collapse knees inward.",
-      "Do not turn it into a good morning.",
+      "Do not force a deep sit-down position if your hips or knees feel blocked.",
+      "Do not use this as your default lower-body move unless it feels natural and pain-free.",
     ],
-    progression: "Add weight after every set reaches 12 with the same depth and posture.",
+    progression: "Use this only as an optional swap. Add weight after every set reaches 12 with the same comfortable depth and posture.",
     motionDemo: {
       workoutXId: "1760",
       label: "Dumbbell goblet squat",
       match: "exact",
     },
     youtubeId: "nfX7IFK9UNI",
-    swapIds: ["leg-press"],
+    swapIds: ["leg-press", "seated-leg-extension", "glute-bridge"],
     resources: [
       {
         label: "NASM video guide",
@@ -2652,7 +2793,7 @@ const weeklySchedule: Record<string, SessionTemplate> = {
     type: "strength",
     code: "A",
     time: "60-85 min",
-    summary: "Phase-scaled warm-up, two specific ramp warm-ups, full-body weights, quad and hamstring machine accessories, a brisk treadmill finisher, then floor core work.",
+    summary: "Phase-scaled knee/hip-friendly warm-up, two specific ramp warm-ups, supported lower-body work, upper-body weights, quad and hamstring machines, a brisk treadmill finisher, then floor core work.",
     accent: "strength-a",
     exerciseIds: [
       ...strengthWarmupIds,
@@ -2668,7 +2809,7 @@ const weeklySchedule: Record<string, SessionTemplate> = {
       "front-plank",
       "dead-bug",
     ],
-    tasks: ["Follow every move in order", "Log weights in pounds", "Keep every rep clean and stop before form breaks"],
+    tasks: ["Follow every move in order", "Log weights in pounds", "Use pain-free knee and hip ranges; never force a deep squat"],
     finisher: "Brisk treadmill walk at talk-test pace; duration progresses by phase.",
   },
   Tuesday: {
@@ -2686,14 +2827,15 @@ const weeklySchedule: Record<string, SessionTemplate> = {
     type: "strength",
     code: "B",
     time: "65-90 min",
-    summary: "Phase-scaled warm-up, two specific ramp warm-ups, full-body weights, direct arms, quad and hamstring machine accessories, a brisk treadmill finisher, then floor core work.",
+    summary: "Phase-scaled knee/hip-friendly warm-up, supported lower-body strength, upper-body weights, direct arms, a brisk treadmill finisher, then floor core work.",
     accent: "strength-b",
     exerciseIds: [
       ...strengthWarmupIds,
-      "warmup-ramp-goblet-squat",
+      "warmup-ramp-leg-press",
       "warmup-ramp-single-arm-row",
-      "goblet-squat",
+      "leg-press",
       "single-arm-row",
+      "glute-bridge",
       "push-up",
       "seated-db-overhead",
       "incline-reverse-fly",
@@ -2703,7 +2845,7 @@ const weeklySchedule: Record<string, SessionTemplate> = {
       "front-plank",
       "dead-bug",
     ],
-    tasks: ["Follow every move in order", "Log weights in pounds", "Keep every rep clean and stop before form breaks"],
+    tasks: ["Follow every move in order", "Log weights in pounds", "Use pain-free knee and hip ranges; never force a deep squat"],
     finisher: "Brisk treadmill walk at talk-test pace; duration progresses by phase.",
   },
   Thursday: {
@@ -2721,7 +2863,7 @@ const weeklySchedule: Record<string, SessionTemplate> = {
     type: "strength",
     code: "C",
     time: "65-90 min",
-    summary: "Phase-scaled warm-up, two specific ramp warm-ups, full-body weights, direct arms, a brisk treadmill finisher, then floor core work.",
+    summary: "Phase-scaled knee/hip-friendly warm-up, two specific ramp warm-ups, supported lower-body work, upper-body weights, direct arms, a brisk treadmill finisher, then floor core work.",
     accent: "strength-c",
     exerciseIds: [
       ...strengthWarmupIds,
@@ -2740,7 +2882,7 @@ const weeklySchedule: Record<string, SessionTemplate> = {
       "front-plank",
       "dead-bug",
     ],
-    tasks: ["Follow every move in order", "Log weights in pounds", "Keep every rep clean and stop before form breaks"],
+    tasks: ["Follow every move in order", "Log weights in pounds", "Use pain-free knee and hip ranges; never force a deep squat"],
     finisher: "Brisk treadmill walk at talk-test pace; duration progresses by phase.",
   },
   Saturday: {
@@ -2788,17 +2930,20 @@ const sessionTypeLabels: Record<SessionType, string> = {
 // accessories, cardio, and mobility.
 const libraryOrder = [
   "warmup-treadmill-walk",
-  "bodyweight-squat",
+  "seated-knee-extension-warmup",
+  "standing-supported-hip-abduction",
   "hip-hinge-drill",
   "incline-push-up",
   "warmup-front-plank",
+  "bodyweight-squat",
   "warmup-ramp-leg-press",
   "warmup-ramp-incline-db-press",
   "warmup-ramp-goblet-squat",
   "warmup-ramp-single-arm-row",
   "leg-press",
   "seated-leg-extension",
-  "goblet-squat",
+  "seated-leg-curl",
+  "glute-bridge",
   "incline-db-press",
   "machine-chest-press",
   "lat-pulldown",
@@ -2806,7 +2951,7 @@ const libraryOrder = [
   "seated-cable-row",
   "db-rdl",
   "barbell-rdl",
-  "seated-leg-curl",
+  "goblet-squat",
   "front-plank",
   "dead-bug",
   "dumbbell-biceps-curl",
@@ -2987,13 +3132,37 @@ function warmupTarget(planDay: PlanDay, exercise: Exercise) {
     return "12-15 min easy-to-moderate";
   }
 
+  if (exercise.id === "seated-knee-extension-warmup") {
+    if (planDay.week <= 2) return "8 each side with 1-sec hold";
+    if (planDay.week <= 6) return "10 each side with 1-sec hold";
+    if (planDay.week <= 10) return "10 each side with 2-sec hold";
+    if (planDay.week === 11) return "8 each side easy deload";
+    if (planDay.week <= 14) return "10 each side controlled";
+    if (planDay.week <= 18) return "12 each side controlled";
+    if (planDay.week <= 22) return "12 each side with 2-sec hold";
+    if (planDay.week === 23) return "8 each side easy deload";
+    return "12 crisp each side";
+  }
+
+  if (exercise.id === "standing-supported-hip-abduction") {
+    if (planDay.week <= 2) return "8 each side, slow";
+    if (planDay.week <= 6) return "10 each side, slow";
+    if (planDay.week <= 10) return "10 each side with 1-sec side hold";
+    if (planDay.week === 11) return "8 each side easy deload";
+    if (planDay.week <= 14) return "10 each side with quiet torso";
+    if (planDay.week <= 18) return "12 each side with quiet torso";
+    if (planDay.week <= 22) return "12 each side with 2-sec side hold";
+    if (planDay.week === 23) return "8 each side easy deload";
+    return "12 crisp each side";
+  }
+
   if (exercise.id === "bodyweight-squat") {
     if (planDay.week <= 2) return "8 smooth reps";
     if (planDay.week <= 6) return "10 smooth reps";
-    if (planDay.week <= 10) return "10 reps with a 2-sec bottom pause";
+    if (planDay.week <= 10) return "10 reps with a 2-sec comfortable-range pause";
     if (planDay.week === 11) return "8 easy reps";
     if (planDay.week <= 14) return "10 controlled reps";
-    if (planDay.week <= 18) return "12 reps with a 2-sec bottom pause";
+    if (planDay.week <= 18) return "12 reps with a 2-sec comfortable-range pause";
     if (planDay.week <= 22) return "12 controlled reps";
     if (planDay.week === 23) return "8 easy reps";
     return "12 crisp reps";

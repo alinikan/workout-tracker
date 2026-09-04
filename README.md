@@ -27,6 +27,7 @@
 - [Features](#features)
 - [App Sections](#app-sections)
 - [How The Program Works](#how-the-program-works)
+- [Knee And Hip Friendly Lower Body](#knee-and-hip-friendly-lower-body)
 - [Tech Stack](#tech-stack)
 - [Architecture](#architecture)
 - [Code Comments And Walkthrough](#code-comments-and-walkthrough)
@@ -105,6 +106,7 @@ That means the interface favors:
 | Set logging | Strength sets track weight in pounds/lbs and completion. |
 | Done-only moves | Warm-ups, cardio, and bodyweight targets do not show fake weight inputs. |
 | Exercise detail sheet | Includes cues, mistakes, progression notes, resources, inline YouTube, GIF option, swaps, and set log. |
+| Knee/hip-friendly lower body | Default lower-body work avoids forced deep squats and uses supported leg press ranges, quad/hamstring machines, glute bridges, and hip-control warm-ups. |
 | Skip tracking | Supports Time, Pain, Equipment, Fatigue, and Other skip reasons. |
 | Day status | Separates Complete, Finished with skips, and Incomplete days. |
 | Home/gym labels | Marks exercises as Upstairs OK, Downstairs, Downstairs/outside, or Either. |
@@ -223,6 +225,36 @@ Coach Hub keeps weight tracking compact. The main view shows weekly averages, a 
 For users who train after work, strength-day snacks are treated as the pre-workout fuel window. The app recommends eating the planned snack about 60-120 minutes before lifting and keeping lunch complete earlier in the day so the gym session does not start under-fueled.
 
 Workout and diet swaps are intentionally loud. When a movement or meal is using a swap, the app marks it as a Swap version, shows the original plan item, and gives a Revert to original button so the user never mistakes a replacement for the main plan.
+
+---
+
+## Knee And Hip Friendly Lower Body
+
+The lower-body plan is designed for a user who reports that deep squatting or sitting into a squat-like position feels blocked because of knee or hip shape. The app does not diagnose that shape. It changes the training defaults so progress can continue without forcing a movement that currently feels impossible.
+
+What changed:
+
+| Area | App Behavior |
+| --- | --- |
+| Strength warm-up | Squat warm-ups are no longer default. The warm-up starts with seated knee extensions and supported standing hip abductions. |
+| Strength B | Goblet squat is no longer the default first lift. Strength B now uses leg press, single-arm row, and glute bridge before upper-body accessories. |
+| Leg press coaching | The cues now say to use a supported, pain-free range and a foot angle that matches the user's natural hip/knee line. The app no longer asks for a forced 90-degree knee bend. |
+| Squat library items | Bodyweight squat and goblet squat remain available only as optional movements/swaps if they feel natural and pain-free. |
+| Swap logic | Leg press can be swapped toward machine leg extension or glute bridge when a squat-like pattern is not appropriate that day. |
+
+Practical rule inside the program:
+
+> Do not force a deep squat or deep knee bend to match a video. Use the version where your feet, knees, and hips feel controlled, stable, and pain-free.
+
+The added movements are intentionally conservative:
+
+- **Seated Knee Extension Warm-Up:** warms the quads without loading a deep bend.
+- **Standing Supported Hip Abduction:** trains side-hip control while holding a wall or counter.
+- **Glute Bridge:** trains glutes and hamstrings from the floor without requiring a squat.
+- **Leg Press:** stays in the plan, but only through a range that feels available and repeatable.
+
+> [!WARNING]
+> If you cannot bear weight, the knee gives way, locks, swells, becomes hot/red, cannot fully bend or straighten, or the leg shape is new or worsening, pause lower-body training and see a healthcare professional or physiotherapist. The app can adapt exercise selection, but it cannot assess bone alignment, hip anatomy, or knee pathology.
 
 ---
 
@@ -804,6 +836,8 @@ This app is a training and nutrition tracker. It is not medical advice.
 
 Stop a movement if you feel sharp pain, dizziness, chest pain, unusual shortness of breath, numbness, or symptoms that feel wrong. If nutrition changes cause severe hunger, dizziness, digestive issues, or conflict with a medical condition or medication, speak with a physician or registered dietitian.
 
+If deep squatting feels mechanically blocked because of knee or hip shape, do not force it. Use the supported options in the app and consider a physiotherapist or physician assessment, especially if there is pain, instability, swelling, locking, or reduced knee range of motion.
+
 For pain-related skipped exercises, use the built-in skip reason and notes field so the pattern is visible later.
 
 ---
@@ -815,6 +849,16 @@ Exercise cues and resource links are based on reputable public training referenc
 - [ACE Exercise Library](https://www.acefitness.org/resources/everyone/exercise-library/)
 - [NASM Exercise Library](https://www.nasm.org/resource-center/exercise-library)
 - [Mayo Clinic Fitness Videos](https://www.mayoclinic.org/healthy-lifestyle/fitness/multimedia)
+- [Cleveland Clinic: Bow Legged](https://my.clevelandclinic.org/health/diseases/22049-bow-legged)
+- [Mayo Clinic: Patellofemoral Pain Syndrome](https://www.mayoclinic.org/diseases-conditions/patellofemoral-pain-syndrome/symptoms-causes/syc-20350792)
+- [Mayo Clinic: Knee Pain](https://www.mayoclinic.org/diseases-conditions/knee-pain/symptoms-causes/syc-20350849)
+- [AAOS Knee Conditioning Program](https://www.orthoinfo.org/recovery/knee-conditioning-program)
+- [NHS Knee Osteoarthritis Exercises](https://www.nhsinform.scot/illnesses-and-conditions/muscle-bone-and-joints/leg-and-foot-problems-and-conditions/exercises-for-osteoarthritis-of-the-knee)
+- [CUH Early Knee Exercises](https://www.cuh.nhs.uk/our-services/physiotherapy-outpatients/outpatient-physio-resources/resources/knee/early-knee-exercises/)
+- [South Tees: Hip Abduction In Standing](https://www.southtees.nhs.uk/resources/hip-abduction-in-standing/)
+- [Hip Abductor And Lateral Rotator Strengthening Meta-Analysis](https://pubmed.ncbi.nlm.nih.gov/35988215/)
+- [Cleveland Clinic: Glute Bridges](https://health.clevelandclinic.org/glute-bridges)
+- [WorkoutX: Barbell Glute Bridge](https://workoutxapp.com/exercises/barbell-glute-bridge.html)
 - [PureGym Exercise Guides](https://www.puregym.com/exercises/)
 - [NSCA Dynamic Warm-Up Guide](https://www.nsca.com/education/articles/kinetic-select/introduction-to-dynamic-warm-up/)
 - [CDC Physical Activity Guidance](https://www.cdc.gov/physical-activity-basics/guidelines/adults.html)

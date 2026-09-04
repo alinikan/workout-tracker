@@ -54,6 +54,9 @@ test("includes researched movement resources and autosave controls", async () =>
     "Machine Shoulder Press",
     "Pec Deck Fly",
     "Treadmill Easy Walk",
+    "Seated Knee Extension Warm-Up",
+    "Standing Supported Hip Abduction",
+    "Glute Bridge",
     "Warm-Up Front Plank",
     "Warm-Up Ramp: Leg Press",
     "Warm-Up Ramp: Incline Dumbbell Press",
@@ -75,8 +78,22 @@ test("includes researched movement resources and autosave controls", async () =>
     "workoutXGifUrl",
     "workoutXId: \"0585\"",
     "workoutXId: \"0599\"",
+    "workoutXId: \"1427\"",
+    "workoutXId: \"3013\"",
     "youtubeId: \"m0FOpMEgero\"",
     "youtubeId: \"_2Kd0d-JEUM\"",
+    "youtubeId: \"AmpUL3sOz5g\"",
+    "youtubeId: \"oKzLYBh4Ui0\"",
+    "youtubeId: \"wPM8icPu6H8\"",
+    "pain-free knee and hip ranges",
+    "never force a deep squat",
+    "Quadriceps activation without deep knee bend",
+    "Side hip and knee-control prep",
+    "Glutes, hamstrings, and posterior hip without a squat",
+    "CUH early knee exercises",
+    "South Tees hip abduction",
+    "AAOS knee conditioning program",
+    "Hip strengthening meta-analysis",
     "Show GIF",
     "Show YouTube",
     "Completion trend",
@@ -397,10 +414,15 @@ test("extends the PDF progression to roughly 6 months", async () => {
   assert.match(page, /double-progression rule/);
   assert.match(
     page,
-    /const strengthWarmupIds = \[\s*"bodyweight-squat",\s*"hip-hinge-drill",\s*"incline-push-up",\s*"warmup-front-plank",\s*"warmup-treadmill-walk",\s*\]/,
+    /const strengthWarmupIds = \[\s*"seated-knee-extension-warmup",\s*"standing-supported-hip-abduction",\s*"hip-hinge-drill",\s*"incline-push-up",\s*"warmup-front-plank",\s*"warmup-treadmill-walk",\s*\]/,
+  );
+  assert.doesNotMatch(
+    page,
+    /const strengthWarmupIds = \[\s*"bodyweight-squat",\s*"hip-hinge-drill"/,
   );
   assert.match(page, /"leg-press",\s*"seated-leg-extension",\s*"incline-db-press"/);
   assert.match(page, /"db-rdl",\s*"seated-leg-curl",\s*"treadmill-finisher",\s*"front-plank",\s*"dead-bug"/);
+  assert.match(page, /"leg-press",\s*"single-arm-row",\s*"glute-bridge",\s*"push-up"/);
   assert.match(
     page,
     /"incline-reverse-fly",\s*"dumbbell-biceps-curl",\s*"rope-triceps-pressdown",\s*"treadmill-finisher",\s*"front-plank",\s*"dead-bug"/,
@@ -562,13 +584,14 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v25/);
-  assert.match(serviceWorker, /recipe-specific-how-to-weight-chart-v25/);
+  assert.match(serviceWorker, /recomp-gym-console-v26/);
+  assert.match(serviceWorker, /knee-hip-friendly-lower-body-v26/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
   assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
+  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v25/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v22/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v21/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v20/);
@@ -599,6 +622,8 @@ test("documents the codebase with tutorial-style comments and a walkthrough", as
   assert.match(supabaseClient, /Supabase browser client setup/);
   assert.match(walkthrough, /File-By-File Guide/);
   assert.match(walkthrough, /JSON files such as `package\.json`/);
+  assert.match(walkthrough, /knee\/hip friendly/);
+  assert.match(walkthrough, /seated knee extension and supported hip abduction/);
   assert.match(walkthrough, /Commenting Philosophy/);
   assert.match(readme, /Code Comments And Walkthrough/);
   assert.match(readme, /docs\/code-walkthrough\.md/);
