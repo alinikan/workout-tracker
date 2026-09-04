@@ -244,11 +244,11 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "dietDays",
     "weightKg",
     "Coach Hub",
-    "Choose Your Tracker",
+    "Coach Hub",
     "Recomp Diet Console",
     "Diet tracker",
-    "Blue training",
-    "Green nutrition",
+    "Today&apos;s training",
+    "Today&apos;s meals",
     "Breakfast",
     "Lunch",
     "Snack",
@@ -652,8 +652,8 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v29/);
-  assert.match(serviceWorker, /smart-portions-v29/);
+  assert.match(serviceWorker, /recomp-gym-console-v30/);
+  assert.match(serviceWorker, /reliable-coach-v30/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);

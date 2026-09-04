@@ -44,6 +44,7 @@ export default async function handler(request, response) {
     // Fetch the real GIF from WorkoutX, then stream the bytes back from our own domain so the PWA
     // can display it like a normal same-origin image.
     const upstream = await fetch(`https://api.workoutxapp.com/v1/gifs/${requestedId}.gif`, {
+      signal: AbortSignal.timeout(10_000),
       headers: {
         Accept: "image/gif",
         "X-WorkoutX-Key": apiKey,
@@ -53,6 +54,12 @@ export default async function handler(request, response) {
     if (!upstream.ok) {
       setNoStore(response);
       response.status(upstream.status).json({ error: "workoutx_fetch_failed" });
+      return;
+    }
+
+    if (!upstream.headers.get("content-type")?.toLowerCase().startsWith("image/gif")) {
+      setNoStore(response);
+      response.status(502).json({ error: "invalid_gif_response" });
       return;
     }
 

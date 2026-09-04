@@ -191,17 +191,34 @@ continue to six.
 
 ### Supabase Sync
 
-The sync design is intentionally conservative:
+The sync design uses a saved baseline and conditional writes:
 
 1. Load localStorage immediately.
 2. Detect Supabase auth session.
 3. Fetch the user's cloud row.
-4. Decide whether local data needs to merge with cloud data.
-5. Save the merged result back to Supabase.
-6. Debounce future cloud saves.
+4. Compare the last synced copy with local and cloud data using `src/lib/syncMerge.ts`.
+5. Save only if the cloud row still has the `updated_at` value just read; otherwise fetch and merge again.
+6. Serialize/debounce future saves and refresh on reconnect, focus, and every 30 seconds while visible.
 
-Local changes are never thrown away just because the user signs in. The merge functions preserve
-checked boxes, typed weights, swaps, skips, notes, diet meals, and kg weigh-ins.
+The baseline distinguishes "unchanged" from "deliberately cleared". That preserves unchecking,
+clearing a weight, and reverting a swap, as well as independent edits on another device. Same-field
+conflicts prefer the device currently saving. Account copies and baselines use user-specific keys;
+the legacy merge is used only until an older save establishes a baseline. Network and storage
+failures are reported in the UI instead of being treated as successful saves.
+
+### Confidence And Performance
+
+Weight trends use consecutive completed weeks with at least four readings each. Protein averages
+use recent calendar dates, and workout adherence excludes today until it has passed. Poor readiness
+takes precedence over waiting for weight history. Portion advice adjusts at most breakfast, leaving
+the after-work training meals intact. These are conservative product rules, not medical decisions.
+
+Earned plan days and dashboard statistics are memoized, so ticking a timer does not repeatedly scan
+the whole six-month history. Video players mount only after a thumbnail click. The vendor bundle
+is separate so changing a recipe does not invalidate React and Supabase downloads.
+
+`src/components/AppErrorBoundary.tsx` catches render failures and offers a reload without clearing
+storage. It does not claim to recover failed network requests; those have their own sync status.
 
 ## `src/styles.css`
 
@@ -260,8 +277,8 @@ When no key is configured, GIFs fail quietly and YouTube remains the main demo.
 
 ## Tests
 
-The test file is intentionally practical instead of exhaustive. It runs after a production build and
-checks that the generated project still contains the major expected features:
+`npm test` first runs the real TypeScript compiler and production build. The test files then check
+behavior using synthetic data and preserve source-level guards for major features:
 
 - 26-week program.
 - Exercise resources.
@@ -273,8 +290,13 @@ checks that the generated project still contains the major expected features:
 - Mobile/PWA layout protections.
 - This code walkthrough.
 
-For a personal app, this kind of smoke test catches accidental deletions quickly without requiring a
-large testing framework.
+`tests/coach-behavior.test.mjs` imports the actual App functions through Vite, with environment
+loading disabled. It exercises every calendar day, volume progression, Gym navigation, weight
+confidence rules, protected meals, and cross-device merges. `tests/service-worker.test.mjs` runs
+the registered worker handlers against controlled network/cache fixtures, including offline,
+server-error, HTML-instead-of-JavaScript, and cache-cleanup cases. The existing
+`tests/rendered-html.test.mjs` guards feature presence. GitHub Actions runs the suite on each PR and
+push to main. Tests do not sign in to a live account or claim to emulate a real iPhone.
 
 ## Common Changes
 

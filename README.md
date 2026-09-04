@@ -299,9 +299,15 @@ The Diet page includes a **Smart portions** panel. It does not randomly replace 
 - Protein portions follow the latest useful body-weight signal, preferably a recent average.
 - Calorie tightening waits for completed weekly-average evidence so one salty meal or one high-water day does not cause an overreaction.
 - Workout adherence matters. If training consistency is low, the app keeps portions steady and asks the user to build the routine first.
-- Strength-day pre-workout snacks are protected because under-fueling can hurt performance and increase lightheadedness risk.
+- Training-day pre-workout snacks are protected, including swapped snacks. Readiness can trigger fuel guidance even before weight history is available.
 - If weight is dropping too fast, readiness is poor, or the user manually chooses the higher-calorie mode, the app shifts to fuel mode instead of cutting food.
-- If weight is stalled or rising while workouts are being completed, the app trims optional oils, avocado, nuts, jam, sauces, or small starch portions away from the pre-workout window.
+- Automatic tightening requires a sustained stall and consistent workouts. One higher week does not trigger a cut. The suggestion is limited to breakfast: choose one small carb adjustment OR an optional topping adjustment, never both. Lunch, the training snack, and dinner keep their base portions.
+
+The confidence rule is **at least four logged mornings in each of the last two completed, consecutive weeks**. Missing weeks are not bridged, missing days are not counted as zero, and today's unfinished workout is not counted as a missed session. Four readings is a conservative product rule, not a medical threshold. Protein uses up to seven entries from the last 14 calendar days when at least three are available; otherwise the latest weight is used, with older readings clearly labelled.
+
+Recipe calories and protein are **base-recipe estimates**. Optional ingredients, brands, swaps, and portion advice change actual intake; the app does not calculate exact adjusted macros or measure calorie expenditure. The calorie setting is a planning target, not a guarantee that every combination of meals totals that number. A protein add-on is an option toward the daily target, not a promise that the target has been reached.
+
+These choices draw on [CDC guidance on gradual weight loss](https://www.cdc.gov/healthy-weight-growth/losing-weight/index.html), [Mayo Clinic's meal timing guidance](https://www.mayoclinic.org/healthy-lifestyle/fitness/in-depth/exercise/art-20045506), and the [2026 ACSM resistance training position stand](https://pmc.ncbi.nlm.nih.gov/articles/PMC12965823/). The app supports gradual training progression and consistent practice. It cannot determine the cause of dizziness or a knee/hip limitation; follow the in-app stop/assessment advice rather than using food or a replacement exercise to push through symptoms.
 
 The default grocery pattern favors easy repeat purchases: Greek yogurt, cottage cheese, eggs, egg whites, chicken breast or skinless chicken thighs, lean beef, tuna, salmon, white fish, oats, rice, quinoa, potatoes, fruit, and vegetables. The main week now includes lean beef with pasta, lean beef with rice, and lean beef with potatoes, while still keeping fish and chicken in rotation for variety. Beans, chickpeas, turkey, rice cakes, muesli, tofu, and egg-only bowls remain in the recipe library as optional swap choices, but they are no longer default meals.
 
@@ -383,7 +389,11 @@ flowchart TD
   GifProxy --> WorkoutX["WorkoutX API"]
 ```
 
-Data always saves locally first. When Supabase is configured and the user is signed in, the local data merges with cloud data and then syncs back to the user's private row.
+Data saves locally first. When signed in, the app compares the last synced copy with this device and the user's private cloud row. Independent changes are combined, including intentional unchecking, clearing fields, and reverting swaps. If both devices change exactly the same field, the saving device wins that field. A conditional database update retries if another device saves during the request.
+
+Cloud checks resume after reconnection, when the app becomes visible, and every 30 seconds while visible. Coach Hub also has **Sync now**. Sign-in token refreshes no longer interrupt autosave. Each account has a separate device copy; switching accounts does not upload the previous account's data into the new account. A signed-out device retains its last local copy, so signing out is not a device-data wipe.
+
+Device storage and network operations can fail. The app reports saving errors; wait for **Synced across devices** before switching devices. The first upgrade of an older save uses the legacy merge once to establish a baseline. Subsequent merges can reliably distinguish a deletion from an unchanged field. No new Supabase tables, SQL migration, environment variables, or paid service are needed for this update.
 
 ---
 
@@ -730,10 +740,11 @@ Vercel automatically redeploys after a successful push to the connected GitHub r
 | `npm install` | Install dependencies. |
 | `npm run dev` | Start local development server. |
 | `npm run dev -- --port 3001` | Start local development on another port. |
-| `npm run build` | Create production build in `dist/`. |
+| `npm run build` | Run the TypeScript compiler, then create the production build in `dist/`. |
 | `npm run preview` | Preview the production build locally. |
-| `npm test` | Build and run rendered app smoke tests. |
-| `npm run lint` | Run the build-based typecheck gate. |
+| `npm test` | Typecheck, build, and run behavioral, rendering, and source smoke tests. |
+| `npm run typecheck` | Run `tsc --noEmit` without building assets. |
+| `npm run lint` | Alias for the TypeScript check; no separate ESLint rules are installed. |
 | `npm audit --audit-level=high` | Check for high severity dependency issues. |
 
 ---
@@ -775,6 +786,12 @@ workout-tracker/
 | File | Purpose |
 | --- | --- |
 | `src/App.tsx` | Main app, program data, recipes, exercise library, logging, sync, and UI state. |
+| `src/lib/syncMerge.ts` | Merge edits against the last synced baseline without losing deliberate clearing or unchecking. |
+| `src/lib/fetchWithTimeout.ts` | Bounds auth/sync requests to 20 seconds and forwards cancellation. |
+| `src/components/AppErrorBoundary.tsx` | Recovery screen for unexpected rendering failures. |
+| `tests/coach-behavior.test.mjs` | Runs actual calendar, coaching, completion, weight, and merge functions using synthetic data. |
+| `tests/service-worker.test.mjs` | Exercises offline recovery, failed responses, and cache cleanup using controlled fixtures. |
+| `.github/workflows/quality.yml` | Runs checks on pushes to main and pull requests without production credentials. |
 | `src/styles.css` | Responsive design system, workout UI, diet UI, Gym Mode, and PWA spacing. |
 | `src/lib/supabaseClient.ts` | Supabase browser client and configuration validation. |
 | `api/workoutx-gif.js` | Serverless proxy for private WorkoutX GIF requests. |
@@ -839,7 +856,17 @@ npm audit --audit-level=high
 git diff --check
 ```
 
-Current test coverage verifies:
+The behavioral tests execute the actual app functions and a server-rendered Coach Hub, using synthetic data with environment loading disabled. They verify:
+
+- Ordered movements, valid targets, and bounded set counts throughout all 182 days.
+- Training progression based on real lifting completion, excluding recovery replacements.
+- Completing a day fills its sets; Gym navigation follows unfinished moves in order.
+- Missing effort feedback does not recommend a load increase.
+- Invalid weights, older readings, incomplete weeks, and missing mornings do not create misleading diet changes.
+- Poor readiness protects fuel even while the coach is still learning.
+- Independent device edits, unchecks, cleared weights, and swap reversions survive merges.
+
+The existing source smoke tests additionally verify:
 
 - The app is not the default Vite starter.
 - Workout resources and autosave controls exist.
@@ -850,6 +877,25 @@ Current test coverage verifies:
 - PWA assets and service worker behavior are present.
 - Known mobile layout regressions are guarded.
 - The code walkthrough and tutorial comments remain present.
+
+`npm run build` now fails on TypeScript errors, including in Vercel. GitHub's **Quality checks** workflow runs the suite and dependency audit on main/pull requests. This does not replace checking sign-in on a real device: automated tests do not use a live Supabase account, real iOS Safari, or assert pixel-perfect browser layout.
+
+<details>
+<summary><strong>What changed in the reliability and usability update?</strong></summary>
+
+- Coach Hub now starts with compact, distinct Workout and Diet choices showing today's completion.
+- Nutrition settings and repeated smart plate explanations expand on demand.
+- YouTube loads when its thumbnail is pressed, then plays inline; the external YouTube link and optional GIF remain available.
+- Entering weight edits a set. Use its Done control or Complete Set to record completion. Typing the first digit can no longer advance Gym Mode.
+- Yesterday's earned streak remains visible while today's session is pending. Best-lift records count completed sets only.
+- The weight graph spaces points by actual calendar days, including gaps.
+- Keyboard focus is visible, reduced-motion preferences are respected, and mobile input text avoids iOS focus zoom.
+- The service worker retains one previous app cache and rejects failed/HTML script responses. Unexpected render errors show a reload action instead of a blank screen.
+- React/Supabase code is cached separately from the frequently updated workout and recipe code.
+
+Deploy through the existing GitHub/Vercel connection. Commit the changed files, push to main, and wait for Vercel to finish. No `schema.sql` rerun or new setup is required.
+
+</details>
 
 ---
 

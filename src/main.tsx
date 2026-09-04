@@ -1,6 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import "./styles.css";
 
 // main.tsx is the browser entry point. Vite loads index.html, this script finds the #root element,
@@ -17,6 +18,6 @@ createRoot(root).render(
   // StrictMode helps catch unsafe effects during development. It does not change the production
   // bundle behavior users receive from Vercel.
   <React.StrictMode>
-    <App />
+    <AppErrorBoundary><App /></AppErrorBoundary>
   </React.StrictMode>,
 );

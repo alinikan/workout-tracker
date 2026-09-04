@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { fetchWithTimeout } from "./fetchWithTimeout";
 
 /**
  * Supabase browser client setup.
@@ -54,6 +55,7 @@ function createSupabaseClient() {
 
   try {
     return createClient(rawSupabaseUrl, rawSupabasePublishableKey, {
+      global: { fetch: fetchWithTimeout },
       auth: {
         // These options keep email/password sessions alive inside normal browsers and iPhone Home
         // Screen PWAs, which may have separate storage from Safari.

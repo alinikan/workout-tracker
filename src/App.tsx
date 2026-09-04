@@ -1,6 +1,7 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase, supabaseConfigError } from "./lib/supabaseClient";
+import { canClaimLocalProgress, mergeProgressChanges, sameData } from "./lib/syncMerge";
 
 /**
  * App.tsx is intentionally the main "product brain" for this personal tracker.
@@ -3984,11 +3985,15 @@ function withAutomaticDietCompletion(log: DietDayLog) {
 // The app now uses kg for body weight, but this fallback preserves older saves that stored the
 // value in the legacy weight field.
 function weightKgFromMetric(metric: MetricLog) {
-  const directKg = parseLoadValue(metric.weightKg);
-  if (directKg !== null) return directKg;
+  const entered = metric.weightKg.trim();
+  if (entered && !/^\d+(?:[.,]\d+)?$/.test(entered)) return null;
+  const directKg = entered ? Number(entered.replace(",", ".")) : null;
+  if (directKg !== null) return directKg > 0 && directKg <= 500 ? directKg : null;
 
-  const legacyPounds = parseLoadValue(metric.weight);
-  return legacyPounds !== null ? legacyPounds * 0.45359237 : null;
+  const legacyPounds = /^\d+(?:[.,]\d+)?$/.test(metric.weight.trim())
+    ? Number(metric.weight.replace(",", ".")) : null;
+  return legacyPounds !== null && legacyPounds > 0 && legacyPounds * 0.45359237 <= 500
+    ? legacyPounds * 0.45359237 : null;
 }
 
 function proteinReferenceFromMetrics(
@@ -4012,7 +4017,9 @@ function proteinReferenceFromMetrics(
     };
   }
 
-  const recentEntries = entries.slice(-7);
+  // "Recent" means calendar days, not the last seven entries over several months.
+  const referenceDate = planDays[Math.min(Math.max(throughIndex, 0), planDays.length - 1)].iso;
+  const recentEntries = entries.filter((entry) => diffDays(entry.date, referenceDate) < 14).slice(-7);
 
   if (recentEntries.length >= 3) {
     const average =
@@ -4027,15 +4034,16 @@ function proteinReferenceFromMetrics(
   }
 
   const latest = entries.at(-1);
+  const isStale = latest ? diffDays(latest.date, referenceDate) >= 14 : false;
 
   return {
     weight: latest?.weight ?? null,
-    label: "Latest weigh-in",
+    label: isStale ? "Older weigh-in" : "Latest weigh-in",
     detail: latest
       ? `${formatLoadValue(latest.weight)} kg from ${formatDate(
           latest.date,
           "short",
-        )}. Add 3+ recent logs to switch to an average.`
+        )}. ${isStale ? "Add a current weigh-in to refresh this estimate." : "Add 3+ recent logs to switch to an average."}`
       : "Log morning weight in Coach Hub and protein will calculate automatically.",
   };
 }
@@ -4090,18 +4098,19 @@ function weightTrendSignalFor(
   throughIndex: number,
   proteinReference: ProteinReference,
 ): WeightTrendSignal {
-  const usableWeeks = completedWeightWeeksBefore(planDays, metrics, throughIndex).filter(
-    (week): week is WeightWeekSummary & { average: number } => week.average !== null,
-  );
+  const usableWeeks = completedWeightWeeksBefore(planDays, metrics, throughIndex);
   const previous = usableWeeks.at(-2);
   const current = usableWeeks.at(-1);
 
-  if (!previous || !current) {
+  // Do not bridge empty weeks or act on one weigh-in. Four mornings is an app
+  // confidence rule, not a clinical threshold, and missing days are never zeroes.
+  if (!previous || !current || previous.average === null || current.average === null ||
+      previous.loggedDays < 4 || current.loggedDays < 4) {
     return {
       status: "waiting",
       label: "Trend learning",
       detail:
-        "Smart portions need two completed weekly-average weight readings before changing food. Keep logging morning weight in Coach Hub.",
+        "Log at least 4 mornings in each of the last two completed weeks before changing portions. Missing weeks and single readings are not enough evidence.",
       deltaKg: null,
     };
   }
@@ -4148,10 +4157,10 @@ function weightTrendSignalFor(
 
   const recentThree = usableWeeks.slice(-3);
   const stalledForTwoComparisons =
-    recentThree.length === 3 &&
+    recentThree.length === 3 && recentThree.every((week) => week.average !== null && week.loggedDays >= 4) &&
     recentThree
       .slice(1)
-      .every((week, index) => week.average - recentThree[index].average > -0.2);
+      .every((week, index) => week.average! - recentThree[index].average! > -0.2);
 
   return {
     status: stalledForTwoComparisons ? "stalled" : "steady",
@@ -4172,7 +4181,7 @@ function recentTrainingAdherenceFor(
 ): TrainingAdherenceSignal {
   const safeIndex = Math.max(0, Math.min(throughIndex, planDays.length - 1));
   const recentDays = planDays
-    .slice(Math.max(0, safeIndex - windowDays + 1), safeIndex + 1)
+    .slice(Math.max(0, safeIndex - windowDays), safeIndex)
     .filter((day) => day.session.type !== "recovery");
   const completed = recentDays.filter((day) => {
     const coachedDay = withTrainingWeek(day, earnedTrainingWeekForDay(planDays, store, day));
@@ -4210,7 +4219,8 @@ function adaptiveDietCoachForDay({
   const trainingDay = planDay.session.type !== "recovery";
   const dayType = dietDayTypeForPlanDay(planDay);
 
-  if (trend.status === "waiting") {
+  if (trend.status === "waiting" && store.settings.calorieMode !== "higher" &&
+      !(trainingDay && readinessStatus !== "green")) {
     return {
       tone: "logging",
       label: "Learning",
@@ -4240,14 +4250,14 @@ function adaptiveDietCoachForDay({
 
   if (
     store.settings.calorieMode === "lower" ||
-    ((trend.status === "stalled" || trend.status === "gaining") && adherence.enough)
+    (trend.status === "stalled" && adherence.enough)
   ) {
     return {
       tone: "tighten",
       label: "Tighten",
       headline: "Trim optional calories without cutting protein.",
       detail:
-        "Because workouts are consistent enough, the app can make a small fat-loss adjustment: keep protein steady, protect pre-workout carbs, and reduce optional oils, avocado, nuts, jam, or extra starch away from training.",
+        "Make at most one small adjustment to breakfast today. Keep protein, lunch, pre-workout food, and dinner steady. Review the next completed week before considering another change.",
       trend,
       adherence,
     };
@@ -4401,8 +4411,7 @@ function optionalCalorieTweakForRecipe(recipe: DietRecipe) {
 function isProtectedPreWorkoutSnack(planDay: PlanDay, slot: DietMealSlot, recipe: DietRecipe) {
   return (
     slot === "snack" &&
-    planDay.session.type === "strength" &&
-    (recipe.tags.includes("pre-workout") || recipe.tags.includes("lifting carb"))
+    planDay.session.type !== "recovery"
   );
 }
 
@@ -4417,6 +4426,10 @@ function smartPortionAdviceForMeal(
   const proteinEstimate = estimatedRecipeProteinGrams(recipe);
   const carbTweak = carbPortionTweakForRecipe(recipe);
   const optionalTweak = optionalCalorieTweakForRecipe(recipe);
+  // One daily adjustment, not a separate cut at every meal. Lunch and dinner
+  // surround the user's after-work training and remain protected.
+  const adjustThisMeal = slot === "breakfast";
+  const mealTone = coach.tone === "tighten" && !adjustThisMeal ? "hold" : coach.tone;
   const items: string[] = [];
 
   if (proteinReference.weight) {
@@ -4429,7 +4442,7 @@ function smartPortionAdviceForMeal(
         `Protein: ${proteinBoostForRecipe(
           recipe,
           slot,
-        )} so this meal gets closer to ~${mealTarget} g and your day lands near ${dailyRange.low}-${dailyRange.high} g.`,
+        )} if needed toward ~${mealTarget} g. This is a small option, not a guarantee of meeting your ${dailyRange.low}-${dailyRange.high} g daily target; check the food label.`,
       );
     } else {
       items.push(
@@ -4446,9 +4459,9 @@ function smartPortionAdviceForMeal(
     items.push(
       "Carbs: Protect this pre-workout snack 60-120 minutes before lifting. Do not cut the banana, toast, oats, or other planned training carb first.",
     );
-  } else if (coach.tone === "fuel") {
+  } else if (coach.tone === "fuel" && adjustThisMeal) {
     items.push(`Carbs: ${carbTweak.add}.`);
-  } else if (coach.tone === "tighten") {
+  } else if (coach.tone === "tighten" && adjustThisMeal) {
     items.push(`Carbs: ${carbTweak.reduce}.`);
   } else if (dietDayTypeForPlanDay(planDay) === "recovery") {
     items.push(`Carbs: ${carbTweak.keep}; recovery days do not need extra starch.`);
@@ -4456,12 +4469,12 @@ function smartPortionAdviceForMeal(
     items.push(`Carbs: ${carbTweak.keep}.`);
   }
 
-  if (coach.tone === "tighten" && !protectedSnack) {
-    items.push(`Optional calories: ${optionalTweak}.`);
+  if (coach.tone === "tighten" && adjustThisMeal) {
+    items.push(`Alternative: ${optionalTweak}. Choose this OR the carb change above, not both.`);
   } else if (coach.tone === "fuel") {
     items.push("Optional calories: keep fats and sauces measured, but do not remove planned training carbs today.");
   } else {
-    items.push(`Optional calories: ${optionalTweak}.`);
+    items.push("Use the listed portions; optional ingredients remain your choice.");
   }
 
   if (coach.tone === "consistency") {
@@ -4469,9 +4482,9 @@ function smartPortionAdviceForMeal(
   }
 
   const title =
-    coach.tone === "fuel"
+    mealTone === "fuel"
       ? "Fuel this meal"
-      : coach.tone === "tighten"
+      : mealTone === "tighten"
         ? "Tighten this plate"
         : coach.tone === "consistency"
           ? "Base plate first"
@@ -4480,10 +4493,10 @@ function smartPortionAdviceForMeal(
             : "Hold portions";
 
   return {
-    tone: coach.tone,
+    tone: mealTone,
     title,
     detail:
-      coach.tone === "tighten"
+      mealTone === "tighten"
         ? "Small adjustment today: keep protein high and trim the easiest calories."
         : protectedSnack
           ? "This meal is protected because you usually train after work."
@@ -4634,10 +4647,10 @@ function weightComparisonInsight(previous: WeightWeekSummary | null, current: We
     };
   }
 
-  if (previous.average === null || current.average === null) {
+  if (previous.average === null || current.average === null || previous.loggedDays < 4 || current.loggedDays < 4) {
     return {
       tone: "waiting",
-      headline: "Need at least one weigh-in in both weeks.",
+      headline: "Log at least 4 mornings in each week for a useful comparison.",
       detail: `Week ${previous.week}: ${previous.loggedDays}/7 logged. Week ${current.week}: ${current.loggedDays}/7 logged.`,
     };
   }
@@ -4674,8 +4687,9 @@ function weightChartModel(entries: WeightEntry[]) {
   const min = rawMin - spread * 0.12;
   const max = rawMax + spread * 0.12;
   const range = Math.max(0.6, max - min);
-  const points = entries.map((entry, index) => {
-    const x = entries.length === 1 ? 50 : (index / (entries.length - 1)) * 100;
+  const elapsedDays = diffDays(entries[0].date, entries[entries.length - 1].date);
+  const points = entries.map((entry) => {
+    const x = elapsedDays === 0 ? 50 : (diffDays(entries[0].date, entry.date) / elapsedDays) * 100;
     const y = 64 - ((entry.weight - min) / range) * 52;
 
     return {
@@ -4719,7 +4733,8 @@ function weightMomentumCoach(
     };
   }
 
-  if (previous && current && previous.average !== null && current.average !== null) {
+  if (previous && current && previous.average !== null && current.average !== null &&
+      previous.loggedDays >= 4 && current.loggedDays >= 4) {
     const delta = current.average - previous.average;
     const absDelta = Math.abs(delta);
 
@@ -4732,7 +4747,7 @@ function weightMomentumCoach(
 
     if (delta < 0) {
       return {
-        headline: "Fat-loss trend is moving.",
+        headline: "Your weight trend is moving down.",
         detail: `The latest completed weekly average is down ${formatLoadValue(absDelta)} kg. Keep meals measured, keep lifting, and avoid cutting food harder while performance feels good.`,
       };
     }
@@ -4921,8 +4936,24 @@ function loadStoreMeta(): StoreMeta {
 
 function saveStoreMeta(meta: StoreMeta) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_META_KEY, JSON.stringify(meta));
+  try {
+    window.localStorage.setItem(STORAGE_META_KEY, JSON.stringify(meta));
+  } catch {
+    // The local save effect reports storage failures without crashing the tracker.
+  }
 }
+
+function readStoredProgress(key: string) {
+  try {
+    const value = window.localStorage.getItem(key);
+    return value ? normalizeStore(JSON.parse(value)) : null;
+  } catch {
+    return null;
+  }
+}
+
+function accountProgressKey(userId: string) { return `${STORAGE_KEY}:account:${userId}`; }
+function syncBaseKey(userId: string) { return `${STORAGE_KEY}:baseline:${userId}`; }
 
 function hasStoreData(store: TrackerStore) {
   return (
@@ -5149,22 +5180,25 @@ async function fetchCloudStore(userId: string) {
   };
 }
 
-async function upsertCloudStore(userId: string, store: TrackerStore) {
+async function upsertCloudStore(userId: string, store: TrackerStore, expectedUpdatedAt: string | null) {
   if (!supabase) return null;
 
-  const { data, error } = await supabase
-    .from("workout_progress")
-    .upsert({ user_id: userId, data: store }, { onConflict: "user_id" })
-    .select("updated_at")
-    .single();
+  // Conditional updates are atomic: if another device saved after our read, no
+  // row matches and the caller fetches/merges again. Existing RLS still applies.
+  const result = expectedUpdatedAt === null
+    ? await supabase.from("workout_progress").insert({ user_id: userId, data: store }).select("updated_at").maybeSingle()
+    : await supabase.from("workout_progress").update({ data: store })
+        .eq("user_id", userId).eq("updated_at", expectedUpdatedAt).select("updated_at").maybeSingle();
+  const { data, error } = result;
 
+  if (error?.code === "23505") return null; // A second device created the account row first.
   if (error) throw error;
   return (data as { updated_at: string } | null)?.updated_at ?? null;
 }
 
 // The app does not manually write 182 calendar entries. Instead, it generates them from START_DATE,
 // PROGRAM_DAYS, and the weekly schedule so long plans remain easy to maintain.
-function buildPlanDays() {
+function buildPlanDays(): PlanDay[] {
   return Array.from({ length: PROGRAM_DAYS }, (_, index) => {
     const iso = addDays(START_DATE, index);
     const actualName = dayName(iso);
@@ -5185,6 +5219,7 @@ function completedStrengthSessionsBefore(planDays: PlanDay[], store: TrackerStor
     .slice(0, selectedDay.index)
     .filter((day) => day.session.type === "strength")
     .filter((day) => normalizeDayLog(store.days[day.iso]).completed)
+    .filter((day) => readinessStatusFor(normalizeDayLog(store.days[day.iso]).readiness) !== "red")
     .length;
 }
 
@@ -5281,6 +5316,7 @@ function bestLoadForExerciseBetween(
   const loads = planDays
     .slice(startIndex, endIndex + 1)
     .flatMap((day) => normalizeDayLog(store.days[day.iso]).exercises[exerciseId] ?? [])
+    .filter((row) => row.done)
     .map((row) => parseLoadValue(row.weight))
     .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
 
@@ -5486,7 +5522,7 @@ function smartLoadSuggestion(
     repValues.every((reps) => reps >= (repRange?.high ?? reps));
   const hadVeryHard = rowsToJudge.some((row) => row.effort === "very-hard");
   const mostlyTooEasy =
-    rowsToJudge.length > 0 && rowsToJudge.every((row) => row.effort === "too-easy" || !row.effort);
+    rowsToJudge.length > 0 && rowsToJudge.every((row) => row.effort === "too-easy");
 
   if (reachedTop && !hadVeryHard) {
     return {
@@ -5703,6 +5739,12 @@ function ExerciseMedia({
   // user-triggered so the page does not waste mobile data loading every animation at once.
   const [showGif, setShowGif] = useState(false);
   const [gifFailed, setGifFailed] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
+  useEffect(() => {
+    setShowGif(false);
+    setGifFailed(false);
+    setVideoPlaying(false);
+  }, [exercise.id]);
   const demo = exercise.motionDemo;
   const canShowGif = Boolean(demo && !gifFailed);
   const isShowingGif = Boolean(canShowGif && showGif);
@@ -5732,13 +5774,21 @@ function ExerciseMedia({
         </div>
       ) : exercise.youtubeId ? (
         <div className={className}>
-          <iframe
+          {videoPlaying ? <iframe
             title={`${exercise.name} YouTube demo`}
-            src={youtubeEmbedUrl(exercise.youtubeId)}
+            src={`${youtubeEmbedUrl(exercise.youtubeId)}&autoplay=1`}
             loading={variant === "gym" ? "eager" : "lazy"}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
-          />
+          /> : (
+            <button className="video-poster" type="button"
+              aria-label={`Play ${exercise.name} video here`}
+              onClick={() => setVideoPlaying(true)}>
+              <img src={`https://i.ytimg.com/vi/${exercise.youtubeId}/hqdefault.jpg`}
+                alt="" loading="lazy" decoding="async" />
+              <span className="video-play-icon"><Icon name="play" size={28} /></span>
+            </button>
+          )}
         </div>
       ) : (
         <div className={className}>
@@ -5782,6 +5832,17 @@ function ExerciseMediaLinks({
   );
 }
 
+// The test suite uses the same calculations as the interface, exercising complete
+// 26-week plans and saved progress without duplicating the coaching logic.
+export {
+  buildPlanDays, emptyStore, normalizeDayLog, normalizeStore, completePlanDay,
+  withTrainingWeek, earnedTrainingWeekForDay, scheduledExercisesForDay,
+  recommendedSets, targetForExercise, dayStatusForDay, firstUnfinishedMoveIndex,
+  nextUnfinishedMoveIndex, proteinReferenceFromMetrics, weightTrendSignalFor,
+  adaptiveDietCoachForDay, recentTrainingAdherenceFor, weightChartModel,
+  weightKgFromMetric, smartPortionAdviceForMeal, baseDietRecipeFor, smartLoadSuggestion,
+};
+
 export default function Home() {
   // Build the full calendar once. The plan is deterministic, so recalculating it on every render
   // would only make the component harder to reason about.
@@ -5796,6 +5857,9 @@ export default function Home() {
   const [store, setStore] = useState<TrackerStore>(() => loadStore());
   const [isHydrated, setIsHydrated] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [localSaveError, setLocalSaveError] = useState("");
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
+  const [syncRevision, setSyncRevision] = useState(0);
   const [session, setSession] = useState<Session | null>(null);
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
@@ -5825,11 +5889,20 @@ export default function Home() {
     totalSeconds: number;
     label: string;
   } | null>(null);
+  const [initialSyncBaseline] = useState(() => {
+    const userId = loadStoreMeta().lastUserId;
+    return { userId, store: userId ? readStoredProgress(syncBaseKey(userId)) : null };
+  });
   const latestStoreRef = useRef(store);
+  // Each open tab retains its own last accepted baseline. Reading a shared
+  // localStorage baseline on every save could mistake another tab's work for
+  // deletions made by this tab.
+  const syncBaselineRef = useRef(initialSyncBaseline);
   const lastAutoAlignedDateRef = useRef(currentProgramDate);
   const firstLocalSaveRef = useRef(true);
   const suppressLocalChangeMetaRef = useRef(false);
-  const suppressNextCloudSaveRef = useRef(false);
+  const activeUserIdRef = useRef<string | null>(null);
+  const cloudQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     // On iPhone Home Screen apps, the app may stay suspended overnight. When it wakes or regains
@@ -5853,10 +5926,12 @@ export default function Home() {
 
     window.addEventListener("focus", alignWithCurrentProgramDate);
     document.addEventListener("visibilitychange", alignWhenVisible);
+    const dayTimer = window.setInterval(alignWithCurrentProgramDate, 60_000);
 
     return () => {
       window.removeEventListener("focus", alignWithCurrentProgramDate);
       document.removeEventListener("visibilitychange", alignWhenVisible);
+      window.clearInterval(dayTimer);
     };
   }, []);
 
@@ -5881,17 +5956,36 @@ export default function Home() {
     if ((!detailExerciseId && !skipRequest) || typeof window === "undefined") return undefined;
 
     const previousOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const dialog = document.querySelector<HTMLElement>(skipRequest ? ".skip-sheet" : ".detail-sheet");
+    const focusable = () => Array.from(dialog?.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, iframe, [tabindex="0"]',
+    ) ?? []).filter((element) => element.getClientRects().length > 0);
     const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Tab") {
+        const items = focusable();
+        const first = items[0];
+        const last = items.at(-1);
+        if (!first || !last) return;
+        if (event.shiftKey && (document.activeElement === first || !dialog?.contains(document.activeElement))) {
+          event.preventDefault(); last.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || !dialog?.contains(document.activeElement))) {
+          event.preventDefault(); first.focus();
+        }
+        return;
+      }
       if (event.key !== "Escape") return;
       setDetailExerciseId(null);
       setSkipRequest(null);
     };
 
     document.body.style.overflow = "hidden";
+    focusable()[0]?.focus({ preventScroll: true });
     window.addEventListener("keydown", closeOnEscape);
 
     return () => {
       document.body.style.overflow = previousOverflow;
+      previousFocus?.focus({ preventScroll: true });
       window.removeEventListener("keydown", closeOnEscape);
     };
   }, [detailExerciseId, skipRequest]);
@@ -5907,7 +6001,15 @@ export default function Home() {
     // reception and lets Supabase sync happen as an enhancement rather than a hard dependency.
     if (!isHydrated) return;
     const savedAt = nowIso();
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+      const owner = loadStoreMeta().lastUserId;
+      if (owner) window.localStorage.setItem(accountProgressKey(owner), JSON.stringify(store));
+      setLocalSaveError("");
+    } catch {
+      setLocalSaveError("Device saving is unavailable. Keep this screen open until cloud sync succeeds, and check your browser storage.");
+      return;
+    }
 
     if (firstLocalSaveRef.current) {
       firstLocalSaveRef.current = false;
@@ -5933,23 +6035,63 @@ export default function Home() {
     if (!supabase) return;
 
     let isMounted = true;
+    let receivedAuthEvent = false;
+
+    const acceptSession = (nextSession: Session | null) => {
+      if (!isMounted) return;
+      const nextId = nextSession?.user.id ?? null;
+      const changedAccount = activeUserIdRef.current !== nextId;
+      activeUserIdRef.current = nextId;
+      if (nextId && changedAccount) {
+        const meta = loadStoreMeta();
+        if (syncBaselineRef.current.userId !== nextId) {
+          syncBaselineRef.current = { userId: nextId, store: readStoredProgress(syncBaseKey(nextId)) };
+        }
+        if (!canClaimLocalProgress(meta.lastUserId, nextId)) {
+          try {
+            // Preserve a pre-upgrade account copy before replacing the shared
+            // display store. A failed backup must not upload it to another user.
+            window.localStorage.setItem(accountProgressKey(meta.lastUserId!), JSON.stringify(latestStoreRef.current));
+          } catch {
+            activeUserIdRef.current = null;
+            setCloudStatus("error");
+            setCloudError("Could not preserve the previous account's device copy. Check browser storage before switching accounts.");
+            return;
+          }
+          const accountStore = readStoredProgress(accountProgressKey(nextId)) ?? emptyStore();
+          latestStoreRef.current = accountStore;
+          setStore(accountStore);
+        }
+        saveStoreMeta(canClaimLocalProgress(meta.lastUserId, nextId)
+          ? { ...meta, lastUserId: nextId } : { lastUserId: nextId });
+      }
+      setSession(nextSession);
+      // TOKEN_REFRESHED is the same account: resetting cloud readiness here used
+      // to disable autosave until a full reload.
+      if (changedAccount) {
+        setCloudReadyForUser(null);
+        setCloudError("");
+        setCloudStatus(nextSession ? "loading" : "signed-out");
+      }
+    };
 
     supabase.auth.getSession().then(({ data, error }) => {
-      if (!isMounted) return;
+      if (!isMounted || receivedAuthEvent) return;
       if (error) {
         setCloudStatus("error");
         setCloudError(error.message);
         return;
       }
-      setSession(data.session);
-      setCloudStatus(data.session ? "loading" : "signed-out");
+      acceptSession(data.session);
+    }).catch((error: unknown) => {
+      if (!isMounted) return;
+      setCloudStatus("error");
+      setCloudError(error instanceof Error ? error.message : "Could not restore sign-in. Try signing in again.");
     });
 
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setCloudReadyForUser(null);
-      setCloudError("");
-      setCloudStatus(nextSession ? "loading" : "signed-out");
+      receivedAuthEvent = true;
+      acceptSession(nextSession);
     });
 
     return () => {
@@ -5959,88 +6101,85 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    // The first signed-in load is the only moment where local and cloud saves may need merging.
-    // After this finishes, the cloud save effect below treats the merged store as the source.
+    // Debounce typing, then serialize reads and writes. Every save checks the
+    // server revision and merges against the last synced baseline for this user.
     if (!supabase || !session?.user.id || !isHydrated) return;
-
+    const userId = session.user.id;
+    if (navigator.onLine) setCloudStatus(cloudReadyForUser === userId ? "saving" : "loading");
     let isCancelled = false;
-
-    async function loadCloudProgress() {
-      const userId = session.user.id;
-      setCloudStatus("loading");
+    const isCurrent = () => !isCancelled && activeUserIdRef.current === userId;
+    const timer = window.setTimeout(() => {
+      cloudQueueRef.current = cloudQueueRef.current.then(async () => {
+      if (!isCurrent() || !navigator.onLine) return;
+      setCloudStatus(cloudReadyForUser === userId ? "saving" : "loading");
       setCloudError("");
-
       try {
-        const localStore = latestStoreRef.current;
-        const localMeta = loadStoreMeta();
-        const { store: cloudStore, updatedAt } = await fetchCloudStore(userId);
-        if (isCancelled) return;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          const { store: cloudStore, updatedAt } = await fetchCloudStore(userId);
+          if (!isCurrent()) return;
+          const localStore = latestStoreRef.current;
+          const baseline = syncBaselineRef.current.userId === userId ? syncBaselineRef.current.store : null;
+          const nextStore = baseline
+            ? mergeProgressChanges(baseline, localStore, cloudStore)
+            : chooseInitialSyncedStore(localStore, cloudStore, loadStoreMeta());
+          const cloudUpdatedAt = sameData(nextStore, cloudStore) && updatedAt
+            ? updatedAt : await upsertCloudStore(userId, nextStore, updatedAt);
+          if (activeUserIdRef.current !== userId) return;
+          if (!cloudUpdatedAt) continue;
 
-        const nextStore = chooseInitialSyncedStore(localStore, cloudStore, localMeta);
-        suppressLocalChangeMetaRef.current = true;
-        suppressNextCloudSaveRef.current = true;
-        setStore(nextStore);
-
-        const cloudUpdatedAt = await upsertCloudStore(userId, nextStore);
-        if (isCancelled) return;
-
-        const syncedAt = nowIso();
-        saveStoreMeta({
-          ...loadStoreMeta(),
-          cloudUpdatedAt: cloudUpdatedAt ?? updatedAt ?? syncedAt,
-          lastCloudSyncedAt: syncedAt,
-          lastUserId: userId,
-        });
-        setLastCloudSyncedAt(formatClock(syncedAt));
-        setCloudReadyForUser(userId);
-        setCloudStatus("synced");
+          // A user may clear or change a field while this write is in flight.
+          // Record what actually reached the server, then rebase those newer
+          // edits onto it. Discarding the response would resurrect cleared data
+          // on the next read because the old baseline would still look unchanged.
+          const withPendingEdits = mergeProgressChanges(localStore, latestStoreRef.current, nextStore);
+          const hasPendingEdits = !sameData(withPendingEdits, nextStore);
+          syncBaselineRef.current = { userId, store: nextStore };
+          if (!sameData(latestStoreRef.current, withPendingEdits)) {
+            suppressLocalChangeMetaRef.current = true;
+            latestStoreRef.current = withPendingEdits;
+            setStore(withPendingEdits);
+          }
+          window.localStorage.setItem(syncBaseKey(userId), JSON.stringify(nextStore));
+          const syncedAt = nowIso();
+          saveStoreMeta({ ...loadStoreMeta(), cloudUpdatedAt, lastCloudSyncedAt: syncedAt, lastUserId: userId });
+          setLastCloudSyncedAt(formatClock(syncedAt));
+          setCloudReadyForUser(userId);
+          setCloudStatus(hasPendingEdits ? "saving" : "synced");
+          return;
+        }
+        throw new Error("Another device is saving. Your changes are kept locally; retry sync in a moment.");
       } catch (error) {
-        if (isCancelled) return;
+        if (!isCurrent()) return;
         setCloudStatus("error");
         setCloudError(error instanceof Error ? error.message : "Cloud sync failed.");
       }
-    }
-
-    void loadCloudProgress();
-
+      });
+    }, 700);
     return () => {
       isCancelled = true;
+      window.clearTimeout(timer);
     };
-  }, [isHydrated, session?.user.id]);
+  }, [isHydrated, session?.user.id, store, syncRevision]);
 
   useEffect(() => {
-    // Cloud saves are debounced so checking several boxes quickly creates one upsert instead of a
-    // burst of network requests.
-    if (!supabase || !session?.user.id || cloudReadyForUser !== session.user.id) return;
-    if (suppressNextCloudSaveRef.current) {
-      suppressNextCloudSaveRef.current = false;
-      return;
-    }
-
-    setCloudStatus("saving");
-    const saveTimer = window.setTimeout(() => {
-      const userId = session.user.id;
-      upsertCloudStore(userId, latestStoreRef.current)
-        .then((cloudUpdatedAt) => {
-          const syncedAt = nowIso();
-          saveStoreMeta({
-            ...loadStoreMeta(),
-            cloudUpdatedAt: cloudUpdatedAt ?? syncedAt,
-            lastCloudSyncedAt: syncedAt,
-            lastUserId: userId,
-          });
-          setLastCloudSyncedAt(formatClock(syncedAt));
-          setCloudError("");
-          setCloudStatus("synced");
-        })
-        .catch((error: unknown) => {
-          setCloudStatus("error");
-          setCloudError(error instanceof Error ? error.message : "Cloud sync failed.");
-        });
-    }, 700);
-
-    return () => window.clearTimeout(saveTimer);
-  }, [cloudReadyForUser, session?.user.id, store]);
+    const refresh = () => {
+      setIsOnline(navigator.onLine);
+      if (navigator.onLine && document.visibilityState === "visible") setSyncRevision((value) => value + 1);
+    };
+    window.addEventListener("online", refresh);
+    window.addEventListener("offline", refresh);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    // Refresh while visible to pick up progress saved on a second device.
+    const interval = window.setInterval(refresh, 30_000);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("online", refresh);
+      window.removeEventListener("offline", refresh);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, []);
 
   useEffect(() => {
     // The custom service worker makes the installed PWA refresh itself after deploys. Without this,
@@ -6048,12 +6187,23 @@ export default function Home() {
     if (import.meta.env.PROD && "serviceWorker" in navigator) {
       let shouldReloadForUpdate = true;
 
-      const reloadOnceForUpdate = () => {
+      const reloadOnceForUpdate = (version: string) => {
         if (!shouldReloadForUpdate) return;
         const key = "recomp-gym-console-sw-refresh";
-        if (window.sessionStorage.getItem(key) === "done") return;
-        window.sessionStorage.setItem(key, "done");
+        try {
+          if (window.sessionStorage.getItem(key) === version) return;
+          window.sessionStorage.setItem(key, version);
+        } catch {
+          return; // Avoid an automatic reload loop when browser storage is blocked.
+        }
+        shouldReloadForUpdate = false;
         window.location.reload();
+      };
+      const reloadForController = () => reloadOnceForUpdate("controller");
+      const reloadForVersion = (event: MessageEvent) => {
+        if (event.data?.type === "APP_UPDATED" && typeof event.data.version === "string") {
+          reloadOnceForUpdate(event.data.version);
+        }
       };
 
       navigator.serviceWorker
@@ -6078,11 +6228,13 @@ export default function Home() {
         })
         .catch(() => undefined);
 
-      navigator.serviceWorker.addEventListener("controllerchange", reloadOnceForUpdate);
+      navigator.serviceWorker.addEventListener("controllerchange", reloadForController);
+      navigator.serviceWorker.addEventListener("message", reloadForVersion);
 
       return () => {
         shouldReloadForUpdate = false;
-        navigator.serviceWorker.removeEventListener("controllerchange", reloadOnceForUpdate);
+        navigator.serviceWorker.removeEventListener("controllerchange", reloadForController);
+        navigator.serviceWorker.removeEventListener("message", reloadForVersion);
       };
     }
 
@@ -6110,8 +6262,11 @@ export default function Home() {
   const gymLog = normalizeDayLog(store.days[gymDay.iso]);
   const selectedDietLog = normalizeDietDayLog(store.dietDays[selectedDietDay.iso]);
   const currentProgramMetric = normalizeMetricLogShape(store.metrics[currentProgramDate]);
-  const selectedTrainingWeek = earnedTrainingWeekForDay(planDays, store, selectedDay);
-  const gymTrainingWeek = earnedTrainingWeekForDay(planDays, store, gymDay);
+  const coachedPlanDays = useMemo(() => planDays.map((day) =>
+    withTrainingWeek(day, earnedTrainingWeekForDay(planDays, store, day))), [planDays, store.days]);
+  const coachedPlanDayFor = useCallback((day: PlanDay) => coachedPlanDays[day.index], [coachedPlanDays]);
+  const selectedTrainingWeek = coachingWeek(coachedPlanDayFor(selectedDay));
+  const gymTrainingWeek = coachingWeek(coachedPlanDayFor(gymDay));
   const selectedCoachDay = withTrainingWeek(selectedDay, selectedTrainingWeek);
   const gymCoachDay = withTrainingWeek(gymDay, gymTrainingWeek);
   const selectedReadinessStatus = readinessStatusFor(selectedLog.readiness);
@@ -6125,7 +6280,8 @@ export default function Home() {
   const selectedSessionSummary = sessionSummaryForDay(selectedCoachDay);
   const selectedLocationNote = locationFlowNoteForDay(selectedCoachDay);
   const selectedDietType = dietDayTypeForPlanDay(selectedDietDay);
-  const proteinReference = proteinReferenceFromMetrics(planDays, store.metrics, gymDay.index);
+  const proteinReference = useMemo(() => proteinReferenceFromMetrics(planDays, store.metrics, gymDay.index),
+    [planDays, store.metrics, gymDay.index]);
   const selectedDietTarget = personalizedDietTarget(
     selectedDietType,
     store.settings,
@@ -6142,14 +6298,14 @@ export default function Home() {
   const selectedDietWorkoutLog = normalizeDayLog(store.days[selectedDietDay.iso]);
   const selectedDietReadinessStatus = readinessStatusFor(selectedDietWorkoutLog.readiness);
   const dietAnalysisIndex = Math.min(selectedDietDay.index, gymDay.index);
-  const adaptiveDietCoach = adaptiveDietCoachForDay({
+  const adaptiveDietCoach = useMemo(() => adaptiveDietCoachForDay({
     planDays,
     store,
     planDay: selectedDietDay,
     proteinReference,
     readinessStatus: selectedDietReadinessStatus,
     analysisIndex: dietAnalysisIndex,
-  });
+  }), [planDays, store.days, store.metrics, store.settings, selectedDietDay, proteinReference, selectedDietReadinessStatus, dietAnalysisIndex]);
   const selectedExercises = scheduledExercisesForDay(selectedCoachDay, selectedLog);
   const gymExercises = scheduledExercisesForDay(gymCoachDay, gymLog);
   const selectedDayStatus = dayStatusForDay(selectedCoachDay, selectedLog);
@@ -6171,7 +6327,8 @@ export default function Home() {
   const currentWeekDays = planDays.slice(currentWeekStartIndex, currentWeekStartIndex + 7);
   const selectedWeekStart = planDays[currentWeekStartIndex]?.iso ?? selectedDay.iso;
   const dietWeekStartIndex = Math.floor(selectedDietDay.index / 7) * 7;
-  const currentDietWeekDays = planDays.slice(dietWeekStartIndex, dietWeekStartIndex + 7);
+  const currentDietWeekDays = useMemo(() => planDays.slice(dietWeekStartIndex, dietWeekStartIndex + 7),
+    [planDays, dietWeekStartIndex]);
   const selectedDietWeekStart = planDays[dietWeekStartIndex]?.iso ?? selectedDietDay.iso;
   const weekOptions = useMemo(
     () =>
@@ -6239,6 +6396,7 @@ export default function Home() {
   const weightEntries = useMemo(
     () =>
       planDays
+        .slice(0, gymDay.index + 1)
         .map((day) => {
           const metric = normalizeMetricLogShape(store.metrics[day.iso]);
           const weight = weightKgFromMetric(metric);
@@ -6252,7 +6410,7 @@ export default function Home() {
               };
         })
         .filter((entry): entry is WeightEntry => Boolean(entry)),
-    [planDays, store.metrics],
+    [planDays, store.metrics, gymDay.index],
   );
   const recentWeightEntries = weightEntries.slice(-28);
   const weightChart = weightChartModel(recentWeightEntries);
@@ -6268,8 +6426,6 @@ export default function Home() {
     : "Waiting";
   const hubWeightDays = planDays.slice(Math.max(0, gymDay.index - 13), gymDay.index + 1);
   const visibleWeightWeeks = weightWeekSummaries.slice(Math.max(0, gymDay.week - 8), gymDay.week);
-  const coachedPlanDayFor = (day: PlanDay) =>
-    withTrainingWeek(day, earnedTrainingWeekForDay(planDays, store, day));
   const selectedMonthlyCheckIn = monthlyCheckInForDay(planDays, store, selectedDay);
   const selectedMonthlyCheckpointLog = normalizeDayLog(
     store.days[selectedMonthlyCheckIn.checkpointDay.iso],
@@ -6364,7 +6520,7 @@ export default function Home() {
       Object.entries(normalizedLog.exercises).forEach(([exerciseId, rows]) => {
         rows.forEach((row) => {
           const load = parseLoadValue(row.weight);
-          if (load === null) return;
+          if (load === null || !row.done) return;
           const history = strengthLoadHistory.get(exerciseId) ?? [];
           history.push({
             load,
@@ -6407,7 +6563,9 @@ export default function Home() {
       return days.length > 0 && completed / days.length >= 0.9;
     }).some(Boolean);
     let streak = 0;
-    for (let index = gymDay.index; index >= 0; index -= 1) {
+    // An unfinished today does not break the streak earned through yesterday.
+    const streakEndIndex = completedDates.has(gymDay.iso) ? gymDay.index : gymDay.index - 1;
+    for (let index = streakEndIndex; index >= 0; index -= 1) {
       if (completedDates.has(planDays[index].iso)) streak += 1;
       else break;
     }
@@ -6626,8 +6784,8 @@ export default function Home() {
     field: keyof SetLog,
     value: string | boolean | EffortFeedback | undefined,
   ) => {
-    // A typed weight counts as a completed set because the user's natural gym workflow is usually
-    // "enter the pounds I used" rather than "enter pounds, then press another tiny checkbox".
+    // Typing edits a draft. Completion is explicit so Gym Mode cannot advance
+    // after the first digit of a weight or record a set that was only planned.
     updateDay(planDay.iso, (log) => {
       const exercise = exerciseMap[exerciseId];
       if (!exercise || setIndex < 0) return log;
@@ -6648,13 +6806,6 @@ export default function Home() {
       if (field === "done" && typeof value === "boolean") nextRow.done = value;
       if (field === "effort") nextRow.effort = isEffortFeedback(value) ? value : undefined;
       rows[setIndex] = nextRow;
-      if (
-        (field === "weight" || field === "reps") &&
-        typeof value === "string" &&
-        value.trim()
-      ) {
-        rows[setIndex].done = true;
-      }
       const nextSkips = { ...log.skips };
       if (
         (field === "done" && value === true) ||
@@ -6955,6 +7106,8 @@ export default function Home() {
     ? "Check Supabase settings"
     : !isSupabaseConfigured
     ? "Connect Supabase to sync"
+    : !isOnline
+      ? "Offline · saved on this device"
     : session
       ? cloudStatus === "loading"
         ? "Loading cloud progress"
@@ -7126,13 +7279,14 @@ export default function Home() {
         detail: "Exercise Detail",
       }[skipRequest.source]
     : "";
-  const bestLiftRows = libraryOrder
+  const bestLiftRows = useMemo(() => libraryOrder
     .map((id) => {
       const exercise = exerciseMap[id];
       if (!exercise || !tracksWeight(exercise) || exercise.family === "warmup") return null;
 
       const allLoads = Object.values(store.days).flatMap((log) =>
         (normalizeDayLog(log).exercises[id] ?? [])
+          .filter((row) => row.done)
           .map((row) => parseLoadValue(row.weight))
           .filter((value): value is number => typeof value === "number" && Number.isFinite(value)),
       );
@@ -7146,11 +7300,9 @@ export default function Home() {
         family: exercise.family,
       };
     })
-    .filter((item): item is { id: string; name: string; load: number; family: Exercise["family"] } =>
-      Boolean(item),
-    )
+    .filter((item) => item !== null)
     .sort((a, b) => b.load - a.load)
-    .slice(0, 5);
+    .slice(0, 5), [store.days]);
   const weightTrend = useMemo(() => {
     const entries = Object.entries(store.metrics)
       .map(([date, metric]) => {
@@ -7269,46 +7421,51 @@ export default function Home() {
             <span className="brand-mark">RC</span>
             <div>
               <p className="eyebrow">Recomp coach</p>
-              <h1 id="coach-hub-heading">Choose Your Tracker</h1>
+              <h1 id="coach-hub-heading">Coach Hub</h1>
               <p className="hero-text">
-                Open the workout plan or today&apos;s diet plan. Both use the same saved progress,
-                account sync, and morning weigh-ins.
+                {formatDate(currentProgramDate)} · Week {gymDay.week} of 26
               </p>
             </div>
           </div>
+          <a className={`hub-save-status ${localSaveError ? "error" : ""}`} href="#coach-account">
+            <Icon name="cloud" size={16} /> {localSaveError ? "Check device saving" : syncHeadline}
+          </a>
 
           <div className="hub-choice-grid">
             <button
               className="hub-choice-card workout"
               type="button"
-              onClick={() => setAppMode("workout")}
+              onClick={() => { goToCurrentProgramDay(); setActiveSection("today"); setAppMode("workout"); }}
             >
-              <span>Blue training</span>
+              <span><Icon name="dumbbell" size={22} /> Today&apos;s training <Icon name="chevronRight" size={18} /></span>
               <strong>Workout</strong>
               <small>
-                {gymDay.session.title} · {formatDate(gymDay.iso)} · {stats.completedDays}/{PROGRAM_DAYS} done
+                {gymDay.session.title} · {gymMoveRows.filter((move) => move.isComplete).length}/{gymMoveRows.length} moves done
               </small>
+              <progress aria-label="Today's workout progress" value={gymMoveRows.filter((move) => move.isComplete).length} max={gymMoveRows.length || 1} />
             </button>
             <button
               className="hub-choice-card diet"
               type="button"
-              onClick={() => setAppMode("diet")}
+              onClick={() => { setSelectedDietDate(currentProgramDate); setAppMode("diet"); }}
             >
-              <span>Green nutrition</span>
+              <span><Icon name="cart" size={22} /> Today&apos;s meals <Icon name="chevronRight" size={18} /></span>
               <strong>Diet</strong>
               <small>
-                {gymDietTarget.label} · {gymDietTarget.calories} · {stats.completedDietDays} days done
+                {gymDietTarget.label} · {Object.values(normalizeDietDayLog(store.dietDays[currentProgramDate]).meals).filter(Boolean).length}/4 meals eaten
               </small>
+              <progress aria-label="Today's meal progress" value={Object.values(normalizeDietDayLog(store.dietDays[currentProgramDate]).meals).filter(Boolean).length} max={4} />
             </button>
           </div>
         </section>
+        {localSaveError && <p className="save-alert" role="alert">{localSaveError}</p>}
 
         <section className="hub-dashboard-grid" aria-label="Daily coach overview">
           <div className="morning-weighin-card hub-body-check-card">
             <div>
               <p className="eyebrow">Morning weigh-in</p>
               <h2>{formatDate(currentProgramDate, "short")}</h2>
-              <p>Use the same scale, after bathroom, before food or drink. This is the only place for body-weight logging.</p>
+              <p>Same scale, after the bathroom, before food or drink.</p>
             </div>
             <div className="hub-checkin-fields">
               <label>
@@ -7357,7 +7514,8 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="diet-settings-card" aria-labelledby="diet-settings-heading">
+        <details className="diet-settings-card coach-disclosure">
+          <summary>Nutrition settings <span>{gymDietTarget.calories} · {gymDietTarget.protein}</span></summary>
           <div>
             <p className="eyebrow">Nutrition settings</p>
             <h2 id="diet-settings-heading">Personalize diet targets</h2>
@@ -7404,7 +7562,7 @@ export default function Home() {
               <small>{gymDietTarget.modeLabel}</small>
             </div>
           </div>
-        </section>
+        </details>
 
         <section className={`hub-weight-panel weight-insight-${weightCoachInsight.tone}`} aria-label="Weight tracker">
           <div className="section-heading compact">
@@ -7554,7 +7712,7 @@ export default function Home() {
           </details>
         </section>
 
-        <section className={`metric-panel sync-panel account-card hub-sync ${cloudStatus}`}>
+        <section id="coach-account" className={`metric-panel sync-panel account-card hub-sync ${cloudStatus}`}>
           <div className="sync-heading">
             <div>
               <p className="eyebrow">
@@ -7571,6 +7729,9 @@ export default function Home() {
               <span>{session.user.email ?? "Signed in"}</span>
               <button type="button" onClick={handleSignOut}>
                 Sign out
+              </button>
+              <button type="button" onClick={() => setSyncRevision((value) => value + 1)} disabled={!isOnline || cloudStatus === "saving" || cloudStatus === "loading"}>
+                <Icon name="cloud" size={16} /> Sync now
               </button>
             </div>
           )}
@@ -7623,7 +7784,7 @@ export default function Home() {
             <p className="sync-message">Last cloud sync: {lastCloudSyncedAt}</p>
           )}
           {authMessage && <p className="sync-message">{authMessage}</p>}
-          {cloudError && <p className="sync-message error">{cloudError}</p>}
+          {cloudError && <p className="sync-message error" role="alert">{cloudError}</p>}
         </section>
       </main>
     );
@@ -7651,7 +7812,7 @@ export default function Home() {
             </div>
             <div className={`header-status-card sync-mini ${cloudStatus}`}>
               <span>Save</span>
-              <strong>{lastSavedAt ?? "Ready"}</strong>
+              <strong>{localSaveError ? "Save needs attention" : lastSavedAt ?? "Ready"}</strong>
               <small>{syncHeadline}</small>
             </div>
           </div>
@@ -7676,7 +7837,7 @@ export default function Home() {
           </div>
           <div className="diet-target-grid">
             <div>
-              <span>Calories</span>
+              <span>Calorie target</span>
               <strong>{selectedDietTarget.calories}</strong>
             </div>
             <div>
@@ -7692,14 +7853,12 @@ export default function Home() {
               <strong>{selectedDietTarget.fat}</strong>
             </div>
           </div>
-          <div className={`adaptive-diet-panel ${adaptiveDietCoach.tone}`}>
-            <div>
-              <p className="eyebrow">
-                <Icon name="spark" size={14} /> Smart portions
-              </p>
-              <h3>{adaptiveDietCoach.headline}</h3>
-              <p>{adaptiveDietCoach.detail}</p>
-            </div>
+          <details className={`adaptive-diet-panel ${adaptiveDietCoach.tone}`}>
+            <summary>
+              <span className="eyebrow"><Icon name="spark" size={14} /> Smart portions · {adaptiveDietCoach.label}</span>
+              <strong>{adaptiveDietCoach.headline}</strong>
+            </summary>
+            <p>{adaptiveDietCoach.detail}</p>
             <div className="adaptive-signal-grid" aria-label="Smart portion signals">
               <span>
                 <strong>{adaptiveDietCoach.label}</strong>
@@ -7718,7 +7877,7 @@ export default function Home() {
                 Protein basis
               </span>
             </div>
-          </div>
+          </details>
         </section>
 
         <section className="diet-control-panel" aria-label="Diet day controls">
@@ -7751,7 +7910,7 @@ export default function Home() {
                   <span>{day.dayName.slice(0, 3)}</span>
                   <strong>{day.session.code}</strong>
                   <small>
-                    {personalizedDietTarget(
+                    {log.completed ? "Completed" : personalizedDietTarget(
                       dietDayTypeForPlanDay(day),
                       store.settings,
                       proteinReference.weight,
@@ -7810,7 +7969,7 @@ export default function Home() {
                     </div>
                     <h3>{meal.recipe.title}</h3>
                     <div className="diet-macro-row">
-                      <span>{meal.recipe.calories}</span>
+                      <span>Base: {meal.recipe.calories}</span>
                       <span>{meal.recipe.protein}</span>
                     </div>
                     <div className="diet-tag-row">
@@ -7859,18 +8018,18 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className={`smart-portion-card ${meal.portionAdvice.tone}`}>
-                  <div className="flow-heading">
+                <details className={`smart-portion-card ${meal.portionAdvice.tone}`}>
+                  <summary className="flow-heading">
                     <h4>{meal.portionAdvice.title}</h4>
                     <span>Smart plate</span>
-                  </div>
+                  </summary>
                   <p>{meal.portionAdvice.detail}</p>
                   <ul>
                     {meal.portionAdvice.items.map((item) => (
                       <li key={item}>{item}</li>
                     ))}
                   </ul>
-                </div>
+                </details>
 
                 <div className="diet-meal-actions">
                   <button
@@ -7878,7 +8037,7 @@ export default function Home() {
                     type="button"
                     onClick={() => toggleDietMeal(meal.slot)}
                   >
-                    <Icon name="check" size={16} />
+                    <Icon name={meal.isComplete ? "check" : "activity"} size={16} />
                     {meal.isComplete ? "Done" : "Mark eaten"}
                   </button>
                   <button
@@ -8076,7 +8235,7 @@ export default function Home() {
           </div>
           <div className={`header-status-card sync-mini ${cloudStatus}`}>
             <span>Save</span>
-            <strong>{lastSavedAt ?? "Ready"}</strong>
+            <strong>{localSaveError ? "Save needs attention" : lastSavedAt ?? "Ready"}</strong>
             <small>{syncHeadline}</small>
           </div>
         </div>
@@ -8185,7 +8344,7 @@ export default function Home() {
 
       <div className="mobile-save-status" aria-live="polite">
         <span>Local save</span>
-        <strong>{isHydrated ? lastSavedAt ?? "Ready" : "Loading"}</strong>
+        <strong>{localSaveError ? "Save needs attention" : isHydrated ? lastSavedAt ?? "Ready" : "Loading"}</strong>
       </div>
 
       <section className="today-day-switcher" aria-label="Choose workout day">
