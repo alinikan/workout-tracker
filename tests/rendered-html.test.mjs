@@ -316,8 +316,27 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "Weekly Average History",
     "weightComparisonInsight",
     "weightWeekSummary",
-    "Waist checkpoint",
-    "waistProgress",
+    "AdaptiveDietTone",
+    "SmartPortionAdvice",
+    "adaptiveDietCoachForDay",
+    "smartPortionAdviceForMeal",
+    "weightTrendSignalFor",
+    "recentTrainingAdherenceFor",
+    "mealProteinTargetForSlot",
+    "dailyProteinRangeForWeight",
+    "proteinBoostForRecipe",
+    "carbPortionTweakForRecipe",
+    "optionalCalorieTweakForRecipe",
+    "Smart portions",
+    "Smart plate",
+    "Coach mode",
+    "Weight trend",
+    "Workout follow-through",
+    "weekly-average evidence",
+    "Protect this pre-workout snack",
+    "Add 25-40 g cooked chicken breast or skinless thigh",
+    "Reduce cooked rice by 35-50 g",
+    "Use spray or 0-5 g oil",
     "Monthly progress photos today",
     "personalizedDietTarget",
     "proteinReferenceFromMetrics",
@@ -374,6 +393,9 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "hub-weight-panel",
     "daily-weight-grid",
     "protein-reference-card",
+    "adaptive-diet-panel",
+    "adaptive-signal-grid",
+    "smart-portion-card",
     "weight-visual-grid",
     "weight-chart-card",
     "weight-line-chart",
@@ -410,6 +432,9 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
   assert.match(readme, /Preference-aware defaults/);
   assert.match(readme, /After-Work Training Fuel/);
   assert.match(readme, /Expandable Make It guide/);
+  assert.match(readme, /Smart portions/);
+  assert.match(readme, /protein needs, workout adherence, readiness, and day type/);
+  assert.match(readme, /Calorie tightening waits for completed weekly-average evidence/);
   assert.match(readme, /weight trend chart/);
   assert.match(readme, /Expandable history/);
   assert.match(readme, /Revert to original/);
@@ -418,6 +443,8 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
   assert.match(readme, /npm run dev -- --port 3001/);
   assert.doesNotMatch(app, /Body weight \(lbs\)/);
   assert.doesNotMatch(app, /Protein body weight \(kg\)/);
+  assert.doesNotMatch(app, /Waist checkpoint|waistProgress|waistCm/);
+  assert.doesNotMatch(readme, /waist|Waist/);
   assert.doesNotMatch(readme, /npm run dev -- -p 3001/);
   assert.doesNotMatch(app, removedPattern);
   assert.doesNotMatch(readme, removedPattern);
@@ -625,13 +652,14 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v28/);
-  assert.match(serviceWorker, /auto-protein-targets-v28/);
+  assert.match(serviceWorker, /recomp-gym-console-v29/);
+  assert.match(serviceWorker, /smart-portions-v29/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
   assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
+  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v28/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v27/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v26/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v25/);

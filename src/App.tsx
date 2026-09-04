@@ -142,6 +142,39 @@ type ProteinReference = {
   detail: string;
 };
 
+type AdaptiveDietTone = "logging" | "hold" | "fuel" | "tighten" | "consistency";
+
+type WeightTrendSignal = {
+  status: "waiting" | "fast-loss" | "on-track-loss" | "steady" | "stalled" | "gaining";
+  label: string;
+  detail: string;
+  deltaKg: number | null;
+};
+
+type TrainingAdherenceSignal = {
+  completed: number;
+  total: number;
+  percent: number;
+  enough: boolean;
+  label: string;
+};
+
+type AdaptiveDietCoach = {
+  tone: AdaptiveDietTone;
+  label: string;
+  headline: string;
+  detail: string;
+  trend: WeightTrendSignal;
+  adherence: TrainingAdherenceSignal;
+};
+
+type SmartPortionAdvice = {
+  tone: AdaptiveDietTone;
+  title: string;
+  detail: string;
+  items: string[];
+};
+
 // The app uses a tiny inline icon system instead of a larger icon dependency. That keeps the bundle
 // small and makes every icon available offline after the PWA shell is cached.
 function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
@@ -266,7 +299,6 @@ type DayLog = {
 type MetricLog = {
   weight: string;
   weightKg: string;
-  waistCm: string;
   photoReminderDone: boolean;
   note: string;
 };
@@ -471,7 +503,6 @@ const createEmptyDay = (): DayLog => ({
 const createEmptyMetric = (): MetricLog => ({
   weight: "",
   weightKg: "",
-  waistCm: "",
   photoReminderDone: false,
   note: "",
 });
@@ -573,7 +604,6 @@ function normalizeMetricLogShape(metric: Partial<MetricLog> | undefined): Metric
   return {
     weight: typeof metric?.weight === "string" ? metric.weight : "",
     weightKg: typeof metric?.weightKg === "string" ? metric.weightKg : "",
-    waistCm: typeof metric?.waistCm === "string" ? metric.waistCm : "",
     photoReminderDone: Boolean(metric?.photoReminderDone),
     note: typeof metric?.note === "string" ? metric.note : "",
   };
@@ -3327,7 +3357,7 @@ function phaseForWeek(week: number) {
     sets: "Compare without maxing",
     timeCap: "60-75 min",
     rir: "2-3 RIR",
-    note: "Compare body-weight average, waist, optional photos, strength trends, cardio duration, and consistency against the start.",
+    note: "Compare body-weight average, optional photos, strength trends, cardio duration, and consistency against the start.",
   };
 }
 
@@ -4039,6 +4069,429 @@ function personalizedDietTarget(
   };
 }
 
+// Smart portions use trend-level evidence, not one emotional weigh-in. The app waits for completed
+// weeks before calling weight loss too fast, on track, stalled, or gaining.
+function completedWeightWeeksBefore(
+  planDays: PlanDay[],
+  metrics: Record<string, MetricLog>,
+  throughIndex: number,
+) {
+  const safeIndex = Math.max(0, Math.min(throughIndex, planDays.length - 1));
+  const completedWeekCount = Math.floor(safeIndex / 7);
+
+  return Array.from({ length: completedWeekCount }, (_item, weekIndex) =>
+    weightWeekSummary(planDays, metrics, weekIndex),
+  );
+}
+
+function weightTrendSignalFor(
+  planDays: PlanDay[],
+  metrics: Record<string, MetricLog>,
+  throughIndex: number,
+  proteinReference: ProteinReference,
+): WeightTrendSignal {
+  const usableWeeks = completedWeightWeeksBefore(planDays, metrics, throughIndex).filter(
+    (week): week is WeightWeekSummary & { average: number } => week.average !== null,
+  );
+  const previous = usableWeeks.at(-2);
+  const current = usableWeeks.at(-1);
+
+  if (!previous || !current) {
+    return {
+      status: "waiting",
+      label: "Trend learning",
+      detail:
+        "Smart portions need two completed weekly-average weight readings before changing food. Keep logging morning weight in Coach Hub.",
+      deltaKg: null,
+    };
+  }
+
+  const deltaKg = current.average - previous.average;
+  const absDelta = Math.abs(deltaKg);
+  const referenceWeight = proteinReference.weight ?? current.average;
+  const fastLossCutoff = Math.max(0.7, Math.min(0.95, referenceWeight * 0.01));
+  const missingDays = previous.missingDays + current.missingDays;
+  const reliability =
+    missingDays > 0
+      ? ` ${missingDays} of 14 mornings are missing, so the signal is useful but not perfect.`
+      : " All 14 mornings are logged, so the signal is clean.";
+  const detail = `Week ${previous.week} averaged ${formatLoadValue(
+    previous.average,
+  )} kg. Week ${current.week} averaged ${formatLoadValue(current.average)} kg.${reliability}`;
+
+  if (deltaKg <= -fastLossCutoff) {
+    return {
+      status: "fast-loss",
+      label: `${formatLoadValue(absDelta)} kg down fast`,
+      detail,
+      deltaKg,
+    };
+  }
+
+  if (deltaKg <= -0.25) {
+    return {
+      status: "on-track-loss",
+      label: `${formatLoadValue(absDelta)} kg down`,
+      detail,
+      deltaKg,
+    };
+  }
+
+  if (deltaKg > 0.25) {
+    return {
+      status: "gaining",
+      label: `${formatLoadValue(absDelta)} kg up`,
+      detail,
+      deltaKg,
+    };
+  }
+
+  const recentThree = usableWeeks.slice(-3);
+  const stalledForTwoComparisons =
+    recentThree.length === 3 &&
+    recentThree
+      .slice(1)
+      .every((week, index) => week.average - recentThree[index].average > -0.2);
+
+  return {
+    status: stalledForTwoComparisons ? "stalled" : "steady",
+    label: stalledForTwoComparisons ? "Two-week stall" : "Nearly steady",
+    detail,
+    deltaKg,
+  };
+}
+
+// Workout adherence decides whether the app should tighten food or first ask for consistency. If a
+// user is missing many sessions, cutting portions harder is less useful than making the routine
+// repeatable.
+function recentTrainingAdherenceFor(
+  planDays: PlanDay[],
+  store: TrackerStore,
+  throughIndex: number,
+  windowDays = 14,
+): TrainingAdherenceSignal {
+  const safeIndex = Math.max(0, Math.min(throughIndex, planDays.length - 1));
+  const recentDays = planDays
+    .slice(Math.max(0, safeIndex - windowDays + 1), safeIndex + 1)
+    .filter((day) => day.session.type !== "recovery");
+  const completed = recentDays.filter((day) => {
+    const coachedDay = withTrainingWeek(day, earnedTrainingWeekForDay(planDays, store, day));
+    return isPlanDayComplete(coachedDay, normalizeDayLog(store.days[day.iso]));
+  }).length;
+  const total = recentDays.length;
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  return {
+    completed,
+    total,
+    percent,
+    enough: total > 0 && percent >= 75,
+    label: total > 0 ? `${completed}/${total} training days (${percent}%)` : "No training days yet",
+  };
+}
+
+function adaptiveDietCoachForDay({
+  planDays,
+  store,
+  planDay,
+  proteinReference,
+  readinessStatus,
+  analysisIndex,
+}: {
+  planDays: PlanDay[];
+  store: TrackerStore;
+  planDay: PlanDay;
+  proteinReference: ProteinReference;
+  readinessStatus: ReadinessStatus;
+  analysisIndex: number;
+}): AdaptiveDietCoach {
+  const trend = weightTrendSignalFor(planDays, store.metrics, analysisIndex, proteinReference);
+  const adherence = recentTrainingAdherenceFor(planDays, store, analysisIndex);
+  const trainingDay = planDay.session.type !== "recovery";
+  const dayType = dietDayTypeForPlanDay(planDay);
+
+  if (trend.status === "waiting") {
+    return {
+      tone: "logging",
+      label: "Learning",
+      headline: "Use the base portions while the app learns your body.",
+      detail:
+        "Protein follows your logged weight, but calorie portion changes wait for weekly-average evidence so one noisy scale day does not rewrite your meals.",
+      trend,
+      adherence,
+    };
+  }
+
+  if (
+    trend.status === "fast-loss" ||
+    store.settings.calorieMode === "higher" ||
+    (trainingDay && readinessStatus !== "green")
+  ) {
+    return {
+      tone: "fuel",
+      label: "Fuel",
+      headline: "Protect training fuel today.",
+      detail:
+        "Your workout performance matters for gaining muscle while losing fat. Keep the planned protein and carbs around training, especially if energy or weekly averages suggest you may be under-fueled.",
+      trend,
+      adherence,
+    };
+  }
+
+  if (
+    store.settings.calorieMode === "lower" ||
+    ((trend.status === "stalled" || trend.status === "gaining") && adherence.enough)
+  ) {
+    return {
+      tone: "tighten",
+      label: "Tighten",
+      headline: "Trim optional calories without cutting protein.",
+      detail:
+        "Because workouts are consistent enough, the app can make a small fat-loss adjustment: keep protein steady, protect pre-workout carbs, and reduce optional oils, avocado, nuts, jam, or extra starch away from training.",
+      trend,
+      adherence,
+    };
+  }
+
+  if ((trend.status === "stalled" || trend.status === "gaining") && !adherence.enough) {
+    return {
+      tone: "consistency",
+      label: "Consistency",
+      headline: "Keep portions steady and win the routine first.",
+      detail:
+        "The weight trend is not clearly moving down yet, but recent training consistency is the first lever. Follow the base plan before making food smaller.",
+      trend,
+      adherence,
+    };
+  }
+
+  return {
+    tone: "hold",
+    label: "Hold",
+    headline: dayType === "recovery" ? "Keep recovery portions measured." : "Stay with the current plan.",
+    detail:
+      "Your weekly-average trend does not call for a bigger change today. Keep protein on target, keep portions measured, and let the next completed week confirm the pattern.",
+    trend,
+    adherence,
+  };
+}
+
+function estimatedRecipeProteinGrams(recipe: DietRecipe) {
+  const proteinValues = recipe.protein
+    .match(/\d+/g)
+    ?.map(Number)
+    .filter((value) => Number.isFinite(value));
+
+  if (!proteinValues?.length) return null;
+  return proteinValues.reduce((sum, value) => sum + value, 0) / proteinValues.length;
+}
+
+function mealProteinTargetForSlot(slot: DietMealSlot, referenceWeightKg: number) {
+  const slotShare: Record<DietMealSlot, number> = {
+    breakfast: 0.24,
+    lunch: 0.28,
+    snack: 0.2,
+    dinner: 0.28,
+  };
+
+  return Math.round(referenceWeightKg * 1.6 * slotShare[slot]);
+}
+
+function dailyProteinRangeForWeight(referenceWeightKg: number) {
+  return {
+    low: Math.round(referenceWeightKg * 1.6),
+    high: Math.round(referenceWeightKg * 2),
+  };
+}
+
+function recipeText(recipe: DietRecipe) {
+  return `${recipe.title} ${recipe.ingredients.join(" ")} ${recipe.plate.join(" ")}`.toLowerCase();
+}
+
+function proteinBoostForRecipe(recipe: DietRecipe, slot: DietMealSlot) {
+  const text = recipeText(recipe);
+
+  if (text.includes("chicken")) return "Add 25-40 g cooked chicken breast or skinless thigh";
+  if (text.includes("beef")) return "Add 25-35 g cooked extra-lean beef";
+  if (text.includes("salmon") || text.includes("white fish")) return "Add 25-35 g cooked fish";
+  if (text.includes("tuna")) return "Add 25-35 g drained light tuna";
+  if (text.includes("greek yogurt") || text.includes("yogurt")) return "Add 50-100 g Greek yogurt or 5-10 g whey";
+  if (text.includes("cottage")) return "Add 50-100 g cottage cheese";
+  if (text.includes("egg whites") || text.includes("eggs")) return "Add 50-100 g egg whites instead of another whole egg";
+  if (text.includes("tofu") || text.includes("edamame")) return "Add 50 g tofu or edamame";
+  if (slot === "snack") return "Add 5-10 g whey or 50-100 g Greek yogurt";
+  return "Add 25-40 g cooked chicken or 25-35 g extra-lean beef";
+}
+
+function carbPortionTweakForRecipe(recipe: DietRecipe) {
+  const text = recipeText(recipe);
+
+  if (text.includes("rice")) {
+    return {
+      keep: "Keep the rice measured instead of eyeballing the bowl",
+      add: "Add 40-60 g cooked rice if training energy has been low",
+      reduce: "Reduce cooked rice by 35-50 g away from the pre-workout meal",
+    };
+  }
+  if (text.includes("potato")) {
+    return {
+      keep: "Keep the potato portion measured",
+      add: "Add 75-100 g potato if lifting performance has felt flat",
+      reduce: "Reduce potato by 75-100 g on recovery or tightening days",
+    };
+  }
+  if (text.includes("pasta")) {
+    return {
+      keep: "Keep pasta to the listed cooked weight",
+      add: "Add 40-50 g cooked pasta after a hard lift if dinner is post-workout",
+      reduce: "Reduce cooked pasta by 40-50 g on tightening days",
+    };
+  }
+  if (text.includes("quinoa")) {
+    return {
+      keep: "Keep quinoa to the listed cooked weight",
+      add: "Add 35-50 g cooked quinoa if this meal is supporting training",
+      reduce: "Reduce cooked quinoa by 35-50 g away from training",
+    };
+  }
+  if (text.includes("oats") || text.includes("muesli")) {
+    return {
+      keep: "Keep oats or grains weighed before mixing",
+      add: "Add 10-15 g oats if hunger or training energy is low",
+      reduce: "Reduce oats or grains by 10-15 g if this is not near training",
+    };
+  }
+  if (text.includes("bread") || text.includes("wrap")) {
+    return {
+      keep: "Keep the planned bread or wrap serving",
+      add: "Add 1 extra slice of toast only when you truly need more pre-workout fuel",
+      reduce: "Use one fewer half-slice or a smaller wrap away from training",
+    };
+  }
+  if (text.includes("banana") || text.includes("fruit") || text.includes("apple") || text.includes("orange")) {
+    return {
+      keep: "Keep the planned fruit serving",
+      add: "Add one fruit serving if lunch was light before training",
+      reduce: "Do not cut fruit first; trim optional fats before removing fruit",
+    };
+  }
+
+  return {
+    keep: "Use the listed carb portion",
+    add: "Add one measured fruit or starch serving only if training feels under-fueled",
+    reduce: "Trim optional calories first before cutting the main meal",
+  };
+}
+
+function optionalCalorieTweakForRecipe(recipe: DietRecipe) {
+  const text = recipeText(recipe);
+
+  if (text.includes("olive oil") || text.includes(" oil")) return "Use spray or 0-5 g oil";
+  if (text.includes("avocado")) return "Use 0-20 g avocado when tightening";
+  if (text.includes("nuts")) return "Skip optional nuts when tightening";
+  if (text.includes("jam")) return "Skip optional jam unless this is your protected pre-workout snack";
+  if (text.includes("feta")) return "Skip optional feta or keep it to a measured 15 g";
+  if (text.includes("hummus")) return "Use 30 g hummus instead of 60 g when tightening";
+  if (text.includes("marinara") || text.includes("salsa") || text.includes("sauce")) {
+    return "Use measured low-sugar sauce and do not add extra oil";
+  }
+  return "Do not add unlisted oils, sauces, nuts, or extra toppings";
+}
+
+function isProtectedPreWorkoutSnack(planDay: PlanDay, slot: DietMealSlot, recipe: DietRecipe) {
+  return (
+    slot === "snack" &&
+    planDay.session.type === "strength" &&
+    (recipe.tags.includes("pre-workout") || recipe.tags.includes("lifting carb"))
+  );
+}
+
+function smartPortionAdviceForMeal(
+  planDay: PlanDay,
+  slot: DietMealSlot,
+  recipe: DietRecipe,
+  coach: AdaptiveDietCoach,
+  proteinReference: ProteinReference,
+): SmartPortionAdvice {
+  const protectedSnack = isProtectedPreWorkoutSnack(planDay, slot, recipe);
+  const proteinEstimate = estimatedRecipeProteinGrams(recipe);
+  const carbTweak = carbPortionTweakForRecipe(recipe);
+  const optionalTweak = optionalCalorieTweakForRecipe(recipe);
+  const items: string[] = [];
+
+  if (proteinReference.weight) {
+    const dailyRange = dailyProteinRangeForWeight(proteinReference.weight);
+    const mealTarget = mealProteinTargetForSlot(slot, proteinReference.weight);
+    const estimatedText = proteinEstimate ? `about ${Math.round(proteinEstimate)} g` : "the listed";
+
+    if (proteinEstimate !== null && proteinEstimate + 3 < mealTarget) {
+      items.push(
+        `Protein: ${proteinBoostForRecipe(
+          recipe,
+          slot,
+        )} so this meal gets closer to ~${mealTarget} g and your day lands near ${dailyRange.low}-${dailyRange.high} g.`,
+      );
+    } else {
+      items.push(
+        `Protein: use the listed portion. It gives ${estimatedText} protein, which fits your ${dailyRange.low}-${dailyRange.high} g daily target from your ${proteinReference.label.toLowerCase()}.`,
+      );
+    }
+  } else {
+    items.push(
+      "Protein: use the listed portion today. After a few Coach Hub weigh-ins, this line becomes a body-weight-based target.",
+    );
+  }
+
+  if (protectedSnack) {
+    items.push(
+      "Carbs: Protect this pre-workout snack 60-120 minutes before lifting. Do not cut the banana, toast, oats, or other planned training carb first.",
+    );
+  } else if (coach.tone === "fuel") {
+    items.push(`Carbs: ${carbTweak.add}.`);
+  } else if (coach.tone === "tighten") {
+    items.push(`Carbs: ${carbTweak.reduce}.`);
+  } else if (dietDayTypeForPlanDay(planDay) === "recovery") {
+    items.push(`Carbs: ${carbTweak.keep}; recovery days do not need extra starch.`);
+  } else {
+    items.push(`Carbs: ${carbTweak.keep}.`);
+  }
+
+  if (coach.tone === "tighten" && !protectedSnack) {
+    items.push(`Optional calories: ${optionalTweak}.`);
+  } else if (coach.tone === "fuel") {
+    items.push("Optional calories: keep fats and sauces measured, but do not remove planned training carbs today.");
+  } else {
+    items.push(`Optional calories: ${optionalTweak}.`);
+  }
+
+  if (coach.tone === "consistency") {
+    items.push("Coach rule: finish the planned meal and workouts consistently before making the plate smaller.");
+  }
+
+  const title =
+    coach.tone === "fuel"
+      ? "Fuel this meal"
+      : coach.tone === "tighten"
+        ? "Tighten this plate"
+        : coach.tone === "consistency"
+          ? "Base plate first"
+          : coach.tone === "logging"
+            ? "Base portions"
+            : "Hold portions";
+
+  return {
+    tone: coach.tone,
+    title,
+    detail:
+      coach.tone === "tighten"
+        ? "Small adjustment today: keep protein high and trim the easiest calories."
+        : protectedSnack
+          ? "This meal is protected because you usually train after work."
+          : "Use this as the plate check for today.",
+    items,
+  };
+}
+
 // The to-buy list normalizes detailed recipe lines into useful grocery names. For example, several
 // fruit portions become one "plan fruit" item instead of a noisy repeated list.
 function shoppingIngredientFor(ingredient: string): { name: string; category: ShoppingCategory } {
@@ -4597,7 +5050,6 @@ function mergeMetricLog(metric: MetricLog | undefined, localMetric: MetricLog | 
   return {
     weight: preferFilled(normalizedLocalMetric.weight, normalizedCloudMetric.weight),
     weightKg: preferFilled(normalizedLocalMetric.weightKg, normalizedCloudMetric.weightKg),
-    waistCm: preferFilled(normalizedLocalMetric.waistCm, normalizedCloudMetric.waistCm),
     photoReminderDone:
       normalizedLocalMetric.photoReminderDone || normalizedCloudMetric.photoReminderDone,
     note: preferFilled(normalizedLocalMetric.note, normalizedCloudMetric.note),
@@ -5687,6 +6139,17 @@ export default function Home() {
   );
   const selectedDietCoachNote = dietCoachNoteForDay(selectedDietDay);
   const selectedDietAccent = selectedDietDay.session.accent;
+  const selectedDietWorkoutLog = normalizeDayLog(store.days[selectedDietDay.iso]);
+  const selectedDietReadinessStatus = readinessStatusFor(selectedDietWorkoutLog.readiness);
+  const dietAnalysisIndex = Math.min(selectedDietDay.index, gymDay.index);
+  const adaptiveDietCoach = adaptiveDietCoachForDay({
+    planDays,
+    store,
+    planDay: selectedDietDay,
+    proteinReference,
+    readinessStatus: selectedDietReadinessStatus,
+    analysisIndex: dietAnalysisIndex,
+  });
   const selectedExercises = scheduledExercisesForDay(selectedCoachDay, selectedLog);
   const gymExercises = scheduledExercisesForDay(gymCoachDay, gymLog);
   const selectedDayStatus = dayStatusForDay(selectedCoachDay, selectedLog);
@@ -5732,6 +6195,13 @@ export default function Home() {
       timing: dietTimingForSlot(selectedDietDay, slot.id),
       baseRecipe,
       recipe: activeRecipe,
+      portionAdvice: smartPortionAdviceForMeal(
+        selectedDietDay,
+        slot.id,
+        activeRecipe,
+        adaptiveDietCoach,
+        proteinReference,
+      ),
       howTo: detailedRecipeHowTo(activeRecipe),
       isComplete: Boolean(selectedDietLog.meals[slot.id]),
       isSwapped: activeRecipe.id !== baseRecipe.id,
@@ -5936,18 +6406,6 @@ export default function Home() {
       const completed = days.filter((day) => completedDates.has(day.iso)).length;
       return days.length > 0 && completed / days.length >= 0.9;
     }).some(Boolean);
-    const waistEntries = Object.entries(store.metrics)
-      .map(([date, metric]) => ({
-        date,
-        waist: parseLoadValue(normalizeMetricLogShape(metric).waistCm),
-      }))
-      .filter((entry): entry is { date: string; waist: number } => entry.waist !== null)
-      .sort((a, b) => a.date.localeCompare(b.date));
-    const waistProgress =
-      waistEntries.length >= 2
-        ? waistEntries[waistEntries.length - 1].waist < waistEntries[0].waist
-        : false;
-
     let streak = 0;
     for (let index = gymDay.index; index >= 0; index -= 1) {
       if (completedDates.has(planDays[index].iso)) streak += 1;
@@ -5969,7 +6427,6 @@ export default function Home() {
       repsImprovedSameWeight,
       firstThirtyCardio,
       monthAdherence90,
-      waistProgress,
       streak,
       percent: Math.round((completedDays / PROGRAM_DAYS) * 100),
     };
@@ -6049,11 +6506,6 @@ export default function Home() {
       label: "Doubled a starting load",
       earned: stats.doubledStartingLoad,
       detail: "Double a reasonable starting load on one exercise.",
-    },
-    {
-      label: "Waist trend improved",
-      earned: stats.waistProgress,
-      detail: "Log a lower waist checkpoint than your first one.",
     },
     {
       label: "Six-month finish",
@@ -7240,6 +7692,33 @@ export default function Home() {
               <strong>{selectedDietTarget.fat}</strong>
             </div>
           </div>
+          <div className={`adaptive-diet-panel ${adaptiveDietCoach.tone}`}>
+            <div>
+              <p className="eyebrow">
+                <Icon name="spark" size={14} /> Smart portions
+              </p>
+              <h3>{adaptiveDietCoach.headline}</h3>
+              <p>{adaptiveDietCoach.detail}</p>
+            </div>
+            <div className="adaptive-signal-grid" aria-label="Smart portion signals">
+              <span>
+                <strong>{adaptiveDietCoach.label}</strong>
+                Coach mode
+              </span>
+              <span>
+                <strong>{adaptiveDietCoach.trend.label}</strong>
+                Weight trend
+              </span>
+              <span>
+                <strong>{adaptiveDietCoach.adherence.label}</strong>
+                Workout follow-through
+              </span>
+              <span>
+                <strong>{proteinReference.label}</strong>
+                Protein basis
+              </span>
+            </div>
+          </div>
         </section>
 
         <section className="diet-control-panel" aria-label="Diet day controls">
@@ -7378,6 +7857,19 @@ export default function Home() {
                       ))}
                     </ul>
                   </div>
+                </div>
+
+                <div className={`smart-portion-card ${meal.portionAdvice.tone}`}>
+                  <div className="flow-heading">
+                    <h4>{meal.portionAdvice.title}</h4>
+                    <span>Smart plate</span>
+                  </div>
+                  <p>{meal.portionAdvice.detail}</p>
+                  <ul>
+                    {meal.portionAdvice.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
                 </div>
 
                 <div className="diet-meal-actions">
@@ -8481,21 +8973,6 @@ export default function Home() {
                 ))}
               </div>
               <div className="body-checkin-fields">
-                <label>
-                  Waist checkpoint (cm)
-                  <input
-                    inputMode="decimal"
-                    value={selectedMonthlyCheckpointMetric.waistCm}
-                    placeholder="Optional"
-                    disabled={!selectedMonthlyCheckIn.isUnlocked}
-                    onChange={(event) =>
-                      updateMetric(selectedMonthlyCheckIn.checkpointDay.iso, (metric) => ({
-                        ...metric,
-                        waistCm: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
                 <label className="photo-check">
                   <input
                     type="checkbox"
@@ -8540,7 +9017,7 @@ export default function Home() {
             <p className="checkin-footnote">
               First month longest walk:{" "}
               {firstMonthLongestCardio ? `${firstMonthLongestCardio} min` : "waiting"} · Body
-              success is judged by consistency, strength, fitness, waist, weight trend, and skill.
+              success is judged by consistency, strength, fitness, weight trend, and skill.
               Visible abs depend on body-fat level and cannot be guaranteed.
             </p>
           </section>

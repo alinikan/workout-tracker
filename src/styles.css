@@ -5038,6 +5038,79 @@ body {
   font-size: 1.05rem;
 }
 
+.adaptive-diet-panel {
+  --adaptive-color: var(--diet-accent);
+  --adaptive-soft: var(--diet-accent-soft);
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 42%);
+  gap: 12px;
+  align-items: stretch;
+  padding: 13px;
+  border: 1px solid color-mix(in srgb, var(--adaptive-color) 26%, var(--line));
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, #ffffff 0%, color-mix(in srgb, var(--adaptive-soft) 72%, #ffffff) 150%),
+    #fff;
+}
+
+.adaptive-diet-panel.fuel {
+  --adaptive-color: #b77912;
+  --adaptive-soft: #fff1d1;
+}
+
+.adaptive-diet-panel.tighten {
+  --adaptive-color: #0f766e;
+  --adaptive-soft: #dff5ef;
+}
+
+.adaptive-diet-panel.hold {
+  --adaptive-color: #1767a3;
+  --adaptive-soft: #e1f2f8;
+}
+
+.adaptive-diet-panel.consistency {
+  --adaptive-color: #6750c7;
+  --adaptive-soft: #ece8ff;
+}
+
+.adaptive-diet-panel.logging {
+  --adaptive-color: #64748b;
+  --adaptive-soft: #eef2f7;
+}
+
+.adaptive-diet-panel h3 {
+  margin: 4px 0 0;
+  color: var(--adaptive-color);
+  font-size: 1.08rem;
+}
+
+.adaptive-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.adaptive-signal-grid span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--adaptive-color) 18%, #dceae4);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.adaptive-signal-grid strong {
+  color: var(--adaptive-color);
+  font-size: 0.9rem;
+  text-transform: none;
+}
+
 .diet-control-panel {
   display: grid;
   grid-template-columns: minmax(180px, 240px) minmax(0, 1fr) auto;
@@ -5396,6 +5469,82 @@ body {
   line-height: 1.35;
 }
 
+.smart-portion-card {
+  --portion-color: var(--meal-color);
+  --portion-soft: var(--meal-soft);
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--portion-color) 24%, #dceae4);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, #ffffff, color-mix(in srgb, var(--portion-soft) 62%, #ffffff)),
+    #fff;
+}
+
+.smart-portion-card.fuel {
+  --portion-color: #b77912;
+  --portion-soft: #fff1d1;
+}
+
+.smart-portion-card.tighten {
+  --portion-color: #0f766e;
+  --portion-soft: #dff5ef;
+}
+
+.smart-portion-card.hold {
+  --portion-color: #1767a3;
+  --portion-soft: #e1f2f8;
+}
+
+.smart-portion-card.consistency {
+  --portion-color: #6750c7;
+  --portion-soft: #ece8ff;
+}
+
+.smart-portion-card.logging {
+  --portion-color: #64748b;
+  --portion-soft: #eef2f7;
+}
+
+.smart-portion-card h4 {
+  margin: 0;
+  color: var(--portion-color);
+  font-size: 0.94rem;
+  text-transform: uppercase;
+}
+
+.smart-portion-card .flow-heading span {
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--portion-color);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.smart-portion-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 780;
+  line-height: 1.42;
+}
+
+.smart-portion-card ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: #2d3f49;
+  font-size: 0.88rem;
+  line-height: 1.38;
+}
+
 .diet-meal-actions button {
   display: inline-flex;
   min-height: 36px;
@@ -5730,8 +5879,10 @@ body {
   .hub-dashboard-grid,
   .hub-body-check-card,
   .diet-summary-panel,
+  .adaptive-diet-panel,
   .diet-control-panel,
   .diet-layout,
+  .adaptive-signal-grid,
   .diet-card-grid,
   .diet-swap-grid,
   .weight-visual-grid,
@@ -5802,6 +5953,7 @@ body {
   }
 
   .diet-summary-panel,
+  .adaptive-diet-panel,
   .diet-control-panel,
   .diet-progress-panel {
     margin-top: 10px;

@@ -112,7 +112,7 @@ That means the interface favors:
 | RIR and set feel | Gym Mode explains Reps In Reserve and lets each set be marked Too easy, About right, or Very hard for smarter load suggestions. |
 | Readiness check | Energy, soreness, joint pain, and sleep create Green, Yellow, or Red training guidance before each workout. |
 | Rest timer | Completing a set starts a movement-specific rest timer with longer rest for main lifts and shorter rest for core/accessories. |
-| Monthly check-ins | Every 4 weeks, the app reviews strength, cardio, weight trend, waist checkpoint, optional photos, and recovery feedback. |
+| Monthly check-ins | Every 4 weeks, the app reviews strength, cardio, weight trend, optional photos, and recovery feedback. |
 | Skip tracking | Supports Time, Pain, Equipment, Fatigue, and Other skip reasons. |
 | Day status | Separates Complete, Finished with skips, and Incomplete days. |
 | Home/gym labels | Marks exercises as Upstairs OK, Downstairs, Downstairs/outside, or Either. |
@@ -130,6 +130,7 @@ That means the interface favors:
 | Plate portions | Shows what to actually put on the plate after cooking. |
 | Timing labels | Uses practical labels like Morning, Midday, Before workout, and After workout. |
 | After-work gym fuel | Strength days explain what to eat 60-120 minutes before a typical 5pm+ workout. |
+| Smart portions | Uses morning weight trends, protein needs, workout adherence, readiness, and day type to suggest realistic portion adjustments without hiding the original plan. |
 | Meal swaps | Swap within the same meal category for variety while keeping the plan aligned. Swapped meals are clearly labeled and include a visible Revert to original button. |
 | Preference-aware defaults | Beans, chickpeas, turkey, rice cakes, and muesli stay available as swaps but are not default meals. |
 | To-buy list | Builds a store-neutral ingredient list from the selected week and active swaps. |
@@ -275,12 +276,11 @@ Every 4 weeks, the app opens a coach-style review:
 - Strength sessions completed.
 - Cardio days completed.
 - Weekly average body weight.
-- Waist checkpoint.
 - Optional progress-photo reminder with same-lighting guidance.
 - Leg press, press, pulldown/row, and RDL comparison.
 - Recovery feedback: Easy, About right, or Very hard.
 
-The app defines six-month success broadly: consistency, stronger lifts, better walking fitness, better skill, healthier nutrition habits, waist and/or weight trend moving toward the goal, and more visible muscle definition. Visible abs may happen for some users, but the app does not guarantee them because body-fat level, genetics, sex, fat distribution, and adherence all matter.
+The app defines six-month success broadly: consistency, stronger lifts, better walking fitness, better skill, healthier nutrition habits, weight trend moving toward the goal, and more visible muscle definition. Visible abs may happen for some users, but the app does not guarantee them because body-fat level, genetics, sex, fat distribution, and adherence all matter.
 
 ### Nutrition
 
@@ -293,6 +293,15 @@ Nutrition uses calorie cycling by day type, but targets are configurable because
 | Recovery day | Slightly lower-starch day while keeping protein high. |
 
 Coach Hub lets the user choose a calorie mode, while protein is calculated automatically from existing weigh-ins. Once the user has at least three recent morning logs, the app uses the recent average body weight; before that, it uses the latest logged weight. If no weight has been logged yet, it shows the general `1.6-2.0 g/kg` protein range instead of asking for another confusing input.
+
+The Diet page includes a **Smart portions** panel. It does not randomly replace recipes when body weight changes. Instead, it keeps the plan stable and adjusts the plate guidance:
+
+- Protein portions follow the latest useful body-weight signal, preferably a recent average.
+- Calorie tightening waits for completed weekly-average evidence so one salty meal or one high-water day does not cause an overreaction.
+- Workout adherence matters. If training consistency is low, the app keeps portions steady and asks the user to build the routine first.
+- Strength-day pre-workout snacks are protected because under-fueling can hurt performance and increase lightheadedness risk.
+- If weight is dropping too fast, readiness is poor, or the user manually chooses the higher-calorie mode, the app shifts to fuel mode instead of cutting food.
+- If weight is stalled or rising while workouts are being completed, the app trims optional oils, avocado, nuts, jam, sauces, or small starch portions away from the pre-workout window.
 
 The default grocery pattern favors easy repeat purchases: Greek yogurt, cottage cheese, eggs, egg whites, chicken breast or skinless chicken thighs, lean beef, tuna, salmon, white fish, oats, rice, quinoa, potatoes, fruit, and vegetables. The main week now includes lean beef with pasta, lean beef with rice, and lean beef with potatoes, while still keeping fish and chicken in rotation for variety. Beans, chickpeas, turkey, rice cakes, muesli, tofu, and egg-only bowls remain in the recipe library as optional swap choices, but they are no longer default meals.
 
@@ -799,6 +808,10 @@ Most program content currently lives in `src/App.tsx`.
 | Base diet targets | `dietTargets` |
 | Personalized calorie/protein display | `personalizedDietTarget()` |
 | Automatic protein body-weight basis | `proteinReferenceFromMetrics()` |
+| Adaptive diet coach mode | `adaptiveDietCoachForDay()` |
+| Meal-level smart portions | `smartPortionAdviceForMeal()` |
+| Weekly weight trend classification | `weightTrendSignalFor()` |
+| Recent workout adherence check | `recentTrainingAdherenceFor()` |
 | Earned training level | `earnedTrainingWeekForDay()` |
 | Readiness rules | `readinessStatusFor()` |
 | Rest timers | `restTimerSecondsFor()` |
