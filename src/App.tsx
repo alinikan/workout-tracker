@@ -63,6 +63,35 @@ type MoveStatus = "pending" | "done" | "skipped";
 type DayStatus = "incomplete" | "complete" | "finished-with-skips";
 type DietMealSlot = "breakfast" | "lunch" | "snack" | "dinner";
 type DietDayType = "strength" | "cardio" | "recovery";
+type ExercisePriority = "main" | "accessory" | "optional";
+type EffortFeedback = "too-easy" | "about-right" | "very-hard";
+type ReadinessStatus = "green" | "yellow" | "red";
+type EnergyLevel = "low" | "normal" | "great";
+type SorenessLevel = "none" | "mild" | "high";
+type JointPainLevel = "none" | "mild" | "concerning";
+type SleepLevel = "poor" | "okay" | "good";
+type MonthlyRecovery = "easy" | "about-right" | "very-hard";
+type CalorieMode = "calculated" | "lower" | "higher";
+
+type ExerciseTiming = {
+  minRestSeconds: number;
+  maxRestSeconds: number;
+  setSeconds: number;
+  setupSeconds: number;
+};
+
+type ReadinessLog = {
+  energy?: EnergyLevel;
+  soreness?: SorenessLevel;
+  jointPain?: JointPainLevel;
+  sleep?: SleepLevel;
+};
+
+type UserSettings = {
+  proteinWeightKg: string;
+  calorieMode: CalorieMode;
+};
+
 type SkipRequest = {
   date: string;
   originalExerciseId: string;
@@ -186,6 +215,8 @@ type Exercise = {
   cues: string[];
   avoid: string[];
   progression: string;
+  priority?: ExercisePriority;
+  timing?: Partial<ExerciseTiming>;
   motionDemo?: MotionDemo;
   youtubeId?: string;
   logType?: "weight" | "done";
@@ -210,6 +241,8 @@ type SessionTemplate = {
 
 type SetLog = {
   weight: string;
+  reps: string;
+  effort?: EffortFeedback;
   done: boolean;
 };
 
@@ -220,12 +253,16 @@ type DayLog = {
   exercises: Record<string, SetLog[]>;
   skips: Record<string, SkipReason>;
   swaps: Record<string, string>;
+  readiness: ReadinessLog;
+  monthlyRecovery?: MonthlyRecovery;
   notes: string;
 };
 
 type MetricLog = {
   weight: string;
   weightKg: string;
+  waistCm: string;
+  photoReminderDone: boolean;
   note: string;
 };
 
@@ -240,6 +277,7 @@ type TrackerStore = {
   days: Record<string, DayLog>;
   dietDays: Record<string, DietDayLog>;
   metrics: Record<string, MetricLog>;
+  settings: UserSettings;
 };
 
 type StoreMeta = {
@@ -255,6 +293,7 @@ type PlanDay = {
   iso: string;
   index: number;
   week: number;
+  trainingWeek?: number;
   dayName: string;
   planDayName: PlanWeekday;
   session: SessionTemplate;
@@ -270,17 +309,15 @@ const STORAGE_META_KEY = "body-recomp-gym-tracker-meta-v1";
 // the Monday-through-Sunday training rhythm.
 const START_DATE = "2026-08-31";
 const PROGRAM_DAYS = 182;
+const STRENGTH_SESSIONS_PER_WEEK = 3;
+const EARNED_WEEK_ADHERENCE_GATE = 0.75;
 
-// Strength sessions begin with knee/hip-friendly general prep, then two exercise-specific ramp
-// warm-ups. Squat-pattern drills stay in the library, but the default warm-up does not require a
-// deep squat or sit-down shape because that movement is not currently available for the user.
+// Strength sessions start with a short, repeatable warm-up. The extra squat, hinge, push-up, and
+// plank drills stay in the library, but Month 1 should not feel like a long circuit before lifting.
 const strengthWarmupIds = [
+  "warmup-treadmill-walk",
   "seated-knee-extension-warmup",
   "standing-supported-hip-abduction",
-  "hip-hinge-drill",
-  "incline-push-up",
-  "warmup-front-plank",
-  "warmup-treadmill-walk",
 ];
 
 const skipReasonOptions: Array<{ id: SkipReason; label: string }> = [
@@ -289,6 +326,58 @@ const skipReasonOptions: Array<{ id: SkipReason; label: string }> = [
   { id: "equipment", label: "Equipment" },
   { id: "fatigue", label: "Fatigue" },
   { id: "other", label: "Other" },
+];
+
+const effortOptions: Array<{ id: EffortFeedback; label: string; detail: string }> = [
+  {
+    id: "too-easy",
+    label: "Too easy",
+    detail: "The set finished with more reps available than planned.",
+  },
+  {
+    id: "about-right",
+    label: "About right",
+    detail: "The set matched the target effort and form stayed clean.",
+  },
+  {
+    id: "very-hard",
+    label: "Very hard",
+    detail: "Form slowed down or the set felt close to failure.",
+  },
+];
+
+const readinessQuestions = {
+  energy: [
+    { id: "low", label: "Low" },
+    { id: "normal", label: "Normal" },
+    { id: "great", label: "Great" },
+  ],
+  soreness: [
+    { id: "none", label: "None" },
+    { id: "mild", label: "Mild" },
+    { id: "high", label: "High" },
+  ],
+  jointPain: [
+    { id: "none", label: "None" },
+    { id: "mild", label: "Mild" },
+    { id: "concerning", label: "Concerning" },
+  ],
+  sleep: [
+    { id: "poor", label: "Poor" },
+    { id: "okay", label: "Okay" },
+    { id: "good", label: "Good" },
+  ],
+} satisfies {
+  energy: Array<{ id: EnergyLevel; label: string }>;
+  soreness: Array<{ id: SorenessLevel; label: string }>;
+  jointPain: Array<{ id: JointPainLevel; label: string }>;
+  sleep: Array<{ id: SleepLevel; label: string }>;
+};
+
+const monthlyRecoveryOptions: Array<{ id: MonthlyRecovery; label: string }> = [
+  { id: "easy", label: "Easy" },
+  { id: "about-right", label: "About right" },
+  { id: "very-hard", label: "Very hard" },
 ];
 
 // These accessories were added to the lower-body days and scale separately from the main compound
@@ -329,6 +418,19 @@ const dietTargets: Record<DietDayType, { label: string; calories: string; protei
   },
 };
 
+const defaultDietCalories: Record<DietDayType, number> = {
+  strength: 2050,
+  cardio: 1950,
+  recovery: 1850,
+};
+
+const emptyStore = (): TrackerStore => ({
+  days: {},
+  dietDays: {},
+  metrics: {},
+  settings: createEmptySettings(),
+});
+
 // The to-buy list groups recipe ingredients into a small number of store sections. It is not tied
 // to one store, so it works for Costco, a normal grocery store, or whatever is convenient.
 const shoppingCategories: ShoppingCategory[] = ["Protein & dairy", "Produce", "Carbs", "Pantry"];
@@ -342,7 +444,13 @@ const foodPhoto = (photoId: string) =>
 // sharing nested state between days, which is a common React bug in trackers.
 const emptySet = (): SetLog => ({
   weight: "",
+  reps: "",
   done: false,
+});
+
+const createEmptySettings = (): UserSettings => ({
+  proteinWeightKg: "",
+  calorieMode: "calculated",
 });
 
 const createEmptyDay = (): DayLog => ({
@@ -352,12 +460,15 @@ const createEmptyDay = (): DayLog => ({
   exercises: {},
   skips: {},
   swaps: {},
+  readiness: {},
   notes: "",
 });
 
 const createEmptyMetric = (): MetricLog => ({
   weight: "",
   weightKg: "",
+  waistCm: "",
+  photoReminderDone: false,
   note: "",
 });
 
@@ -373,6 +484,71 @@ const createEmptyDietDay = (): DietDayLog => ({
   notes: "",
 });
 
+function isEffortFeedback(value: unknown): value is EffortFeedback {
+  return effortOptions.some((option) => option.id === value);
+}
+
+function isMonthlyRecovery(value: unknown): value is MonthlyRecovery {
+  return monthlyRecoveryOptions.some((option) => option.id === value);
+}
+
+function isCalorieMode(value: unknown): value is CalorieMode {
+  return value === "calculated" || value === "lower" || value === "higher";
+}
+
+function normalizeSetLogShape(row: Partial<SetLog> | undefined): SetLog {
+  return {
+    weight: typeof row?.weight === "string" ? row.weight : "",
+    reps: typeof row?.reps === "string" ? row.reps : "",
+    effort: isEffortFeedback(row?.effort) ? row.effort : undefined,
+    done: Boolean(row?.done),
+  };
+}
+
+function normalizeExerciseRows(value: unknown): Record<string, SetLog[]> {
+  if (!isRecord(value)) return {};
+
+  return Object.entries(value).reduce<Record<string, SetLog[]>>((merged, [exerciseId, rows]) => {
+    if (Array.isArray(rows)) {
+      merged[exerciseId] = rows.map((row) => normalizeSetLogShape(row as Partial<SetLog> | undefined));
+    }
+    return merged;
+  }, {});
+}
+
+function normalizeReadiness(value: unknown): ReadinessLog {
+  if (!isRecord(value)) return {};
+
+  return {
+    energy:
+      value.energy === "low" || value.energy === "normal" || value.energy === "great"
+        ? value.energy
+        : undefined,
+    soreness:
+      value.soreness === "none" || value.soreness === "mild" || value.soreness === "high"
+        ? value.soreness
+        : undefined,
+    jointPain:
+      value.jointPain === "none" || value.jointPain === "mild" || value.jointPain === "concerning"
+        ? value.jointPain
+        : undefined,
+    sleep:
+      value.sleep === "poor" || value.sleep === "okay" || value.sleep === "good"
+        ? value.sleep
+        : undefined,
+  };
+}
+
+function normalizeSettings(value: unknown): UserSettings {
+  const base = createEmptySettings();
+  if (!isRecord(value)) return base;
+
+  return {
+    proteinWeightKg: typeof value.proteinWeightKg === "string" ? value.proteinWeightKg : "",
+    calorieMode: isCalorieMode(value.calorieMode) ? value.calorieMode : base.calorieMode,
+  };
+}
+
 // Normalizers act like small migrations. They protect the UI when localStorage or Supabase contains
 // older data from before diet tracking, kg weigh-ins, skips, or swaps existed.
 function normalizeDayLog(log: DayLog | undefined): DayLog {
@@ -381,9 +557,11 @@ function normalizeDayLog(log: DayLog | undefined): DayLog {
     ...log,
     warmup: log?.warmup ?? {},
     tasks: log?.tasks ?? {},
-    exercises: log?.exercises ?? {},
+    exercises: normalizeExerciseRows(log?.exercises),
     skips: normalizeSkips(log?.skips),
     swaps: log?.swaps ?? {},
+    readiness: normalizeReadiness(log?.readiness),
+    monthlyRecovery: isMonthlyRecovery(log?.monthlyRecovery) ? log.monthlyRecovery : undefined,
     notes: log?.notes ?? "",
   };
 }
@@ -392,6 +570,8 @@ function normalizeMetricLogShape(metric: Partial<MetricLog> | undefined): Metric
   return {
     weight: typeof metric?.weight === "string" ? metric.weight : "",
     weightKg: typeof metric?.weightKg === "string" ? metric.weightKg : "",
+    waistCm: typeof metric?.waistCm === "string" ? metric.waistCm : "",
+    photoReminderDone: Boolean(metric?.photoReminderDone),
     note: typeof metric?.note === "string" ? metric.note : "",
   };
 }
@@ -1329,6 +1509,49 @@ const exerciseMap: Record<string, Exercise> = {
       {
         label: "ACE hamstrings blueprint",
         url: "https://www.acefitness.org/resources/pros/expert-articles/9015/the-hamstrings-blueprint-evidence-based-exercises-for-better-function/",
+      },
+    ],
+  },
+  "cable-crunch": {
+    id: "cable-crunch",
+    name: "Kneeling Cable Crunch",
+    shortName: "Cable crunch",
+    family: "core",
+    equipment: "Cable machine and rope attachment",
+    trainingLocation: "downstairs",
+    locationNote: "Do this downstairs at the cable stack. Start light enough that the abs move the torso, not the arms or hips.",
+    target: "Progressively loadable abs and obliques",
+    reps: "10-15",
+    rest: "45-60 sec",
+    cues: [
+      "Attach a rope high, kneel 1-2 feet from the stack, and keep the rope near the sides of your head.",
+      "Exhale and curl ribs toward pelvis while hips stay mostly still.",
+      "Return slowly to a stretch without letting the cable yank your low back into extension.",
+    ],
+    avoid: [
+      "Do not pull the rope down with your arms.",
+      "Do not turn the movement into a hip hinge.",
+      "Do not chase heavy plates before you can feel the abs control every rep.",
+    ],
+    progression: "Use this as the loadable ab movement from Month 3 onward. Add reps first, then one small cable-stack jump when every set reaches 15 controlled reps.",
+    motionDemo: {
+      workoutXId: "0175",
+      label: "Cable kneeling crunch",
+      match: "exact",
+    },
+    youtubeId: "2-qTH6z6j28",
+    resources: [
+      {
+        label: "WorkoutX cable crunch",
+        url: "https://workoutxapp.com/exercises/cable-standing-crunch-with-rope-attachment.html",
+      },
+      {
+        label: "Weight Training Guide video",
+        url: "https://weighttraining.guide/exercises/kneeling-cable-crunch/",
+      },
+      {
+        label: "NASM core programming",
+        url: "https://www.nasm.org/resource-center/blog/training/best-abs-exercises",
       },
     ],
   },
@@ -2792,32 +3015,33 @@ const weeklySchedule: Record<string, SessionTemplate> = {
     title: "Strength A",
     type: "strength",
     code: "A",
-    time: "60-85 min",
-    summary: "Phase-scaled knee/hip-friendly warm-up, two specific ramp warm-ups, supported lower-body work, upper-body weights, quad and hamstring machines, a brisk treadmill finisher, then floor core work.",
+    time: "45-85 min",
+    summary: "Beginner-friendly full-body strength: short treadmill warm-up, knee/hip prep, ramp sets, four main lifts, core, and optional finisher as capacity improves.",
     accent: "strength-a",
     exerciseIds: [
       ...strengthWarmupIds,
       "warmup-ramp-leg-press",
       "warmup-ramp-incline-db-press",
       "leg-press",
-      "seated-leg-extension",
       "incline-db-press",
       "lat-pulldown",
       "db-rdl",
+      "seated-leg-extension",
       "seated-leg-curl",
       "treadmill-finisher",
       "front-plank",
+      "cable-crunch",
       "dead-bug",
     ],
-    tasks: ["Follow every move in order", "Log weights in pounds", "Use pain-free knee and hip ranges; never force a deep squat"],
-    finisher: "Brisk treadmill walk at talk-test pace; duration progresses by phase.",
+    tasks: ["Follow every move in order", "Use the planned RIR target instead of training to failure", "Use pain-free knee and hip ranges; never force a deep squat"],
+    finisher: "Optional brisk treadmill walk at talk-test pace; duration progresses by month.",
   },
   Tuesday: {
     title: "Cardio Base",
     type: "cardio",
     code: "CB",
-    time: "40-65 min",
-    summary: "Treadmill walk: phase-scaled easy warm-up, brisk walking block, and easy cool-down.",
+    time: "30-60 min",
+    summary: "Treadmill walk: easy warm-up, progressive talk-test walking block, and easy cool-down.",
     accent: "cardio",
     exerciseIds: ["warmup-treadmill-walk", "treadmill-walk", "cardio-cooldown-walk"],
     tasks: ["Complete the easy warm-up", "Complete the brisk walking block", "Complete the easy cool-down"],
@@ -2826,8 +3050,8 @@ const weeklySchedule: Record<string, SessionTemplate> = {
     title: "Strength B",
     type: "strength",
     code: "B",
-    time: "65-90 min",
-    summary: "Phase-scaled knee/hip-friendly warm-up, supported lower-body strength, upper-body weights, direct arms, a brisk treadmill finisher, then floor core work.",
+    time: "45-85 min",
+    summary: "Beginner-friendly Strength B: supported legs, row, glute bridge, push-up path, seated shoulder press, and dead bug before later accessories appear.",
     accent: "strength-b",
     exerciseIds: [
       ...strengthWarmupIds,
@@ -2844,56 +3068,58 @@ const weeklySchedule: Record<string, SessionTemplate> = {
       "treadmill-finisher",
       "front-plank",
       "dead-bug",
+      "cable-crunch",
     ],
-    tasks: ["Follow every move in order", "Log weights in pounds", "Use pain-free knee and hip ranges; never force a deep squat"],
-    finisher: "Brisk treadmill walk at talk-test pace; duration progresses by phase.",
+    tasks: ["Follow every move in order", "Use the planned RIR target instead of training to failure", "Use pain-free knee and hip ranges; never force a deep squat"],
+    finisher: "Optional brisk treadmill walk at talk-test pace; duration progresses by month.",
   },
   Thursday: {
     title: "Easy Movement",
     type: "movement",
     code: "EM",
-    time: "25-40 min",
-    summary: "20-30 min moderate walk plus 5-10 min light mobility or stretching.",
+    time: "20-35 min",
+    summary: "Easy/moderate walk plus light mobility. Optional movement practice appears later only if it helps recovery.",
     accent: "movement",
     exerciseIds: ["treadmill-walk", "mobility-flow", "hip-hinge-drill", "incline-push-up", "warmup-front-plank"],
-    tasks: ["20-30 min moderate walk", "5-10 min light mobility", "Keep intensity easy"],
+    tasks: ["Easy/moderate walk", "5-10 min light mobility", "Keep intensity easy enough that Friday feels better"],
   },
   Friday: {
     title: "Strength C",
     type: "strength",
     code: "C",
-    time: "65-90 min",
-    summary: "Phase-scaled knee/hip-friendly warm-up, two specific ramp warm-ups, supported lower-body work, upper-body weights, direct arms, a brisk treadmill finisher, then floor core work.",
+    time: "45-85 min",
+    summary: "Beginner-friendly Strength C repeats important lifts, keeps the RDL pattern, adds leg curl early, and brings in fly/arms/core only after the base is earned.",
     accent: "strength-c",
     exerciseIds: [
       ...strengthWarmupIds,
       "warmup-ramp-leg-press",
       "warmup-ramp-incline-db-press",
       "leg-press",
-      "seated-leg-extension",
       "incline-db-press",
       "lat-pulldown",
       "barbell-rdl",
       "seated-leg-curl",
+      "seated-leg-extension",
       "cable-chest-fly",
       "dumbbell-biceps-curl",
       "rope-triceps-pressdown",
       "treadmill-finisher",
-      "front-plank",
       "dead-bug",
+      "front-plank",
+      "cable-crunch",
     ],
-    tasks: ["Follow every move in order", "Log weights in pounds", "Use pain-free knee and hip ranges; never force a deep squat"],
-    finisher: "Brisk treadmill walk at talk-test pace; duration progresses by phase.",
+    tasks: ["Follow every move in order", "Use the planned RIR target instead of training to failure", "Use pain-free knee and hip ranges; never force a deep squat"],
+    finisher: "Optional brisk treadmill walk at talk-test pace; duration progresses by month.",
   },
   Saturday: {
     title: "Long Cardio",
     type: "cardio",
     code: "LC",
-    time: "45-60 min",
-    summary: "45-60 min brisk treadmill walk or outdoor walk.",
+    time: "35-75 min",
+    summary: "Longer talk-test treadmill walk or outdoor walk that builds gradually across six months.",
     accent: "cardio-long",
     exerciseIds: ["long-cardio-walk"],
-    tasks: ["45-60 min brisk walk", "Use talk-test intensity", "Optional outdoor route"],
+    tasks: ["Complete the planned longer walk", "Use talk-test intensity", "Outdoor route is fine if joints feel good"],
   },
   Sunday: {
     title: "Recovery",
@@ -2954,6 +3180,7 @@ const libraryOrder = [
   "goblet-squat",
   "front-plank",
   "dead-bug",
+  "cable-crunch",
   "dumbbell-biceps-curl",
   "rope-triceps-pressdown",
   "single-arm-row",
@@ -3007,233 +3234,344 @@ function formatDate(iso: string, style: "short" | "long" = "long") {
   });
 }
 
-// Training phases are centralized here so the app can explain why a week feels easier, harder, or
-// like a deload without scattering those messages across the UI.
-function phaseForWeek(week: number) {
-  if (week <= 2) {
-    return {
-      label: "Weeks 1-2",
-      sets: "2 working sets",
-      note: "Build the habit, use 10-minute treadmill warm-ups, and keep every rep clean before adding weight.",
-    };
-  }
-  if (week <= 6) {
-    return {
-      label: "Weeks 3-6",
-      sets: "3 sets for the first 4 lifts",
-      note: "Warm-up drills add reps, cardio blocks grow, and load increases only after clean top-range reps.",
-    };
-  }
-  if (week <= 10) {
-    return {
-      label: "Weeks 7-10",
-      sets: "Same structure, optional extra set",
-      note: "Use slower warm-up reps, a 12-minute lift finisher, and one extra set on one big lift only if recovery feels good.",
-    };
-  }
-  if (week === 11) {
-    return {
-      label: "Week 11",
-      sets: "Deload",
-      note: "Reduce loads 10-15 percent and do 2 sets for everything. Keep walking.",
-    };
-  }
-  if (week === 12) {
-    return {
-      label: "Week 12",
-      sets: "Compare week",
-      note: "Return to normal loads and compare photos, average body weight, and strength.",
-    };
-  }
-  if (week <= 14) {
-    return {
-      label: "Weeks 13-14",
-      sets: "Rebuild block",
-      note: "Start the second block slightly below your best week-12 loads, keep the longer warm-up, then rebuild clean top-range reps.",
-    };
-  }
-  if (week <= 18) {
-    return {
-      label: "Weeks 15-18",
-      sets: "3-4 working sets",
-      note: "Use the double-progression rule, longer cardio blocks, and 12-15 minute lift finishers.",
-    };
-  }
-  if (week <= 22) {
-    return {
-      label: "Weeks 19-22",
-      sets: "Advanced consistency",
-      note: "First 4 lifts can use 4 sets if recovery is good. Warm-ups reach 15 minutes and accessories stay controlled.",
-    };
-  }
-  if (week === 23) {
-    return {
-      label: "Week 23",
-      sets: "Deload",
-      note: "Reduce loads 10-15 percent and use 2 sets. Keep walking but let fatigue fall.",
-    };
-  }
+// Training phases are monthly so a true beginner can adapt before the app adds meaningful work.
+// Calendar week and earned training week can differ; the UI uses earned training week for targets.
+function coachingWeek(planDay: PlanDay) {
+  return planDay.trainingWeek ?? planDay.week;
+}
+
+function withTrainingWeek(planDay: PlanDay, trainingWeek: number): PlanDay {
   return {
-    label: "Weeks 24-26",
-    sets: "Final compare",
-    note: "Weeks 24-26 return to normal loads. Compare average body weight, photos, and strength against week 1 and week 12.",
+    ...planDay,
+    trainingWeek: Math.max(1, Math.min(26, trainingWeek)),
   };
 }
 
-// This is the volume progression engine. It deliberately treats warm-ups, cardio, arms, machine
-// accessories, core, and main lifts differently because they should not all progress at the same
-// rate for a newer lifter.
-function recommendedSets(planDay: PlanDay, exercise: Exercise, index: number) {
-  if (isRampWarmup(exercise)) return 2;
-  if (exercise.family === "warmup") return 1;
-  if (exercise.family === "cardio") return 1;
-  if (planDay.session.type !== "strength") return 1;
-  if (planDay.week <= 2) return 2;
-  if (planDay.week === 11 || planDay.week === 23) return 2;
-  if (exercise.id === "front-plank") return planDay.week >= 19 && planDay.week <= 22 ? 4 : 3;
-  if (exercise.id === "dead-bug" || exercise.family === "arms") return planDay.week >= 15 ? 3 : 2;
-  if (lowerMachineAccessoryIds.includes(exercise.id)) return planDay.week >= 15 ? 3 : 2;
+function trainingMonthForWeek(week: number) {
+  if (week <= 4) return 1;
+  if (week <= 8) return 2;
+  if (week <= 12) return 3;
+  if (week <= 16) return 4;
+  if (week <= 20) return 5;
+  if (week <= 24) return 6;
+  return 7;
+}
 
-  const workingIds = planDay.session.exerciseIds.filter((id) => {
-    const item = exerciseMap[id];
-    return item && item.family !== "warmup" && item.family !== "cardio";
-  });
-  const warmupCount = planDay.session.exerciseIds.filter((id) => {
-    const item = exerciseMap[id];
-    return item?.family === "warmup";
-  }).length;
-  const foundWorkingIndex = workingIds.indexOf(exercise.id);
-  const workingIndex = foundWorkingIndex >= 0 ? foundWorkingIndex : Math.max(0, index - warmupCount);
-
-  if (planDay.week <= 6) return workingIndex < 4 ? 3 : 2;
-  if (planDay.week <= 10) return workingIndex === 0 ? 4 : workingIndex < 4 ? 3 : 2;
-  if (planDay.week <= 14) return workingIndex < 4 ? 3 : 2;
-  if (planDay.week <= 18) return workingIndex === 0 ? 4 : workingIndex < 4 ? 3 : 2;
-  if (planDay.week <= 22) return workingIndex < 4 ? 4 : 3;
-  return workingIndex < 4 ? 3 : 2;
+function phaseForWeek(week: number) {
+  if (week <= 4) {
+    return {
+      label: "Weeks 1-4",
+      title: "Foundation",
+      sets: "Mostly 2 working sets",
+      timeCap: "45-60 min",
+      rir: "3-4 RIR",
+      note: "Quality first: learn setup, breathing, bracing, pain-free range, logging, and finish feeling able to train again in two days.",
+    };
+  }
+  if (week <= 8) {
+    return {
+      label: "Weeks 5-8",
+      title: "Build",
+      sets: "Main lifts 3 sets, accessories 2",
+      timeCap: "50-65 min",
+      rir: "2-3 RIR",
+      note: "Consistency earns more work. Use double progression: build reps with clean form, then increase the smallest available weight.",
+    };
+  }
+  if (week <= 12) {
+    return {
+      label: "Weeks 9-12",
+      title: "Progress",
+      sets: "Main lifts 3 sets, selected accessories 2-3",
+      timeCap: "55-70 min",
+      rir: "2-3 RIR",
+      note: "Training now looks like training: direct arms, loadable core, stronger walks, and a Month 3 checkpoint without max testing.",
+    };
+  }
+  if (week <= 16) {
+    return {
+      label: "Weeks 13-16",
+      title: "Build Again",
+      sets: "Main lifts 3 sets; one main lift may use 4",
+      timeCap: "60-75 min",
+      rir: "2-3 RIR",
+      note: "Add useful volume cautiously. Week 16 can be lighter if recovery, soreness, or adherence says the block was hard.",
+    };
+  }
+  if (week <= 20) {
+    return {
+      label: "Weeks 17-20",
+      title: "Stronger Training",
+      sets: "Major lifts 3 quality sets, one or two may use 4",
+      timeCap: "65-80 min",
+      rir: "1-3 RIR",
+      note: "Push performance without marathon workouts. Difficulty comes from load, reps, control, and cardio capacity.",
+    };
+  }
+  if (week <= 24) {
+    return {
+      label: "Weeks 21-24",
+      title: "Consolidate and Perform",
+      sets: "Hold volume, improve quality",
+      timeCap: "65-85 min",
+      rir: "1-3 RIR",
+      note: "Month 6 is not about endless extra exercises. Use the fitness you built: better reps, better loads, better pace.",
+    };
+  }
+  return {
+    label: "Weeks 25-26",
+    title: "Final Comparison",
+    sets: "Compare without maxing",
+    timeCap: "60-75 min",
+    rir: "2-3 RIR",
+    note: "Compare body-weight average, waist, optional photos, strength trends, cardio duration, and consistency against the start.",
+  };
 }
 
 function isRampWarmup(exercise: Exercise) {
   return exercise.id.startsWith("warmup-ramp-");
 }
 
-// Warm-up targets progress separately from lifting targets. They get the user warmer and more
-// mobile over time, but deload weeks pull them back so recovery stays part of the program.
+function isConsolidationWeek(week: number) {
+  return week === 8 || week === 16 || week === 24 || week === 25;
+}
+
+function rirTargetForWeek(week: number) {
+  if (week <= 4) return "3-4 RIR";
+  if (week <= 16) return "2-3 RIR";
+  if (week <= 24) return "1-3 RIR";
+  return "2-3 RIR";
+}
+
+function rirExplanationForWeek(week: number) {
+  return `${rirTargetForWeek(week)} means you stop while you still have that many clean reps left. 4 RIR = about 4 more reps possible; 1 RIR = maybe 1 more; 0 RIR = no more reps, which this plan does not require.`;
+}
+
+function readinessStatusFor(readiness: ReadinessLog): ReadinessStatus {
+  if (readiness.jointPain === "concerning") return "red";
+  if (readiness.energy === "low" && readiness.sleep === "poor") return "red";
+  if (readiness.soreness === "high" && readiness.jointPain === "mild") return "red";
+  if (
+    readiness.energy === "low" ||
+    readiness.soreness === "high" ||
+    readiness.jointPain === "mild" ||
+    readiness.sleep === "poor"
+  ) {
+    return "yellow";
+  }
+  return "green";
+}
+
+function readinessCopy(status: ReadinessStatus) {
+  if (status === "red") {
+    return {
+      label: "Red day",
+      detail:
+        "Switch to recovery work, stop painful movements, and seek assessment if pain is concerning, new, swollen, unstable, locking, or weight-bearing is difficult.",
+    };
+  }
+  if (status === "yellow") {
+    return {
+      label: "Yellow day",
+      detail: "Keep the main lifts, remove optional work, and let the app trim one set from non-main work.",
+    };
+  }
+  return {
+    label: "Green day",
+    detail: "Do the normal workout with the planned RIR target and full rest.",
+  };
+}
+
+function exercisePriorityFor(exercise: Exercise, planDay: PlanDay): ExercisePriority {
+  if (exercise.priority) return exercise.priority;
+  if (planDay.session.type === "cardio" && exercise.family === "cardio") return "main";
+  if (isRampWarmup(exercise) || exercise.family === "warmup") return "accessory";
+  if (exercise.id === "treadmill-finisher") return "optional";
+  if (exercise.family === "arms" || exercise.id === "cable-chest-fly") return "optional";
+  if (
+    [
+      "leg-press",
+      "incline-db-press",
+      "lat-pulldown",
+      "db-rdl",
+      "barbell-rdl",
+      "single-arm-row",
+      "glute-bridge",
+      "push-up",
+      "seated-db-overhead",
+    ].includes(exercise.id)
+  ) {
+    return "main";
+  }
+  return "accessory";
+}
+
+function exercisePriorityLabel(priority: ExercisePriority) {
+  return {
+    main: "Main",
+    accessory: "Accessory",
+    optional: "Optional",
+  }[priority];
+}
+
+function exerciseIntroductionWeek(planDay: PlanDay, exerciseId: string) {
+  if (planDay.session.type === "cardio" || planDay.session.type === "recovery") return 1;
+
+  if (planDay.session.type === "movement") {
+    if (["treadmill-walk", "mobility-flow"].includes(exerciseId)) return 1;
+    return 5;
+  }
+
+  const title = planDay.session.title;
+  if (
+    strengthWarmupIds.includes(exerciseId) ||
+    exerciseId.startsWith("warmup-ramp-") ||
+    ["leg-press", "incline-db-press", "lat-pulldown", "db-rdl", "barbell-rdl"].includes(exerciseId)
+  ) {
+    return 1;
+  }
+  if (title === "Strength B" && ["single-arm-row", "glute-bridge", "push-up", "seated-db-overhead", "dead-bug"].includes(exerciseId)) {
+    return 1;
+  }
+  if (title === "Strength C" && ["seated-leg-curl", "dead-bug"].includes(exerciseId)) {
+    return 1;
+  }
+  if (title === "Strength A" && ["front-plank", "treadmill-finisher"].includes(exerciseId)) {
+    return 1;
+  }
+  if (lowerMachineAccessoryIds.includes(exerciseId) || exerciseId === "warmup-front-plank") return 5;
+  if (
+    [
+      "incline-reverse-fly",
+      "dumbbell-biceps-curl",
+      "rope-triceps-pressdown",
+      "cable-crunch",
+      "dead-bug",
+      "front-plank",
+      "treadmill-finisher",
+    ].includes(exerciseId)
+  ) {
+    return 9;
+  }
+  if (exerciseId === "cable-chest-fly") return 13;
+  return 1;
+}
+
+function scheduledExercisesForDay(planDay: PlanDay, log?: DayLog) {
+  const readiness = log ? readinessStatusFor(log.readiness) : "green";
+
+  if (readiness === "red" && planDay.session.type === "strength") {
+    return ["warmup-treadmill-walk", "mobility-flow"].flatMap((id) =>
+      exerciseMap[id] ? [exerciseMap[id]] : [],
+    );
+  }
+
+  const week = coachingWeek(planDay);
+  return planDay.session.exerciseIds
+    .flatMap((id) => (exerciseMap[id] ? [exerciseMap[id]] : []))
+    .filter((exercise) => exerciseIntroductionWeek(planDay, exercise.id) <= week)
+    .filter((exercise) => {
+      if (readiness !== "yellow") return true;
+      return exercisePriorityFor(exercise, planDay) !== "optional";
+    });
+}
+
+function mainLiftIndex(planDay: PlanDay, exercise: Exercise) {
+  const mainIds = planDay.session.exerciseIds
+    .flatMap((id) => (exerciseMap[id] ? [exerciseMap[id]] : []))
+    .filter((item) => exerciseIntroductionWeek(planDay, item.id) <= coachingWeek(planDay))
+    .filter((item) => exercisePriorityFor(item, planDay) === "main")
+    .map((item) => item.id);
+  return mainIds.indexOf(exercise.id);
+}
+
+// This is the volume progression engine. It adds work month by month, then lets completion and
+// readiness decide whether today receives normal, reduced, or recovery-focused work.
+function recommendedSets(
+  planDay: PlanDay,
+  exercise: Exercise,
+  index: number,
+  readinessStatus: ReadinessStatus = "green",
+) {
+  const week = coachingWeek(planDay);
+  const priority = exercisePriorityFor(exercise, planDay);
+  const mainIndex = mainLiftIndex(planDay, exercise);
+  let sets = 1;
+
+  if (isRampWarmup(exercise)) sets = week <= 4 ? 1 : 2;
+  else if (exercise.family === "warmup" || exercise.family === "cardio") sets = 1;
+  else if (planDay.session.type !== "strength") sets = 1;
+  else if (week <= 4) sets = 2;
+  else if (isConsolidationWeek(week)) sets = priority === "main" ? 2 : 1;
+  else if (week <= 8) sets = priority === "main" && mainIndex < 4 ? 3 : 2;
+  else if (week <= 12) sets = priority === "main" ? 3 : exercise.family === "core" ? 3 : 2;
+  else if (week <= 16) sets = priority === "main" && mainIndex === 0 ? 4 : priority === "main" ? 3 : 2;
+  else if (week <= 20) sets = priority === "main" && mainIndex >= 0 && mainIndex < 2 ? 4 : priority === "main" ? 3 : 3;
+  else if (week <= 24) sets = priority === "main" && mainIndex === 0 ? 4 : priority === "main" ? 3 : 2;
+  else sets = priority === "main" ? 3 : 2;
+
+  if (readinessStatus === "yellow" && priority !== "main" && exercise.family !== "warmup") {
+    sets = Math.max(1, sets - 1);
+  }
+  if (readinessStatus === "red") sets = 1;
+
+  return Math.max(1, sets + Math.min(0, index) * 0);
+}
+
+// Warm-up targets progress just enough to prepare the user. They do not become a long workout
+// before the actual workout.
 function warmupTarget(planDay: PlanDay, exercise: Exercise) {
+  const week = coachingWeek(planDay);
   if (exercise.id === "warmup-treadmill-walk") {
-    if (planDay.week <= 2) return "10 min easy";
-    if (planDay.week <= 6) return "10 min easy, last 2 min a little brisker";
-    if (planDay.week <= 10) return "12 min easy-to-moderate";
-    if (planDay.week === 11) return "8-10 min easy deload";
-    if (planDay.week <= 14) return "12 min easy-to-moderate";
-    if (planDay.week <= 18) return "12 min with 3 brisk 30-sec pickups";
-    if (planDay.week <= 22) return "15 min easy-to-moderate";
-    if (planDay.week === 23) return "8-10 min easy deload";
-    return "12-15 min easy-to-moderate";
+    if (week <= 4) return "5-7 min easy";
+    if (week <= 8) return "6-8 min easy";
+    if (week <= 16) return "7-9 min easy";
+    if (week <= 24) return "8-10 min easy";
+    return "6-8 min easy comparison week";
   }
 
   if (exercise.id === "seated-knee-extension-warmup") {
-    if (planDay.week <= 2) return "8 each side with 1-sec hold";
-    if (planDay.week <= 6) return "10 each side with 1-sec hold";
-    if (planDay.week <= 10) return "10 each side with 2-sec hold";
-    if (planDay.week === 11) return "8 each side easy deload";
-    if (planDay.week <= 14) return "10 each side controlled";
-    if (planDay.week <= 18) return "12 each side controlled";
-    if (planDay.week <= 22) return "12 each side with 2-sec hold";
-    if (planDay.week === 23) return "8 each side easy deload";
-    return "12 crisp each side";
+    if (week <= 4) return "8 each side with 1-sec hold";
+    if (week <= 12) return "10 each side controlled";
+    return "10-12 each side controlled";
   }
 
   if (exercise.id === "standing-supported-hip-abduction") {
-    if (planDay.week <= 2) return "8 each side, slow";
-    if (planDay.week <= 6) return "10 each side, slow";
-    if (planDay.week <= 10) return "10 each side with 1-sec side hold";
-    if (planDay.week === 11) return "8 each side easy deload";
-    if (planDay.week <= 14) return "10 each side with quiet torso";
-    if (planDay.week <= 18) return "12 each side with quiet torso";
-    if (planDay.week <= 22) return "12 each side with 2-sec side hold";
-    if (planDay.week === 23) return "8 each side easy deload";
-    return "12 crisp each side";
+    if (week <= 4) return "8 each side, slow";
+    if (week <= 12) return "10 each side, slow";
+    return "10-12 each side with quiet torso";
   }
 
-  if (exercise.id === "bodyweight-squat") {
-    if (planDay.week <= 2) return "8 smooth reps";
-    if (planDay.week <= 6) return "10 smooth reps";
-    if (planDay.week <= 10) return "10 reps with a 2-sec comfortable-range pause";
-    if (planDay.week === 11) return "8 easy reps";
-    if (planDay.week <= 14) return "10 controlled reps";
-    if (planDay.week <= 18) return "12 reps with a 2-sec comfortable-range pause";
-    if (planDay.week <= 22) return "12 controlled reps";
-    if (planDay.week === 23) return "8 easy reps";
-    return "12 crisp reps";
-  }
-
-  if (exercise.id === "hip-hinge-drill") {
-    if (planDay.week <= 2) return "8 smooth reps";
-    if (planDay.week <= 6) return "10 smooth reps";
-    if (planDay.week <= 10) return "10 reps with a 2-sec hamstring stretch";
-    if (planDay.week === 11) return "8 easy reps";
-    if (planDay.week <= 14) return "10 controlled reps";
-    if (planDay.week <= 18) return "12 reps with a 2-sec hamstring stretch";
-    if (planDay.week <= 22) return "12 slow reps";
-    if (planDay.week === 23) return "8 easy reps";
-    return "12 crisp reps";
-  }
-
-  if (exercise.id === "incline-push-up") {
-    if (planDay.week <= 2) return "6 clean reps";
-    if (planDay.week <= 6) return "8 clean reps";
-    if (planDay.week <= 10) return "10 clean reps";
-    if (planDay.week === 11) return "6 easy reps";
-    if (planDay.week <= 14) return "8 reps, slightly lower bench if easy";
-    if (planDay.week <= 18) return "10 reps, controlled lowering";
-    if (planDay.week <= 22) return "10 reps, lower incline if form is solid";
-    if (planDay.week === 23) return "6 easy reps";
-    return "10 crisp reps";
-  }
-
-  if (exercise.id === "warmup-front-plank") {
-    if (planDay.week <= 2) return "20 sec";
-    if (planDay.week <= 6) return "25 sec";
-    if (planDay.week <= 10) return "30 sec";
-    if (planDay.week === 11) return "20 sec easy";
-    if (planDay.week <= 14) return "25 sec";
-    if (planDay.week <= 18) return "30 sec";
-    if (planDay.week <= 22) return "30 sec with slower breathing";
-    if (planDay.week === 23) return "20 sec easy";
-    return "30 sec crisp brace";
-  }
-
-  if (exercise.id === "mobility-flow") {
-    if (planDay.week <= 6) return "5-10 min";
-    if (planDay.week <= 14) return "8-12 min";
-    if (planDay.week === 23) return "5-8 min easy";
-    return "10-12 min";
-  }
+  if (exercise.id === "bodyweight-squat") return "Optional only: 6-10 comfortable reps";
+  if (exercise.id === "hip-hinge-drill") return week <= 4 ? "Optional: 8 smooth reps" : "8-10 smooth reps";
+  if (exercise.id === "incline-push-up") return week <= 4 ? "Optional: 6 clean reps" : "6-10 clean reps";
+  if (exercise.id === "warmup-front-plank") return week <= 4 ? "Optional: 15-20 sec" : "20-30 sec";
+  if (exercise.id === "mobility-flow") return week <= 4 ? "5-10 min light" : "8-12 min light";
 
   return exercise.reps;
 }
 
-// Ramp warm-ups are expressed as percentages of the user's working pounds. The app cannot know the
-// exact load until the user logs it, so it teaches the intent instead of guessing a number.
+// Ramp warm-ups are expressed as percentages of working pounds. They prepare the lift and never
+// count as working sets.
 function rampWarmupTarget(planDay: PlanDay, exercise: Exercise) {
+  const week = coachingWeek(planDay);
   const isUpperBody = exercise.id.includes("press") || exercise.id.includes("row");
-  if (planDay.week === 11 || planDay.week === 23) {
+  if (week <= 4) {
     return isUpperBody
-      ? "2 easy sets: 40-55% working lbs"
-      : "2 easy sets: 45-60% working lbs";
+      ? "1-2 practice sets: 40-60% working lbs"
+      : "1-2 practice sets: 50-65% working lbs";
   }
-  if (planDay.week <= 2) {
+  if (isConsolidationWeek(week)) {
     return isUpperBody
-      ? "2 lighter sets: 40-60% working lbs"
-      : "2 lighter sets: 50-65% working lbs";
+      ? "1-2 easy sets: 40-55% working lbs"
+      : "1-2 easy sets: 45-60% working lbs";
   }
-  if (planDay.week <= 10) {
+  if (week <= 12) {
     return isUpperBody
       ? "2 ramp sets: 50-70% working lbs"
       : "2 ramp sets: 55-75% working lbs";
   }
-  if (planDay.week <= 18) {
+  if (week <= 20) {
     return isUpperBody
       ? "2 ramp sets: 55-75% working lbs"
       : "2 ramp sets: 60-80% working lbs";
@@ -3245,215 +3583,220 @@ function rampWarmupTarget(planDay: PlanDay, exercise: Exercise) {
 
 function warmupProgressionForExercise(planDay: PlanDay, exercise: Exercise) {
   if (isRampWarmup(exercise)) {
-    if (planDay.week === 11 || planDay.week === 23) {
-      return "Deload week: keep both ramp sets lighter than usual and use them only to rehearse the movement.";
-    }
-    return `${exercise.progression} These are logged in pounds so you can see how your warm-up weights rise as your working weights rise.`;
+    return "Ramp sets are practice/preparation and do not count as working sets. They rise only when your working pounds rise.";
   }
 
   if (exercise.id === "warmup-treadmill-walk") {
-    return "The warm-up starts at 10 minutes, grows toward 12-15 minutes in later phases, and stays easy enough that the first lift still feels powerful.";
+    return "Use 5-7 easy minutes in Month 1, then nudge duration up only when lifting still feels sharp.";
   }
 
   if (exercise.family === "warmup") {
-    return `${exercise.progression} The target changes by phase so the prep work keeps matching your fitness level.`;
+    return `${exercise.progression} Keep this short and pain-free; it should help the lifts, not tire you out.`;
   }
 
   return exercise.progression;
 }
 
 // Most exercises start with a broad rep range in the library. This function narrows or advances
-// that range by phase so the same exercise gets more demanding across the 6-month plan.
+// that range by month so the same exercise becomes more demanding without adding endless exercises.
 function rangedTarget(base: string, week: number) {
+  const month = trainingMonthForWeek(week);
+
   if (base.includes("20-45 sec")) {
-    if (week <= 2) return "20-30 sec";
-    if (week <= 6) return "30-45 sec";
-    if (week <= 10) return "35-50 sec";
-    if (week === 11) return "20-30 sec lighter";
-    if (week <= 14) return "35-50 sec";
-    if (week <= 18) return "45-60 sec";
-    if (week <= 22) return "50-70 sec";
-    if (week === 23) return "30-45 sec deload";
-    return "45-75 sec";
+    if (month === 1) return "20-30 sec";
+    if (month === 2) return "25-40 sec";
+    if (month === 3) return "30-45 sec";
+    if (month <= 5) return "35-55 sec";
+    return "40-60 sec";
   }
 
   if (base.includes("6-15")) {
-    if (week <= 2) return "6-10 reps";
-    if (week <= 6) return "8-12 reps";
-    if (week <= 10) return "10-15 reps";
-    if (week === 11) return "6-10 reps lighter";
-    if (week <= 14) return "8-12 reps";
-    if (week <= 22) return "10-15 reps";
-    if (week === 23) return "6-10 reps deload";
-    return "10-15 reps";
+    if (month === 1) return "6-10 reps";
+    if (month === 2) return "8-12 reps";
+    return "8-15 reps";
   }
 
   if (base.includes("12-15")) {
-    if (week <= 2) return "12 reps";
-    if (week <= 6) return "12-15 reps";
-    if (week <= 10) return "15 clean reps";
-    if (week === 11) return "12 reps lighter";
-    if (week <= 14) return "12-15 reps";
-    if (week <= 22) return "15 clean reps";
-    if (week === 23) return "12 reps deload";
+    if (month === 1) return "12 reps";
     return "12-15 reps";
   }
 
   if (base.includes("10-15")) {
-    if (week <= 2) return "10-12 reps";
-    if (week <= 6) return "10-15 reps";
-    if (week <= 10) return "12-15 reps";
-    if (week === 11) return "10-12 reps lighter";
-    if (week <= 14) return "10-15 reps";
-    if (week <= 22) return "12-15 reps";
-    if (week === 23) return "10-12 reps deload";
+    if (month === 1) return "10-12 reps";
     return "10-15 reps";
   }
 
   if (base.includes("8-10")) {
-    if (week <= 2) return "8 reps";
-    if (week <= 6) return "8-10 reps";
-    if (week <= 10) return "10 clean reps";
-    if (week === 11) return "8 reps lighter";
-    if (week <= 14) return "8-10 reps";
-    if (week <= 22) return "8-10 heavier";
-    if (week === 23) return "8 reps deload";
+    if (month === 1) return "8 reps";
     return "8-10 reps";
   }
 
   if (base.includes("8-12")) {
-    if (week <= 2) return "8-10 reps";
-    if (week <= 6) return "8-12 reps";
-    if (week <= 10) return "10-12 reps";
-    if (week === 11) return "8-10 reps lighter";
-    if (week <= 14) return "8-12 reps";
-    if (week <= 18) return "10-12 reps";
-    if (week <= 22) return "8-12 heavier";
-    if (week === 23) return "8-10 reps deload";
+    if (month === 1) return "8-10 reps";
     return "8-12 reps";
   }
 
   return base;
 }
 
-// Cardio targets are calculated instead of hard-coded into each day because walking duration rises
-// with fitness and drops during deload weeks.
-function cardioTarget(planDay: PlanDay, exercise: Exercise) {
+function cardioMinutesRange(planDay: PlanDay, exercise: Exercise): [number, number] | null {
+  const week = coachingWeek(planDay);
+  const month = trainingMonthForWeek(week);
+
+  if (exercise.id === "warmup-treadmill-walk") {
+    if (month === 1) return [5, 7];
+    if (month === 2) return [6, 8];
+    if (month <= 4) return [7, 9];
+    return [8, 10];
+  }
+
+  if (exercise.id === "cardio-cooldown-walk") return [5, 5];
+
   if (exercise.id === "treadmill-walk" && planDay.session.title === "Cardio Base") {
-    if (planDay.week <= 2) return "25-30 min brisk";
-    if (planDay.week <= 6) return "30-35 min brisk";
-    if (planDay.week <= 10) return "35-40 min brisk";
-    if (planDay.week === 11) return "25-30 min easy";
-    if (planDay.week <= 14) return "35-40 min brisk";
-    if (planDay.week <= 18) return "40-45 min brisk";
-    if (planDay.week <= 22) return "45 min brisk";
-    if (planDay.week === 23) return "30 min easy";
-    return "45-50 min brisk";
+    if (month === 1) return [20, 30];
+    if (month === 2) return [25, 35];
+    if (month === 3) return [30, 40];
+    if (month === 4) return [35, 45];
+    if (month === 5) return [40, 45];
+    return [40, 50];
   }
 
   if (exercise.id === "treadmill-walk" && planDay.session.title === "Easy Movement") {
-    if (planDay.week <= 2) return "20-30 min moderate";
-    if (planDay.week <= 6) return "25-35 min moderate";
-    if (planDay.week <= 10) return "30-40 min moderate";
-    if (planDay.week === 11) return "20-30 min easy";
-    if (planDay.week <= 14) return "30-40 min moderate";
-    if (planDay.week <= 18) return "35-45 min moderate";
-    if (planDay.week <= 22) return "40-45 min moderate";
-    if (planDay.week === 23) return "20-30 min easy";
-    return "35-45 min moderate";
+    if (month === 1) return [20, 30];
+    if (month === 2) return [25, 30];
+    return [25, 35];
   }
 
   if (exercise.id === "long-cardio-walk") {
-    if (planDay.week <= 2) return "45-55 min brisk";
-    if (planDay.week <= 6) return "50-60 min brisk";
-    if (planDay.week <= 10) return "55-65 min brisk";
-    if (planDay.week === 11) return "40-50 min easy";
-    if (planDay.week <= 14) return "55-65 min brisk";
-    if (planDay.week <= 18) return "60-70 min brisk";
-    if (planDay.week <= 22) return "65-75 min brisk";
-    if (planDay.week === 23) return "40-50 min easy";
-    return "60-75 min brisk";
+    if (month === 1) return [35, 45];
+    if (month === 2) return [40, 50];
+    if (month === 3) return [45, 55];
+    if (month === 4) return [50, 60];
+    if (month === 5) return [55, 65];
+    return [60, 75];
   }
 
   if (exercise.id === "treadmill-finisher") {
-    if (planDay.week <= 6) return "10 min brisk";
-    if (planDay.week <= 10) return "12 min brisk";
-    if (planDay.week === 11) return "8-10 min easy";
-    if (planDay.week <= 14) return "12 min brisk";
-    if (planDay.week <= 18) return "12-15 min brisk";
-    if (planDay.week <= 22) return "15 min brisk";
-    if (planDay.week === 23) return "8-10 min easy";
-    return "15 min brisk";
+    if (month === 1) return [5, 10];
+    if (month === 2) return [8, 10];
+    if (month === 3) return [10, 12];
+    return [10, 12];
   }
 
-  return exercise.reps;
+  return null;
 }
 
-function sessionTimeForDay(planDay: PlanDay) {
-  if (planDay.session.type === "strength") {
-    const hasDirectArms = planDay.session.exerciseIds.includes("dumbbell-biceps-curl");
-    const hasLowerMachines = lowerMachineAccessoryIds.some((id) =>
-      planDay.session.exerciseIds.includes(id),
-    );
-    const accessoryKinds = Number(hasDirectArms) + Number(hasLowerMachines);
+// Cardio targets are calculated because walking duration should build from sedentary-friendly
+// amounts toward serious six-month conditioning without becoming punishing HIIT.
+function cardioTarget(planDay: PlanDay, exercise: Exercise) {
+  const range = cardioMinutesRange(planDay, exercise);
+  if (!range) return exercise.reps;
 
-    if (planDay.week === 11 || planDay.week === 23) {
-      if (accessoryKinds >= 2) return "60-75 min";
-      return accessoryKinds === 1 ? "55-70 min" : "50-65 min";
-    }
-    if (planDay.week <= 2) {
-      if (accessoryKinds >= 2) return "70-90 min";
-      return accessoryKinds === 1 ? "65-85 min" : "60-75 min";
-    }
-    if (planDay.week <= 10) {
-      if (accessoryKinds >= 2) return "75-95 min";
-      return accessoryKinds === 1 ? "70-90 min" : "65-80 min";
-    }
-    if (planDay.week <= 18) {
-      if (accessoryKinds >= 2) return "80-100 min";
-      return accessoryKinds === 1 ? "75-95 min" : "70-85 min";
-    }
-    if (accessoryKinds >= 2) return "85-105 min";
-    return accessoryKinds === 1 ? "80-100 min" : "75-90 min";
+  const [low, high] = range;
+  const minutes = low === high ? `${low} min` : `${low}-${high} min`;
+  if (exercise.id === "warmup-treadmill-walk") return `${minutes} easy`;
+  if (exercise.id === "cardio-cooldown-walk") return `${minutes} easy cool-down`;
+  if (exercise.id === "treadmill-finisher") return `${minutes} optional brisk`;
+  if (planDay.session.title === "Easy Movement") return `${minutes} easy/moderate walk`;
+  return `${minutes} talk-test moderate`;
+}
+
+function exerciseTimingFor(planDay: PlanDay, exercise: Exercise): ExerciseTiming {
+  const priority = exercisePriorityFor(exercise, planDay);
+  const base: ExerciseTiming =
+    isRampWarmup(exercise)
+      ? { minRestSeconds: 45, maxRestSeconds: 60, setSeconds: 40, setupSeconds: 75 }
+      : exercise.family === "warmup"
+        ? { minRestSeconds: 0, maxRestSeconds: 0, setSeconds: 45, setupSeconds: 45 }
+        : exercise.family === "cardio"
+          ? { minRestSeconds: 0, maxRestSeconds: 0, setSeconds: 60, setupSeconds: 60 }
+          : exercise.family === "core"
+            ? { minRestSeconds: 45, maxRestSeconds: 60, setSeconds: 45, setupSeconds: 45 }
+            : priority === "main"
+              ? { minRestSeconds: 90, maxRestSeconds: 120, setSeconds: 45, setupSeconds: 90 }
+              : priority === "accessory"
+                ? { minRestSeconds: 60, maxRestSeconds: 75, setSeconds: 40, setupSeconds: 60 }
+                : { minRestSeconds: 60, maxRestSeconds: 75, setSeconds: 35, setupSeconds: 45 };
+
+  return {
+    ...base,
+    ...exercise.timing,
+  };
+}
+
+function restTimerSecondsFor(planDay: PlanDay, exercise: Exercise) {
+  return exerciseTimingFor(planDay, exercise).maxRestSeconds;
+}
+
+function restForExercise(planDay: PlanDay, exercise: Exercise) {
+  const timing = exerciseTimingFor(planDay, exercise);
+  if (timing.maxRestSeconds === 0) return exercise.rest;
+  if (timing.minRestSeconds === timing.maxRestSeconds) return `${timing.maxRestSeconds} sec`;
+  return `${timing.minRestSeconds}-${timing.maxRestSeconds} sec`;
+}
+
+function sessionTimeEstimateForDay(planDay: PlanDay, log?: DayLog) {
+  const readiness = log ? readinessStatusFor(log.readiness) : "green";
+  const exercises = scheduledExercisesForDay(planDay, log);
+  const totals = exercises.reduce(
+    (sum, exercise, index) => {
+      const timing = exerciseTimingFor(planDay, exercise);
+      const cardioRange = cardioMinutesRange(planDay, exercise);
+      const setCount = recommendedSets(planDay, exercise, index, readiness);
+      const restCount = Math.max(0, setCount - 1);
+      const transitionSeconds = timing.setupSeconds;
+
+      if (cardioRange) {
+        sum.min += cardioRange[0] * 60 + transitionSeconds;
+        sum.max += cardioRange[1] * 60 + transitionSeconds;
+        return sum;
+      }
+
+      sum.min += setCount * timing.setSeconds + restCount * timing.minRestSeconds + transitionSeconds;
+      sum.max += setCount * timing.setSeconds + restCount * timing.maxRestSeconds + transitionSeconds;
+      return sum;
+    },
+    { min: 0, max: 0 },
+  );
+
+  return {
+    min: Math.max(0, Math.round(totals.min / 60)),
+    max: Math.max(0, Math.round(totals.max / 60)),
+    count: exercises.length,
+  };
+}
+
+function sessionTimeForDay(planDay: PlanDay, log?: DayLog) {
+  if (planDay.session.type === "recovery" && planDay.session.exerciseIds.length === 0) {
+    return "Estimated total gym time: 0-20 min";
   }
 
-  if (planDay.session.title === "Cardio Base") {
-    if (planDay.week === 11 || planDay.week === 23) return "40-45 min";
-    if (planDay.week <= 2) return "40-45 min";
-    if (planDay.week <= 6) return "45-50 min";
-    if (planDay.week <= 10) return "50-55 min";
-    if (planDay.week <= 18) return "55-60 min";
-    return "60-65 min";
-  }
+  const estimate = sessionTimeEstimateForDay(planDay, log);
+  if (!estimate.count) return planDay.session.time;
+  return `Estimated total gym time: ${estimate.min}-${estimate.max} min`;
+}
 
-  if (planDay.session.title === "Easy Movement") {
-    if (planDay.week === 11 || planDay.week === 23) return "25-35 min";
-    if (planDay.week <= 2) return "25-40 min";
-    if (planDay.week <= 6) return "30-45 min";
-    return "40-55 min";
-  }
-
-  if (planDay.session.title === "Long Cardio") {
-    if (planDay.week === 11 || planDay.week === 23) return "40-50 min";
-    if (planDay.week <= 2) return "45-55 min";
-    if (planDay.week <= 6) return "50-60 min";
-    if (planDay.week <= 10) return "55-65 min";
-    return "60-75 min";
-  }
-
-  return planDay.session.time;
+function sessionTimeDetailForDay(planDay: PlanDay, log?: DayLog) {
+  const estimate = sessionTimeEstimateForDay(planDay, log);
+  if (!estimate.count) return "Includes optional easy walking, weekly review, and meal prep if you choose them.";
+  return "Includes warm-up, working sets, rest between sets, setup, transitions, cardio, and core work.";
 }
 
 function sessionSummaryForDay(planDay: PlanDay) {
   if (planDay.session.type === "strength") {
-    const finisher = cardioTarget(planDay, exerciseMap["treadmill-finisher"]);
-    const hasDirectArms = planDay.session.exerciseIds.includes("dumbbell-biceps-curl");
+    const scheduled = scheduledExercisesForDay(planDay);
+    const finisher = scheduled.some((exercise) => exercise.id === "treadmill-finisher")
+      ? cardioTarget(planDay, exerciseMap["treadmill-finisher"])
+      : "no required finisher";
+    const hasDirectArms = scheduled.some((exercise) => exercise.family === "arms");
     const hasLowerMachines = lowerMachineAccessoryIds.some((id) =>
-      planDay.session.exerciseIds.includes(id),
+      scheduled.some((exercise) => exercise.id === id),
     );
+    const hasCableCore = scheduled.some((exercise) => exercise.id === "cable-crunch");
     const lowerMachineText = hasLowerMachines ? "quad/hamstring machine accessories, " : "";
     const armText = hasDirectArms ? "direct arms, " : "";
-    return `Phase-scaled warm-up, two lift-specific ramp warm-ups, full-body weights, ${lowerMachineText}${armText}dead bugs, and ${finisher}.`;
+    const coreText = hasCableCore ? "plank/dead bug plus loadable core, " : "simple core, ";
+    return `Short warm-up, lift-specific ramp warm-ups, full-body weights, ${lowerMachineText}${armText}${coreText}and ${finisher}.`;
   }
 
   if (planDay.session.title === "Cardio Base") {
@@ -3464,7 +3807,7 @@ function sessionSummaryForDay(planDay: PlanDay) {
   }
 
   if (planDay.session.title === "Easy Movement") {
-    return `Moderate walk, ${warmupTarget(planDay, exerciseMap["mobility-flow"])}, and easy movement prep without turning it into a hard workout.`;
+    return `Easy/moderate walk, ${warmupTarget(planDay, exerciseMap["mobility-flow"])}, and optional movement practice only if it makes Friday feel better.`;
   }
 
   if (planDay.session.title === "Long Cardio") {
@@ -3613,6 +3956,47 @@ function weightKgFromMetric(metric: MetricLog) {
 
   const legacyPounds = parseLoadValue(metric.weight);
   return legacyPounds !== null ? legacyPounds * 0.45359237 : null;
+}
+
+function latestWeightKgFromMetrics(metrics: Record<string, MetricLog>) {
+  const latest = Object.entries(metrics)
+    .map(([date, metric]) => ({
+      date,
+      weight: weightKgFromMetric(normalizeMetricLogShape(metric)),
+    }))
+    .filter((entry): entry is { date: string; weight: number } => entry.weight !== null)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .at(-1);
+
+  return latest?.weight ?? null;
+}
+
+function personalizedDietTarget(
+  type: DietDayType,
+  settings: UserSettings,
+  latestWeightKg: number | null,
+) {
+  const base = dietTargets[type];
+  const adjustment =
+    settings.calorieMode === "lower" ? -150 : settings.calorieMode === "higher" ? 150 : 0;
+  const calories = defaultDietCalories[type] + adjustment;
+  const proteinReference = parseLoadValue(settings.proteinWeightKg) ?? latestWeightKg;
+  const protein = proteinReference
+    ? `${Math.round(proteinReference * 1.6)}-${Math.round(proteinReference * 2)} g protein`
+    : "1.6-2.0 g/kg protein";
+  const modeLabel =
+    settings.calorieMode === "lower"
+      ? "small deficit nudge"
+      : settings.calorieMode === "higher"
+        ? "training support nudge"
+        : "base target";
+
+  return {
+    ...base,
+    calories: `~${calories.toLocaleString("en-US")} kcal`,
+    protein,
+    modeLabel,
+  };
 }
 
 // The to-buy list normalizes detailed recipe lines into useful grocery names. For example, several
@@ -3883,42 +4267,32 @@ function weightMomentumCoach(
 // Target and rest helpers are read by every workout view. Centralizing them means Today, Gym Mode,
 // detail sheets, and the library always agree about what the user should do.
 function targetForExercise(planDay: PlanDay, exercise: Exercise) {
+  const week = coachingWeek(planDay);
   if (isRampWarmup(exercise)) return rampWarmupTarget(planDay, exercise);
   if (exercise.family === "warmup") return warmupTarget(planDay, exercise);
   if (exercise.family === "cardio") return cardioTarget(planDay, exercise);
   if (exercise.id === "dead-bug") {
-    if (planDay.week <= 2) return "8 each side";
-    if (planDay.week <= 6) return "8-10 each side";
-    if (planDay.week <= 10) return "10-12 each side";
-    if (planDay.week === 11) return "6-8 each side deload";
-    if (planDay.week <= 14) return "8-10 each side";
-    if (planDay.week <= 22) return "10-12 each side";
-    if (planDay.week === 23) return "6-8 each side deload";
-    return "10-12 each side";
+    return `${week <= 4 ? "8 each side" : week <= 8 ? "8-10 each side" : "10-12 each side"} · ${rirTargetForWeek(week)}`;
   }
   if (planDay.session.title === "Strength C" && exercise.id === "leg-press") {
-    return rangedTarget("10-15", planDay.week);
+    return `${rangedTarget("10-15", week)} · ${rirTargetForWeek(week)}`;
   }
-  return rangedTarget(exercise.reps, planDay.week);
-}
-
-function restForExercise(planDay: PlanDay, exercise: Exercise) {
-  if (planDay.week === 11 || planDay.week === 23) {
-    if (exercise.family === "warmup" || exercise.family === "cardio") return exercise.rest;
-    return "60-90 sec";
-  }
-  return exercise.rest;
+  return `${rangedTarget(exercise.reps, week)} · ${rirTargetForWeek(week)}`;
 }
 
 function progressionForExercise(planDay: PlanDay, exercise: Exercise) {
+  const week = coachingWeek(planDay);
   if (exercise.family === "warmup") return warmupProgressionForExercise(planDay, exercise);
-  if (planDay.week === 11 || planDay.week === 23) {
-    return "Deload week: reduce load about 10-15 percent, stop well before form breaks, and focus on clean movement.";
+  if (exercise.family === "core") {
+    return `${exercise.progression} Core training builds the abdominal muscles; nutrition and overall fat loss determine how visible they become. This app does not claim spot reduction.`;
   }
-  if (planDay.week >= 13) {
-    return `${exercise.progression} For this extended block, use the PDF double-progression rule: when all sets hit the top target cleanly, add the smallest available load next time.`;
+  if (isConsolidationWeek(week)) {
+    return "Consolidation week: repeat or slightly reduce load, stop well before form breaks, and keep the next block fresh.";
   }
-  return exercise.progression;
+  if (week >= 5) {
+    return `${exercise.progression} Use the double-progression rule: build toward the top of the rep range at the same weight, then add the smallest available load next time.`;
+  }
+  return `${exercise.progression} Month 1 is about learning the movement while keeping ${rirTargetForWeek(week)}.`;
 }
 
 // Only true strength/ramp rows ask for pounds. Warm-ups, cardio, and bodyweight moves become clean
@@ -3963,37 +4337,10 @@ function formatLoggedWeightText(value: string) {
 // Progress stats estimate cardio minutes from completed sessions. The values match the phase-scaled
 // targets rather than simply trusting the static session labels.
 function estimatedCardioMinutes(planDay: PlanDay) {
-  if (planDay.session.title === "Cardio Base") {
-    if (planDay.week === 11 || planDay.week === 23) return 40;
-    if (planDay.week <= 2) return 40;
-    if (planDay.week <= 6) return 45;
-    if (planDay.week <= 10) return 50;
-    if (planDay.week <= 18) return 55;
-    return 60;
-  }
-  if (planDay.session.title === "Long Cardio") {
-    if (planDay.week === 11 || planDay.week === 23) return 45;
-    if (planDay.week <= 2) return 50;
-    if (planDay.week <= 6) return 55;
-    if (planDay.week <= 10) return 60;
-    if (planDay.week <= 18) return 65;
-    return 70;
-  }
-  if (planDay.session.title === "Easy Movement") {
-    if (planDay.week === 11 || planDay.week === 23) return 25;
-    if (planDay.week <= 2) return 25;
-    if (planDay.week <= 6) return 30;
-    if (planDay.week <= 10) return 35;
-    return 40;
-  }
-  if (planDay.session.type === "strength") {
-    if (planDay.week === 11 || planDay.week === 23) return 18;
-    if (planDay.week <= 6) return 20;
-    if (planDay.week <= 10) return 24;
-    if (planDay.week <= 18) return 27;
-    return 30;
-  }
-  return 0;
+  return scheduledExercisesForDay(planDay).reduce((sum, exercise) => {
+    const range = cardioMinutesRange(planDay, exercise);
+    return range ? sum + Math.round((range[0] + range[1]) / 2) : sum;
+  }, 0);
 }
 
 // Runtime guards are needed because localStorage and Supabase return unknown JSON. TypeScript can
@@ -4012,6 +4359,13 @@ function formatClock(iso?: string | null) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function formatDuration(totalSeconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 // normalizeStore is the main compatibility layer. It lets the app open older saves gracefully after
@@ -4041,19 +4395,20 @@ function normalizeStore(value: unknown): TrackerStore | null {
     days,
     dietDays,
     metrics,
+    settings: normalizeSettings(value.settings),
   };
 }
 
 // Local save is the first persistence layer. The app remains useful offline and then syncs when a
 // Supabase session is available.
 function loadStore(): TrackerStore {
-  if (typeof window === "undefined") return { days: {}, dietDays: {}, metrics: {} };
+  if (typeof window === "undefined") return emptyStore();
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (!saved) return { days: {}, dietDays: {}, metrics: {} };
-    return normalizeStore(JSON.parse(saved)) ?? { days: {}, dietDays: {}, metrics: {} };
+    if (!saved) return emptyStore();
+    return normalizeStore(JSON.parse(saved)) ?? emptyStore();
   } catch {
-    return { days: {}, dietDays: {}, metrics: {} };
+    return emptyStore();
   }
 }
 
@@ -4080,7 +4435,9 @@ function hasStoreData(store: TrackerStore) {
   return (
     Object.keys(store.days).length > 0 ||
     Object.keys(store.dietDays).length > 0 ||
-    Object.keys(store.metrics).length > 0
+    Object.keys(store.metrics).length > 0 ||
+    store.settings.proteinWeightKg.trim() !== "" ||
+    store.settings.calorieMode !== "calculated"
   );
 }
 
@@ -4126,11 +4483,13 @@ function preferFilled(localValue = "", cloudValue = "") {
 function mergeSetRows(cloudRows: SetLog[] = [], localRows: SetLog[] = []) {
   const rowCount = Math.max(cloudRows.length, localRows.length);
   return Array.from({ length: rowCount }, (_, index) => {
-    const cloudRow = cloudRows[index] ?? emptySet();
-    const localRow = localRows[index] ?? emptySet();
+    const cloudRow = normalizeSetLogShape(cloudRows[index]);
+    const localRow = normalizeSetLogShape(localRows[index]);
     return {
       weight: preferFilled(localRow.weight, cloudRow.weight),
-      done: Boolean(localRow.done ?? cloudRow.done),
+      reps: preferFilled(localRow.reps, cloudRow.reps),
+      effort: localRow.effort ?? cloudRow.effort,
+      done: localRow.done || cloudRow.done,
     };
   });
 }
@@ -4150,11 +4509,16 @@ function mergeDayLog(cloudLog: DayLog | undefined, localLog: DayLog | undefined)
   ]);
 
   return {
-    completed: Boolean(normalizedLocalLog.completed ?? normalizedCloudLog.completed),
+    completed: normalizedLocalLog.completed || normalizedCloudLog.completed,
     warmup: mergeChecks(normalizedCloudLog.warmup, normalizedLocalLog.warmup),
     tasks: mergeChecks(normalizedCloudLog.tasks, normalizedLocalLog.tasks),
     swaps: mergeSwaps(normalizedCloudLog.swaps, normalizedLocalLog.swaps),
     skips: mergeSkips(normalizedCloudLog.skips, normalizedLocalLog.skips),
+    readiness: {
+      ...normalizedCloudLog.readiness,
+      ...normalizedLocalLog.readiness,
+    },
+    monthlyRecovery: normalizedLocalLog.monthlyRecovery ?? normalizedCloudLog.monthlyRecovery,
     exercises: [...exerciseIds].reduce<Record<string, SetLog[]>>((merged, id) => {
       merged[id] = mergeSetRows(cloudExercises[id], localExercises[id]);
       return merged;
@@ -4171,9 +4535,9 @@ function mergeDietDayLog(cloudLog: DietDayLog | undefined, localLog: DietDayLog 
   const normalizedLocalLog = normalizeDietDayLog(localLog);
 
   return withAutomaticDietCompletion({
-    completed: Boolean(normalizedLocalLog.completed ?? normalizedCloudLog.completed),
+    completed: normalizedLocalLog.completed || normalizedCloudLog.completed,
     meals: dietMealSlots.reduce<Record<DietMealSlot, boolean>>((merged, slot) => {
-      merged[slot.id] = Boolean(normalizedLocalLog.meals[slot.id] ?? normalizedCloudLog.meals[slot.id]);
+      merged[slot.id] = normalizedLocalLog.meals[slot.id] || normalizedCloudLog.meals[slot.id];
       return merged;
     }, createEmptyDietDay().meals),
     swaps: {
@@ -4194,6 +4558,9 @@ function mergeMetricLog(metric: MetricLog | undefined, localMetric: MetricLog | 
   return {
     weight: preferFilled(normalizedLocalMetric.weight, normalizedCloudMetric.weight),
     weightKg: preferFilled(normalizedLocalMetric.weightKg, normalizedCloudMetric.weightKg),
+    waistCm: preferFilled(normalizedLocalMetric.waistCm, normalizedCloudMetric.waistCm),
+    photoReminderDone:
+      normalizedLocalMetric.photoReminderDone || normalizedCloudMetric.photoReminderDone,
     note: preferFilled(normalizedLocalMetric.note, normalizedCloudMetric.note),
   };
 }
@@ -4224,6 +4591,11 @@ function mergeStores(localStore: TrackerStore, cloudStore: TrackerStore) {
       merged[id] = mergeMetricLog(cloudStore.metrics[id], localStore.metrics[id]);
       return merged;
     }, {}),
+    settings: {
+      ...cloudStore.settings,
+      ...localStore.settings,
+      proteinWeightKg: preferFilled(localStore.settings.proteinWeightKg, cloudStore.settings.proteinWeightKg),
+    },
   };
 }
 
@@ -4270,7 +4642,7 @@ function workoutXGifUrl(workoutXId?: string) {
 // Supabase stores one JSON document per user. That keeps the schema simple while Row Level Security
 // still guarantees users can only access their own progress row.
 async function fetchCloudStore(userId: string) {
-  if (!supabase) return { store: { days: {}, dietDays: {}, metrics: {} }, updatedAt: null };
+  if (!supabase) return { store: emptyStore(), updatedAt: null };
 
   const { data, error } = await supabase
     .from("workout_progress")
@@ -4282,7 +4654,7 @@ async function fetchCloudStore(userId: string) {
 
   const row = data?.[0] as { data: unknown; updated_at: string } | undefined;
   return {
-    store: normalizeStore(row?.data) ?? { days: {}, dietDays: {}, metrics: {} },
+    store: normalizeStore(row?.data) ?? emptyStore(),
     updatedAt: row?.updated_at ?? null,
   };
 }
@@ -4316,6 +4688,128 @@ function buildPlanDays() {
       session: weeklySchedule[planName],
     };
   });
+}
+
+function completedStrengthSessionsBefore(planDays: PlanDay[], store: TrackerStore, selectedDay: PlanDay) {
+  return planDays
+    .slice(0, selectedDay.index)
+    .filter((day) => day.session.type === "strength")
+    .filter((day) => normalizeDayLog(store.days[day.iso]).completed)
+    .length;
+}
+
+function recoveryCapForNewBlock(planDays: PlanDay[], store: TrackerStore, selectedDay: PlanDay) {
+  const isFirstWeekOfBlock = selectedDay.week > 1 && (selectedDay.week - 1) % 4 === 0;
+  if (!isFirstWeekOfBlock) return 26;
+
+  const previousCheckpointIndex = (selectedDay.week - 1) * 7 - 1;
+  const checkpointDay = planDays[previousCheckpointIndex];
+  if (!checkpointDay) return 26;
+
+  const checkpointRecovery = normalizeDayLog(store.days[checkpointDay.iso]).monthlyRecovery;
+  return checkpointRecovery === "very-hard" ? selectedDay.week - 1 : 26;
+}
+
+function earnedTrainingWeekForDay(planDays: PlanDay[], store: TrackerStore, selectedDay: PlanDay) {
+  const completedStrength = completedStrengthSessionsBefore(planDays, store, selectedDay);
+  const strengthSessionsNeededPerWeek =
+    STRENGTH_SESSIONS_PER_WEEK * EARNED_WEEK_ADHERENCE_GATE;
+  const earnedByAdherence = Math.floor(completedStrength / strengthSessionsNeededPerWeek) + 1;
+  const recoveryCap = recoveryCapForNewBlock(planDays, store, selectedDay);
+  return Math.max(1, Math.min(selectedDay.week, earnedByAdherence, recoveryCap, 26));
+}
+
+function trainingLevelCopy(calendarWeek: number, trainingWeek: number) {
+  if (trainingWeek >= calendarWeek) {
+    return `Training level is aligned with the calendar because you have earned at least ${Math.round(
+      EARNED_WEEK_ADHERENCE_GATE * 100,
+    )}% of the strength practice needed for this block.`;
+  }
+  return `Calendar is Week ${calendarWeek}, but targets use earned Training Week ${trainingWeek}. The app is holding volume until enough strength sessions are completed.`;
+}
+
+function monthWindowForWeek(week: number) {
+  const month = trainingMonthForWeek(week);
+  const startWeek = month === 7 ? 25 : (month - 1) * 4 + 1;
+  const endWeek = month === 7 ? 26 : month * 4;
+  return {
+    month,
+    startIndex: (startWeek - 1) * 7,
+    endIndex: Math.min(PROGRAM_DAYS - 1, endWeek * 7 - 1),
+  };
+}
+
+function monthlyCheckInForDay(planDays: PlanDay[], store: TrackerStore, selectedDay: PlanDay) {
+  const window = monthWindowForWeek(selectedDay.week);
+  const days = planDays.slice(window.startIndex, window.endIndex + 1);
+  const strengthDays = days.filter((day) => day.session.type === "strength");
+  const cardioDays = days.filter((day) => day.session.type === "cardio");
+  const completedStrength = strengthDays.filter((day) =>
+    normalizeDayLog(store.days[day.iso]).completed,
+  ).length;
+  const completedCardio = cardioDays.filter((day) =>
+    normalizeDayLog(store.days[day.iso]).completed,
+  ).length;
+  const checkpointDay = planDays[window.endIndex] ?? selectedDay;
+  const checkpointMetric = normalizeMetricLogShape(store.metrics[checkpointDay.iso]);
+  const firstWeek = weightWeekSummary(planDays, store.metrics, Math.floor(window.startIndex / 7));
+  const lastWeek = weightWeekSummary(planDays, store.metrics, Math.floor(window.endIndex / 7));
+  const recovery = normalizeDayLog(store.days[checkpointDay.iso]).monthlyRecovery;
+  const completionRate = strengthDays.length
+    ? Math.round((completedStrength / strengthDays.length) * 100)
+    : 0;
+  const isUnlocked = selectedDay.index >= checkpointDay.index;
+  const recoveryAnswered = Boolean(recovery);
+  const shouldProgress =
+    completionRate >= 75 && recoveryAnswered && recovery !== "very-hard" && isUnlocked;
+
+  return {
+    ...window,
+    checkpointDay,
+    checkpointMetric,
+    completedStrength,
+    totalStrength: strengthDays.length,
+    completedCardio,
+    totalCardio: cardioDays.length,
+    completionRate,
+    firstWeek,
+    lastWeek,
+    recovery,
+    recoveryAnswered,
+    isUnlocked,
+    shouldProgress,
+  };
+}
+
+function bestLoadForExerciseBetween(
+  planDays: PlanDay[],
+  store: TrackerStore,
+  exerciseId: string,
+  startIndex: number,
+  endIndex: number,
+) {
+  const loads = planDays
+    .slice(startIndex, endIndex + 1)
+    .flatMap((day) => normalizeDayLog(store.days[day.iso]).exercises[exerciseId] ?? [])
+    .map((row) => parseLoadValue(row.weight))
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+
+  return loads.length ? Math.max(...loads) : null;
+}
+
+function longestCompletedCardioBetween(
+  planDays: PlanDay[],
+  store: TrackerStore,
+  startIndex: number,
+  endIndex: number,
+) {
+  const durations = planDays
+    .slice(startIndex, endIndex + 1)
+    .filter((day) => ["cardio", "movement"].includes(day.session.type))
+    .filter((day) => normalizeDayLog(store.days[day.iso]).completed)
+    .map((day) => estimatedCardioMinutes(withTrainingWeek(day, earnedTrainingWeekForDay(planDays, store, day))));
+
+  return durations.length ? Math.max(...durations) : null;
 }
 
 // "Today" clamps to the program window. Before the plan starts, it shows Day 1; after the program
@@ -4394,23 +4888,46 @@ function locationFlowNoteForDay(planDay: PlanDay) {
   return "Recovery work can happen upstairs unless you choose an optional walk.";
 }
 
+function repRangeFromTarget(target: string) {
+  if (/sec|min/i.test(target) && !/reps/i.test(target)) return null;
+  const match = target.match(/(\d+)(?:-(\d+))?\s*(?:reps?|each|clean)?/i);
+  if (!match) return null;
+  const low = Number(match[1]);
+  const high = Number(match[2] ?? match[1]);
+  return {
+    low,
+    high,
+  };
+}
+
+function formatPreviousSetSummary(rows: SetLog[]) {
+  const firstWeight = rows.map((row) => row.weight.trim()).find(Boolean);
+  const reps = rows.map((row) => row.reps.trim()).filter(Boolean);
+  if (firstWeight && reps.length) return `${formatLoggedWeightText(firstWeight)} x ${reps.join(", ")}`;
+  if (firstWeight) return formatLoggedWeightText(firstWeight);
+  if (reps.length) return `${reps.join(", ")} reps`;
+  return "logged work";
+}
+
 // Previous-load lookup powers the "what should I lift today?" hints. It scans backward from the
 // selected day so each exercise can reference the user's own most recent log.
 function lastExerciseLoad(planDays: PlanDay[], store: TrackerStore, selectedDay: PlanDay, exerciseId: string) {
   for (let index = selectedDay.index - 1; index >= 0; index -= 1) {
     const day = planDays[index];
-    const previousRows = store.days[day.iso]?.exercises[exerciseId] ?? [];
+    const previousRows = normalizeDayLog(store.days[day.iso]).exercises[exerciseId] ?? [];
     const weights = previousRows
       .map((row) => row.weight.trim())
       .filter(Boolean);
 
-    if (weights.length > 0) {
+    if (weights.length > 0 || previousRows.some((row) => row.reps.trim() || row.done || row.effort)) {
       const numericLoads = weights
         .map(parseLoadValue)
         .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
       return {
         date: formatDate(day.iso, "short"),
+        rows: previousRows,
         weights: weights.join(", "),
+        summary: formatPreviousSetSummary(previousRows),
         maxLoad: numericLoads.length ? Math.max(...numericLoads) : null,
         allDone: previousRows.length > 0 && previousRows.every((row) => row.done),
       };
@@ -4427,8 +4944,10 @@ function smartLoadSuggestion(
   exercise: Exercise,
   exerciseIndex: number,
 ) {
-  const setCount = recommendedSets(selectedDay, exercise, exerciseIndex);
+  const readiness = readinessStatusFor(normalizeDayLog(store.days[selectedDay.iso]).readiness);
+  const setCount = recommendedSets(selectedDay, exercise, exerciseIndex, readiness);
   const target = targetForExercise(selectedDay, exercise);
+  const repRange = repRangeFromTarget(target);
 
   if (!tracksWeight(exercise)) {
     return {
@@ -4443,34 +4962,99 @@ function smartLoadSuggestion(
   if (!previousLoad) {
     return {
       label: "Start conservative",
-      detail: `Choose a weight in pounds you can control for ${setCount} ${setCount === 1 ? "set" : "sets"} of ${target}. The first win is repeatable form.`,
+      detail: `Choose pounds you can control for ${setCount} ${setCount === 1 ? "set" : "sets"} of ${target}. The first win is repeatable form with the planned RIR.`,
       tone: "start",
     };
   }
 
-  if ((selectedDay.week === 11 || selectedDay.week === 23) && previousLoad.maxLoad) {
+  if (isConsolidationWeek(coachingWeek(selectedDay)) && previousLoad.maxLoad) {
     const low = formatLoadValue(previousLoad.maxLoad * 0.85);
     const high = formatLoadValue(previousLoad.maxLoad * 0.9);
     return {
-      label: "Deload load",
-      detail: `Last top logged load was ${formatLoggedWeightText(previousLoad.weights)}. Use about ${low}-${high} lb today and make every rep smooth.`,
+      label: "Consolidate",
+      detail: `Last time: ${previousLoad.summary}. Use about ${low}-${high} lb or simply repeat with cleaner reps so the next block starts fresh.`,
       tone: "deload",
     };
   }
 
-  if (previousLoad.allDone) {
+  if (previousLoad.rows.length < setCount) {
     return {
-      label: "Hold or nudge up",
-      detail: `Last time was ${formatLoggedWeightText(previousLoad.weights)} on ${previousLoad.date}. Start there; if set 1 feels clean, take the smallest available jump.`,
+      label: "Earn the new set",
+      detail: `Last time: ${previousLoad.summary} on ${previousLoad.date}. Repeat that load while you add the new set, then chase the top of the rep range before increasing pounds.`,
+      tone: "steady",
+    };
+  }
+
+  const rowsToJudge = previousLoad.rows.slice(0, setCount);
+  const repValues = rowsToJudge
+    .map((row) => parseLoadValue(row.reps))
+    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  const reachedTop =
+    Boolean(repRange) &&
+    previousLoad.allDone &&
+    repValues.length >= Math.min(setCount, previousLoad.rows.length) &&
+    repValues.every((reps) => reps >= (repRange?.high ?? reps));
+  const hadVeryHard = rowsToJudge.some((row) => row.effort === "very-hard");
+  const mostlyTooEasy =
+    rowsToJudge.length > 0 && rowsToJudge.every((row) => row.effort === "too-easy" || !row.effort);
+
+  if (reachedTop && !hadVeryHard) {
+    return {
+      label: "Try the next jump",
+      detail: `Last time: ${previousLoad.summary} on ${previousLoad.date}. You hit the top target, so try the smallest available increase if warm-ups feel smooth.`,
+      tone: "build",
+    };
+  }
+
+  if (repValues.length > 0 && repRange) {
+    return {
+      label: "Repeat and reach the top",
+      detail: `Last time: ${previousLoad.summary} on ${previousLoad.date}. Keep that load and try to move all sets toward ${repRange.high} clean reps before increasing.`,
+      tone: hadVeryHard ? "deload" : "steady",
+    };
+  }
+
+  if (previousLoad.allDone && mostlyTooEasy) {
+    return {
+      label: "Possibly nudge up",
+      detail: `Last time: ${previousLoad.summary} on ${previousLoad.date}. If today also feels too easy with clean form, use the smallest available increase next time.`,
       tone: "build",
     };
   }
 
   return {
     label: "Repeat and own it",
-    detail: `Last logged load was ${formatLoggedWeightText(previousLoad.weights)} on ${previousLoad.date}. Repeat that before increasing.`,
+    detail: `Last time: ${previousLoad.summary} on ${previousLoad.date}. Repeat it before increasing, especially if a set was incomplete or very hard.`,
     tone: "steady",
   };
+}
+
+function beginnerTeachingForExercise(planDay: PlanDay, exercise: Exercise, suggestionLabel: string) {
+  if (coachingWeek(planDay) > 4) return null;
+  if (suggestionLabel === "Try the next jump") {
+    return "You earned the first weight increase by completing the target reps with control. Increase by the smallest available jump only if the warm-up feels smooth.";
+  }
+  if (exercise.id === "leg-press") {
+    return "Today is about learning the machine. Set the seat so your hips stay down, use your natural foot angle, and stop the set with 3-4 clean reps still available.";
+  }
+  if (exercise.id === "db-rdl" || exercise.id === "barbell-rdl") {
+    return "The goal is learning the hip hinge, not proving strength. Keep the weight light enough that your back position and hamstring tension stay consistent.";
+  }
+  if (isRampWarmup(exercise)) {
+    return "This is a practice set. Use lighter pounds than the working sets, rehearse the exact movement, and do not count this toward your working-set total.";
+  }
+  if (exercise.family === "warmup") {
+    return "This should make the first working set feel better. Keep it easy, controlled, and pain-free.";
+  }
+  if (exercise.family === "core") {
+    return "Treat core work like skill practice: controlled breathing, steady ribs and pelvis, and no rushing through the reps.";
+  }
+  if (tracksWeight(exercise)) {
+    return `Use a conservative load. Month 1 is successful when you can repeat the movement with clean form and ${rirTargetForWeek(
+      coachingWeek(planDay),
+    )}.`;
+  }
+  return null;
 }
 
 function completedRows(rows: SetLog[]) {
@@ -4486,7 +5070,7 @@ function moveStatusForExercise(
   exerciseIndex: number,
 ): MoveStatus {
   const activeExercise = activeExerciseFor(originalExercise, log);
-  const setCount = recommendedSets(planDay, activeExercise, exerciseIndex);
+  const setCount = recommendedSets(planDay, activeExercise, exerciseIndex, readinessStatusFor(log.readiness));
   const rows = ensureSetRows(log.exercises[activeExercise.id], setCount);
   if (rows.length > 0 && completedRows(rows) >= rows.length) return "done";
   if (log.skips[originalExercise.id]) return "skipped";
@@ -4494,24 +5078,32 @@ function moveStatusForExercise(
 }
 
 function areDayExercisesComplete(planDay: PlanDay, log: DayLog) {
-  const exercises = planDay.session.exerciseIds.flatMap((id) => (exerciseMap[id] ? [exerciseMap[id]] : []));
-  if (!exercises.length) return false;
+  const exercises = scheduledExercisesForDay(planDay, log);
+  const requiredExercises = exercises.filter(
+    (exercise) => exercisePriorityFor(activeExerciseFor(exercise, log), planDay) !== "optional",
+  );
+  if (!requiredExercises.length) return false;
 
-  return exercises.every((originalExercise, exerciseIndex) => {
+  return requiredExercises.every((originalExercise) => {
+    const exerciseIndex = exercises.indexOf(originalExercise);
     return moveStatusForExercise(planDay, log, originalExercise, exerciseIndex) === "done";
   });
 }
 
 function dayStatusForDay(planDay: PlanDay, log: DayLog): DayStatus {
-  const exercises = planDay.session.exerciseIds.flatMap((id) => (exerciseMap[id] ? [exerciseMap[id]] : []));
+  const exercises = scheduledExercisesForDay(planDay, log);
   if (!exercises.length) return log.completed ? "complete" : "incomplete";
 
   const statuses = exercises.map((exercise, index) =>
-    moveStatusForExercise(planDay, log, exercise, index),
+    ({
+      priority: exercisePriorityFor(activeExerciseFor(exercise, log), planDay),
+      status: moveStatusForExercise(planDay, log, exercise, index),
+    }),
   );
-  const hasSkipped = statuses.includes("skipped");
-  const hasPending = statuses.includes("pending");
-  const everyDone = statuses.every((status) => status === "done");
+  const requiredStatuses = statuses.filter((item) => item.priority !== "optional");
+  const hasSkipped = requiredStatuses.some((item) => item.status === "skipped");
+  const hasPending = requiredStatuses.some((item) => item.status === "pending");
+  const everyDone = requiredStatuses.length > 0 && requiredStatuses.every((item) => item.status === "done");
 
   if (everyDone || (log.completed && !hasSkipped)) return "complete";
   if (hasSkipped && !hasPending) return "finished-with-skips";
@@ -4542,7 +5134,7 @@ function isPlanDayComplete(planDay: PlanDay, log: DayLog) {
 // day status and per-move checkmarks synchronized in both Today and Gym Mode.
 function completePlanDay(planDay: PlanDay, log: DayLog) {
   const normalizedLog = normalizeDayLog(log);
-  const exercises = planDay.session.exerciseIds.flatMap((id) => (exerciseMap[id] ? [exerciseMap[id]] : []));
+  const exercises = scheduledExercisesForDay(planDay, normalizedLog);
   const nextExercises = { ...normalizedLog.exercises };
   const nextSkips = { ...normalizedLog.skips };
   const nextTasks = planDay.session.tasks.reduce<Record<string, boolean>>(
@@ -4556,7 +5148,7 @@ function completePlanDay(planDay: PlanDay, log: DayLog) {
   exercises.forEach((originalExercise, exerciseIndex) => {
     const activeExercise = activeExerciseFor(originalExercise, normalizedLog);
     const setCount = Math.max(
-      recommendedSets(planDay, activeExercise, exerciseIndex),
+      recommendedSets(planDay, activeExercise, exerciseIndex, readinessStatusFor(normalizedLog.readiness)),
       normalizedLog.exercises[activeExercise.id]?.length ?? 0,
     );
     nextExercises[activeExercise.id] = ensureSetRows(
@@ -4736,6 +5328,13 @@ export default function Home() {
   const [librarySearch, setLibrarySearch] = useState("");
   const [detailExerciseId, setDetailExerciseId] = useState<string | null>(null);
   const [skipRequest, setSkipRequest] = useState<SkipRequest | null>(null);
+  const [gymStartedAt, setGymStartedAt] = useState<number | null>(null);
+  const [timerNow, setTimerNow] = useState(() => Date.now());
+  const [restTimer, setRestTimer] = useState<{
+    endAt: number;
+    totalSeconds: number;
+    label: string;
+  } | null>(null);
   const latestStoreRef = useRef(store);
   const lastAutoAlignedDateRef = useRef(currentProgramDate);
   const firstLocalSaveRef = useRef(true);
@@ -5000,6 +5599,14 @@ export default function Home() {
     return undefined;
   }, []);
 
+  useEffect(() => {
+    // Timers are intentionally React-only UI state. They should feel live in Gym Mode, but there is
+    // no value in syncing a countdown to Supabase.
+    if (!gymStartedAt && !restTimer) return undefined;
+    const timerId = window.setInterval(() => setTimerNow(Date.now()), 1000);
+    return () => window.clearInterval(timerId);
+  }, [gymStartedAt, restTimer]);
+
   // Derived state turns raw saves into the exact view model the UI needs. The render below can stay
   // declarative because all date selection, active swaps, phase targets, and progress percentages
   // are prepared here first.
@@ -5013,26 +5620,48 @@ export default function Home() {
   const gymLog = normalizeDayLog(store.days[gymDay.iso]);
   const selectedDietLog = normalizeDietDayLog(store.dietDays[selectedDietDay.iso]);
   const currentProgramMetric = normalizeMetricLogShape(store.metrics[currentProgramDate]);
-  const phase = phaseForWeek(selectedDay.week);
-  const selectedSessionTime = sessionTimeForDay(selectedDay);
-  const selectedSessionSummary = sessionSummaryForDay(selectedDay);
-  const selectedLocationNote = locationFlowNoteForDay(selectedDay);
+  const selectedTrainingWeek = earnedTrainingWeekForDay(planDays, store, selectedDay);
+  const gymTrainingWeek = earnedTrainingWeekForDay(planDays, store, gymDay);
+  const selectedCoachDay = withTrainingWeek(selectedDay, selectedTrainingWeek);
+  const gymCoachDay = withTrainingWeek(gymDay, gymTrainingWeek);
+  const selectedReadinessStatus = readinessStatusFor(selectedLog.readiness);
+  const gymReadinessStatus = readinessStatusFor(gymLog.readiness);
+  const selectedReadinessCopy = readinessCopy(selectedReadinessStatus);
+  const gymReadinessCopy = readinessCopy(gymReadinessStatus);
+  const phase = phaseForWeek(selectedTrainingWeek);
+  const gymPhase = phaseForWeek(gymTrainingWeek);
+  const selectedSessionTime = sessionTimeForDay(selectedCoachDay, selectedLog);
+  const selectedSessionTimeDetail = sessionTimeDetailForDay(selectedCoachDay, selectedLog);
+  const selectedSessionSummary = sessionSummaryForDay(selectedCoachDay);
+  const selectedLocationNote = locationFlowNoteForDay(selectedCoachDay);
   const selectedDietType = dietDayTypeForPlanDay(selectedDietDay);
-  const selectedDietTarget = dietTargets[selectedDietType];
+  const latestWeightKg = latestWeightKgFromMetrics(store.metrics);
+  const selectedDietTarget = personalizedDietTarget(
+    selectedDietType,
+    store.settings,
+    latestWeightKg,
+  );
+  const gymDietType = dietDayTypeForPlanDay(gymDay);
+  const gymDietTarget = personalizedDietTarget(gymDietType, store.settings, latestWeightKg);
   const selectedDietCoachNote = dietCoachNoteForDay(selectedDietDay);
   const selectedDietAccent = selectedDietDay.session.accent;
-  const selectedExercises = selectedDay.session.exerciseIds.flatMap((id) =>
-    exerciseMap[id] ? [exerciseMap[id]] : [],
-  );
-  const gymExercises = gymDay.session.exerciseIds.flatMap((id) =>
-    exerciseMap[id] ? [exerciseMap[id]] : [],
-  );
-  const selectedDayStatus = dayStatusForDay(selectedDay, selectedLog);
+  const selectedExercises = scheduledExercisesForDay(selectedCoachDay, selectedLog);
+  const gymExercises = scheduledExercisesForDay(gymCoachDay, gymLog);
+  const selectedDayStatus = dayStatusForDay(selectedCoachDay, selectedLog);
   const selectedDayComplete = selectedDayStatus === "complete";
   const selectedDayStatusText = dayStatusLabel(selectedDayStatus);
   const selectedCompletionButtonLabel =
     selectedDayStatus === "complete" ? "Completed" : "Mark Complete";
-  const gymSessionSummary = sessionSummaryForDay(gymDay);
+  const gymSessionSummary = sessionSummaryForDay(gymCoachDay);
+  const gymSessionTime = sessionTimeForDay(gymCoachDay, gymLog);
+  const gymSessionTimeDetail = sessionTimeDetailForDay(gymCoachDay, gymLog);
+  const gymElapsedSeconds = gymStartedAt ? Math.round((timerNow - gymStartedAt) / 1000) : 0;
+  const restSecondsLeft = restTimer
+    ? Math.max(0, Math.ceil((restTimer.endAt - timerNow) / 1000))
+    : 0;
+  const restProgressPercent = restTimer
+    ? Math.max(0, Math.min(100, Math.round((restSecondsLeft / restTimer.totalSeconds) * 100)))
+    : 0;
   const currentWeekStartIndex = Math.floor(selectedDay.index / 7) * 7;
   const currentWeekDays = planDays.slice(currentWeekStartIndex, currentWeekStartIndex + 7);
   const selectedWeekStart = planDays[currentWeekStartIndex]?.iso ?? selectedDay.iso;
@@ -5127,18 +5756,61 @@ export default function Home() {
     : "Waiting";
   const hubWeightDays = planDays.slice(Math.max(0, gymDay.index - 13), gymDay.index + 1);
   const visibleWeightWeeks = weightWeekSummaries.slice(Math.max(0, gymDay.week - 8), gymDay.week);
+  const coachedPlanDayFor = (day: PlanDay) =>
+    withTrainingWeek(day, earnedTrainingWeekForDay(planDays, store, day));
+  const selectedMonthlyCheckIn = monthlyCheckInForDay(planDays, store, selectedDay);
+  const selectedMonthlyCheckpointLog = normalizeDayLog(
+    store.days[selectedMonthlyCheckIn.checkpointDay.iso],
+  );
+  const selectedMonthlyCheckpointMetric = normalizeMetricLogShape(
+    store.metrics[selectedMonthlyCheckIn.checkpointDay.iso],
+  );
+  const selectedMonthlyTitle =
+    selectedMonthlyCheckIn.month === 7
+      ? "Final Comparison"
+      : `Month ${selectedMonthlyCheckIn.month} Check-In`;
+  const selectedMonthlyCoachLine = !selectedMonthlyCheckIn.isUnlocked
+    ? `Unlocks on ${formatDate(selectedMonthlyCheckIn.checkpointDay.iso, "short")}. Keep logging workouts, cardio, and morning weight.`
+    : !selectedMonthlyCheckIn.recoveryAnswered
+      ? "Answer the recovery question to decide whether the next block should progress or repeat."
+      : selectedMonthlyCheckIn.shouldProgress
+        ? "Progress normally next block. You completed enough strength practice and recovery was manageable."
+        : "Hold or repeat the block. Keep the main lifts, trim extras if needed, and build consistency before adding more work.";
+  const checkInLiftIds = ["leg-press", "incline-db-press", "lat-pulldown", "db-rdl"];
+  const monthlyLiftComparisons = checkInLiftIds.map((exerciseId) => {
+    const exercise = exerciseMap[exerciseId];
+    return {
+      id: exerciseId,
+      name: exercise?.shortName ?? exerciseId,
+      start: bestLoadForExerciseBetween(planDays, store, exerciseId, 0, 27),
+      current: bestLoadForExerciseBetween(
+        planDays,
+        store,
+        exerciseId,
+        selectedMonthlyCheckIn.startIndex,
+        selectedMonthlyCheckIn.endIndex,
+      ),
+    };
+  });
+  const firstMonthLongestCardio = longestCompletedCardioBetween(planDays, store, 0, 27);
+  const currentMonthLongestCardio = longestCompletedCardioBetween(
+    planDays,
+    store,
+    selectedMonthlyCheckIn.startIndex,
+    selectedMonthlyCheckIn.endIndex,
+  );
 
   const stats = useMemo(() => {
     // Progress stats are recomputed from saved logs instead of stored separately. Derived stats are
     // harder to corrupt because fixing a log automatically fixes the dashboard.
     const skippedDates = new Set(
       planDays
-        .filter((day) => dayStatusForDay(day, normalizeDayLog(store.days[day.iso])) === "finished-with-skips")
+        .filter((day) => dayStatusForDay(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])) === "finished-with-skips")
         .map((day) => day.iso),
     );
     const completedDates = new Set(
       planDays
-        .filter((day) => isPlanDayComplete(day, normalizeDayLog(store.days[day.iso])))
+        .filter((day) => isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])))
         .map((day) => day.iso),
     );
 
@@ -5148,14 +5820,14 @@ export default function Home() {
     ).length;
 
     const cardioMinutes = planDays.reduce(
-      (sum, day) => (completedDates.has(day.iso) ? sum + estimatedCardioMinutes(day) : sum),
+      (sum, day) => (completedDates.has(day.iso) ? sum + estimatedCardioMinutes(coachedPlanDayFor(day)) : sum),
       0,
     );
 
     const completedSets = Object.values(store.days).reduce(
       (daySum, log) =>
         daySum +
-        Object.values(log.exercises).reduce(
+        Object.values(normalizeDayLog(log).exercises).reduce(
           (exerciseSum, sets) => exerciseSum + sets.filter((set) => set.done).length,
           0,
         ),
@@ -5173,6 +5845,66 @@ export default function Home() {
       const normalizedLog = normalizeDietDayLog(log);
       return sum + dietMealSlots.filter((slot) => normalizedLog.meals[slot.id]).length;
     }, 0);
+    const strengthLoadHistory = new Map<string, Array<{ load: number; reps: number | null }>>();
+
+    planDays.forEach((day) => {
+      const normalizedLog = normalizeDayLog(store.days[day.iso]);
+      Object.entries(normalizedLog.exercises).forEach(([exerciseId, rows]) => {
+        rows.forEach((row) => {
+          const load = parseLoadValue(row.weight);
+          if (load === null) return;
+          const history = strengthLoadHistory.get(exerciseId) ?? [];
+          history.push({
+            load,
+            reps: parseLoadValue(row.reps),
+          });
+          strengthLoadHistory.set(exerciseId, history);
+        });
+      });
+    });
+
+    const loadImproved = [...strengthLoadHistory.values()].some((history) => {
+      if (history.length < 2) return false;
+      return Math.max(...history.map((entry) => entry.load)) > Math.min(...history.map((entry) => entry.load));
+    });
+    const doubledStartingLoad = [...strengthLoadHistory.values()].some((history) => {
+      if (history.length < 2) return false;
+      const firstLoad = history[0].load;
+      if (firstLoad < 10) return false;
+      return Math.max(...history.map((entry) => entry.load)) >= firstLoad * 2;
+    });
+    const repsImprovedSameWeight = [...strengthLoadHistory.values()].some((history) => {
+      const repsByLoad = new Map<number, number[]>();
+      history.forEach((entry) => {
+        if (entry.reps === null) return;
+        repsByLoad.set(entry.load, [...(repsByLoad.get(entry.load) ?? []), entry.reps]);
+      });
+      return [...repsByLoad.values()].some((reps) => reps.length > 1 && Math.max(...reps) > Math.min(...reps));
+    });
+    const firstThirtyCardio = planDays.some(
+      (day) =>
+        completedDates.has(day.iso) &&
+        ["cardio", "movement"].includes(day.session.type) &&
+        estimatedCardioMinutes(coachedPlanDayFor(day)) >= 30,
+    );
+    const monthAdherence90 = Array.from({ length: 7 }, (_item, monthIndex) => {
+      const startIndex = monthIndex < 6 ? monthIndex * 28 : 168;
+      const endIndex = monthIndex < 6 ? startIndex + 27 : PROGRAM_DAYS - 1;
+      const days = planDays.slice(startIndex, endIndex + 1);
+      const completed = days.filter((day) => completedDates.has(day.iso)).length;
+      return days.length > 0 && completed / days.length >= 0.9;
+    }).some(Boolean);
+    const waistEntries = Object.entries(store.metrics)
+      .map(([date, metric]) => ({
+        date,
+        waist: parseLoadValue(normalizeMetricLogShape(metric).waistCm),
+      }))
+      .filter((entry): entry is { date: string; waist: number } => entry.waist !== null)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const waistProgress =
+      waistEntries.length >= 2
+        ? waistEntries[waistEntries.length - 1].waist < waistEntries[0].waist
+        : false;
 
     let streak = 0;
     for (let index = gymDay.index; index >= 0; index -= 1) {
@@ -5190,10 +5922,16 @@ export default function Home() {
       weighIns,
       completedDietDays,
       completedDietMeals,
+      loadImproved,
+      doubledStartingLoad,
+      repsImprovedSameWeight,
+      firstThirtyCardio,
+      monthAdherence90,
+      waistProgress,
       streak,
       percent: Math.round((completedDays / PROGRAM_DAYS) * 100),
     };
-  }, [gymDay.index, planDays, store.days, store.dietDays, store.metrics]);
+  }, [coachedPlanDayFor, gymDay.index, planDays, store.days, store.dietDays, store.metrics]);
 
   const achievements = [
     {
@@ -5212,6 +5950,33 @@ export default function Home() {
       detail: "Complete 3 strength sessions.",
     },
     {
+      label: "First 4 weeks",
+      earned: planDays
+        .slice(0, 28)
+        .every((day) => isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso]))),
+      detail: "Complete the first month of the program.",
+    },
+    {
+      label: "12 strength sessions",
+      earned: stats.strengthSessions >= 12,
+      detail: "Earn the full Month 1 strength base.",
+    },
+    {
+      label: "First weight increase",
+      earned: stats.loadImproved,
+      detail: "Log a higher load than a previous session.",
+    },
+    {
+      label: "Same weight, more reps",
+      earned: stats.repsImprovedSameWeight,
+      detail: "Improve reps at a load you used before.",
+    },
+    {
+      label: "First 30-min cardio",
+      earned: stats.firstThirtyCardio,
+      detail: "Complete a walk that reaches at least 30 minutes.",
+    },
+    {
       label: "Cardio floor",
       earned: stats.cardioMinutes >= 150,
       detail: "Log 150 cardio minutes.",
@@ -5223,8 +5988,35 @@ export default function Home() {
     },
     {
       label: "Week one locked",
-      earned: planDays.slice(0, 7).every((day) => isPlanDayComplete(day, normalizeDayLog(store.days[day.iso]))),
+      earned: planDays
+        .slice(0, 7)
+        .every((day) => isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso]))),
       detail: "Complete the first 7 program days.",
+    },
+    {
+      label: "90% month adherence",
+      earned: stats.monthAdherence90,
+      detail: "Complete at least 90% of one month.",
+    },
+    {
+      label: "Three months trained",
+      earned: stats.completedDays >= 84,
+      detail: "Reach the Month 3 comparison window.",
+    },
+    {
+      label: "Doubled a starting load",
+      earned: stats.doubledStartingLoad,
+      detail: "Double a reasonable starting load on one exercise.",
+    },
+    {
+      label: "Waist trend improved",
+      earned: stats.waistProgress,
+      detail: "Log a lower waist checkpoint than your first one.",
+    },
+    {
+      label: "Six-month finish",
+      earned: stats.completedDays >= 168,
+      detail: "Reach the final comparison block.",
     },
   ];
 
@@ -5241,6 +6033,29 @@ export default function Home() {
         },
       };
     });
+  };
+
+  const updateReadiness = <K extends keyof ReadinessLog>(
+    planDay: PlanDay,
+    key: K,
+    value: NonNullable<ReadinessLog[K]>,
+  ) => {
+    updateDay(planDay.iso, (log) =>
+      withAutomaticDayCompletion(planDay, {
+        ...log,
+        readiness: {
+          ...log.readiness,
+          [key]: value,
+        },
+      }),
+    );
+  };
+
+  const updateMonthlyRecovery = (planDay: PlanDay, value: MonthlyRecovery) => {
+    updateDay(planDay.iso, (log) => ({
+      ...log,
+      monthlyRecovery: value,
+    }));
   };
 
   const updateMetric = (date: string, updater: (log: MetricLog) => MetricLog) => {
@@ -5267,6 +6082,13 @@ export default function Home() {
         },
       };
     });
+  };
+
+  const updateSettings = (updater: (settings: UserSettings) => UserSettings) => {
+    setStore((current) => ({
+      ...current,
+      settings: updater(normalizeSettings(current.settings)),
+    }));
   };
 
   const toggleDietMeal = (slot: DietMealSlot) => {
@@ -5308,7 +6130,7 @@ export default function Home() {
     exerciseId: string,
     setIndex: number,
     field: keyof SetLog,
-    value: string | boolean,
+    value: string | boolean | EffortFeedback | undefined,
   ) => {
     // A typed weight counts as a completed set because the user's natural gym workflow is usually
     // "enter the pounds I used" rather than "enter pounds, then press another tiny checkbox".
@@ -5322,21 +6144,27 @@ export default function Home() {
       const exerciseIndex = originalExercise ? exercises.indexOf(originalExercise) : -1;
       const originalExerciseId = originalExercise?.id ?? exerciseId;
       const count = Math.max(
-        recommendedSets(planDay, exercise, Math.max(exerciseIndex, 0)),
+        recommendedSets(planDay, exercise, Math.max(exerciseIndex, 0), readinessStatusFor(log.readiness)),
         log.exercises[exerciseId]?.length ?? 0,
       );
       const rows = ensureSetRows(log.exercises[exerciseId], count);
-      rows[setIndex] = {
-        ...rows[setIndex],
-        [field]: value,
-      };
-      if (field === "weight" && typeof value === "string" && value.trim()) {
+      const nextRow = { ...rows[setIndex] };
+      if (field === "weight" && typeof value === "string") nextRow.weight = value;
+      if (field === "reps" && typeof value === "string") nextRow.reps = value;
+      if (field === "done" && typeof value === "boolean") nextRow.done = value;
+      if (field === "effort") nextRow.effort = isEffortFeedback(value) ? value : undefined;
+      rows[setIndex] = nextRow;
+      if (
+        (field === "weight" || field === "reps") &&
+        typeof value === "string" &&
+        value.trim()
+      ) {
         rows[setIndex].done = true;
       }
       const nextSkips = { ...log.skips };
       if (
         (field === "done" && value === true) ||
-        (field === "weight" && typeof value === "string" && value.trim())
+        ((field === "weight" || field === "reps") && typeof value === "string" && value.trim())
       ) {
         delete nextSkips[originalExerciseId];
       }
@@ -5357,18 +6185,18 @@ export default function Home() {
     exerciseId: string,
     setIndex: number,
     field: keyof SetLog,
-    value: string | boolean,
+    value: string | boolean | EffortFeedback | undefined,
   ) => {
-    updateSetForDay(selectedDay, selectedExercises, exerciseId, setIndex, field, value);
+    updateSetForDay(selectedCoachDay, selectedExercises, exerciseId, setIndex, field, value);
   };
 
   const updateGymSet = (
     exerciseId: string,
     setIndex: number,
     field: keyof SetLog,
-    value: string | boolean,
+    value: string | boolean | EffortFeedback | undefined,
   ) => {
-    updateSetForDay(gymDay, gymExercises, exerciseId, setIndex, field, value);
+    updateSetForDay(gymCoachDay, gymExercises, exerciseId, setIndex, field, value);
   };
 
   const setExerciseSwapForDay = (
@@ -5399,11 +6227,11 @@ export default function Home() {
   };
 
   const setExerciseSwap = (originalExerciseId: string, nextExerciseId: string) => {
-    setExerciseSwapForDay(selectedDay, originalExerciseId, nextExerciseId);
+    setExerciseSwapForDay(selectedCoachDay, originalExerciseId, nextExerciseId);
   };
 
   const setGymExerciseSwap = (originalExerciseId: string, nextExerciseId: string) => {
-    setExerciseSwapForDay(gymDay, originalExerciseId, nextExerciseId);
+    setExerciseSwapForDay(gymCoachDay, originalExerciseId, nextExerciseId);
   };
 
   const skipExerciseForDay = (
@@ -5467,7 +6295,7 @@ export default function Home() {
     if (!skipRequest) return;
     const planDay = planDays.find((day) => day.iso === skipRequest.date);
     if (!planDay) return;
-    skipExerciseForDay(planDay, skipRequest.originalExerciseId, reason);
+    skipExerciseForDay(coachedPlanDayFor(planDay), skipRequest.originalExerciseId, reason);
     setSkipRequest(null);
   };
 
@@ -5482,9 +6310,9 @@ export default function Home() {
         ...row,
         done: !isComplete,
       }));
-      const originalExercise = planDay.session.exerciseIds
-        .map((id) => exerciseMap[id])
-        .find((item) => item && (item.id === exerciseId || activeExerciseFor(item, log).id === exerciseId));
+      const originalExercise = scheduledExercisesForDay(planDay, log).find(
+        (item) => item.id === exerciseId || activeExerciseFor(item, log).id === exerciseId,
+      );
       const nextSkips = { ...log.skips };
       delete nextSkips[originalExercise?.id ?? exerciseId];
 
@@ -5502,7 +6330,7 @@ export default function Home() {
   };
 
   const toggleExerciseDone = (exerciseId: string, setCount: number, isComplete: boolean) => {
-    toggleExerciseDoneForDay(selectedDay, exerciseId, setCount, isComplete);
+    toggleExerciseDoneForDay(selectedCoachDay, exerciseId, setCount, isComplete);
   };
 
   const toggleTask = (taskId: string) => {
@@ -5515,7 +6343,7 @@ export default function Home() {
         },
       };
 
-      return withAutomaticDayCompletion(selectedDay, nextLog);
+      return withAutomaticDayCompletion(selectedCoachDay, nextLog);
     });
   };
 
@@ -5657,7 +6485,7 @@ export default function Home() {
       weekOptions.map((week, weekIndex) => {
         const days = planDays.slice(weekIndex * 7, weekIndex * 7 + 7);
         const completed = days.filter((day) =>
-          isPlanDayComplete(day, normalizeDayLog(store.days[day.iso])),
+          isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])),
         ).length;
         return {
           ...week,
@@ -5666,10 +6494,10 @@ export default function Home() {
           percent: Math.round((completed / days.length) * 100),
         };
       }),
-    [planDays, store.days, weekOptions],
+    [coachedPlanDayFor, planDays, store.days, weekOptions],
   );
   const recentCompletedDays = planDays
-    .filter((day) => isPlanDayComplete(day, normalizeDayLog(store.days[day.iso])))
+    .filter((day) => isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])))
     .slice(-6)
     .reverse();
   // This row builder is shared by Today and Gym Mode. Sharing it is what keeps both tabs in sync
@@ -5677,13 +6505,16 @@ export default function Home() {
   const buildWorkoutMoveRows = (planDay: PlanDay, dayLog: DayLog, exercises: Exercise[]) =>
     exercises.map((originalExercise, exerciseIndex) => {
       const activeExercise = activeExerciseFor(originalExercise, dayLog);
-      const setCount = recommendedSets(planDay, activeExercise, exerciseIndex);
+      const readinessStatus = readinessStatusFor(dayLog.readiness);
+      const priority = exercisePriorityFor(activeExercise, planDay);
+      const setCount = recommendedSets(planDay, activeExercise, exerciseIndex, readinessStatus);
       const rows = ensureSetRows(dayLog.exercises[activeExercise.id], setCount);
       const doneCount = completedRows(rows);
       const isComplete = rows.length > 0 && doneCount >= rows.length;
       const skipReason = dayLog.skips[originalExercise.id] ?? null;
       const isSkipped = Boolean(skipReason && !isComplete);
       const status: MoveStatus = isComplete ? "done" : isSkipped ? "skipped" : "pending";
+      const suggestion = smartLoadSuggestion(planDays, store, planDay, activeExercise, exerciseIndex);
       const statusLabel =
         status === "done"
           ? "Done"
@@ -5705,17 +6536,21 @@ export default function Home() {
         skipReason,
         status,
         statusLabel,
+        priority,
+        priorityLabel: exercisePriorityLabel(priority),
         target: targetForExercise(planDay, activeExercise),
         rest: restForExercise(planDay, activeExercise),
+        timing: exerciseTimingFor(planDay, activeExercise),
         location: locationGuideForExercise(activeExercise),
         progression: progressionForExercise(planDay, activeExercise),
-        suggestion: smartLoadSuggestion(planDays, store, planDay, activeExercise, exerciseIndex),
+        suggestion,
+        beginnerTeaching: beginnerTeachingForExercise(planDay, activeExercise, suggestion.label),
         swaps: swapOptionsFor(originalExercise),
         isSwapped: isSwappedExercise(originalExercise, dayLog),
       };
     });
-  const workoutMoveRows = buildWorkoutMoveRows(selectedDay, selectedLog, selectedExercises);
-  const gymMoveRows = buildWorkoutMoveRows(gymDay, gymLog, gymExercises);
+  const workoutMoveRows = buildWorkoutMoveRows(selectedCoachDay, selectedLog, selectedExercises);
+  const gymMoveRows = buildWorkoutMoveRows(gymCoachDay, gymLog, gymExercises);
   const gymCompletionSignature = gymMoveRows.map((move) => move.status).join("");
   const completedMoveCount = workoutMoveRows.filter((move) => move.isComplete).length;
   const skippedMoveCount = workoutMoveRows.filter((move) => move.isSkipped).length;
@@ -5765,6 +6600,11 @@ export default function Home() {
       ? "Next"
       : "Done"
     : "Complete";
+  const gymPriorityBuckets = {
+    main: gymMoveRows.filter((move) => move.priority === "main" && !move.isComplete && !move.isSkipped),
+    accessory: gymMoveRows.filter((move) => move.priority === "accessory" && !move.isComplete && !move.isSkipped),
+    optional: gymMoveRows.filter((move) => move.priority === "optional" && !move.isComplete && !move.isSkipped),
+  };
   const detailMove = detailExerciseId
     ? workoutMoveRows.find((move) => move.originalExercise.id === detailExerciseId) ?? null
     : null;
@@ -5798,7 +6638,7 @@ export default function Home() {
       if (!exercise || !tracksWeight(exercise) || exercise.family === "warmup") return null;
 
       const allLoads = Object.values(store.days).flatMap((log) =>
-        (log.exercises[id] ?? [])
+        (normalizeDayLog(log).exercises[id] ?? [])
           .map((row) => parseLoadValue(row.weight))
           .filter((value): value is number => typeof value === "number" && Number.isFinite(value)),
       );
@@ -5851,7 +6691,7 @@ export default function Home() {
     setGymExerciseIndex((index) => {
       const boundedIndex = Math.min(index, Math.max(gymMoveRows.length - 1, 0));
       const currentMove = gymMoveRows[boundedIndex];
-      if (currentMove && !currentMove.isComplete) return boundedIndex;
+      if (currentMove && !currentMove.isComplete && !currentMove.isSkipped) return boundedIndex;
       return firstUnfinishedMoveIndex(gymMoveRows);
     });
   }, [activeSection, gymCompletionSignature, gymDay.iso, gymMoveRows.length]);
@@ -5882,14 +6722,17 @@ export default function Home() {
     if (section === "gym") {
       const nextProgramDate = closestProgramDate();
       const nextGymDay = planDays.find((day) => day.iso === nextProgramDate) ?? gymDay;
-      const nextGymLog = normalizeDayLog(store.days[nextGymDay.iso]);
-      const nextGymExercises = nextGymDay.session.exerciseIds.flatMap((id) =>
-        exerciseMap[id] ? [exerciseMap[id]] : [],
+      const nextGymCoachDay = withTrainingWeek(
+        nextGymDay,
+        earnedTrainingWeekForDay(planDays, store, nextGymDay),
       );
-      const nextGymRows = buildWorkoutMoveRows(nextGymDay, nextGymLog, nextGymExercises);
+      const nextGymLog = normalizeDayLog(store.days[nextGymDay.iso]);
+      const nextGymExercises = scheduledExercisesForDay(nextGymCoachDay, nextGymLog);
+      const nextGymRows = buildWorkoutMoveRows(nextGymCoachDay, nextGymLog, nextGymExercises);
 
       setCurrentProgramDate(nextProgramDate);
       setGymExerciseIndex(firstUnfinishedMoveIndex(nextGymRows));
+      setGymStartedAt((startedAt) => startedAt ?? Date.now());
     }
 
     setActiveSection(section);
@@ -5903,7 +6746,15 @@ export default function Home() {
     }
 
     const nextSetIndex = currentGymRows.findIndex((row) => !row.done);
+    const restSeconds = restTimerSecondsFor(gymCoachDay, currentGymExercise);
     updateGymSet(currentGymExercise.id, nextSetIndex >= 0 ? nextSetIndex : 0, "done", true);
+    if (restSeconds > 0) {
+      setRestTimer({
+        endAt: Date.now() + restSeconds * 1000,
+        totalSeconds: restSeconds,
+        label: `${currentGymExercise.shortName} rest`,
+      });
+    }
   };
 
   const goToNextGymMove = () => {
@@ -5952,7 +6803,7 @@ export default function Home() {
               <span>Green nutrition</span>
               <strong>Diet</strong>
               <small>
-                {dietTargets[dietDayTypeForPlanDay(gymDay)].label} · {dietTargets[dietDayTypeForPlanDay(gymDay)].calories} · {stats.completedDietDays} days done
+                {gymDietTarget.label} · {gymDietTarget.calories} · {stats.completedDietDays} days done
               </small>
             </button>
           </div>
@@ -6008,6 +6859,64 @@ export default function Home() {
             <div>
               <span>Weigh-ins</span>
               <strong>{stats.weighIns}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="diet-settings-card" aria-labelledby="diet-settings-heading">
+          <div>
+            <p className="eyebrow">Nutrition settings</p>
+            <h2 id="diet-settings-heading">Personalize diet targets</h2>
+            <p>
+              Protein is calculated from body weight when available. Calories can stay at the base
+              plan or move by a small 150 kcal step instead of reacting to one weigh-in.
+            </p>
+          </div>
+          <div className="diet-settings-grid">
+            <label>
+              Protein body weight (kg)
+              <input
+                inputMode="decimal"
+                value={store.settings.proteinWeightKg}
+                placeholder={latestWeightKg ? formatLoadValue(latestWeightKg) : "optional"}
+                onChange={(event) =>
+                  updateSettings((settings) => ({
+                    ...settings,
+                    proteinWeightKg: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <div className="calorie-mode-control">
+              <strong>Calorie mode</strong>
+              <div>
+                {[
+                  ["calculated", "Base plan"],
+                  ["lower", "-150 kcal"],
+                  ["higher", "+150 kcal"],
+                ].map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    className={store.settings.calorieMode === mode ? "selected" : ""}
+                    type="button"
+                    onClick={() =>
+                      updateSettings((settings) => ({
+                        ...settings,
+                        calorieMode: mode as CalorieMode,
+                      }))
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="diet-target-preview">
+              <span>Today&apos;s target</span>
+              <strong>
+                {gymDietTarget.calories} · {gymDietTarget.protein}
+              </strong>
+              <small>{gymDietTarget.modeLabel}</small>
             </div>
           </div>
         </section>
@@ -6329,7 +7238,9 @@ export default function Home() {
                 >
                   <span>{day.dayName.slice(0, 3)}</span>
                   <strong>{day.session.code}</strong>
-                  <small>{dietTargets[dietDayTypeForPlanDay(day)].calories}</small>
+                  <small>
+                    {personalizedDietTarget(dietDayTypeForPlanDay(day), store.settings, latestWeightKg).calories}
+                  </small>
                 </button>
               );
             })}
@@ -6692,9 +7603,9 @@ export default function Home() {
             <button
               key={day.iso}
               className={`week-day-card ${day.iso === selectedDay.iso ? "active" : ""} ${
-                isPlanDayComplete(day, normalizeDayLog(store.days[day.iso])) ? "complete" : ""
+                isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])) ? "complete" : ""
               } ${
-                dayStatusForDay(day, normalizeDayLog(store.days[day.iso])) === "finished-with-skips"
+                dayStatusForDay(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])) === "finished-with-skips"
                   ? "finished-with-skips"
                   : ""
               } ${day.session.type}`}
@@ -6775,9 +7686,9 @@ export default function Home() {
             <button
               key={day.iso}
               className={`today-day-button ${day.iso === selectedDay.iso ? "active" : ""} ${
-                isPlanDayComplete(day, normalizeDayLog(store.days[day.iso])) ? "complete" : ""
+                isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])) ? "complete" : ""
               } ${
-                dayStatusForDay(day, normalizeDayLog(store.days[day.iso])) === "finished-with-skips"
+                dayStatusForDay(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])) === "finished-with-skips"
                   ? "finished-with-skips"
                   : ""
               } ${day.session.type}`}
@@ -6806,7 +7717,7 @@ export default function Home() {
                 <Icon name="chevronLeft" size={18} />
               </button>
               <span>
-                Move {gymExerciseIndex + 1} of {gymExercises.length}
+                Move {gymExerciseIndex + 1} of {gymExercises.length} · Elapsed {formatDuration(gymElapsedSeconds)}
               </span>
               <button
                 type="button"
@@ -6822,6 +7733,9 @@ export default function Home() {
               <div>
                 <div className="exercise-labels">
                   <span className="family-chip">{familyLabel(currentGymExercise.family)}</span>
+                  <span className={`priority-chip priority-${currentGymMove.priority}`}>
+                    {currentGymMove.priorityLabel}
+                  </span>
                   <span className={`move-status-chip ${currentGymMove.status}`}>
                     {currentGymMove.statusLabel}
                   </span>
@@ -6838,13 +7752,86 @@ export default function Home() {
                   )}
                 </div>
                 <h2>{currentGymExercise.name}</h2>
-                <p>{currentGymExercise.target}</p>
+                <p>{currentGymTarget}</p>
               </div>
               <div className="gym-media-stack">
                 <ExerciseMedia exercise={currentGymExercise} variant="gym" />
                 <ExerciseMediaLinks exercise={currentGymExercise} />
               </div>
             </div>
+
+            <div className={`gym-coach-strip readiness-${gymReadinessStatus}`}>
+              <div>
+                <span>Today</span>
+                <strong>{gymPhase.title}</strong>
+                <small>Training Week {gymTrainingWeek} · {gymPhase.timeCap} · {gymSessionTime}</small>
+              </div>
+              <div>
+                <span>RIR target</span>
+                <strong>{gymPhase.rir}</strong>
+                <small>{rirExplanationForWeek(gymTrainingWeek)}</small>
+              </div>
+              <div>
+                <span>Readiness</span>
+                <strong>{gymReadinessCopy.label}</strong>
+                <small>{gymReadinessCopy.detail}</small>
+              </div>
+            </div>
+
+            <div className="gym-priority-panel" aria-label="Gym priority plan">
+              <div>
+                <span>Must complete</span>
+                <strong>
+                  {gymPriorityBuckets.main.map((move) => move.activeExercise.shortName).join(" · ") || "Done"}
+                </strong>
+              </div>
+              <div>
+                <span>Next priority</span>
+                <strong>
+                  {gymPriorityBuckets.accessory.map((move) => move.activeExercise.shortName).join(" · ") || "Done"}
+                </strong>
+              </div>
+              <div>
+                <span>Optional if time</span>
+                <strong>
+                  {gymPriorityBuckets.optional.map((move) => move.activeExercise.shortName).join(" · ") || "None today"}
+                </strong>
+              </div>
+            </div>
+
+            {restTimer && (
+              <div className={`rest-timer-card ${restSecondsLeft === 0 ? "ready" : ""}`}>
+                <div>
+                  <span>{restSecondsLeft === 0 ? "Rest complete" : restTimer.label}</span>
+                  <strong>{formatDuration(restSecondsLeft)}</strong>
+                  <small>Use the full rest for better next-set quality.</small>
+                </div>
+                <div className="rest-timer-track">
+                  <span style={{ width: `${restProgressPercent}%` }} />
+                </div>
+                <div className="rest-timer-actions">
+                  <button type="button" onClick={() => setRestTimer(null)}>
+                    Dismiss
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRestTimer((timer) =>
+                        timer
+                          ? {
+                              ...timer,
+                              endAt: Math.max(timer.endAt, Date.now()) + 30_000,
+                              totalSeconds: timer.totalSeconds + 30,
+                            }
+                          : timer,
+                      )
+                    }
+                  >
+                    +30 sec
+                  </button>
+                </div>
+              </div>
+            )}
 
             {currentGymMove.isSwapped && currentGymOriginalExercise && (
               <div className="swap-alert workout-swap-alert">
@@ -6930,6 +7917,22 @@ export default function Home() {
               </div>
             )}
 
+            {currentGymMove.beginnerTeaching && (
+              <div className="beginner-teaching-card">
+                <span>Month 1 coach</span>
+                <p>{currentGymMove.beginnerTeaching}</p>
+              </div>
+            )}
+
+            <div className="instant-cue-card">
+              <span>Three cues now</span>
+              <ul>
+                {currentGymExercise.cues.slice(0, 3).map((cue) => (
+                  <li key={cue}>{cue}</li>
+                ))}
+              </ul>
+            </div>
+
             {currentGymOriginalExercise && (
               <div className={`skip-control-strip ${currentGymMove.isSkipped ? "is-skipped" : ""}`}>
                 <span>
@@ -6941,8 +7944,8 @@ export default function Home() {
                   type="button"
                   onClick={() =>
                     currentGymMove.isSkipped
-                      ? reopenSkippedExerciseForDay(gymDay, currentGymOriginalExercise.id)
-                      : requestSkipReason(gymDay, currentGymOriginalExercise.id, "gym")
+                      ? reopenSkippedExerciseForDay(gymCoachDay, currentGymOriginalExercise.id)
+                      : requestSkipReason(gymCoachDay, currentGymOriginalExercise.id, "gym")
                   }
                 >
                   {currentGymMove.isSkipped ? "Reopen Move" : "Skip Move"}
@@ -6958,6 +7961,8 @@ export default function Home() {
                 <span>Set</span>
                 <span>Target</span>
                 {currentGymTracksWeight && <span>Weight (lbs)</span>}
+                {currentGymTracksWeight && <span>Reps</span>}
+                {currentGymTracksWeight && <span>Feel</span>}
                 <span>Done</span>
               </div>
               {currentGymRows.map((set, setIndex) => (
@@ -6974,6 +7979,39 @@ export default function Home() {
                       }
                       aria-label={`${currentGymExercise.name} set ${setIndex + 1} weight in pounds`}
                     />
+                  ) : null}
+                  {currentGymTracksWeight ? (
+                    <input
+                      inputMode="numeric"
+                      value={set.reps}
+                      placeholder="reps"
+                      onChange={(event) =>
+                        updateGymSet(currentGymExercise.id, setIndex, "reps", event.target.value)
+                      }
+                      aria-label={`${currentGymExercise.name} set ${setIndex + 1} reps`}
+                    />
+                  ) : null}
+                  {currentGymTracksWeight ? (
+                    <select
+                      className={`effort-select effort-${set.effort ?? "unset"}`}
+                      value={set.effort ?? ""}
+                      onChange={(event) =>
+                        updateGymSet(
+                          currentGymExercise.id,
+                          setIndex,
+                          "effort",
+                          event.target.value || undefined,
+                        )
+                      }
+                      aria-label={`${currentGymExercise.name} set ${setIndex + 1} feel`}
+                    >
+                      <option value="">Feel</option>
+                      {effortOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   ) : null}
                   <label className="mini-check">
                     <input
@@ -7083,7 +8121,7 @@ export default function Home() {
                 type="button"
                 disabled={selectedDayComplete}
                 onClick={() =>
-                  updateDay(selectedDay.iso, (log) => completePlanDay(selectedDay, log))
+                  updateDay(selectedDay.iso, (log) => completePlanDay(selectedCoachDay, log))
                 }
               >
                 {selectedCompletionButtonLabel}
@@ -7109,15 +8147,96 @@ export default function Home() {
             <div className="command-progress-card">
               <span>Session</span>
               <strong>{selectedSessionTime}</strong>
-              <small>{phase.sets}</small>
+              <small>{selectedSessionTimeDetail}</small>
+            </div>
+            <div className="command-progress-card">
+              <span>Training level</span>
+              <strong>Week {selectedTrainingWeek}</strong>
+              <small>{trainingLevelCopy(selectedDay.week, selectedTrainingWeek)}</small>
             </div>
           </div>
 
           <p className="plan-note">{selectedSessionSummary}</p>
           <p className="phase-note">{phase.note}</p>
+          <p className="phase-note">
+            <strong>{phase.title}:</strong> {phase.sets} · {phase.timeCap} target · {phase.rir}.
+          </p>
           <p className="location-flow-note">
             <strong>Home/gym split:</strong> {selectedLocationNote}
           </p>
+
+          <section className={`readiness-card readiness-${selectedReadinessStatus}`} aria-labelledby="readiness-heading">
+            <div className="flow-heading">
+              <div>
+                <p className="eyebrow">Readiness check</p>
+                <h3 id="readiness-heading">{selectedReadinessCopy.label}</h3>
+              </div>
+              <span>{selectedReadinessStatus}</span>
+            </div>
+            <p>{selectedReadinessCopy.detail}</p>
+            <div className="readiness-grid">
+              <div>
+                <strong>Energy</strong>
+                <div className="readiness-options">
+                  {readinessQuestions.energy.map((option) => (
+                    <button
+                      key={option.id}
+                      className={selectedLog.readiness.energy === option.id ? "selected" : ""}
+                      type="button"
+                      onClick={() => updateReadiness(selectedCoachDay, "energy", option.id)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <strong>Soreness</strong>
+                <div className="readiness-options">
+                  {readinessQuestions.soreness.map((option) => (
+                    <button
+                      key={option.id}
+                      className={selectedLog.readiness.soreness === option.id ? "selected" : ""}
+                      type="button"
+                      onClick={() => updateReadiness(selectedCoachDay, "soreness", option.id)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <strong>Joint pain</strong>
+                <div className="readiness-options">
+                  {readinessQuestions.jointPain.map((option) => (
+                    <button
+                      key={option.id}
+                      className={selectedLog.readiness.jointPain === option.id ? "selected" : ""}
+                      type="button"
+                      onClick={() => updateReadiness(selectedCoachDay, "jointPain", option.id)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <strong>Sleep</strong>
+                <div className="readiness-options">
+                  {readinessQuestions.sleep.map((option) => (
+                    <button
+                      key={option.id}
+                      className={selectedLog.readiness.sleep === option.id ? "selected" : ""}
+                      type="button"
+                      onClick={() => updateReadiness(selectedCoachDay, "sleep", option.id)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
 
           <section className="checklist-block compact-targets" aria-labelledby="tasks-heading">
             <div className="flow-heading">
@@ -7178,6 +8297,9 @@ export default function Home() {
                     >
                       <span className="move-title-row">
                         <strong>{move.activeExercise.name}</strong>
+                        <span className={`priority-chip priority-${move.priority}`}>
+                          {move.priorityLabel}
+                        </span>
                         <span className={`move-status-chip ${move.status}`}>{move.statusLabel}</span>
                         <span className="family-chip">{familyLabel(move.activeExercise.family)}</span>
                         <span className={`location-chip ${move.location.type}`}>{move.location.label}</span>
@@ -7205,8 +8327,8 @@ export default function Home() {
                         type="button"
                         onClick={() =>
                           move.isSkipped
-                            ? reopenSkippedExerciseForDay(selectedDay, move.originalExercise.id)
-                            : requestSkipReason(selectedDay, move.originalExercise.id, "today")
+                            ? reopenSkippedExerciseForDay(selectedCoachDay, move.originalExercise.id)
+                            : requestSkipReason(selectedCoachDay, move.originalExercise.id, "today")
                         }
                       >
                         {move.isSkipped ? "Reopen" : "Skip"}
@@ -7256,6 +8378,134 @@ export default function Home() {
                 }
               />
             </label>
+          </section>
+
+          <section className="monthly-checkin-panel" aria-labelledby="monthly-checkin-heading">
+            <div className="flow-heading">
+              <div>
+                <p className="eyebrow">Monthly coach check-in</p>
+                <h3 id="monthly-checkin-heading">{selectedMonthlyTitle}</h3>
+              </div>
+              <span>{selectedMonthlyCheckIn.isUnlocked ? "Open" : "Locked"}</span>
+            </div>
+            <p>{selectedMonthlyCoachLine}</p>
+
+            <div className="checkin-grid">
+              <div>
+                <span>Strength</span>
+                <strong>
+                  {selectedMonthlyCheckIn.completedStrength}/{selectedMonthlyCheckIn.totalStrength}
+                </strong>
+                <small>{selectedMonthlyCheckIn.completionRate}% strength adherence</small>
+              </div>
+              <div>
+                <span>Cardio</span>
+                <strong>
+                  {selectedMonthlyCheckIn.completedCardio}/{selectedMonthlyCheckIn.totalCardio}
+                </strong>
+                <small>
+                  Longest walk:{" "}
+                  {currentMonthLongestCardio ? `${currentMonthLongestCardio} min` : "waiting"}
+                </small>
+              </div>
+              <div>
+                <span>Body weight</span>
+                <strong>
+                  {selectedMonthlyCheckIn.lastWeek.average === null
+                    ? "No average"
+                    : `${formatLoadValue(selectedMonthlyCheckIn.lastWeek.average)} kg`}
+                </strong>
+                <small>
+                  Week {selectedMonthlyCheckIn.lastWeek.week} ·{" "}
+                  {selectedMonthlyCheckIn.lastWeek.loggedDays}/7 mornings
+                </small>
+              </div>
+              <div>
+                <span>Photo reminder</span>
+                <strong>
+                  {selectedMonthlyCheckpointMetric.photoReminderDone ? "Done" : "Optional"}
+                </strong>
+                <small>Same lighting, same place, same relaxed posture.</small>
+              </div>
+            </div>
+
+            <div className="checkin-comparison-grid">
+              <div className="lift-comparison-list">
+                <h4>Strength comparison</h4>
+                {monthlyLiftComparisons.map((lift) => (
+                  <div key={lift.id}>
+                    <span>{lift.name}</span>
+                    <strong>
+                      {lift.start === null ? "Start pending" : `${formatLoadValue(lift.start)} lb`}{" "}
+                      to{" "}
+                      {lift.current === null ? "Current pending" : `${formatLoadValue(lift.current)} lb`}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+              <div className="body-checkin-fields">
+                <label>
+                  Waist checkpoint (cm)
+                  <input
+                    inputMode="decimal"
+                    value={selectedMonthlyCheckpointMetric.waistCm}
+                    placeholder="Optional"
+                    disabled={!selectedMonthlyCheckIn.isUnlocked}
+                    onChange={(event) =>
+                      updateMetric(selectedMonthlyCheckIn.checkpointDay.iso, (metric) => ({
+                        ...metric,
+                        waistCm: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+                <label className="photo-check">
+                  <input
+                    type="checkbox"
+                    checked={selectedMonthlyCheckpointMetric.photoReminderDone}
+                    disabled={!selectedMonthlyCheckIn.isUnlocked}
+                    onChange={(event) =>
+                      updateMetric(selectedMonthlyCheckIn.checkpointDay.iso, (metric) => ({
+                        ...metric,
+                        photoReminderDone: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>Monthly progress photos today</span>
+                </label>
+              </div>
+            </div>
+
+            <div className="monthly-recovery-row" aria-label="Monthly recovery rating">
+              <strong>How was recovery this month?</strong>
+              <div>
+                {monthlyRecoveryOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    className={
+                      selectedMonthlyCheckpointLog.monthlyRecovery === option.id ? "selected" : ""
+                    }
+                    type="button"
+                    disabled={!selectedMonthlyCheckIn.isUnlocked}
+                    onClick={() =>
+                      updateMonthlyRecovery(
+                        coachedPlanDayFor(selectedMonthlyCheckIn.checkpointDay),
+                        option.id,
+                      )
+                    }
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <p className="checkin-footnote">
+              First month longest walk:{" "}
+              {firstMonthLongestCardio ? `${firstMonthLongestCardio} min` : "waiting"} · Body
+              success is judged by consistency, strength, fitness, waist, weight trend, and skill.
+              Visible abs depend on body-fat level and cannot be guaranteed.
+            </p>
           </section>
         </section>
 
@@ -7397,7 +8647,7 @@ export default function Home() {
                   <div key={day.iso} className="history-row">
                     <span>{formatDate(day.iso, "short")}</span>
                     <strong>{day.session.title}</strong>
-                    <small>{sessionTimeForDay(day)}</small>
+                    <small>{sessionTimeForDay(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso]))}</small>
                   </div>
                 ))
               ) : (
@@ -7473,13 +8723,13 @@ export default function Home() {
           <p className="eyebrow">No-gym fallback</p>
           <h2 id="fallback-heading">25-35 minute emergency session</h2>
           <p>
-            Do 3 rounds. Rest 60-90 seconds between exercises as needed. This protects the habit
-            on days when going downstairs is not happening.
+            Do 3 rounds in a pain-free range. Rest 60-90 seconds between exercises as needed. This
+            protects the habit on days when going downstairs is not happening.
           </p>
         </div>
         <div className="swap-grid">
           {[
-            ["Leg press or goblet squat", "Bodyweight squat or backpack squat"],
+            ["Leg press", "Glute bridge plus seated knee extension"],
             ["Incline dumbbell press", "Incline push-up on counter, desk, or bench"],
             ["Lat pulldown or row", "One-arm backpack row with a sturdy chair"],
             ["Romanian deadlift", "Backpack or dumbbell Romanian deadlift"],
@@ -7662,6 +8912,8 @@ export default function Home() {
                 <span>Set</span>
                 <span>Target</span>
                 {tracksWeight(detailExercise) && <span>Weight (lbs)</span>}
+                {tracksWeight(detailExercise) && <span>Reps</span>}
+                {tracksWeight(detailExercise) && <span>Feel</span>}
                 <span>Done</span>
               </div>
               {detailRows.map((set, setIndex) => (
@@ -7678,6 +8930,39 @@ export default function Home() {
                       }
                       aria-label={`${detailExercise.name} set ${setIndex + 1} weight in pounds`}
                     />
+                  ) : null}
+                  {tracksWeight(detailExercise) ? (
+                    <input
+                      inputMode="numeric"
+                      value={set.reps}
+                      placeholder="reps"
+                      onChange={(event) =>
+                        updateSet(detailExercise.id, setIndex, "reps", event.target.value)
+                      }
+                      aria-label={`${detailExercise.name} set ${setIndex + 1} reps`}
+                    />
+                  ) : null}
+                  {tracksWeight(detailExercise) ? (
+                    <select
+                      className={`effort-select effort-${set.effort ?? "unset"}`}
+                      value={set.effort ?? ""}
+                      onChange={(event) =>
+                        updateSet(
+                          detailExercise.id,
+                          setIndex,
+                          "effort",
+                          event.target.value || undefined,
+                        )
+                      }
+                      aria-label={`${detailExercise.name} set ${setIndex + 1} feel`}
+                    >
+                      <option value="">Feel</option>
+                      {effortOptions.map((option) => (
+                        <option key={option.id} value={option.id}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
                   ) : null}
                   <label className="mini-check">
                     <input
@@ -7708,8 +8993,8 @@ export default function Home() {
                 type="button"
                 onClick={() =>
                   detailMove.isSkipped
-                    ? reopenSkippedExerciseForDay(selectedDay, detailMove.originalExercise.id)
-                    : requestSkipReason(selectedDay, detailMove.originalExercise.id, "detail")
+                    ? reopenSkippedExerciseForDay(selectedCoachDay, detailMove.originalExercise.id)
+                    : requestSkipReason(selectedCoachDay, detailMove.originalExercise.id, "detail")
                 }
               >
                 {detailMove.isSkipped ? "Reopen Skipped Move" : "Skip Move"}

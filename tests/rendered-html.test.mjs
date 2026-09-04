@@ -102,7 +102,27 @@ test("includes researched movement resources and autosave controls", async () =>
     "Swap Options",
     "Revert to original",
     "smartLoadSuggestion",
-    "Hold or nudge up",
+    "Possibly nudge up",
+    "Earn the new set",
+    "EARNED_WEEK_ADHERENCE_GATE",
+    "Training Week",
+    "RIR target",
+    "rirExplanationForWeek",
+    "Too easy",
+    "About right",
+    "Very hard",
+    "readinessQuestions",
+    "readinessStatusFor",
+    "Rest complete",
+    "Use the full rest for better next-set quality.",
+    "exercisePriorityFor",
+    "priority-chip",
+    "Must complete",
+    "Next priority",
+    "Optional if time",
+    "beginnerTeachingForExercise",
+    "Monthly coach check-in",
+    "Cable Crunch",
     "Progress Dashboard",
     "dashboard-stat-grid",
     "activeExerciseFor",
@@ -194,7 +214,7 @@ test("includes researched movement resources and autosave controls", async () =>
     assert.match(page, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
 
-  assert.doesNotMatch(page, /Reps\/sec|RIR|Daily Foundations|Export JSON|Import|Light Practice Sets|lb\/kg|Inline video/);
+  assert.doesNotMatch(page, /Reps\/sec|Daily Foundations|Export JSON|Import|Light Practice Sets|lb\/kg|Inline video/);
   assert.doesNotMatch(page, /className="load-pill"/);
   assert.doesNotMatch(page, /Starts Tuesday/);
   assert.match(page, /acefitness\.org/);
@@ -209,12 +229,10 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     text("src/styles.css"),
     text("README.md"),
   ]);
-  const removedMeasure = ["wa", "ist"].join("");
-  const removedMeasureTitle = `${removedMeasure[0].toUpperCase()}${removedMeasure.slice(1)}`;
   const removedWarehouse = ["Preferred", " warehouse"].join("");
   const removedAddress = ["2370", " Ottawa"].join("");
   const removedPattern = new RegExp(
-    `${removedMeasure}|${removedMeasureTitle}|${removedWarehouse}|${removedAddress}`,
+    `${removedWarehouse}|${removedAddress}`,
   );
 
   for (const required of [
@@ -298,6 +316,12 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "Weekly Average History",
     "weightComparisonInsight",
     "weightWeekSummary",
+    "Waist checkpoint",
+    "waistProgress",
+    "Monthly progress photos today",
+    "personalizedDietTarget",
+    "proteinWeightKg",
+    "calorieMode",
   ]) {
     assert.match(app, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
@@ -403,33 +427,44 @@ test("extends the PDF progression to roughly 6 months", async () => {
   const page = await text("src/App.tsx");
 
   assert.match(page, /PROGRAM_DAYS = 182/);
-  assert.match(page, /Weeks 13-14/);
-  assert.match(page, /Weeks 19-22/);
-  assert.match(page, /Weeks 24-26/);
+  assert.match(page, /Weeks 1-4/);
+  assert.match(page, /Weeks 5-8/);
+  assert.match(page, /Weeks 9-12/);
+  assert.match(page, /Weeks 13-16/);
+  assert.match(page, /Weeks 17-20/);
+  assert.match(page, /Weeks 21-24/);
+  assert.match(page, /Weeks 25-26/);
+  assert.match(page, /45-60 min/);
+  assert.match(page, /65-85 min/);
   assert.match(page, /targetForExercise/);
-  assert.match(page, /10 min easy/);
-  assert.match(page, /15 min brisk/);
+  assert.match(page, /5-7 min easy/);
+  assert.match(page, /if \(month === 1\) return \[20, 30\]/);
+  assert.match(page, /60-75/);
   assert.match(page, /working lbs/);
   assert.match(page, /rangedTarget/);
   assert.match(page, /double-progression rule/);
+  assert.match(page, /earnedTrainingWeekForDay/);
+  assert.match(page, /monthlyCheckInForDay/);
+  assert.match(page, /restTimerSecondsFor/);
+  assert.match(page, /sessionTimeEstimateForDay/);
+  assert.match(page, /Cable Crunch/);
   assert.match(
     page,
-    /const strengthWarmupIds = \[\s*"seated-knee-extension-warmup",\s*"standing-supported-hip-abduction",\s*"hip-hinge-drill",\s*"incline-push-up",\s*"warmup-front-plank",\s*"warmup-treadmill-walk",\s*\]/,
+    /const strengthWarmupIds = \[\s*"warmup-treadmill-walk",\s*"seated-knee-extension-warmup",\s*"standing-supported-hip-abduction",\s*\]/,
   );
   assert.doesNotMatch(
     page,
     /const strengthWarmupIds = \[\s*"bodyweight-squat",\s*"hip-hinge-drill"/,
   );
-  assert.match(page, /"leg-press",\s*"seated-leg-extension",\s*"incline-db-press"/);
-  assert.match(page, /"db-rdl",\s*"seated-leg-curl",\s*"treadmill-finisher",\s*"front-plank",\s*"dead-bug"/);
-  assert.match(page, /"leg-press",\s*"single-arm-row",\s*"glute-bridge",\s*"push-up"/);
+  assert.match(page, /"leg-press",\s*"incline-db-press",\s*"lat-pulldown",\s*"db-rdl",\s*"seated-leg-extension",\s*"seated-leg-curl"/);
+  assert.match(page, /"leg-press",\s*"single-arm-row",\s*"glute-bridge",\s*"push-up",\s*"seated-db-overhead"/);
   assert.match(
     page,
     /"incline-reverse-fly",\s*"dumbbell-biceps-curl",\s*"rope-triceps-pressdown",\s*"treadmill-finisher",\s*"front-plank",\s*"dead-bug"/,
   );
   assert.match(
     page,
-    /"barbell-rdl",\s*"seated-leg-curl",\s*"cable-chest-fly",\s*"dumbbell-biceps-curl",\s*"rope-triceps-pressdown",\s*"treadmill-finisher",\s*"front-plank",\s*"dead-bug"/,
+    /"barbell-rdl",\s*"seated-leg-curl",\s*"seated-leg-extension",\s*"cable-chest-fly",\s*"dumbbell-biceps-curl",\s*"rope-triceps-pressdown",\s*"treadmill-finisher",\s*"dead-bug",\s*"front-plank",\s*"cable-crunch"/,
   );
 });
 
@@ -521,7 +556,7 @@ test("starts Aug 31 on the PDF Monday workout slot and ignores scratch folders",
   assert.match(page, /window\.addEventListener\("focus", alignWithCurrentProgramDate\)/);
   assert.match(page, /setActiveSection\("today"\)/);
   assert.match(page, /const nextProgramDate = closestProgramDate\(\)/);
-  assert.match(page, /const nextGymRows = buildWorkoutMoveRows\(nextGymDay, nextGymLog, nextGymExercises\)/);
+  assert.match(page, /const nextGymRows = buildWorkoutMoveRows\(nextGymCoachDay, nextGymLog, nextGymExercises\)/);
   assert.match(page, /setGymExerciseIndex\(firstUnfinishedMoveIndex\(nextGymRows\)\)/);
   assert.match(viteConfig, /\*\*\/work\/\*\*/);
   assert.match(viteConfig, /\*\*\/\.npm-cache\/\*\*/);
@@ -584,13 +619,14 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v26/);
-  assert.match(serviceWorker, /knee-hip-friendly-lower-body-v26/);
+  assert.match(serviceWorker, /recomp-gym-console-v27/);
+  assert.match(serviceWorker, /beginner-to-trained-coach-v27/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
   assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
+  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v26/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v25/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v22/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v21/);

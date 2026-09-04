@@ -5899,3 +5899,596 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/*
+  Beginner-to-trained coaching layer
+  ----------------------------------
+  These rules support the six-month coach upgrade: readiness, earned progression, rest timers,
+  effort feedback, monthly check-ins, and configurable diet targets.
+*/
+.diet-settings-card,
+.monthly-checkin-panel,
+.readiness-card,
+.gym-coach-strip,
+.gym-priority-panel,
+.rest-timer-card,
+.instant-cue-card,
+.beginner-teaching-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.diet-settings-card {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
+  gap: 14px;
+  align-items: start;
+  margin-top: 14px;
+  padding: 16px;
+  box-shadow: var(--shadow-soft);
+}
+
+.diet-settings-card p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-weight: 760;
+  line-height: 1.45;
+}
+
+.diet-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(220px, 1fr);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.diet-settings-grid label,
+.body-checkin-fields label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.calorie-mode-control {
+  display: grid;
+  gap: 8px;
+}
+
+.calorie-mode-control > strong,
+.monthly-recovery-row > strong {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.calorie-mode-control > div,
+.monthly-recovery-row > div {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.calorie-mode-control button,
+.monthly-recovery-row button {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper-2);
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 950;
+}
+
+.calorie-mode-control button.selected,
+.monthly-recovery-row button.selected {
+  border-color: #136f63;
+  background: #dff4ee;
+  color: #0a4f49;
+  box-shadow: inset 0 0 0 1px #136f63;
+}
+
+.calorie-mode-control button:disabled,
+.monthly-recovery-row button:disabled,
+.body-checkin-fields input:disabled,
+.photo-check:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.diet-target-preview {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid #bde0db;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #e2f4f0, #fff);
+}
+
+.diet-target-preview span,
+.checkin-grid span,
+.lift-comparison-list span,
+.rest-timer-card span,
+.instant-cue-card span,
+.beginner-teaching-card span,
+.gym-priority-panel span,
+.gym-coach-strip span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.diet-target-preview small {
+  color: var(--muted);
+  font-weight: 850;
+}
+
+.priority-chip {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.priority-main {
+  border-color: #c1ded8;
+  background: #e2f4f0;
+  color: #0a4f49;
+}
+
+.priority-accessory {
+  border-color: #d8d0f4;
+  background: #ece8ff;
+  color: #403080;
+}
+
+.priority-optional {
+  border-color: #f0d593;
+  background: #fff1d1;
+  color: #744700;
+}
+
+.readiness-card {
+  margin: 14px 18px;
+  padding: 14px;
+  border-left: 5px solid var(--focus-green);
+  background: linear-gradient(135deg, #f3fbf6, #fff 58%);
+}
+
+.readiness-yellow {
+  border-left-color: var(--focus-amber);
+  background: linear-gradient(135deg, #fff7e6, #fff 58%);
+}
+
+.readiness-red {
+  border-left-color: var(--danger);
+  background: linear-gradient(135deg, #fff0ed, #fff 58%);
+}
+
+.readiness-card p {
+  margin: 8px 0 0;
+  color: #31434a;
+  font-weight: 780;
+  line-height: 1.45;
+}
+
+.readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.readiness-grid > div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.readiness-grid strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+}
+
+.readiness-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.readiness-options button {
+  min-width: 0;
+  min-height: 34px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.readiness-options button.selected {
+  border-color: var(--focus-green);
+  background: #e6f7ec;
+  color: #176339;
+}
+
+.gym-coach-strip,
+.gym-priority-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 18px 14px;
+  padding: 12px;
+  border-color: color-mix(in srgb, var(--move-color) 18%, var(--line));
+}
+
+.gym-coach-strip {
+  border-left: 5px solid var(--focus-green);
+}
+
+.gym-coach-strip.readiness-yellow {
+  border-left-color: var(--focus-amber);
+}
+
+.gym-coach-strip.readiness-red {
+  border-left-color: var(--danger);
+}
+
+.gym-coach-strip > div,
+.gym-priority-panel > div {
+  min-width: 0;
+}
+
+.gym-coach-strip strong,
+.gym-priority-panel strong {
+  display: block;
+  margin-top: 5px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.gym-coach-strip small {
+  display: block;
+  margin-top: 5px;
+  color: #445760;
+  font-size: 0.78rem;
+  font-weight: 760;
+  line-height: 1.35;
+}
+
+.gym-priority-panel {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--move-soft) 72%, #fff), #fff),
+    #fff;
+}
+
+.rest-timer-card {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(140px, 0.9fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin: 0 18px 14px;
+  padding: 12px;
+  border-color: #d8d0f4;
+  background: linear-gradient(135deg, #f3efff, #fff);
+}
+
+.rest-timer-card.ready {
+  border-color: #b9ddc4;
+  background: linear-gradient(135deg, #e8f7ed, #fff);
+}
+
+.rest-timer-card strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.rest-timer-card small {
+  display: block;
+  margin-top: 5px;
+  color: #445760;
+  font-weight: 760;
+}
+
+.rest-timer-track {
+  height: 10px;
+  border-radius: 999px;
+  background: #e7ecf0;
+  overflow: hidden;
+}
+
+.rest-timer-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #5d43c4, var(--focus-sky));
+}
+
+.rest-timer-actions {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.rest-timer-actions button {
+  min-height: 36px;
+  padding: 0 11px;
+  border: 1px solid #d8d0f4;
+  border-radius: 8px;
+  background: #fff;
+  color: #403080;
+  font-weight: 950;
+}
+
+.instant-cue-card,
+.beginner-teaching-card {
+  display: grid;
+  gap: 8px;
+  margin: 0 18px 14px;
+  padding: 12px;
+  border-color: color-mix(in srgb, var(--move-color) 20%, var(--line));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--move-soft) 78%, #fff), #fff),
+    #fff;
+}
+
+.beginner-teaching-card {
+  border-left: 5px solid var(--move-color);
+}
+
+.beginner-teaching-card p {
+  margin: 0;
+  color: #31434a;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.instant-cue-card ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #31434a;
+  font-weight: 780;
+  line-height: 1.5;
+}
+
+.set-table:not(.no-load) {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.set-table:not(.no-load) .set-head,
+.set-table:not(.no-load) .set-row {
+  grid-template-columns: 38px minmax(142px, 1.15fr) minmax(92px, 0.72fr) 72px minmax(126px, 0.8fr) 54px;
+}
+
+.effort-select {
+  min-width: 118px;
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+.effort-too-easy {
+  border-color: #b9d9e5;
+  background: #e1f2f8;
+  color: #145a78;
+}
+
+.effort-about-right {
+  border-color: #b9ddc4;
+  background: #e8f7ed;
+  color: #176339;
+}
+
+.effort-very-hard {
+  border-color: #f0d593;
+  background: #fff1d1;
+  color: #744700;
+}
+
+.monthly-checkin-panel {
+  display: grid;
+  gap: 12px;
+  margin: 14px 18px 18px;
+  padding: 14px;
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--line));
+  border-left: 5px solid var(--accent);
+  background:
+    linear-gradient(135deg, var(--accent-soft), #fff 58%),
+    #fff;
+}
+
+.monthly-checkin-panel > p {
+  margin: 0;
+  color: #31434a;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.checkin-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.checkin-grid > div,
+.lift-comparison-list,
+.body-checkin-fields {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.checkin-grid strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 1.28rem;
+  line-height: 1.1;
+}
+
+.checkin-grid small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-weight: 780;
+  line-height: 1.35;
+}
+
+.checkin-comparison-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.55fr);
+  gap: 10px;
+}
+
+.lift-comparison-list {
+  display: grid;
+  gap: 8px;
+}
+
+.lift-comparison-list h4 {
+  margin: 0 0 2px;
+}
+
+.lift-comparison-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.lift-comparison-list > div:first-of-type {
+  border-top: 0;
+}
+
+.lift-comparison-list strong {
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+
+.body-checkin-fields {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.photo-check {
+  display: flex !important;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  color: var(--ink) !important;
+  font-size: 0.86rem !important;
+  text-transform: none !important;
+}
+
+.photo-check input {
+  width: 18px;
+  min-height: 18px;
+}
+
+.monthly-recovery-row {
+  display: grid;
+  gap: 8px;
+}
+
+.checkin-footnote {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.74);
+  color: #41525a !important;
+  font-size: 0.88rem;
+}
+
+@media (min-width: 981px) {
+  .command-progress-grid {
+    grid-template-columns: 1.15fr 1fr 1fr 1fr;
+  }
+}
+
+@media (max-width: 980px) {
+  .diet-settings-card,
+  .diet-settings-grid,
+  .readiness-grid,
+  .gym-coach-strip,
+  .gym-priority-panel,
+  .rest-timer-card,
+  .checkin-grid,
+  .checkin-comparison-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rest-timer-actions {
+    justify-content: stretch;
+  }
+
+  .rest-timer-actions button {
+    flex: 1 1 120px;
+  }
+}
+
+@media (max-width: 720px) {
+  .diet-settings-card {
+    margin-top: 10px;
+    padding: 12px;
+  }
+
+  .readiness-card,
+  .gym-coach-strip,
+  .gym-priority-panel,
+  .rest-timer-card,
+  .instant-cue-card,
+  .beginner-teaching-card,
+  .monthly-checkin-panel {
+    margin-right: 12px;
+    margin-left: 12px;
+  }
+
+  .readiness-grid {
+    gap: 8px;
+  }
+
+  .readiness-options {
+    grid-template-columns: repeat(3, minmax(74px, 1fr));
+    overflow-x: auto;
+  }
+
+  .set-table:not(.no-load) .set-head,
+  .set-table:not(.no-load) .set-row {
+    min-width: 640px;
+    grid-template-columns: 34px minmax(140px, 1fr) 92px 72px 120px 48px;
+  }
+
+  .monthly-checkin-panel {
+    padding: 12px;
+  }
+
+  .lift-comparison-list > div {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+}

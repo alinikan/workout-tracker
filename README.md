@@ -107,6 +107,12 @@ That means the interface favors:
 | Done-only moves | Warm-ups, cardio, and bodyweight targets do not show fake weight inputs. |
 | Exercise detail sheet | Includes cues, mistakes, progression notes, resources, inline YouTube, GIF option, swaps, and set log. |
 | Knee/hip-friendly lower body | Default lower-body work avoids forced deep squats and uses supported leg press ranges, quad/hamstring machines, glute bridges, and hip-control warm-ups. |
+| Beginner-to-trained progression | Month 1 teaches the gym, then each 4-week block earns more volume, stronger loading, longer cardio, and more confident execution. |
+| Earned training week | Targets advance with the calendar only when enough strength sessions have been completed, so missed weeks do not automatically create harder workouts. |
+| RIR and set feel | Gym Mode explains Reps In Reserve and lets each set be marked Too easy, About right, or Very hard for smarter load suggestions. |
+| Readiness check | Energy, soreness, joint pain, and sleep create Green, Yellow, or Red training guidance before each workout. |
+| Rest timer | Completing a set starts a movement-specific rest timer with longer rest for main lifts and shorter rest for core/accessories. |
+| Monthly check-ins | Every 4 weeks, the app reviews strength, cardio, weight trend, waist checkpoint, optional photos, and recovery feedback. |
 | Skip tracking | Supports Time, Pain, Equipment, Fatigue, and Other skip reasons. |
 | Day status | Separates Complete, Finished with skips, and Incomplete days. |
 | Home/gym labels | Marks exercises as Upstairs OK, Downstairs, Downstairs/outside, or Either. |
@@ -192,27 +198,101 @@ It includes:
 
 ## How The Program Works
 
-The program uses progressive training blocks. Difficulty increases over time, then drops during deload weeks so the user can recover and keep improving.
+The program is built for a true beginner who wants to train seriously for six months. The first month is deliberately smaller so the user can learn machines, setup, breathing, bracing, pain-free range of motion, logging, and recovery. After that, the app adds work gradually.
 
-| Phase | Training Focus |
+The weekly structure stays consistent:
+
+| Day | Focus |
 | --- | --- |
-| Weeks 1-2 | Habit building, 2 working sets, 10-minute treadmill warm-ups, clean form. |
-| Weeks 3-6 | More volume, 3 sets for the first 4 lifts, longer cardio blocks. |
-| Weeks 7-10 | Optional extra set on the first big lift if recovery is good. |
-| Week 11 | Deload week with lighter loads and lower volume. |
-| Week 12 | Compare week with normal loads and progress review. |
-| Weeks 13-18 | Second build block with longer warm-ups and longer finishers. |
-| Weeks 19-22 | Advanced consistency block with some lifts allowed to reach 4 sets. |
-| Week 23 | Second deload week. |
-| Weeks 24-26 | Final compare block for body weight, photos, and strength progress. |
+| Monday | Strength A |
+| Tuesday | Cardio Base |
+| Wednesday | Strength B |
+| Thursday | Easy Movement |
+| Friday | Strength C |
+| Saturday | Long Cardio |
+| Sunday | Recovery |
 
-Nutrition uses calorie cycling by day type:
+### Six-Month Training Blocks
+
+| Block | Goal | Strength Work | Cardio | Time Target |
+| --- | --- | --- | --- | --- |
+| Weeks 1-4: Foundation | Learn how to train and recover. | 5-6 meaningful exercises, mostly 2 working sets, 3-4 RIR. | Tue 20-30 min, Sat 35-45 min, optional finishers 5-10 min. | 45-60 min |
+| Weeks 5-8: Build | Increase training capacity. | Main lifts can move to 3 sets, accessories stay mostly 2, 2-3 RIR. | Tue 25-35 min, Sat 40-50 min. | 50-65 min |
+| Weeks 9-12: Progress | Start looking and performing like someone who trains. | Main lifts 3 sets, direct arms, progressive core, 2-3 RIR. | Tue 30-40 min, Sat 45-55 min. | 55-70 min |
+| Weeks 13-16: Build Again | Add useful volume without making workouts huge. | Main lifts 3 sets, one main lift may use 4 if recovery is good. | Tue 35-45 min, Sat 50-60 min. | 60-75 min |
+| Weeks 17-20: Stronger Training | Push performance with quality reps. | Most major lifts stay 3 sets, one or two may use 4, 1-3 RIR. | Tue 40-45 min, Sat 55-65 min. | 65-80 min |
+| Weeks 21-24: Consolidate And Perform | Use the fitness already built. | Hold volume, improve weight, reps, control, and range. | Tue 40-50 min, Sat 60-75 min if recovery is good. | 65-85 min |
+| Weeks 25-26: Final Comparison | Compare results without max testing. | Normal clean training plus progress review. | Compare duration, pace, and consistency. | 60-75 min |
+
+### Earned Progression
+
+The app separates **calendar week** from **training week**. If the calendar says Week 4 but the user missed too many strength sessions, the targets can stay closer to Week 2 until more sessions are completed.
+
+That matters for a beginner because adaptation is earned by repeated practice, not by time passing on a calendar. The app uses strength-session completion, monthly recovery feedback, and readiness to decide whether today should progress normally, hold steady, or reduce volume.
+
+### Month 1 Strength Sessions
+
+Month 1 is intentionally less crowded:
+
+| Session | Main Flow |
+| --- | --- |
+| Strength A | Leg Press, Incline Dumbbell Press, Lat Pulldown, Dumbbell Romanian Deadlift, Front Plank, optional short treadmill finish. |
+| Strength B | Leg Press, Single-Arm Dumbbell Row, Glute Bridge, Push-Up or incline variation, Seated Dumbbell Overhead Press, Dead Bug. |
+| Strength C | Leg Press, Incline Dumbbell Press, Lat Pulldown, Romanian Deadlift, Seated Leg Curl, Plank or Dead Bug. |
+
+Later blocks gradually introduce leg extensions, additional hamstring work, cable fly, reverse fly, biceps curls, triceps pressdowns, and a progressively loadable core movement such as cable crunch.
+
+### Effort, Rest, And Load Progression
+
+The app uses **RIR**, or Reps In Reserve, to explain how hard each set should feel:
+
+| RIR | Meaning |
+| --- | --- |
+| 4 RIR | About 4 clean reps left. |
+| 3 RIR | About 3 clean reps left. |
+| 2 RIR | About 2 clean reps left. |
+| 1 RIR | Maybe 1 clean rep left. |
+| 0 RIR | No more reps possible. This plan does not require failure. |
+
+Gym Mode asks how each set felt: **Too easy**, **About right**, or **Very hard**. The app uses that with double progression. For an 8-12 rep target, the user keeps the same pounds until all sets reach the top of the range with clean form, then the app suggests the smallest available weight increase.
+
+Rest timers start automatically when a set is completed:
+
+| Movement Type | Rest |
+| --- | --- |
+| Main lifts | 90-120 seconds |
+| Normal compounds | 75-90 seconds |
+| Accessories | 60-75 seconds |
+| Core | 45-60 seconds |
+| Ramp warm-ups | 45-60 seconds |
+
+The goal is not to shorten useful rest. If workouts become too long, the app trims optional work instead of rushing important sets.
+
+### Monthly Check-Ins
+
+Every 4 weeks, the app opens a coach-style review:
+
+- Strength sessions completed.
+- Cardio days completed.
+- Weekly average body weight.
+- Waist checkpoint.
+- Optional progress-photo reminder with same-lighting guidance.
+- Leg press, press, pulldown/row, and RDL comparison.
+- Recovery feedback: Easy, About right, or Very hard.
+
+The app defines six-month success broadly: consistency, stronger lifts, better walking fitness, better skill, healthier nutrition habits, waist and/or weight trend moving toward the goal, and more visible muscle definition. Visible abs may happen for some users, but the app does not guarantee them because body-fat level, genetics, sex, fat distribution, and adherence all matter.
+
+### Nutrition
+
+Nutrition uses calorie cycling by day type, but targets are configurable because different bodies need different amounts:
 
 | Day Type | Target |
 | --- | --- |
-| Strength day | About 2,050 kcal, 150-165 g protein, more carbs around lifting. |
-| Cardio day | About 1,950 kcal, 150-165 g protein, moderate measured carbs. |
-| Recovery day | About 1,850 kcal, 150-165 g protein, slightly lower starch portions. |
+| Strength day | Higher-carb training day to support lifting performance. |
+| Cardio day | Moderate-carb day for walking volume and recovery. |
+| Recovery day | Slightly lower-starch day while keeping protein high. |
+
+Coach Hub lets the user choose a calorie mode and set a protein reference body weight. Protein is shown as an evidence-informed body-weight range instead of assuming every person should eat the exact same grams.
 
 The default grocery pattern favors easy repeat purchases: Greek yogurt, cottage cheese, eggs, egg whites, chicken breast or skinless chicken thighs, lean beef, tuna, salmon, white fish, oats, rice, quinoa, potatoes, fruit, and vegetables. The main week now includes lean beef with pasta, lean beef with rice, and lean beef with potatoes, while still keeping fish and chicken in rotation for variety. Beans, chickpeas, turkey, rice cakes, muesli, tofu, and egg-only bowls remain in the recipe library as optional swap choices, but they are no longer default meals.
 
@@ -716,7 +796,12 @@ Most program content currently lives in `src/App.tsx`.
 | Recipes | `dietRecipes` |
 | Recipe cooking guide | `detailedRecipeHowTo()` |
 | Weekly meal plan | `weeklyDietMealMap` |
-| Diet targets | `dietTargets` |
+| Base diet targets | `dietTargets` |
+| Personalized calorie/protein display | `personalizedDietTarget()` |
+| Earned training level | `earnedTrainingWeekForDay()` |
+| Readiness rules | `readinessStatusFor()` |
+| Rest timers | `restTimerSecondsFor()` |
+| Monthly check-ins | `monthlyCheckInForDay()` |
 
 Example start date:
 
