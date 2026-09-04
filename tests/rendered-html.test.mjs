@@ -320,7 +320,11 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "waistProgress",
     "Monthly progress photos today",
     "personalizedDietTarget",
-    "proteinWeightKg",
+    "proteinReferenceFromMetrics",
+    "Protein basis",
+    "Recent average",
+    "Latest weigh-in",
+    "Waiting for weigh-ins",
     "calorieMode",
   ]) {
     assert.match(app, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
@@ -369,6 +373,7 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "diet-bottom-bar",
     "hub-weight-panel",
     "daily-weight-grid",
+    "protein-reference-card",
     "weight-visual-grid",
     "weight-chart-card",
     "weight-line-chart",
@@ -412,6 +417,7 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
   assert.match(readme, /store-neutral ingredient list/);
   assert.match(readme, /npm run dev -- --port 3001/);
   assert.doesNotMatch(app, /Body weight \(lbs\)/);
+  assert.doesNotMatch(app, /Protein body weight \(kg\)/);
   assert.doesNotMatch(readme, /npm run dev -- -p 3001/);
   assert.doesNotMatch(app, removedPattern);
   assert.doesNotMatch(readme, removedPattern);
@@ -619,13 +625,14 @@ test("includes installable app assets", async () => {
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v27/);
-  assert.match(serviceWorker, /beginner-to-trained-coach-v27/);
+  assert.match(serviceWorker, /recomp-gym-console-v28/);
+  assert.match(serviceWorker, /auto-protein-targets-v28/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
   assert.match(serviceWorker, /fetch\(event\.request\)/);
   assert.doesNotMatch(serviceWorker, /CORE_ASSETS = \[\s*["']\/["']/);
+  assert.doesNotMatch(serviceWorker, /recomp-gym-console-v27/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v26/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v25/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v22/);

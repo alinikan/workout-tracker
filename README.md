@@ -292,7 +292,7 @@ Nutrition uses calorie cycling by day type, but targets are configurable because
 | Cardio day | Moderate-carb day for walking volume and recovery. |
 | Recovery day | Slightly lower-starch day while keeping protein high. |
 
-Coach Hub lets the user choose a calorie mode and set a protein reference body weight. Protein is shown as an evidence-informed body-weight range instead of assuming every person should eat the exact same grams.
+Coach Hub lets the user choose a calorie mode, while protein is calculated automatically from existing weigh-ins. Once the user has at least three recent morning logs, the app uses the recent average body weight; before that, it uses the latest logged weight. If no weight has been logged yet, it shows the general `1.6-2.0 g/kg` protein range instead of asking for another confusing input.
 
 The default grocery pattern favors easy repeat purchases: Greek yogurt, cottage cheese, eggs, egg whites, chicken breast or skinless chicken thighs, lean beef, tuna, salmon, white fish, oats, rice, quinoa, potatoes, fruit, and vegetables. The main week now includes lean beef with pasta, lean beef with rice, and lean beef with potatoes, while still keeping fish and chicken in rotation for variety. Beans, chickpeas, turkey, rice cakes, muesli, tofu, and egg-only bowls remain in the recipe library as optional swap choices, but they are no longer default meals.
 
@@ -798,6 +798,7 @@ Most program content currently lives in `src/App.tsx`.
 | Weekly meal plan | `weeklyDietMealMap` |
 | Base diet targets | `dietTargets` |
 | Personalized calorie/protein display | `personalizedDietTarget()` |
+| Automatic protein body-weight basis | `proteinReferenceFromMetrics()` |
 | Earned training level | `earnedTrainingWeekForDay()` |
 | Readiness rules | `readinessStatusFor()` |
 | Rest timers | `restTimerSecondsFor()` |

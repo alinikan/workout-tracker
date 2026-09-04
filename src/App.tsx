@@ -88,7 +88,6 @@ type ReadinessLog = {
 };
 
 type UserSettings = {
-  proteinWeightKg: string;
   calorieMode: CalorieMode;
 };
 
@@ -135,6 +134,12 @@ type WeightEntry = {
   dayNumber: number;
   weight: number;
   note: string;
+};
+
+type ProteinReference = {
+  weight: number | null;
+  label: string;
+  detail: string;
 };
 
 // The app uses a tiny inline icon system instead of a larger icon dependency. That keeps the bundle
@@ -449,7 +454,6 @@ const emptySet = (): SetLog => ({
 });
 
 const createEmptySettings = (): UserSettings => ({
-  proteinWeightKg: "",
   calorieMode: "calculated",
 });
 
@@ -544,7 +548,6 @@ function normalizeSettings(value: unknown): UserSettings {
   if (!isRecord(value)) return base;
 
   return {
-    proteinWeightKg: typeof value.proteinWeightKg === "string" ? value.proteinWeightKg : "",
     calorieMode: isCalorieMode(value.calorieMode) ? value.calorieMode : base.calorieMode,
   };
 }
@@ -3958,31 +3961,68 @@ function weightKgFromMetric(metric: MetricLog) {
   return legacyPounds !== null ? legacyPounds * 0.45359237 : null;
 }
 
-function latestWeightKgFromMetrics(metrics: Record<string, MetricLog>) {
-  const latest = Object.entries(metrics)
-    .map(([date, metric]) => ({
-      date,
-      weight: weightKgFromMetric(normalizeMetricLogShape(metric)),
+function proteinReferenceFromMetrics(
+  planDays: PlanDay[],
+  metrics: Record<string, MetricLog>,
+  throughIndex: number,
+): ProteinReference {
+  const entries = planDays
+    .slice(0, Math.min(Math.max(throughIndex + 1, 1), planDays.length))
+    .map((day) => ({
+      date: day.iso,
+      weight: weightKgFromMetric(normalizeMetricLogShape(metrics[day.iso])),
     }))
-    .filter((entry): entry is { date: string; weight: number } => entry.weight !== null)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .at(-1);
+    .filter((entry): entry is { date: string; weight: number } => entry.weight !== null);
 
-  return latest?.weight ?? null;
+  if (!entries.length) {
+    return {
+      weight: null,
+      label: "Waiting for weigh-ins",
+      detail: "Log morning weight in Coach Hub and protein will calculate automatically.",
+    };
+  }
+
+  const recentEntries = entries.slice(-7);
+
+  if (recentEntries.length >= 3) {
+    const average =
+      recentEntries.reduce((sum, entry) => sum + entry.weight, 0) / recentEntries.length;
+    return {
+      weight: average,
+      label: "Recent average",
+      detail: `${formatLoadValue(average)} kg from your latest ${
+        recentEntries.length
+      } logged mornings.`,
+    };
+  }
+
+  const latest = entries.at(-1);
+
+  return {
+    weight: latest?.weight ?? null,
+    label: "Latest weigh-in",
+    detail: latest
+      ? `${formatLoadValue(latest.weight)} kg from ${formatDate(
+          latest.date,
+          "short",
+        )}. Add 3+ recent logs to switch to an average.`
+      : "Log morning weight in Coach Hub and protein will calculate automatically.",
+  };
 }
 
 function personalizedDietTarget(
   type: DietDayType,
   settings: UserSettings,
-  latestWeightKg: number | null,
+  proteinReferenceWeightKg: number | null,
 ) {
   const base = dietTargets[type];
   const adjustment =
     settings.calorieMode === "lower" ? -150 : settings.calorieMode === "higher" ? 150 : 0;
   const calories = defaultDietCalories[type] + adjustment;
-  const proteinReference = parseLoadValue(settings.proteinWeightKg) ?? latestWeightKg;
-  const protein = proteinReference
-    ? `${Math.round(proteinReference * 1.6)}-${Math.round(proteinReference * 2)} g protein`
+  const protein = proteinReferenceWeightKg
+    ? `${Math.round(proteinReferenceWeightKg * 1.6)}-${Math.round(
+        proteinReferenceWeightKg * 2,
+      )} g protein`
     : "1.6-2.0 g/kg protein";
   const modeLabel =
     settings.calorieMode === "lower"
@@ -4436,7 +4476,6 @@ function hasStoreData(store: TrackerStore) {
     Object.keys(store.days).length > 0 ||
     Object.keys(store.dietDays).length > 0 ||
     Object.keys(store.metrics).length > 0 ||
-    store.settings.proteinWeightKg.trim() !== "" ||
     store.settings.calorieMode !== "calculated"
   );
 }
@@ -4594,7 +4633,6 @@ function mergeStores(localStore: TrackerStore, cloudStore: TrackerStore) {
     settings: {
       ...cloudStore.settings,
       ...localStore.settings,
-      proteinWeightKg: preferFilled(localStore.settings.proteinWeightKg, cloudStore.settings.proteinWeightKg),
     },
   };
 }
@@ -5635,14 +5673,18 @@ export default function Home() {
   const selectedSessionSummary = sessionSummaryForDay(selectedCoachDay);
   const selectedLocationNote = locationFlowNoteForDay(selectedCoachDay);
   const selectedDietType = dietDayTypeForPlanDay(selectedDietDay);
-  const latestWeightKg = latestWeightKgFromMetrics(store.metrics);
+  const proteinReference = proteinReferenceFromMetrics(planDays, store.metrics, gymDay.index);
   const selectedDietTarget = personalizedDietTarget(
     selectedDietType,
     store.settings,
-    latestWeightKg,
+    proteinReference.weight,
   );
   const gymDietType = dietDayTypeForPlanDay(gymDay);
-  const gymDietTarget = personalizedDietTarget(gymDietType, store.settings, latestWeightKg);
+  const gymDietTarget = personalizedDietTarget(
+    gymDietType,
+    store.settings,
+    proteinReference.weight,
+  );
   const selectedDietCoachNote = dietCoachNoteForDay(selectedDietDay);
   const selectedDietAccent = selectedDietDay.session.accent;
   const selectedExercises = scheduledExercisesForDay(selectedCoachDay, selectedLog);
@@ -6868,25 +6910,16 @@ export default function Home() {
             <p className="eyebrow">Nutrition settings</p>
             <h2 id="diet-settings-heading">Personalize diet targets</h2>
             <p>
-              Protein is calculated from body weight when available. Calories can stay at the base
-              plan or move by a small 150 kcal step instead of reacting to one weigh-in.
+              Protein updates from your Coach Hub weigh-ins automatically. Calories can stay at the
+              base plan or move by a small 150 kcal step instead of reacting to one weigh-in.
             </p>
           </div>
           <div className="diet-settings-grid">
-            <label>
-              Protein body weight (kg)
-              <input
-                inputMode="decimal"
-                value={store.settings.proteinWeightKg}
-                placeholder={latestWeightKg ? formatLoadValue(latestWeightKg) : "optional"}
-                onChange={(event) =>
-                  updateSettings((settings) => ({
-                    ...settings,
-                    proteinWeightKg: event.target.value,
-                  }))
-                }
-              />
-            </label>
+            <div className="protein-reference-card">
+              <span>Protein basis</span>
+              <strong>{proteinReference.label}</strong>
+              <small>{proteinReference.detail}</small>
+            </div>
             <div className="calorie-mode-control">
               <strong>Calorie mode</strong>
               <div>
@@ -7239,7 +7272,11 @@ export default function Home() {
                   <span>{day.dayName.slice(0, 3)}</span>
                   <strong>{day.session.code}</strong>
                   <small>
-                    {personalizedDietTarget(dietDayTypeForPlanDay(day), store.settings, latestWeightKg).calories}
+                    {personalizedDietTarget(
+                      dietDayTypeForPlanDay(day),
+                      store.settings,
+                      proteinReference.weight,
+                    ).calories}
                   </small>
                 </button>
               );
