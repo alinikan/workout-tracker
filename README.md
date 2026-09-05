@@ -113,8 +113,8 @@ That means the interface favors:
 | Readiness check | Energy, soreness, joint pain, and sleep create Green, Yellow, or Red training guidance before each workout. |
 | Rest timer | Completing a set starts a movement-specific rest timer with longer rest for main lifts and shorter rest for core/accessories. |
 | Monthly check-ins | Every 4 weeks, the app reviews strength, cardio, weight trend, optional photos, and recovery feedback. |
-| Skip tracking | Supports Time, Pain, Equipment, Fatigue, and Other skip reasons. |
-| Day status | Separates Complete, Finished with skips, and Incomplete days. |
+| Skip tracking | Skip a move or the remaining day with a Time, Pain, Equipment, Fatigue, or Other reason. Resume without losing logged sets. |
+| Day status | Separates Complete, Finished with skips, Day skipped, and Incomplete days. |
 | Home/gym labels | Marks exercises as Upstairs OK, Downstairs, Downstairs/outside, or Either. |
 | Exercise library | Searchable movement library with demos and coaching notes. |
 
@@ -900,6 +900,27 @@ Deploy through the existing GitHub/Vercel connection. Commit the changed files, 
 ---
 
 ## Troubleshooting
+
+<details>
+<summary><strong>Why does Gym Mode show a different day from the one I was browsing?</strong></summary>
+
+**Today** lets you browse any program date. **Gym Mode** always opens the actual current day according to your device's local date, bounded to the 182-day program. For example, previewing Saturday while it is still Friday does not start Saturday's workout. Gym opens Friday, including any skips logged on Friday. Entering Gym also aligns the workout calendar to that date, and its header shows the full date.
+
+Skipped status belongs to one workout date, not to the exercise across the program. Friday's skipped exercise stays pending on Saturday unless you separately log Saturday. On a date change, reopening the iPhone Home Screen app realigns to the new day.
+
+**Skip Today** skips the remaining workout for the current day. When browsing another date, the button is labeled **Skip Day** instead. The reason dialog always shows the exact date before you confirm.
+
+- Completed sets, weights, notes, and swaps remain saved. Unfinished moves show the day's skip reason.
+- Skipping an individual move also preserves its completed sets; only its unfinished portion is skipped.
+- **Resume Day** removes the whole-day skip. Previously skipped individual moves retain their own reasons; reopen those separately if needed.
+- Reopening just one move leaves the other skipped moves skipped.
+- **Mark Complete** should only be used for work actually performed. It clears the day's skip and marks all scheduled sets complete in both views.
+- Skipped days do not earn completion credit, shift the calendar, or change diet and weigh-in logs.
+- Once no moves remain open, Gym shows a summary instead of cycling back to a skipped exercise. **Review Today** lets you inspect or reopen individual moves.
+
+These changes use the existing local autosave and account sync. No new Supabase table, SQL migration, or environment variable is required.
+
+</details>
 
 <details>
 <summary><strong>The live site is a white screen after deploy</strong></summary>

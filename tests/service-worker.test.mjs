@@ -51,7 +51,7 @@ function worker(fetchResponse) {
 
 test("an HTTP error cannot replace the last working offline page", async () => {
   const app = worker(async () => new Response("Server error", { status: 500 }));
-  const cache = await app.caches.open("recomp-gym-console-v30");
+  const cache = await app.caches.open("recomp-gym-console-v31");
   await cache.put("/", new Response("Working tracker"));
   assert.equal(await (await app.request("/", "document", "navigate")).text(), "Working tracker");
   assert.equal(await (await app.caches.match("/")).text(), "Working tracker");
@@ -66,16 +66,16 @@ test("HTML returned for an old script falls back to the cached JavaScript", asyn
 
 test("offline navigation uses the cached page", async () => {
   const app = worker(async () => { throw new TypeError("Offline"); });
-  const cache = await app.caches.open("recomp-gym-console-v30");
+  const cache = await app.caches.open("recomp-gym-console-v31");
   await cache.put("/", new Response("Saved shell"));
   assert.equal(await (await app.request("/", "document", "navigate")).text(), "Saved shell");
 });
 
 test("activation retains one prior app version and leaves unrelated caches alone", async () => {
   const app = worker(async () => new Response("OK"));
-  for (const name of ["other-app", "recomp-gym-console-v28", "recomp-gym-console-v29", "recomp-gym-console-v30"]) await app.caches.open(name);
+  for (const name of ["other-app", "recomp-gym-console-v29", "recomp-gym-console-v30", "recomp-gym-console-v31"]) await app.caches.open(name);
   await app.activate();
-  assert.deepEqual([...app.stores.keys()].sort(), ["other-app", "recomp-gym-console-v29", "recomp-gym-console-v30"]);
+  assert.deepEqual([...app.stores.keys()].sort(), ["other-app", "recomp-gym-console-v30", "recomp-gym-console-v31"]);
 });
 
 test("no-store responses are not added to the offline cache", async () => {

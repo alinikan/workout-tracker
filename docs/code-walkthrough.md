@@ -168,8 +168,18 @@ Completion is mostly derived from set rows:
 
 - A move is done when all required rows are checked.
 - A move is skipped when it has a skip reason and is not complete.
-- A day is complete when all moves are done.
-- A day is finished with skips when no move is pending but at least one move was skipped.
+- A day is complete when its required moves are done; optional moves do not block completion.
+- A day is finished with skips when no required move is pending but at least one required move was skipped.
+- A day is explicitly skipped when its date-specific `daySkipReason` is set. This never earns completion credit.
+
+`skipPlanDay()` adds that optional marker without clearing any set rows. `skipReasonForExercise()`
+uses an individual reason first and then the day reason; a fully completed move still displays as
+done. `reopenPlanDay()` clears only the day marker, preserving prior individual skips. When just
+one move is reopened, `reopenPlanMove()` transfers the day reason to the other unfinished moves
+before removing the marker. This prevents one resumed move from silently reopening the whole day.
+`completePlanDay()` clears the marker and fills the scheduled sets. Old saved logs without the
+optional field remain valid; the existing JSON sync handles the new field without a schema change.
+`skipPlanMove()` similarly preserves partial set completion instead of unchecking earlier work.
 
 That lets the app tell the truth: skipped work is visible, but it does not block the user from
 ending a compromised session honestly.
@@ -185,9 +195,19 @@ The app tracks three dates:
 This matters because Gym Mode should always show the actual current workout, while the Today tab
 can be used to look back or ahead.
 
+`resolveGymDay()` uses the actual program date, never the browsed date as its fallback. Entering
+Gym also aligns `selectedDate` to that date so the calendar and Gym header agree. Browsing a day
+does not reset the Gym move index. Skip dialogs capture their target date when opened, and submit
+only to `store.days[capturedDate]`; matching exercise IDs on other dates remain independent.
+
 Gym Mode uses `firstUnfinishedMoveIndex()` and `nextUnfinishedMoveIndex()` to start on the first
 unfinished movement. If sets one, two, three, and five are done, Gym Mode can land on four and then
 continue to six.
+
+When every move is done or skipped (including optional moves), Gym renders a terminal summary
+instead of displaying move zero. A whole-day skip also renders this summary on recovery days
+without exercise rows. Tests cover date rollover, partial sets, day/move reopening, and sync of
+independent edits to different dates.
 
 ### Supabase Sync
 

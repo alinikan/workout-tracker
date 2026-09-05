@@ -1745,7 +1745,8 @@ h3 {
   box-shadow: inset 0 0 0 1px #8cc8a4;
 }
 
-.week-day-card.finished-with-skips::after {
+.week-day-card.finished-with-skips::after,
+.week-day-card.skipped::after {
   position: absolute;
   top: 9px;
   right: 9px;
@@ -2478,7 +2479,8 @@ textarea {
   background: #eefaf3;
 }
 
-.today-day-button.finished-with-skips::after {
+.today-day-button.finished-with-skips::after,
+.today-day-button.skipped::after {
   display: inline-flex;
   min-width: 42px;
   min-height: 22px;
@@ -2492,6 +2494,75 @@ textarea {
   font-weight: 950;
   text-transform: uppercase;
   content: "Skip";
+}
+
+.week-day-card.skipped::after,
+.today-day-button.skipped::after {
+  content: "Skipped";
+}
+
+/* Day-level controls stay in normal flow so they cannot cover the set log on iPhone. */
+.gym-day-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 4px 0 16px;
+}
+
+.gym-day-context > div {
+  min-width: 0;
+}
+
+.gym-day-context h2 {
+  margin: 4px 0;
+  font-size: 1.1rem;
+  overflow-wrap: anywhere;
+}
+
+.gym-day-context p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.day-skip-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #d6aa50;
+  border-radius: 8px;
+  background: #fff7e5;
+  color: #744700;
+  font-weight: 750;
+}
+
+.day-skip-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.day-skipped-notice {
+  margin: 0;
+  padding: 12px 16px;
+  border-block: 1px solid #f1d99c;
+  background: #fff7e5;
+  color: #744700;
+  line-height: 1.5;
+}
+
+.day-summary-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gym-session-summary h2 {
+  font-size: 1.35rem;
 }
 
 .load-suggestion {
@@ -3420,6 +3491,7 @@ body {
 }
 
 .day-status-chip.finished-with-skips,
+.day-status-chip.skipped,
 .move-status-chip.skipped {
   border-color: #f1d99c;
   background: #fff3d8;

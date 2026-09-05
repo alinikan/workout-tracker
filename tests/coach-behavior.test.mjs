@@ -7,7 +7,7 @@ import { canClaimLocalProgress, mergeProgressChanges, sameData } from "../src/li
 
 // Load the actual app through Vite's TS/JSX pipeline. envDir:false makes this a
 // local fixture: no production credentials, accounts, or saved data are used.
-const server = await createServer({ envDir: false, server: { middlewareMode: true, hmr: false, watch: null } });
+const server = await createServer({ envDir: false, server: { middlewareMode: true, hmr: false, ws: false, watch: null } });
 after(() => server.close());
 const model = await server.ssrLoadModule("/src/App.tsx");
 const days = model.buildPlanDays();
@@ -76,6 +76,121 @@ test("missing effort feedback is not evidence to increase load", () => {
   const lift = model.scheduledExercisesForDay(days[7]).find((item) => item.id === "leg-press");
   const advice = model.smartLoadSuggestion(days, store, days[7], lift, 0);
   assert.notEqual(advice.tone, "build");
+});
+
+test("Gym uses the device date across midnight, independently of the browsed workout", () => {
+  const friday = model.closestProgramDate(new Date(2026, 8, 4, 23, 59));
+  const saturday = model.closestProgramDate(new Date(2026, 8, 5, 0, 1));
+  assert.equal(model.resolveGymDay(days, friday).iso, days[4].iso);
+  assert.equal(model.resolveGymDay(days, saturday).iso, days[5].iso);
+  assert.equal(model.closestProgramDate(new Date(2026, 7, 1)), days[0].iso);
+  assert.equal(model.closestProgramDate(new Date(2027, 8, 1)), days.at(-1).iso);
+});
+
+test("Friday skips never carry to Saturday or next Friday's matching exercise IDs", () => {
+  const store = model.emptyStore();
+  let friday = model.normalizeDayLog(undefined);
+  for (const move of model.scheduledExercisesForDay(days[4], friday)) {
+    friday = model.skipPlanMove(days[4], friday, move.id, "fatigue");
+  }
+  store.days[days[4].iso] = friday;
+  assert.equal(model.dayStatusForDay(days[4], friday), "finished-with-skips");
+  for (const day of [days[5], days[11]]) {
+    const log = model.normalizeDayLog(store.days[day.iso]);
+    assert.equal(model.dayStatusForDay(day, log), "incomplete");
+    model.scheduledExercisesForDay(day, log).forEach((move, index) => {
+      assert.equal(model.moveStatusForExercise(day, log, move, index), "pending");
+    });
+  }
+});
+
+test("whole-day skipping works throughout the program, including recovery and active swaps", () => {
+  for (const rawDay of days) {
+    const day = model.withTrainingWeek(rawDay, rawDay.week);
+    const log = model.normalizeDayLog(undefined);
+    const exercises = model.scheduledExercisesForDay(day, log);
+    const swappable = exercises.find((move) => move.swapIds?.length);
+    if (swappable) log.swaps[swappable.id] = swappable.swapIds[0];
+    log.notes = "Keep my notes";
+    const before = structuredClone(log);
+    const skipped = model.skipPlanDay(day, log, "time");
+    assert.deepEqual(log, before, "skipping must not mutate the source log");
+    assert.equal(model.dayStatusForDay(day, skipped), "skipped", day.iso);
+    assert.equal(skipped.completed, false);
+    assert.equal(model.isPlanDayComplete(day, skipped), false);
+    assert.deepEqual(skipped.swaps, log.swaps);
+    assert.equal(skipped.notes, log.notes);
+    model.scheduledExercisesForDay(day, skipped).forEach((move, index) => {
+      assert.equal(model.moveStatusForExercise(day, skipped, move, index), "skipped");
+    });
+    assert.equal(model.dayStatusForDay(day, model.reopenPlanDay(day, skipped)), "incomplete");
+    const completed = model.completePlanDay(day, skipped);
+    assert.equal(completed.daySkipReason, undefined);
+    assert.equal(model.dayStatusForDay(day, completed), "complete");
+    assert.ok(Object.values(completed.exercises).flat().every((row) => row.done));
+    assert.deepEqual(model.skipPlanDay(day, completed, "time"), model.normalizeDayLog(completed), "completed days cannot be skipped accidentally");
+  }
+});
+
+test("skipping and resuming preserve completed sets, partial moves, and earlier individual reasons", () => {
+  const day = days[0];
+  const completed = model.completePlanDay(day, model.normalizeDayLog(undefined));
+  const exercises = model.scheduledExercisesForDay(day);
+  const first = exercises[0];
+  const partialIndex = exercises.findIndex((move, index) => model.recommendedSets(day, move, index) > 1);
+  const partial = exercises[partialIndex];
+  const another = exercises.find((move) => move.id !== first.id && move.id !== partial.id);
+  const log = model.normalizeDayLog(undefined);
+  log.exercises[first.id] = completed.exercises[first.id];
+  log.exercises[partial.id] = completed.exercises[partial.id].map((row, index) => ({ ...row, weight: "25", done: index === 0 }));
+  log.skips[another.id] = "equipment";
+  const moveSkipped = model.skipPlanMove(day, log, partial.id, "fatigue");
+  assert.deepEqual(moveSkipped.exercises[partial.id], log.exercises[partial.id]);
+  assert.equal(model.moveStatusForExercise(day, moveSkipped, partial, partialIndex), "skipped");
+  const skipped = model.skipPlanDay(day, log, "time");
+  assert.equal(model.moveStatusForExercise(day, skipped, first, 0), "done");
+  assert.deepEqual(skipped.exercises, model.normalizeDayLog(log).exercises);
+  const resumed = model.reopenPlanDay(day, skipped);
+  assert.equal(model.moveStatusForExercise(day, resumed, partial, partialIndex), "pending");
+  assert.equal(resumed.skips[another.id], "equipment");
+  assert.deepEqual(resumed.exercises, model.normalizeDayLog(log).exercises);
+  const oneMoveResumed = model.reopenPlanMove(day, skipped, partial.id);
+  assert.equal(oneMoveResumed.daySkipReason, undefined);
+  assert.equal(model.moveStatusForExercise(day, oneMoveResumed, partial, partialIndex), "pending");
+  exercises.forEach((move, index) => {
+    if (move.id === partial.id) return;
+    assert.equal(model.moveStatusForExercise(day, oneMoveResumed, move, index), move.id === first.id ? "done" : "skipped");
+  });
+  assert.equal(oneMoveResumed.skips[another.id], "equipment");
+  assert.deepEqual(oneMoveResumed.exercises, model.normalizeDayLog(log).exercises);
+});
+
+test("day skips survive save/reload and independent cross-device date edits", () => {
+  const base = model.emptyStore();
+  base.days[days[4].iso] = model.normalizeDayLog(undefined);
+  base.days[days[5].iso] = model.normalizeDayLog(undefined);
+  base.metrics[days[4].iso] = weight(80);
+  const local = structuredClone(base);
+  const remote = structuredClone(base);
+  local.days[days[4].iso] = model.skipPlanDay(days[4], local.days[days[4].iso], "fatigue");
+  remote.days[days[5].iso] = model.completePlanDay(days[5], remote.days[days[5].iso]);
+  const synced = model.normalizeStore(JSON.parse(JSON.stringify(mergeProgressChanges(base, local, remote))));
+  assert.equal(synced.days[days[4].iso].daySkipReason, "fatigue");
+  assert.equal(model.dayStatusForDay(days[5], synced.days[days[5].iso]), "complete");
+  assert.deepEqual(synced.metrics, base.metrics);
+  assert.deepEqual(synced.dietDays, base.dietDays);
+  assert.equal(model.earnedTrainingWeekForDay(days, synced, days[7]), 1);
+  const resumed = structuredClone(synced);
+  resumed.days[days[4].iso] = model.reopenPlanDay(days[4], resumed.days[days[4].iso]);
+  const remoteEdit = structuredClone(synced);
+  remoteEdit.days[days[5].iso].notes = "Still Saturday";
+  const merged = model.normalizeStore(mergeProgressChanges(synced, resumed, remoteEdit));
+  assert.equal(merged.days[days[4].iso].daySkipReason, undefined);
+  assert.equal(merged.days[days[5].iso].notes, "Still Saturday");
+  const invalid = { ...base.days[days[4].iso], daySkipReason: "invalid" };
+  assert.equal(model.normalizeDayLog(invalid).daySkipReason, undefined);
+  const conflict = { ...local.days[days[4].iso], completed: true };
+  assert.equal(model.normalizeDayLog(conflict).completed, false, "a skipped day cannot earn training credit");
 });
 
 test("invalid and negative weights never enter averages; legacy pounds still convert", () => {

@@ -61,7 +61,7 @@ type MotionDemo = {
 type TrainingLocation = "upstairs" | "downstairs" | "downstairs-outside" | "either";
 type SkipReason = "time" | "pain" | "equipment" | "fatigue" | "other";
 type MoveStatus = "pending" | "done" | "skipped";
-type DayStatus = "incomplete" | "complete" | "finished-with-skips";
+type DayStatus = "incomplete" | "complete" | "finished-with-skips" | "skipped";
 type DietMealSlot = "breakfast" | "lunch" | "snack" | "dinner";
 type DietDayType = "strength" | "cardio" | "recovery";
 type ExercisePriority = "main" | "accessory" | "optional";
@@ -94,7 +94,8 @@ type UserSettings = {
 
 type SkipRequest = {
   date: string;
-  originalExerciseId: string;
+  // null selects a whole workout day; the captured date is always the write target.
+  originalExerciseId: string | null;
   source: "today" | "gym" | "detail";
 };
 
@@ -287,6 +288,7 @@ type SetLog = {
 
 type DayLog = {
   completed: boolean;
+  daySkipReason?: SkipReason;
   warmup: Record<string, boolean>;
   tasks: Record<string, boolean>;
   exercises: Record<string, SetLog[]>;
@@ -590,6 +592,8 @@ function normalizeDayLog(log: DayLog | undefined): DayLog {
   return {
     ...createEmptyDay(),
     ...log,
+    completed: !isSkipReason(log?.daySkipReason) && Boolean(log?.completed),
+    daySkipReason: isSkipReason(log?.daySkipReason) ? log.daySkipReason : undefined,
     warmup: log?.warmup ?? {},
     tasks: log?.tasks ?? {},
     exercises: normalizeExerciseRows(log?.exercises),
@@ -5033,6 +5037,7 @@ function mergeDayLog(cloudLog: DayLog | undefined, localLog: DayLog | undefined)
 
   return {
     completed: normalizedLocalLog.completed || normalizedCloudLog.completed,
+    daySkipReason: normalizedLocalLog.daySkipReason ?? normalizedCloudLog.daySkipReason,
     warmup: mergeChecks(normalizedCloudLog.warmup, normalizedLocalLog.warmup),
     tasks: mergeChecks(normalizedCloudLog.tasks, normalizedLocalLog.tasks),
     swaps: mergeSwaps(normalizedCloudLog.swaps, normalizedLocalLog.swaps),
@@ -5340,12 +5345,18 @@ function longestCompletedCardioBetween(
 
 // "Today" clamps to the program window. Before the plan starts, it shows Day 1; after the program
 // ends, it shows the final day instead of crashing or returning nothing.
-function closestProgramDate() {
-  const today = isoFromDate(new Date());
+function closestProgramDate(now = new Date()) {
+  const today = isoFromDate(now);
   const offset = diffDays(START_DATE, today);
   if (offset < 0) return START_DATE;
   if (offset >= PROGRAM_DAYS) return addDays(START_DATE, PROGRAM_DAYS - 1);
   return today;
+}
+
+// Gym's date is independent of calendar browsing. Never fall back to a selected
+// preview day, which could give Gym a different log from the date on its header.
+function resolveGymDay(planDays: PlanDay[], actualProgramDate: string) {
+  return planDays.find((day) => day.iso === actualProgramDate) ?? planDays[0];
 }
 
 function familyLabel(family: Exercise["family"]) {
@@ -5587,6 +5598,47 @@ function completedRows(rows: SetLog[]) {
   return rows.filter((row) => row.done).length;
 }
 
+function skipReasonForExercise(log: DayLog, originalExerciseId: string) {
+  return log.skips[originalExerciseId] ?? log.daySkipReason ?? null;
+}
+
+/** Close only this workout day. Preserve completed sets, loads, notes, and swaps. */
+function skipPlanDay(planDay: PlanDay, log: DayLog, reason: SkipReason): DayLog {
+  const normalized = normalizeDayLog(log);
+  if (isPlanDayComplete(planDay, normalized)) return normalized;
+  return { ...normalized, completed: false, daySkipReason: reason };
+}
+
+/** Skip only the unfinished portion of a move; earlier sets still happened. */
+function skipPlanMove(planDay: PlanDay, log: DayLog, originalExerciseId: string, reason: SkipReason): DayLog {
+  const exercises = scheduledExercisesForDay(planDay, log);
+  const index = exercises.findIndex((exercise) => exercise.id === originalExerciseId);
+  if (index < 0 || moveStatusForExercise(planDay, log, exercises[index], index) === "done") return log;
+  return withAutomaticDayCompletion(planDay, {
+    ...log,
+    completed: false,
+    skips: { ...log.skips, [originalExerciseId]: reason },
+  });
+}
+
+function reopenPlanDay(planDay: PlanDay, log: DayLog): DayLog {
+  return withAutomaticDayCompletion(planDay, { ...normalizeDayLog(log), daySkipReason: undefined, completed: false });
+}
+
+/** Reopening one move should not silently reopen the rest of a skipped day. */
+function reopenPlanMove(planDay: PlanDay, log: DayLog, originalExerciseId: string): DayLog {
+  const skips = { ...log.skips };
+  if (log.daySkipReason) {
+    scheduledExercisesForDay(planDay, log).forEach((exercise, index) => {
+      if (exercise.id !== originalExerciseId && moveStatusForExercise(planDay, log, exercise, index) !== "done") {
+        skips[exercise.id] ??= log.daySkipReason!;
+      }
+    });
+  }
+  delete skips[originalExerciseId];
+  return { ...log, daySkipReason: undefined, completed: false, skips };
+}
+
 // Move status is derived, not manually stored. That lets Today, Gym Mode, and Progress agree when
 // a user completes all sets, skips a move, reopens it, or swaps it.
 function moveStatusForExercise(
@@ -5599,7 +5651,7 @@ function moveStatusForExercise(
   const setCount = recommendedSets(planDay, activeExercise, exerciseIndex, readinessStatusFor(log.readiness));
   const rows = ensureSetRows(log.exercises[activeExercise.id], setCount);
   if (rows.length > 0 && completedRows(rows) >= rows.length) return "done";
-  if (log.skips[originalExercise.id]) return "skipped";
+  if (skipReasonForExercise(log, originalExercise.id)) return "skipped";
   return "pending";
 }
 
@@ -5617,6 +5669,7 @@ function areDayExercisesComplete(planDay: PlanDay, log: DayLog) {
 }
 
 function dayStatusForDay(planDay: PlanDay, log: DayLog): DayStatus {
+  if (log.daySkipReason) return "skipped";
   const exercises = scheduledExercisesForDay(planDay, log);
   if (!exercises.length) return log.completed ? "complete" : "incomplete";
 
@@ -5637,6 +5690,7 @@ function dayStatusForDay(planDay: PlanDay, log: DayLog): DayStatus {
 }
 
 function withAutomaticDayCompletion(planDay: PlanDay, log: DayLog) {
+  if (log.daySkipReason) return { ...log, completed: false };
   if (!planDay.session.exerciseIds.length) {
     const allTasksDone =
       planDay.session.tasks.length > 0 &&
@@ -5689,6 +5743,7 @@ function completePlanDay(planDay: PlanDay, log: DayLog) {
 
   return {
     ...normalizedLog,
+    daySkipReason: undefined,
     completed: true,
     tasks: nextTasks,
     skips: nextSkips,
@@ -5701,6 +5756,7 @@ function dayStatusLabel(status: DayStatus) {
     incomplete: "Incomplete",
     complete: "Complete",
     "finished-with-skips": "Finished with skips",
+    skipped: "Day skipped",
   }[status];
 }
 
@@ -5841,6 +5897,8 @@ export {
   nextUnfinishedMoveIndex, proteinReferenceFromMetrics, weightTrendSignalFor,
   adaptiveDietCoachForDay, recentTrainingAdherenceFor, weightChartModel,
   weightKgFromMetric, smartPortionAdviceForMeal, baseDietRecipeFor, smartLoadSuggestion,
+  closestProgramDate, resolveGymDay, skipPlanDay, skipPlanMove, reopenPlanDay, reopenPlanMove,
+  moveStatusForExercise, withAutomaticDayCompletion, isPlanDayComplete,
 };
 
 export default function Home() {
@@ -5938,7 +5996,6 @@ export default function Home() {
   useEffect(() => {
     // Changing the browsed workout day should close detail UI from the previous day so the user
     // never edits the wrong set by accident.
-    setGymExerciseIndex(0);
     setDetailExerciseId(null);
     setSkipRequest(null);
   }, [selectedDate]);
@@ -6254,8 +6311,7 @@ export default function Home() {
   // are prepared here first.
   const selectedDay =
     planDays.find((day) => day.iso === selectedDate) ?? planDays[0];
-  const gymDay =
-    planDays.find((day) => day.iso === currentProgramDate) ?? selectedDay;
+  const gymDay = resolveGymDay(planDays, currentProgramDate);
   const selectedDietDay =
     planDays.find((day) => day.iso === selectedDietDate) ?? gymDay;
   const selectedLog = normalizeDayLog(store.days[selectedDay.iso]);
@@ -6309,6 +6365,7 @@ export default function Home() {
   const selectedExercises = scheduledExercisesForDay(selectedCoachDay, selectedLog);
   const gymExercises = scheduledExercisesForDay(gymCoachDay, gymLog);
   const selectedDayStatus = dayStatusForDay(selectedCoachDay, selectedLog);
+  const gymDayStatus = dayStatusForDay(gymCoachDay, gymLog);
   const selectedDayComplete = selectedDayStatus === "complete";
   const selectedDayStatusText = dayStatusLabel(selectedDayStatus);
   const selectedCompletionButtonLabel =
@@ -6473,7 +6530,7 @@ export default function Home() {
     // harder to corrupt because fixing a log automatically fixes the dashboard.
     const skippedDates = new Set(
       planDays
-        .filter((day) => dayStatusForDay(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])) === "finished-with-skips")
+        .filter((day) => ["finished-with-skips", "skipped"].includes(dayStatusForDay(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso]))))
         .map((day) => day.iso),
     );
     const completedDates = new Set(
@@ -6806,16 +6863,13 @@ export default function Home() {
       if (field === "done" && typeof value === "boolean") nextRow.done = value;
       if (field === "effort") nextRow.effort = isEffortFeedback(value) ? value : undefined;
       rows[setIndex] = nextRow;
-      const nextSkips = { ...log.skips };
-      if (
+      const resumesMove = (
         (field === "done" && value === true) ||
         ((field === "weight" || field === "reps") && typeof value === "string" && value.trim())
-      ) {
-        delete nextSkips[originalExerciseId];
-      }
+      );
+      const resumedLog = resumesMove ? reopenPlanMove(planDay, log, originalExerciseId) : log;
       const nextLog = {
-        ...log,
-        skips: nextSkips,
+        ...resumedLog,
         exercises: {
           ...log.exercises,
           [exerciseId]: rows,
@@ -6853,18 +6907,14 @@ export default function Home() {
     // replacement means the user is attempting the training slot again.
     updateDay(planDay.iso, (log) => {
       const nextSwaps = { ...(log.swaps ?? {}) };
-      const nextSkips = { ...log.skips };
       if (nextExerciseId === originalExerciseId) {
         delete nextSwaps[originalExerciseId];
       } else {
         nextSwaps[originalExerciseId] = nextExerciseId;
       }
-      delete nextSkips[originalExerciseId];
-
       const nextLog = {
-        ...log,
+        ...reopenPlanMove(planDay, log, originalExerciseId),
         swaps: nextSwaps,
-        skips: nextSkips,
       };
 
       return withAutomaticDayCompletion(planDay, nextLog);
@@ -6884,53 +6934,18 @@ export default function Home() {
     originalExerciseId: string,
     reason: SkipReason,
   ) => {
-    // Skipping is tracked separately from completion. The day can become "Finished with skips",
-    // which is more honest than pretending missed work was completed.
-    updateDay(planDay.iso, (log) => {
-      const originalExercise = exerciseMap[originalExerciseId];
-      const activeExercise = originalExercise ? activeExerciseFor(originalExercise, log) : null;
-      const activeExerciseId = activeExercise?.id ?? originalExerciseId;
-      const existingRows = log.exercises[activeExerciseId];
-      const nextExercises = existingRows
-        ? {
-            ...log.exercises,
-            [activeExerciseId]: existingRows.map((row) => ({
-              ...row,
-              done: false,
-            })),
-          }
-        : log.exercises;
-
-      const nextLog = {
-        ...log,
-        completed: false,
-        exercises: nextExercises,
-        skips: {
-          ...log.skips,
-          [originalExerciseId]: reason,
-        },
-      };
-
-      return withAutomaticDayCompletion(planDay, nextLog);
-    });
+    updateDay(planDay.iso, (log) => skipPlanMove(planDay, log, originalExerciseId, reason));
   };
 
   const reopenSkippedExerciseForDay = (planDay: PlanDay, originalExerciseId: string) => {
-    updateDay(planDay.iso, (log) => {
-      const nextSkips = { ...log.skips };
-      delete nextSkips[originalExerciseId];
-
-      return withAutomaticDayCompletion(planDay, {
-        ...log,
-        completed: false,
-        skips: nextSkips,
-      });
-    });
+    updateDay(planDay.iso, (log) => withAutomaticDayCompletion(
+      planDay, reopenPlanMove(planDay, log, originalExerciseId),
+    ));
   };
 
   const requestSkipReason = (
     planDay: PlanDay,
-    originalExerciseId: string,
+    originalExerciseId: string | null,
     source: SkipRequest["source"],
   ) => {
     setSkipRequest({ date: planDay.iso, originalExerciseId, source });
@@ -6940,7 +6955,17 @@ export default function Home() {
     if (!skipRequest) return;
     const planDay = planDays.find((day) => day.iso === skipRequest.date);
     if (!planDay) return;
-    skipExerciseForDay(coachedPlanDayFor(planDay), skipRequest.originalExerciseId, reason);
+    // The dialog captures its date when opened. Browsing or midnight must never
+    // redirect this write into another day's log.
+    if (skipRequest.originalExerciseId === null) {
+      updateDay(planDay.iso, (log) => skipPlanDay(coachedPlanDayFor(planDay), log, reason));
+      if (planDay.iso === gymDay.iso) {
+        setRestTimer(null);
+        setGymStartedAt(null);
+      }
+    } else {
+      skipExerciseForDay(coachedPlanDayFor(planDay), skipRequest.originalExerciseId, reason);
+    }
     setSkipRequest(null);
   };
 
@@ -6958,12 +6983,8 @@ export default function Home() {
       const originalExercise = scheduledExercisesForDay(planDay, log).find(
         (item) => item.id === exerciseId || activeExerciseFor(item, log).id === exerciseId,
       );
-      const nextSkips = { ...log.skips };
-      delete nextSkips[originalExercise?.id ?? exerciseId];
-
       const nextLog = {
-        ...log,
-        skips: nextSkips,
+        ...reopenPlanMove(planDay, log, originalExercise?.id ?? exerciseId),
         exercises: {
           ...log.exercises,
           [exerciseId]: rows,
@@ -6982,6 +7003,7 @@ export default function Home() {
     updateDay(selectedDay.iso, (log) => {
       const nextLog = {
         ...log,
+        daySkipReason: undefined,
         tasks: {
           ...log.tasks,
           [taskId]: !log.tasks[taskId],
@@ -7158,7 +7180,7 @@ export default function Home() {
       const rows = ensureSetRows(dayLog.exercises[activeExercise.id], setCount);
       const doneCount = completedRows(rows);
       const isComplete = rows.length > 0 && doneCount >= rows.length;
-      const skipReason = dayLog.skips[originalExercise.id] ?? null;
+      const skipReason = skipReasonForExercise(dayLog, originalExercise.id);
       const isSkipped = Boolean(skipReason && !isComplete);
       const status: MoveStatus = isComplete ? "done" : isSkipped ? "skipped" : "pending";
       const suggestion = smartLoadSuggestion(planDays, store, planDay, activeExercise, exerciseIndex);
@@ -7199,6 +7221,11 @@ export default function Home() {
   const workoutMoveRows = buildWorkoutMoveRows(selectedCoachDay, selectedLog, selectedExercises);
   const gymMoveRows = buildWorkoutMoveRows(gymCoachDay, gymLog, gymExercises);
   const gymCompletionSignature = gymMoveRows.map((move) => move.status).join("");
+  const gymSessionResolved = Boolean(gymLog.daySkipReason) || (gymMoveRows.length
+    ? gymMoveRows.every((move) => move.isComplete || move.isSkipped)
+    : gymDayStatus === "complete");
+  const gymCompletedMoves = gymMoveRows.filter((move) => move.isComplete).length;
+  const gymSkippedMoves = gymMoveRows.filter((move) => move.isSkipped).length;
   const completedMoveCount = workoutMoveRows.filter((move) => move.isComplete).length;
   const skippedMoveCount = workoutMoveRows.filter((move) => move.isSkipped).length;
   const moveCompletionPercent = workoutMoveRows.length
@@ -7211,9 +7238,7 @@ export default function Home() {
     ? Math.round((completedTaskCount / selectedDay.session.tasks.length) * 100)
     : 0;
   const nextOpenMove =
-    workoutMoveRows.find((move) => !move.isComplete && !move.isSkipped) ??
-    workoutMoveRows[0] ??
-    null;
+    workoutMoveRows.find((move) => !move.isComplete && !move.isSkipped) ?? null;
   const currentGymMove = gymMoveRows[gymExerciseIndex] ?? null;
   const currentGymExercise = currentGymMove?.activeExercise ?? null;
   const currentGymOriginalExercise = currentGymMove?.originalExercise ?? null;
@@ -7264,7 +7289,7 @@ export default function Home() {
   const skipRequestDay = skipRequest
     ? planDays.find((day) => day.iso === skipRequest.date) ?? null
     : null;
-  const skipRequestOriginalExercise = skipRequest
+  const skipRequestOriginalExercise = skipRequest?.originalExerciseId
     ? exerciseMap[skipRequest.originalExerciseId] ?? null
     : null;
   const skipRequestLog = skipRequestDay ? normalizeDayLog(store.days[skipRequestDay.iso]) : null;
@@ -7367,7 +7392,7 @@ export default function Home() {
     // Gym Mode always uses actual today, even if the user has browsed a different date in Today.
     if (section === "gym") {
       const nextProgramDate = closestProgramDate();
-      const nextGymDay = planDays.find((day) => day.iso === nextProgramDate) ?? gymDay;
+      const nextGymDay = resolveGymDay(planDays, nextProgramDate);
       const nextGymCoachDay = withTrainingWeek(
         nextGymDay,
         earnedTrainingWeekForDay(planDays, store, nextGymDay),
@@ -7377,6 +7402,7 @@ export default function Home() {
       const nextGymRows = buildWorkoutMoveRows(nextGymCoachDay, nextGymLog, nextGymExercises);
 
       setCurrentProgramDate(nextProgramDate);
+      setSelectedDate(nextProgramDate);
       setGymExerciseIndex(firstUnfinishedMoveIndex(nextGymRows));
       setGymStartedAt((startedAt) => startedAt ?? Date.now());
     }
@@ -8227,7 +8253,7 @@ export default function Home() {
 
         <div className="header-status-grid" aria-label="Current status">
           <div className="header-status-card">
-            <span>Today</span>
+            <span>{headerDay.iso === currentProgramDate ? "Today" : "Selected day"}</span>
             <strong>{headerDay.session.title}</strong>
             <small>
               {formatDate(headerDay.iso)} · Week {headerDay.week} · Day {headerDay.index + 1}
@@ -8291,15 +8317,11 @@ export default function Home() {
             <button
               key={day.iso}
               className={`week-day-card ${day.iso === selectedDay.iso ? "active" : ""} ${
-                isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])) ? "complete" : ""
-              } ${
-                dayStatusForDay(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])) === "finished-with-skips"
-                  ? "finished-with-skips"
-                  : ""
+                dayStatusForDay(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso]))
               } ${day.session.type}`}
               onClick={() => setSelectedDate(day.iso)}
               type="button"
-              aria-label={`${formatDate(day.iso)} ${day.session.title}`}
+              aria-label={`${formatDate(day.iso)} ${day.session.title}, ${dayStatusLabel(dayStatusForDay(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])))}`}
             >
               <span>{day.dayName.slice(0, 3)}</span>
               <strong>{day.session.code}</strong>
@@ -8374,15 +8396,11 @@ export default function Home() {
             <button
               key={day.iso}
               className={`today-day-button ${day.iso === selectedDay.iso ? "active" : ""} ${
-                isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])) ? "complete" : ""
-              } ${
-                dayStatusForDay(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])) === "finished-with-skips"
-                  ? "finished-with-skips"
-                  : ""
+                dayStatusForDay(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso]))
               } ${day.session.type}`}
               onClick={() => setSelectedDate(day.iso)}
               type="button"
-              aria-label={`${formatDate(day.iso)} ${day.session.title}`}
+              aria-label={`${formatDate(day.iso)} ${day.session.title}, ${dayStatusLabel(dayStatusForDay(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])))}`}
             >
               <span>{day.dayName.slice(0, 3)}</span>
               <strong>{day.session.code}</strong>
@@ -8393,8 +8411,42 @@ export default function Home() {
       </section>
 
       <section className="gym-mode-shell" aria-label="Gym mode">
-        {currentGymMove && currentGymExercise && currentGymRows ? (
-          <article className={`gym-card ${currentGymExercise.family} ${currentGymMove.isSkipped ? "skipped" : ""}`}>
+        <div className="gym-day-context">
+          <div>
+            <p className="eyebrow">Gym Mode · Today</p>
+            <h2>{formatDate(gymDay.iso)}</h2>
+            <p>{gymDay.session.title}</p>
+          </div>
+          {!gymSessionResolved && gymDayStatus !== "complete" && (
+            <button className="day-skip-button" type="button"
+              aria-label={`Skip today's workout, ${formatDate(gymDay.iso)}`}
+              onClick={() => requestSkipReason(gymCoachDay, null, "gym")}>
+              <Icon name="x" size={18} /> Skip Today
+            </button>
+          )}
+        </div>
+        {gymSessionResolved ? (
+          <section className="empty-gym-card gym-session-summary" aria-live="polite">
+            <span className={`day-status-chip ${gymDayStatus}`}>{dayStatusLabel(gymDayStatus)}</span>
+            <h2>{gymLog.daySkipReason ? "Day skipped" : gymDayStatus === "complete" ? "Workout complete" : "Finished with skips"}</h2>
+            {gymLog.daySkipReason && <p>Reason: {skipReasonLabel(gymLog.daySkipReason)}. Your logged sets and weights are saved.</p>}
+            {gymMoveRows.length > 0 && <p>{gymCompletedMoves} moves completed · {gymSkippedMoves} skipped</p>}
+            <div className="day-summary-actions">
+              {gymLog.daySkipReason && (
+                <button type="button" onClick={() => {
+                  updateDay(gymDay.iso, (log) => reopenPlanDay(gymCoachDay, log));
+                  setGymStartedAt(Date.now());
+                }}>
+                  Resume Day
+                </button>
+              )}
+              <button type="button" onClick={() => { goToCurrentProgramDay(); setActiveSection("today"); }}>
+                Review Today
+              </button>
+            </div>
+          </section>
+        ) : currentGymMove && currentGymExercise && currentGymRows ? (
+          <article key={`${gymDay.iso}:${currentGymExercise.id}`} className={`gym-card ${currentGymExercise.family} ${currentGymMove.isSkipped ? "skipped" : ""}`}>
             <div className="gym-topbar">
               <button
                 type="button"
@@ -8776,7 +8828,7 @@ export default function Home() {
             <p className="eyebrow">{gymDay.session.title}</p>
             <h2>No gym moves today</h2>
             <p>{gymSessionSummary}</p>
-            <button type="button" onClick={() => setActiveSection("today")}>
+            <button type="button" onClick={() => { goToCurrentProgramDay(); setActiveSection("today"); }}>
               Back to Today
             </button>
           </section>
@@ -8798,13 +8850,22 @@ export default function Home() {
             </div>
             <div className="today-actions">
               {selectedExercises.length > 0 && (
-                <button className="gym-launch-button" type="button" onClick={() => switchSection("gym")}>
-                  <Icon name="play" size={18} /> Gym Mode
+                <button className="gym-launch-button" type="button" onClick={() => switchSection("gym")}
+                  aria-label={`Open Gym Mode for today, ${formatDate(gymDay.iso)}`}>
+                  <Icon name="play" size={18} /> {selectedDay.iso === currentProgramDate ? "Gym Mode" : "Gym Mode · Today"}
                 </button>
               )}
+              <button className="day-skip-button" type="button" disabled={selectedDayComplete}
+                aria-label={`${selectedLog.daySkipReason ? "Resume" : "Skip"} workout for ${formatDate(selectedDay.iso)}`}
+                onClick={() => selectedLog.daySkipReason
+                  ? updateDay(selectedDay.iso, (log) => reopenPlanDay(selectedCoachDay, log))
+                  : requestSkipReason(selectedCoachDay, null, "today")}>
+                <Icon name={selectedLog.daySkipReason ? "play" : "x"} size={18} />
+                {selectedLog.daySkipReason ? "Resume Day" : selectedDay.iso === currentProgramDate ? "Skip Today" : "Skip Day"}
+              </button>
               <button
                 className={`complete-button ${selectedDayComplete ? "is-complete" : ""} ${
-                  selectedDayStatus === "finished-with-skips" ? "is-skipped" : ""
+                  selectedDayStatus === "finished-with-skips" || selectedDayStatus === "skipped" ? "is-skipped" : ""
                 }`}
                 type="button"
                 disabled={selectedDayComplete}
@@ -8817,6 +8878,12 @@ export default function Home() {
             </div>
           </div>
 
+          {selectedLog.daySkipReason && (
+            <p className="day-skipped-notice" role="status">
+              <strong>{formatDate(selectedDay.iso, "short")} skipped:</strong> {skipReasonLabel(selectedLog.daySkipReason)}.
+              {" "}Logged sets and weights are saved. Resume Day reopens the remaining work.
+            </p>
+          )}
           <div className="command-progress-grid">
             <div className="command-progress-card primary">
               <span>Move progress</span>
@@ -8829,8 +8896,8 @@ export default function Home() {
             </div>
             <div className="command-progress-card">
               <span>Next</span>
-              <strong>{nextOpenMove?.activeExercise.shortName ?? "Recovery"}</strong>
-              <small>{nextOpenMove?.target ?? selectedSessionSummary}</small>
+              <strong>{nextOpenMove?.activeExercise.shortName ?? (selectedLog.daySkipReason ? "Day skipped" : selectedDayStatus !== "incomplete" ? "Nothing remaining" : "Recovery")}</strong>
+              <small>{nextOpenMove?.target ?? (selectedDayStatus !== "incomplete" ? selectedDayStatusText : selectedSessionSummary)}</small>
             </div>
             <div className="command-progress-card">
               <span>Session</span>
@@ -9680,7 +9747,7 @@ export default function Home() {
         </div>
       )}
 
-      {skipRequest && skipRequestDay && skipRequestExercise && (
+      {skipRequest && skipRequestDay && (skipRequest.originalExerciseId === null || skipRequestExercise) && (
         <div
           className="detail-sheet-backdrop skip-sheet-backdrop"
           role="presentation"
@@ -9697,8 +9764,9 @@ export default function Home() {
             <div className="skip-sheet-header">
               <div>
                 <p className="eyebrow">Skip from {skipRequestContext}</p>
-                <h2 id="skip-heading">Why skip {skipRequestExercise.shortName}?</h2>
-                {skipRequestOriginalExercise &&
+                <h2 id="skip-heading">{skipRequest.originalExerciseId === null ? "Skip this day?" : `Why skip ${skipRequestExercise?.shortName}?`}</h2>
+                <p>{formatDate(skipRequestDay.iso)} · {skipRequestDay.session.title}</p>
+                {skipRequestOriginalExercise && skipRequestExercise &&
                   skipRequestExercise.id !== skipRequestOriginalExercise.id && (
                     <p>Current swap for {skipRequestOriginalExercise.shortName}</p>
                   )}
@@ -9713,8 +9781,9 @@ export default function Home() {
               </button>
             </div>
             <p className="skip-sheet-copy">
-              Choose the reason so your progress shows the truth: finished with skips is different
-              from a fully completed day.
+              {skipRequest.originalExerciseId === null
+                ? "Choose a reason to skip the remaining workout for this date. Logged sets, weights, and notes stay saved. Diet and other dates are unchanged."
+                : "Choose the reason so your progress shows the truth: finished with skips is different from a fully completed day."}
             </p>
             <div className="skip-reason-grid">
               {skipReasonOptions.map((reason) => (
@@ -9724,7 +9793,7 @@ export default function Home() {
               ))}
             </div>
             <button className="skip-cancel-button" type="button" onClick={() => setSkipRequest(null)}>
-              Keep Move Open
+              {skipRequest.originalExerciseId === null ? "Keep Day Open" : "Keep Move Open"}
             </button>
           </section>
         </div>

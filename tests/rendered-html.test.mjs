@@ -578,7 +578,7 @@ test("starts Aug 31 on the PDF Monday workout slot and ignores scratch folders",
   assert.match(page, /const scheduleOrder = \[/);
   assert.match(page, /planDayName: planName/);
   assert.match(page, /const \[selectedDate, setSelectedDate\] = useState\(\(\) => closestProgramDate\(\)\)/);
-  assert.match(page, /function closestProgramDate\(\)/);
+  assert.match(page, /function closestProgramDate\(now = new Date\(\)\)/);
   assert.match(page, /date\.getFullYear\(\)/);
   assert.match(page, /date\.getMonth\(\) \+ 1/);
   assert.match(page, /date\.getDate\(\)/);
@@ -649,11 +649,28 @@ test("includes installable app assets", async () => {
   assert.match(app, /aria-label=\{gymPrimaryFullLabel\}/);
 });
 
+test("day skip controls share date-scoped handlers and Gym shows a terminal summary", async () => {
+  const app = await text("src/App.tsx");
+  const styles = await text("src/styles.css");
+  assert.match(app, /requestSkipReason\(gymCoachDay, null, "gym"\)/);
+  assert.match(app, /requestSkipReason\(selectedCoachDay, null, "today"\)/);
+  assert.match(app, /setSkipRequest\(\{ date: planDay\.iso, originalExerciseId, source \}\)/);
+  assert.match(app, /day\.iso === skipRequest\.date/);
+  assert.match(app, /formatDate\(skipRequestDay\.iso\)/);
+  assert.match(app, /gymSessionResolved \? \(/);
+  assert.match(app, /gymMoveRows\.every\(\(move\) => move\.isComplete \|\| move\.isSkipped\)/);
+  assert.match(app, /Gym Mode · Today/);
+  assert.match(app, /Resume Day/);
+  assert.match(app, /Skip Today/);
+  assert.match(styles, /day-status-chip\.skipped/);
+  assert.match(styles, /content: "Skipped"/);
+});
+
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v30/);
-  assert.match(serviceWorker, /reliable-coach-v30/);
+  assert.match(serviceWorker, /recomp-gym-console-v31/);
+  assert.match(serviceWorker, /day-skips-v31/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
