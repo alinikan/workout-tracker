@@ -9239,9 +9239,14 @@ export default function Home() {
                       onClick={() =>
                         toggleExerciseDone(move.activeExercise.id, move.setCount, move.isComplete)
                       }
-                      aria-label={`${move.isComplete ? "Reopen" : "Complete"} ${move.activeExercise.name}`}
+                      aria-label={`${move.isComplete ? "Reopen" : "Complete"} movement ${
+                        move.exerciseIndex + 1
+                      }: ${move.activeExercise.name}`}
+                      title={move.isComplete ? "Mark movement incomplete" : "Mark movement complete"}
                     >
-                      {move.isComplete ? <Icon name="check" size={18} /> : move.exerciseIndex + 1}
+                      <span className="move-check-indicator" aria-hidden="true">
+                        {move.isComplete && <Icon name="check" size={16} />}
+                      </span>
                     </button>
                     <button
                       className="move-main-button"
