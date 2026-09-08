@@ -78,6 +78,130 @@ test("missing effort feedback is not evidence to increase load", () => {
   assert.notEqual(advice.tone, "build");
 });
 
+function loadFixture() {
+  const store = model.emptyStore();
+  const exercise = model.scheduledExercisesForDay(days[0]).find((move) => move.id === "lat-pulldown");
+  for (const index of [0, 4]) {
+    store.days[days[index].iso] = model.normalizeDayLog(undefined);
+    store.days[days[index].iso].exercises[exercise.id] = Array.from({ length: 2 }, () => ({ weight: "40", reps: "12", effort: "about-right", done: true }));
+  }
+  return { store, exercise, advise: (day = days[7]) => model.smartLoadSuggestion(days, store, day, exercise, 0) };
+}
+
+test("heavier-load advice needs two recent completed same-load top-rep sessions with effort", () => {
+  const { store, exercise, advise } = loadFixture();
+  assert.equal(advise().tone, "build");
+  assert.match(advise().detail, /2\/2 qualifying sessions at 40 lb/);
+  assert.match(advise().detail, /41-42 lb/);
+  delete store.days[days[0].iso];
+  assert.equal(advise().label, "One more confirming session");
+  store.days[days[4].iso].exercises[exercise.id][0].effort = undefined;
+  assert.notEqual(advise().tone, "build");
+});
+
+test("draft, incomplete, mixed-load, malformed and missing-rep sets never earn a load jump", () => {
+  for (const patch of [
+    { done: false }, { reps: "" }, { reps: "7" }, { reps: "12.5" },
+    { reps: "12 reps?" }, { weight: "45" }, { weight: "-40" }, { weight: "20 + 20" },
+    { weight: "0" }, { effort: "very-hard" }, { effort: undefined },
+  ]) {
+    const { store, exercise, advise } = loadFixture();
+    Object.assign(store.days[days[4].iso].exercises[exercise.id][0], patch);
+    assert.notEqual(advise().tone, "build", JSON.stringify(patch));
+  }
+});
+
+test("readiness, skipped attempts, stale history, added sets and consolidation block increases", () => {
+  for (const scenario of ["today-yellow", "today-red", "prior-red", "move-skip", "day-skip", "stale", "new-set", "consolidation"]) {
+    const { store, exercise, advise } = loadFixture();
+    let day = days[7];
+    if (scenario.startsWith("today")) store.days[day.iso] = { ...model.normalizeDayLog(undefined), readiness: { jointPain: scenario === "today-red" ? "concerning" : "mild" } };
+    if (scenario === "prior-red") store.days[days[4].iso].readiness = { jointPain: "concerning" };
+    if (scenario === "move-skip") store.days[days[4].iso].skips[exercise.id] = "time";
+    if (scenario === "day-skip") store.days[days[4].iso].daySkipReason = "fatigue";
+    if (scenario === "stale") day = days[35];
+    if (scenario === "new-set") day = model.withTrainingWeek(day, 5);
+    if (scenario === "consolidation") day = model.withTrainingWeek(day, 8);
+    assert.notEqual(advise(day).tone, "build", scenario);
+  }
+});
+
+test("a newer skipped attempt blocks older qualifying wins and new swaps do not copy loads", () => {
+  const { store, exercise } = loadFixture();
+  store.days[days[7].iso] = model.skipPlanDay(days[7], model.normalizeDayLog(undefined), "time");
+  assert.notEqual(model.smartLoadSuggestion(days, store, days[11], exercise, 0).tone, "build");
+  const row = model.scheduledExercisesForDay(days[2]).find((move) => move.id === "single-arm-row");
+  const swap = model.swapOptionsFor(row).find((move) => move.id === "mi6-seated-row");
+  store.days[days[2].iso] = model.normalizeDayLog(undefined);
+  store.days[days[2].iso].exercises[row.id] = [{ weight: "80", reps: "12", done: true, effort: "too-easy" }];
+  assert.equal(model.smartLoadSuggestion(days, store, days[9], swap, 0).tone, "start");
+});
+
+test("all training blocks group upstairs prep first and floor core last without removing moves", () => {
+  for (const day of days.filter((item) => item.session.type === "strength")) {
+    const coached = model.withTrainingWeek(day, day.week);
+    const list = model.scheduledExercisesForDay(coached);
+    assert.deepEqual(list.slice(0, 3).map((move) => move.id), ["seated-knee-extension-warmup", "standing-supported-hip-abduction", "warmup-treadmill-walk"]);
+    let floorStarted = false;
+    for (const move of list) {
+      const location = model.locationGuideForExercise(move).type;
+      if (location === "either") floorStarted = true;
+      if (floorStarted) assert.equal(location, "either", `${day.iso}: no return downstairs after ${move.id}`);
+    }
+    const cable = list.findIndex((move) => move.id === "cable-crunch");
+    const finisher = list.findIndex((move) => move.id === "treadmill-finisher");
+    if (cable >= 0 && finisher >= 0) assert.ok(cable < finisher);
+    assert.equal(new Set(list.map((move) => move.id)).size, list.length);
+  }
+});
+
+test("requested video IDs and seated pulldown GIF reach the shared exercise model", () => {
+  const expected = { "seated-knee-extension-warmup": "8ORm_-xfJV4", "standing-supported-hip-abduction": "qBqKuEQl9sI", "lat-pulldown": "AkjdxVHfe6o", "db-rdl": "5WxMW-Fu5KU" };
+  const exercises = model.scheduledExercisesForDay(days[0]);
+  for (const [id, video] of Object.entries(expected)) assert.equal(exercises.find((move) => move.id === id).youtubeId, video);
+  assert.equal(exercises.find((move) => move.id === "lat-pulldown").motionDemo.workoutXId, "0198");
+});
+
+test("Mi6 swaps have media, setup notes and ramp teaching while originals remain reversible", () => {
+  const day = model.withTrainingWeek(days[2], 9);
+  const log = model.normalizeDayLog(undefined);
+  const exercises = model.scheduledExercisesForDay(day);
+  for (const [originalId, swapId] of [["single-arm-row", "mi6-seated-row"], ["dumbbell-biceps-curl", "mi6-cable-curl"], ["rope-triceps-pressdown", "mi6-bar-pressdown"]]) {
+    const original = exercises.find((move) => move.id === originalId);
+    log.swaps[originalId] = swapId;
+    const swap = model.activeExerciseFor(original, log);
+    assert.equal(swap.id, swapId);
+    assert.ok(swap.youtubeId && swap.motionDemo.workoutXId && swap.cues.length >= 4 && swap.loadNote);
+    delete log.swaps[originalId];
+    assert.equal(model.activeExerciseFor(original, log).id, originalId);
+  }
+  log.swaps["single-arm-row"] = "mi6-seated-row";
+  const ramp = exercises.find((move) => move.id === "warmup-ramp-single-arm-row");
+  const activeRamp = model.activeExerciseFor(ramp, log);
+  assert.equal(activeRamp.id, ramp.id, "stable saved warm-up slot");
+  assert.match(activeRamp.name, /HOIST Mi6/);
+  assert.match(activeRamp.cues[0], /lighter/);
+  assert.notEqual(model.smartLoadSuggestion(days, model.emptyStore(), day, activeRamp, 0).tone, "build");
+});
+
+test("equivalent swaps preserve the original program slot's priority and late-phase volume", () => {
+  for (const trainingWeek of [5, 13, 17, 21, 26]) {
+    for (const sourceDay of [days[0], days[2], days[4]]) {
+      const day = model.withTrainingWeek(sourceDay, trainingWeek);
+      const exercises = model.scheduledExercisesForDay(day);
+      exercises.forEach((original, index) => {
+        for (const swap of model.swapOptionsFor(original)) {
+          assert.equal(
+            model.recommendedSets(day, swap, index, "green", original),
+            model.recommendedSets(day, original, index, "green", original),
+            `week ${trainingWeek}: ${original.id} -> ${swap.id}`,
+          );
+        }
+      });
+    }
+  }
+});
+
 test("Gym uses the device date across midnight, independently of the browsed workout", () => {
   const friday = model.closestProgramDate(new Date(2026, 8, 4, 23, 59));
   const saturday = model.closestProgramDate(new Date(2026, 8, 5, 0, 1));

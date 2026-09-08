@@ -103,6 +103,7 @@ That means the interface favors:
 | Smart Today behavior | Workout and Diet open to the current program week and day. |
 | Gym Mode | Always shows the actual current day and starts on the first unfinished movement. |
 | Ordered move list | Warm-ups, ramp sets, lifting, accessories, cardio, and core are shown in the correct order. |
+| One-trip home-gym flow | Gentle Upstairs OK prep comes first, downstairs lifting/cables stay together, the treadmill finisher happens before optional floor work, and Either movements finish the session. |
 | Set logging | Strength sets track weight in pounds/lbs and completion. |
 | Done-only moves | Warm-ups, cardio, and bodyweight targets do not show fake weight inputs. |
 | Exercise detail sheet | Includes cues, mistakes, progression notes, resources, inline YouTube, GIF option, swaps, and set log. |
@@ -116,6 +117,8 @@ That means the interface favors:
 | Skip tracking | Skip a move or the remaining day with a Time, Pain, Equipment, Fatigue, or Other reason. Resume without losing logged sets. |
 | Day status | Separates Complete, Finished with skips, Day skipped, and Incomplete days. |
 | Home/gym labels | Marks exercises as Upstairs OK, Downstairs, Downstairs/outside, or Either. |
+| Home-equipment swaps | Includes carefully scoped options for selectorized press/leg stations and the HOIST Mi6 without silently adding extra sets. |
+| Smart Load | Suggests a small increase only after two recent, comparable top-rep sessions; incomplete, skipped, hard, stale, recovery, and changed-volume attempts block the increase. |
 | Exercise library | Searchable movement library with demos and coaching notes. |
 
 ### Diet Features
@@ -255,7 +258,9 @@ The app uses **RIR**, or Reps In Reserve, to explain how hard each set should fe
 | 1 RIR | Maybe 1 clean rep left. |
 | 0 RIR | No more reps possible. This plan does not require failure. |
 
-Gym Mode asks how each set felt: **Too easy**, **About right**, or **Very hard**. The app uses that with double progression. For an 8-12 rep target, the user keeps the same pounds until all sets reach the top of the range with clean form, then the app suggests the smallest available weight increase.
+Gym Mode asks how each set felt: **Too easy**, **About right**, or **Very hard**. Smart Load combines that feedback with a conservative double-progression rule. For an 8-12 rep target, keep the same pounds until every planned set reaches 12 clean reps with reserve in **two comparable sessions in a row**. Only then does the app suggest the smallest available increase around 2.5-5%. It never changes the saved weight automatically.
+
+An increase is withheld when the latest comparable attempt was incomplete or skipped, any set was marked Very hard, weight/reps/effort are missing, loads differ within the attempt, readiness was reduced, a new set was just added, the week is a consolidation week, or the last attempt is more than 21 days old. New swaps create their own load history, because pounds from dumbbells, a commercial stack, and a cable machine are not interchangeable.
 
 Rest timers start automatically when a set is completed:
 
@@ -268,6 +273,22 @@ Rest timers start automatically when a set is completed:
 | Ramp warm-ups | 45-60 seconds |
 
 The goal is not to shorten useful rest. If workouts become too long, the app trims optional work instead of rushing important sets.
+
+### Home Gym Equipment
+
+The base program remains recognizable on purpose. Repeating the same main movement slots lets the user improve technique and compare real performance; novelty by itself is not progression. Later blocks already change set counts, rep targets, cardio duration, effort targets, core work, and accessories. The home equipment is offered as a **swap for an existing slot**, not extra volume piled onto the day.
+
+| Equipment | Supported use in the app | Important rule |
+| --- | --- | --- |
+| Selectorized multi-gym press arms | Machine Chest Press swap. | Use only the manufacturer's chest-press position. Extra grip choices do not turn fixed press arms into an overhead press. |
+| Multi-gym leg attachment | Seated Leg Extension when the documented setup aligns the knee pivot and ankle pad. Seated Leg Curl only when the manual provides the correct curl setup and thigh restraint. | An attachment that can extend the knee is not automatically safe or mechanically correct for a seated curl. |
+| HOIST Mi6 dual cable | Seated row, short-bar biceps curl, and short-bar triceps pressdown swaps; the existing standing cable fly also works with its two handles. | Set both columns symmetrically when the move uses both stacks, lock every adjustment, and use a stable bench. |
+| HOIST Mi6 pull-up bar | Assisted pull-up only with the manufacturer-documented assistance setup and compatible strap. | Never improvise a loose foot/knee connection. Assistance is inverse: more assistance means an easier rep. |
+
+The Mi6 manual specifies a **2:1 pulley ratio**, or about half of the selected stack weight at each handle before cable and attachment effects. The tracker deliberately asks for the visible pin pounds **per stack** because that is easy to reproduce. Do not add the two stack numbers together, and do not compare Mi6 pin pounds with a different cable machine. Keep the same attachment, pulley height, bench position, stance, and grip when evaluating Smart Load.
+
+> [!TIP]
+> Use the exercise's Swap button to choose a home-machine version. It remains clearly marked as a swap and can be reverted. Its video, GIF/reference demo, setup instructions, and weight history stay attached to that specific version.
 
 ### Monthly Check-Ins
 
@@ -862,6 +883,9 @@ The behavioral tests execute the actual app functions and a server-rendered Coac
 - Training progression based on real lifting completion, excluding recovery replacements.
 - Completing a day fills its sets; Gym navigation follows unfinished moves in order.
 - Missing effort feedback does not recommend a load increase.
+- Two qualifying same-load sessions are required before Smart Load suggests roughly 2.5-5% more; skips, partial rows, stale history, reduced readiness, new set counts, and consolidation weeks block it.
+- Home-gym swaps keep their own logs, include setup/media guidance, and preserve the original movement for one-tap reversion.
+- Strength-day travel order keeps upstairs prep first and floor work last without dropping or duplicating movements.
 - Invalid weights, older readings, incomplete weeks, and missing mornings do not create misleading diet changes.
 - Poor readiness protects fuel even while the coach is still learning.
 - Independent device edits, unchecks, cleared weights, and swap reversions survive merges.
@@ -876,6 +900,7 @@ The existing source smoke tests additionally verify:
 - GIF support is wired through the API route.
 - PWA assets and service worker behavior are present.
 - Known mobile layout regressions are guarded.
+- Weighted set rows collapse into labeled phone-width fields so Gym Mode cannot widen the iPhone PWA viewport.
 - The code walkthrough and tutorial comments remain present.
 
 `npm run build` now fails on TypeScript errors, including in Vercel. GitHub's **Quality checks** workflow runs the suite and dependency audit on main/pull requests. This does not replace checking sign-in on a real device: automated tests do not use a live Supabase account, real iOS Safari, or assert pixel-perfect browser layout.

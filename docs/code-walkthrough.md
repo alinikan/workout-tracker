@@ -158,6 +158,13 @@ The plan gets harder through helper functions instead of repeated text:
 - `rangedTarget()` tightens or advances rep ranges.
 - `cardioTarget()` increases walking duration and reduces it on deload weeks.
 - `progressionForExercise()` adjusts coaching language for deloads and later blocks.
+- `smartLoadSuggestion()` reads the actual active exercise's recent logs. It requires two recent,
+  same-load, fully completed top-rep sessions with acceptable effort before suggesting a 2.5-5%
+  increase. Skips, missing fields, reduced readiness, a new set count, consolidation weeks, and
+  stale history all block the suggestion. It advises only; it never edits a saved weight.
+- `workoutLocationOrder()` groups Upstairs OK preparation first, keeps downstairs work together,
+  places the treadmill finisher before floor work, and leaves Either movements at the end. The sort
+  changes presentation order only; exercise IDs and saved logs remain stable.
 
 This approach keeps progression consistent across Today, Gym Mode, detail sheets, and progress
 stats.
@@ -308,6 +315,9 @@ behavior using synthetic data and preserve source-level guards for major feature
 - Recipe-specific How To steps.
 - Weight chart and kg weigh-ins.
 - Mobile/PWA layout protections.
+- Two-session Smart Load qualification and conservative blocking cases.
+- HOIST Mi6 reversible swaps, independent load history, videos/GIF references, and ramp teaching.
+- Upstairs/downstairs flow across every strength day.
 - This code walkthrough.
 
 `tests/coach-behavior.test.mjs` imports the actual App functions through Vite, with environment
@@ -328,6 +338,9 @@ push to main. Tests do not sign in to a live account or claim to emulate a real 
 | Add a swap | Add the replacement to `exerciseMap`, then add its ID to the original `swapIds` |
 | Change set progression | `recommendedSets()` |
 | Change rep/cardio progression | `targetForExercise()`, `rangedTarget()`, `cardioTarget()` |
+| Change load-increase rules | `smartLoadSuggestion()` |
+| Change upstairs/downstairs order | `workoutLocationOrder()` and exercise `trainingLocation` |
+| Add equipment-specific guidance | Exercise `equipment`, `loadNote`, cues, resources, and a unique swap ID when load history must stay separate |
 | Add a recipe | Add to `dietRecipes`, add optional `recipeHowToSteps`, then use it in meals or swaps |
 | Change default meals | `weeklyDietMealMap` |
 | Change grocery grouping | `shoppingIngredientFor()` |

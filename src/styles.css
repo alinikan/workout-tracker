@@ -1155,15 +1155,25 @@ select:focus {
 }
 
 .mini-check {
+  position: relative;
   display: grid;
   place-items: center;
+  width: 44px;
+  min-height: 44px;
 }
 
 .mini-check input {
   position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
   opacity: 0;
   pointer-events: none;
 }
+
+.mini-check input:focus-visible + span { outline: 3px solid var(--focus-sky); outline-offset: 2px; }
 
 .mini-check span {
   position: relative;
@@ -4398,10 +4408,6 @@ body {
     margin: 0;
   }
 
-  .gym-set-table {
-    padding-bottom: calc(var(--gym-action-bar-height) + 34px);
-  }
-
   .skip-control-strip {
     margin-right: 14px;
     margin-left: 14px;
@@ -6597,6 +6603,32 @@ body {
   font-weight: 850;
 }
 
+.set-field {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.set-field-label { display: none; }
+
+.set-field input,
+.set-field select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.equipment-load-note {
+  margin: 0 16px 14px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--focus-sky);
+  background: #edf7fc;
+  color: #244757;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .effort-too-easy {
   border-color: #b9d9e5;
   background: #e1f2f8;
@@ -6785,10 +6817,39 @@ body {
     overflow-x: auto;
   }
 
-  .set-table:not(.no-load) .set-head,
+  /* A six-column desktop log must not widen iOS's layout viewport. Keep the
+     target/check on the first line, with three labeled fields on the next. */
+  .set-table:not(.no-load) .set-head { display: none; }
+
   .set-table:not(.no-load) .set-row {
-    min-width: 640px;
-    grid-template-columns: 34px minmax(140px, 1fr) 92px 72px 120px 48px;
+    min-width: 0;
+    max-width: 100%;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr);
+    grid-template-areas: "number number done" "target target target" "weight reps effort";
+    gap: 10px 8px;
+    padding-block: 12px;
+  }
+
+  .set-table:not(.no-load) .set-row > span { grid-area: number; display: block; height: auto; justify-self: start; padding: 8px; }
+  .set-table:not(.no-load) .set-row > span::before { content: "Set "; }
+  .set-table .target-pill { height: auto; overflow-wrap: anywhere; }
+  .set-table:not(.no-load) .target-pill { grid-area: target; display: block; min-height: 0; text-align: left; }
+  .set-table:not(.no-load) .mini-check { grid-area: done; justify-self: end; }
+  .set-weight { grid-area: weight; }
+  .set-reps { grid-area: reps; }
+  .set-effort { grid-area: effort; }
+  .set-field-label { display: block; font-size: 0.72rem; color: var(--muted); font-weight: 750; }
+  .set-field input, .set-field select { min-height: 44px; font-size: 16px; }
+
+  .section-gym .gym-mode-shell,
+  .section-gym .gym-card,
+  .section-gym .gym-set-table,
+  .section-gym .gym-day-context,
+  .section-gym .gym-target-grid > div {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
   }
 
   .monthly-checkin-panel {

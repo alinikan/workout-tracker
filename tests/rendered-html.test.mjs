@@ -82,8 +82,8 @@ test("includes researched movement resources and autosave controls", async () =>
     "workoutXId: \"3013\"",
     "youtubeId: \"m0FOpMEgero\"",
     "youtubeId: \"_2Kd0d-JEUM\"",
-    "youtubeId: \"AmpUL3sOz5g\"",
-    "youtubeId: \"oKzLYBh4Ui0\"",
+    "youtubeId: \"8ORm_-xfJV4\"",
+    "youtubeId: \"qBqKuEQl9sI\"",
     "youtubeId: \"wPM8icPu6H8\"",
     "pain-free knee and hip ranges",
     "never force a deep squat",
@@ -102,7 +102,7 @@ test("includes researched movement resources and autosave controls", async () =>
     "Swap Options",
     "Revert to original",
     "smartLoadSuggestion",
-    "Possibly nudge up",
+    "One more confirming session",
     "Earn the new set",
     "EARNED_WEEK_ADHERENCE_GATE",
     "Training Week",
@@ -483,7 +483,7 @@ test("extends the PDF progression to roughly 6 months", async () => {
   assert.match(page, /Cable Crunch/);
   assert.match(
     page,
-    /const strengthWarmupIds = \[\s*"warmup-treadmill-walk",\s*"seated-knee-extension-warmup",\s*"standing-supported-hip-abduction",\s*\]/,
+    /const strengthWarmupIds = \[\s*"seated-knee-extension-warmup",\s*"standing-supported-hip-abduction",\s*"warmup-treadmill-walk",\s*\]/,
   );
   assert.doesNotMatch(
     page,
@@ -669,8 +669,8 @@ test("day skip controls share date-scoped handlers and Gym shows a terminal summ
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v31/);
-  assert.match(serviceWorker, /day-skips-v31/);
+  assert.match(serviceWorker, /recomp-gym-console-v32/);
+  assert.match(serviceWorker, /equipment-progression-v32/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
@@ -688,6 +688,19 @@ test("service worker avoids stale Vercel app shells", async () => {
   assert.doesNotMatch(serviceWorker, /diet-tracker-v17/);
   assert.doesNotMatch(serviceWorker, /lower-machine-accessories-v16/);
   assert.doesNotMatch(serviceWorker, /recomp-gym-console-v15/);
+});
+
+test("Gym weighted set controls stay inside a phone-width grid", async () => {
+  const [app, styles] = await Promise.all([text("src/App.tsx"), text("src/styles.css")]);
+
+  assert.match(app, /function SetLoadFields/);
+  assert.match(app, /className="set-field set-weight"/);
+  assert.match(app, /className="set-field set-reps"/);
+  assert.match(app, /className="set-field set-effort"/);
+  assert.match(styles, /grid-template-areas: "number number done" "target target target" "weight reps effort"/);
+  assert.match(styles, /\.mini-check \{\s*position: relative/);
+  assert.match(styles, /\.mini-check input \{[\s\S]*?inset: 0;[\s\S]*?width: 100%;/);
+  assert.match(styles, /\.section-gym \.gym-mode-shell,[\s\S]*?max-width: 100%;/);
 });
 
 test("documents the codebase with tutorial-style comments and a walkthrough", async () => {

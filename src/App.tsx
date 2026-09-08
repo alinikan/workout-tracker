@@ -249,6 +249,7 @@ type Exercise = {
   shortName: string;
   family: "legs" | "push" | "pull" | "hinge" | "core" | "arms" | "warmup" | "cardio";
   equipment: string;
+  loadNote?: string;
   target: string;
   reps: string;
   rest: string;
@@ -355,9 +356,9 @@ const EARNED_WEEK_ADHERENCE_GATE = 0.75;
 // Strength sessions start with a short, repeatable warm-up. The extra squat, hinge, push-up, and
 // plank drills stay in the library, but Month 1 should not feel like a long circuit before lifting.
 const strengthWarmupIds = [
-  "warmup-treadmill-walk",
   "seated-knee-extension-warmup",
   "standing-supported-hip-abduction",
+  "warmup-treadmill-walk",
 ];
 
 const skipReasonOptions: Array<{ id: SkipReason; label: string }> = [
@@ -830,7 +831,7 @@ const exerciseMap: Record<string, Exercise> = {
       label: "Leg extension pattern reference",
       match: "reference",
     },
-    youtubeId: "AmpUL3sOz5g",
+    youtubeId: "8ORm_-xfJV4",
     logType: "done",
     loadLabel: "body",
     resources: [
@@ -875,7 +876,7 @@ const exerciseMap: Record<string, Exercise> = {
       label: "Straight leg outer hip abductor reference",
       match: "reference",
     },
-    youtubeId: "oKzLYBh4Ui0",
+    youtubeId: "qBqKuEQl9sI",
     logType: "done",
     loadLabel: "body",
     resources: [
@@ -1312,6 +1313,7 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Leg extension",
     family: "legs",
     equipment: "Leg extension machine",
+    loadNote: "Your multi-gym leg attachment is suitable only in its documented seated leg-extension setup. Align the machine pivot with your knee, pad above the ankle, and use a comfortable range. Log that machine's selected pin pounds.",
     target: "Quadriceps",
     reps: "10-15",
     rest: "60-75 sec",
@@ -1353,8 +1355,8 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Glute bridge",
     family: "hinge",
     equipment: "Mat or floor",
-    trainingLocation: "either",
-    locationNote: "Can be done upstairs or downstairs. If it appears after downstairs lifting, stay downstairs unless you are already finished with the gym floor.",
+    trainingLocation: "downstairs",
+    locationNote: "Keep this working hinge exercise downstairs inside the main strength block. Use a mat there so you do not interrupt the lifting session with a trip upstairs.",
     target: "Glutes, hamstrings, and posterior hip without a squat",
     reps: "10-15",
     rest: "60-75 sec",
@@ -1450,11 +1452,11 @@ const exerciseMap: Record<string, Exercise> = {
     ],
     progression: "Add load only when the bar path stays smooth and your chest stays proud.",
     motionDemo: {
-      workoutXId: "2330",
-      label: "Cable lat pulldown",
+      workoutXId: "0198",
+      label: "Seated cable pulldown to the front of the chest",
       match: "exact",
     },
-    youtubeId: "NbHnnvHkajg",
+    youtubeId: "AkjdxVHfe6o",
     swapIds: ["assisted-pull-up", "seated-cable-row"],
     resources: [
       {
@@ -1496,7 +1498,7 @@ const exerciseMap: Record<string, Exercise> = {
       label: "Dumbbell Romanian deadlift",
       match: "exact",
     },
-    youtubeId: "V8Hdl1FiNt4",
+    youtubeId: "5WxMW-Fu5KU",
     swapIds: ["barbell-rdl"],
     resources: [
       {
@@ -1515,6 +1517,7 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Seated leg curl",
     family: "hinge",
     equipment: "Seated leg curl machine",
+    loadNote: "A multi-gym attachment is not automatically a seated leg curl. Use this entry only if its manual supports seated curls with the correct thigh restraint and pivot alignment. A standing/prone attachment needs its own setup; keep the original machine or ask for a matching alternative.",
     target: "Hamstrings, calves",
     reps: "10-15",
     rest: "60-75 sec",
@@ -1701,6 +1704,7 @@ const exerciseMap: Record<string, Exercise> = {
       match: "exact",
     },
     youtubeId: "2k9co4UIlEw",
+    swapIds: ["mi6-cable-curl"],
     resources: [
       {
         label: "FITTR dumbbell curl video",
@@ -1746,6 +1750,7 @@ const exerciseMap: Record<string, Exercise> = {
       match: "exact",
     },
     youtubeId: "4GHNbhQS-Zw",
+    swapIds: ["mi6-bar-pressdown"],
     resources: [
       {
         label: "FITTR rope pressdown video",
@@ -1825,7 +1830,7 @@ const exerciseMap: Record<string, Exercise> = {
       match: "exact",
     },
     youtubeId: "k0cTJCfxa0Y",
-    swapIds: ["seated-cable-row"],
+    swapIds: ["seated-cable-row", "mi6-seated-row"],
     resources: [
       {
         label: "ACE single-arm row",
@@ -1991,7 +1996,8 @@ const exerciseMap: Record<string, Exercise> = {
     name: "Standing Cable Chest Fly",
     shortName: "Cable fly",
     family: "push",
-    equipment: "Cable machine",
+    equipment: "Dual-cable machine or HOIST Mi6 with two handles",
+    loadNote: "The HOIST Mi6 is a suitable setup for this movement. Use equal pin settings, log pounds PER STACK, and keep pulley height and stance consistent. Do not compare Mi6 pin numbers with another cable machine.",
     target: "Chest, front shoulders",
     reps: "10-15",
     rest: "60 sec",
@@ -2033,12 +2039,15 @@ const exerciseMap: Record<string, Exercise> = {
     name: "Machine Chest Press",
     shortName: "Machine press",
     family: "push",
-    equipment: "Chest press machine",
+    equipment: "Selectorized multi-gym chest-press arms",
+    priority: "main",
+    loadNote: "Log the selected stack pounds on this machine. Keep the same seat, backrest, and grip setting when comparing sessions; do not copy dumbbell pounds.",
     target: "Chest, front shoulders, triceps",
     reps: "8-12",
     rest: "90 sec",
     cues: [
       "Set the seat so the handles begin around mid-chest height.",
+      "Use the fixed arms only in the manufacturer's chest-press position. Pick the grip that keeps wrists straight and shoulders comfortable; different grips do not turn fixed chest-press arms into an overhead press.",
       "Brace, keep shoulder blades lightly back, and press the handles forward smoothly.",
       "Return under control until the chest is stretched without shoulders rolling forward.",
     ],
@@ -2070,7 +2079,8 @@ const exerciseMap: Record<string, Exercise> = {
     name: "Band-Assisted Pull-Up",
     shortName: "Assisted pull-up",
     family: "pull",
-    equipment: "Pull-up bar and band, or assisted pull-up machine",
+    equipment: "Pull-up bar and band, assisted pull-up machine, or documented HOIST Mi6 assisted setup",
+    loadNote: "Assistance works backward from normal weight logging: more assistance makes the exercise easier. On the Mi6, use only the manufacturer-documented assisted pull-up setup and compatible strap; never improvise a loose foot or knee connection.",
     target: "Lats, upper back, biceps",
     reps: "6-10",
     rest: "90 sec",
@@ -2092,6 +2102,10 @@ const exerciseMap: Record<string, Exercise> = {
     },
     youtubeId: "B_VkNQS5YLs",
     resources: [
+      {
+        label: "HOIST Mi6 exercise guide: assisted pull-up",
+        url: "https://hoistfitnesscom.s3.amazonaws.com/Resources/ExerciseManuals/Mi6-Exercise-Manual.pdf",
+      },
       {
         label: "NASM band-assisted pull-up",
         url: "https://www.nasm.org/resource-center/exercise-library/band-assisted-pull-up",
@@ -2144,7 +2158,8 @@ const exerciseMap: Record<string, Exercise> = {
     name: "Machine Shoulder Press",
     shortName: "Machine shoulder",
     family: "push",
-    equipment: "Shoulder press machine",
+    equipment: "Dedicated shoulder press machine",
+    loadNote: "Do not use fixed chest-press arms for this vertical press unless your exact multi-gym manual explicitly provides a shoulder-press position. Multiple grips alone do not make a chest press safe for overhead pressing.",
     target: "Shoulders, triceps, upper chest",
     reps: "8-12",
     rest: "75-90 sec",
@@ -2211,6 +2226,79 @@ const exerciseMap: Record<string, Exercise> = {
         label: "Live Lean pec deck fly",
         url: "https://www.liveleantv.com/how-to-do-a-pec-deck-fly/",
       },
+    ],
+  },
+  "mi6-seated-row": {
+    id: "mi6-seated-row",
+    name: "HOIST Mi6 Seated Cable Row",
+    shortName: "Mi6 seated row",
+    family: "pull",
+    priority: "main",
+    equipment: "HOIST Mi6, stable bench, dual-cable long bar",
+    loadNote: "Log the selected pin pounds PER STACK, with both stacks equal. HOIST specifies a 2:1 ratio at each pulley, so the handle resistance is about half that stack's selected weight before cable/attachment effects. Do not sum the pin values or compare them with another machine. Keep bench, pulley height, and grip consistent.",
+    reps: "8-12",
+    target: "Upper back, lats, and biceps",
+    rest: "90 sec",
+    cues: [
+      "Place a stable bench facing the Mi6. Set both pulleys around seated torso height, lock their adjustments, and attach the long bar to BOTH cables at its designated attachment points.",
+      "Choose equal light pins. Sit upright with feet firmly planted; use the underhand grip described in the HOIST seated mid-row guide, with wrists straight.",
+      "Pull toward your lower ribs with elbows close, keeping your chest still and shoulders down.",
+      "Pause briefly, then straighten your arms slowly without rounding your back or letting the stacks slam.",
+    ],
+    avoid: ["Do not improvise a sliding chair or foot anchor; keep the original supported dumbbell row if the bench cannot stay secure.", "Do not lean back to finish a rep or attach a dual-cable bar to only one pulley."],
+    progression: "Build controlled reps on this exact setup before increasing both stack pins equally. This horizontal row replaces the row slot, not the vertical lat pulldown.",
+    motionDemo: { workoutXId: "0239", label: "Straight-back seated row; Mi6 bar and grip differ, follow the setup notes", match: "reference" },
+    youtubeId: "k0cTJCfxa0Y",
+    resources: [{ label: "HOIST Mi6 exercise guide: seated mid-row", url: "https://hoistfitnesscom.s3.amazonaws.com/Resources/ExerciseManuals/Mi6-Exercise-Manual.pdf" }],
+  },
+  "mi6-cable-curl": {
+    id: "mi6-cable-curl",
+    name: "HOIST Mi6 Cable Bar Curl",
+    shortName: "Mi6 cable curl",
+    family: "arms",
+    equipment: "HOIST Mi6 low pulley and short curl bar",
+    loadNote: "Log the selected pin pounds on ONE stack. HOIST specifies a 2:1 pulley ratio, so handle resistance is about half the selected stack weight before cable/attachment effects. Keep this history separate from dumbbell curls and other cable machines.",
+    reps: "10-15",
+    target: "Biceps and forearms",
+    rest: "60 sec",
+    cues: [
+      "Lower one pulley fully, lock it, and clip the short curl bar to that cable. Select a light pin before lifting.",
+      "Face the pulley with feet comfortably apart. Hold the bar palms up, wrists straight, elbows beside your ribs, and step back just enough to keep the cable taut.",
+      "Bend only your elbows to curl the bar toward your shoulders; stop before your elbows travel forward.",
+      "Lower slowly until arms are comfortably straight. Keep breathing and leave the planned reps in reserve.",
+    ],
+    avoid: ["Do not lean back, swing, or curl by bending the wrists.", "Do not copy the weight used for dumbbells; cable leverage is different."],
+    progression: "Use this instead of the scheduled dumbbell curl, not as extra arm volume. Build reps first, then consider the smallest pin increase.",
+    motionDemo: { workoutXId: "0868", label: "Low cable bar curl", match: "exact" },
+    youtubeId: "NFzTWp2qpiE",
+    resources: [
+      { label: "HOIST Mi6 exercise guide: standing bicep curl", url: "https://hoistfitnesscom.s3.amazonaws.com/Resources/ExerciseManuals/Mi6-Exercise-Manual.pdf" },
+      { label: "PureGym cable curl guide", url: "https://www.puregym.com/exercises/arms-and-shoulders/bicep-curl/cable-bicep-curls/" },
+    ],
+  },
+  "mi6-bar-pressdown": {
+    id: "mi6-bar-pressdown",
+    name: "HOIST Mi6 Short-Bar Triceps Pressdown",
+    shortName: "Mi6 pressdown",
+    family: "arms",
+    equipment: "HOIST Mi6 high pulley and short curl bar",
+    loadNote: "Log the selected pin pounds on ONE stack. HOIST specifies a 2:1 pulley ratio, so handle resistance is about half the selected stack weight before cable/attachment effects. Use the same bar and pulley setting; do not carry across rope or other-machine records.",
+    reps: "10-15",
+    target: "Triceps",
+    rest: "60 sec",
+    cues: [
+      "Set one pulley high, lock it, and attach the short bar. Select a light pin and face the machine with a stable stance.",
+      "Hold the bar palms down with straight wrists. Bring your elbows beside your ribs and keep your upper arms still.",
+      "Straighten your elbows to press the bar toward your thighs without bending your body over it.",
+      "Return slowly until your elbows are bent about a right angle. Keep the stack quiet and shoulders relaxed.",
+    ],
+    avoid: ["Do not slam the bar down with your body weight or flare the elbows.", "If the bar bothers your wrists, use the original rope option only if you have a compatible rope; stop painful reps."],
+    progression: "Replace the rope pressdown in its existing slot. Add load only after repeatable, controlled top-range reps.",
+    motionDemo: { workoutXId: "0201", label: "Cable bar triceps pushdown", match: "exact" },
+    youtubeId: "E-cV_8XCw1o",
+    resources: [
+      { label: "HOIST Mi6 included short bar and resistance ratio", url: "https://www.hoistfitness.com/products/mi6-functional-trainer" },
+      { label: "ACE triceps pressdown", url: "https://www.acefitness.org/resources/everyone/exercise-library/185/triceps-pressdown/" },
     ],
   },
 };
@@ -3046,15 +3134,16 @@ const weeklyDietMealMap: Record<PlanWeekday, Record<DietMealSlot, string>> = {
   },
 };
 
-// The weekly schedule is the source of truth for workout order. Every exercise ID appears exactly
-// where the user should do it: warm-ups, ramp sets, working lifts, accessories, cardio, then core.
+// The weekly schedule is the source of truth for membership and normal exercise order. Strength
+// days receive one final stable location grouping in scheduledExercisesForDay(): upstairs prep,
+// downstairs work, treadmill finisher, then flexible floor work. IDs and saved logs do not change.
 const weeklySchedule: Record<string, SessionTemplate> = {
   Monday: {
     title: "Strength A",
     type: "strength",
     code: "A",
     time: "45-85 min",
-    summary: "Beginner-friendly full-body strength: short treadmill warm-up, knee/hip prep, ramp sets, four main lifts, core, and optional finisher as capacity improves.",
+    summary: "Beginner-friendly full-body strength: gentle upstairs knee/hip prep, downstairs treadmill warm-up, ramp sets, four main lifts, optional finisher, and flexible floor core.",
     accent: "strength-a",
     exerciseIds: [
       ...strengthWarmupIds,
@@ -3220,8 +3309,11 @@ const libraryOrder = [
   "dead-bug",
   "cable-crunch",
   "dumbbell-biceps-curl",
+  "mi6-cable-curl",
   "rope-triceps-pressdown",
+  "mi6-bar-pressdown",
   "single-arm-row",
+  "mi6-seated-row",
   "push-up",
   "seated-db-overhead",
   "machine-shoulder-press",
@@ -3511,7 +3603,21 @@ function scheduledExercisesForDay(planDay: PlanDay, log?: DayLog) {
     .filter((exercise) => {
       if (readiness !== "yellow") return true;
       return exercisePriorityFor(exercise, planDay) !== "optional";
-    });
+    })
+    // Stable grouping changes only travel order, never exercise IDs or saved logs.
+    // Main floor lifts stay downstairs; cable core work precedes the treadmill
+    // finisher, then optional upstairs floor core ends the visit in one trip.
+    .sort((a, b) => workoutLocationOrder(planDay, a, log) - workoutLocationOrder(planDay, b, log));
+}
+
+function workoutLocationOrder(planDay: PlanDay, original: Exercise, log?: DayLog) {
+  if (planDay.session.type !== "strength") return 0;
+  const exercise = log ? activeExerciseFor(original, log) : original;
+  const location = trainingLocationForExercise(exercise);
+  if (location === "upstairs") return 0;
+  if (location === "either") return 3;
+  if (exercise.id === "treadmill-finisher") return 2;
+  return 1;
 }
 
 function mainLiftIndex(planDay: PlanDay, exercise: Exercise) {
@@ -3530,10 +3636,14 @@ function recommendedSets(
   exercise: Exercise,
   index: number,
   readinessStatus: ReadinessStatus = "green",
+  originalExercise: Exercise = exercise,
 ) {
   const week = coachingWeek(planDay);
-  const priority = exercisePriorityFor(exercise, planDay);
-  const mainIndex = mainLiftIndex(planDay, exercise);
+  // A swap changes the movement and its load history, not the program slot.
+  // Derive volume from the original slot so an equivalent machine option does
+  // not silently lose a late-phase set or become optional.
+  const priority = exercisePriorityFor(originalExercise, planDay);
+  const mainIndex = mainLiftIndex(planDay, originalExercise);
   let sets = 1;
 
   if (isRampWarmup(exercise)) sets = week <= 4 ? 1 : 2;
@@ -4802,7 +4912,7 @@ function progressionForExercise(planDay: PlanDay, exercise: Exercise) {
     return "Consolidation week: repeat or slightly reduce load, stop well before form breaks, and keep the next block fresh.";
   }
   if (week >= 5) {
-    return `${exercise.progression} Use the double-progression rule: build toward the top of the rep range at the same weight, then add the smallest available load next time.`;
+    return `${exercise.progression} Use the double-progression rule: confirm all planned sets at the top of the rep range with reserve in two comparable sessions. Follow the Smart Load recommendation before increasing; elapsed weeks alone are not a trigger.`;
   }
   return `${exercise.progression} Month 1 is about learning the movement while keeping ${rirTargetForWeek(week)}.`;
 }
@@ -4816,6 +4926,26 @@ function tracksWeight(exercise: Exercise) {
 // Swaps are resolved at render time. The original exercise stays in the schedule, while the saved
 // log says which replacement should currently be shown.
 function activeExerciseFor(originalExercise: Exercise, log: DayLog) {
+  // Keep a ramp slot's stable ID, but teach the movement actually selected for
+  // its corresponding main lift. A row swap must not keep teaching dumbbell setup.
+  if (isRampWarmup(originalExercise)) {
+    const mainId = originalExercise.id.replace("warmup-ramp-", "");
+    const main = exerciseMap[mainId];
+    const swapId = log.swaps?.[mainId];
+    const swap = swapId && main?.swapIds?.includes(swapId) ? exerciseMap[swapId] : null;
+    if (swap) return {
+      ...originalExercise,
+      name: `Light Practice: ${swap.name}`,
+      shortName: `${swap.shortName} ramp`,
+      equipment: swap.equipment,
+      loadNote: swap.loadNote,
+      youtubeId: swap.youtubeId,
+      motionDemo: swap.motionDemo,
+      cues: ["Use clearly lighter resistance than your working sets. Rehearse today's selected swap without fatigue; bodyweight swaps use an easier version.", ...swap.cues],
+      avoid: swap.avoid,
+      resources: swap.resources,
+    };
+  }
   const selectedSwapId = log.swaps?.[originalExercise.id];
   if (!selectedSwapId || !originalExercise.swapIds?.includes(selectedSwapId)) return originalExercise;
   return exerciseMap[selectedSwapId] ?? originalExercise;
@@ -5411,11 +5541,11 @@ function locationGuideForExercise(exercise: Exercise) {
 
 function locationFlowNoteForDay(planDay: PlanDay) {
   if (planDay.session.type === "strength") {
-    return "Start with the Upstairs OK moves in your unit, then go downstairs for the treadmill warm-up, ramp sets, lifting, and treadmill finisher. After that, Either floor work can be upstairs or downstairs.";
+    return "Do the gentle Upstairs OK prep first, then head straight downstairs for the treadmill warm-up, ramp sets, lifting, cable work, and treadmill finisher. Finish the Either floor exercises upstairs or downstairs. If you take a long break, warm up again before lifting.";
   }
 
   if (planDay.session.type === "movement") {
-    return "Mobility and bodyweight prep can be upstairs. Do the walking portion downstairs on the treadmill or outside.";
+    return "Walk downstairs or outside first. Then finish the easy mobility and bodyweight practice upstairs, with no need to return to the gym.";
   }
 
   if (planDay.session.type === "cardio") {
@@ -5480,9 +5610,10 @@ function smartLoadSuggestion(
   selectedDay: PlanDay,
   exercise: Exercise,
   exerciseIndex: number,
+  originalExercise: Exercise = exercise,
 ) {
   const readiness = readinessStatusFor(normalizeDayLog(store.days[selectedDay.iso]).readiness);
-  const setCount = recommendedSets(selectedDay, exercise, exerciseIndex, readiness);
+  const setCount = recommendedSets(selectedDay, exercise, exerciseIndex, readiness, originalExercise);
   const target = targetForExercise(selectedDay, exercise);
   const repRange = repRangeFromTarget(target);
 
@@ -5494,74 +5625,87 @@ function smartLoadSuggestion(
     };
   }
 
-  const previousLoad = lastExerciseLoad(planDays, store, selectedDay, exercise.id);
-
-  if (!previousLoad) {
+  // Never recommend heavier warm-up sets or treat less assistance as more load.
+  if (isRampWarmup(exercise) || exercise.id === "assisted-pull-up") {
+    return { label: "Practice, not a max", detail: isRampWarmup(exercise)
+      ? "Use the planned light warm-up load. Practice the selected working movement without fatigue; do not chase weight increases in ramp sets."
+      : "Use enough assistance for controlled pull-ups. More assistance makes the move easier, so the usual heavier-load rule does not apply.", tone: "steady" };
+  }
+  if (readiness !== "green") {
+    return { label: "No increase today", detail: "Your readiness calls for easier work. Follow the recovery or reduced session; do not chase heavier pounds through pain, dizziness, or fatigue.", tone: "deload" };
+  }
+  // Look at consecutive attempts of this actual exercise, including skips and
+  // partial sessions. A newer failed attempt must not be bypassed to find old wins.
+  const attempts: Array<{ day: PlanDay; log: DayLog; rows: SetLog[]; requiredSets: number; top: number; skipped: boolean }> = [];
+  for (let i = selectedDay.index - 1; i >= 0 && attempts.length < 3; i -= 1) {
+    // Most calendar days have no log. Skip them before computing earned volume.
+    if (!store.days[planDays[i].iso]) continue;
+    const day = withTrainingWeek(planDays[i], earnedTrainingWeekForDay(planDays, store, planDays[i]));
+    const log = normalizeDayLog(store.days[day.iso]);
+    // Read the normal slots so a recovery replacement or skipped day can block
+    // an increase instead of disappearing from the comparable-attempt history.
+    const exercises = scheduledExercisesForDay(day, { ...log, readiness: {} });
+    const index = exercises.findIndex((item) => activeExerciseFor(item, log).id === exercise.id);
+    if (index < 0) continue;
+    const rows = log.exercises[exercise.id] ?? [];
+    const skipped = Boolean(skipReasonForExercise(log, exercises[index].id));
+    if (!skipped && readinessStatusFor(log.readiness) === "green" && !rows.some((row) => row.done || row.weight || row.reps || row.effort)) continue;
+    attempts.push({ day, log, rows, skipped,
+      requiredSets: recommendedSets(day, exercise, index, readinessStatusFor(log.readiness), exercises[index]),
+      top: repRangeFromTarget(targetForExercise(day, exercise))?.high ?? 0,
+    });
+  }
+  const previous = attempts[0];
+  if (!previous) {
     return {
       label: "Start conservative",
-      detail: `Choose pounds you can control for ${setCount} ${setCount === 1 ? "set" : "sets"} of ${target}. The first win is repeatable form with the planned RIR.`,
+      detail: `Choose pounds you can control for ${setCount} sets of ${target}. Log completed reps and set feel. New exercises and Mi6 swaps build their own history; do not copy another machine's load.`,
       tone: "start",
     };
   }
-
-  if (isConsolidationWeek(coachingWeek(selectedDay)) && previousLoad.maxLoad) {
-    const low = formatLoadValue(previousLoad.maxLoad * 0.85);
-    const high = formatLoadValue(previousLoad.maxLoad * 0.9);
-    return {
-      label: "Consolidate",
-      detail: `Last time: ${previousLoad.summary}. Use about ${low}-${high} lb or simply repeat with cleaner reps so the next block starts fresh.`,
-      tone: "deload",
-    };
+  const lastSummary = `Last attempt: ${formatPreviousSetSummary(previous.rows)} on ${formatDate(previous.day.iso, "short")}.`;
+  if (diffDays(previous.day.iso, selectedDay.iso) > 21) {
+    return { label: "Return gently", detail: `${lastSummary} More than three weeks have passed. Start lighter if needed and rebuild two recent controlled sessions before increasing.`, tone: "deload" };
   }
-
-  if (previousLoad.rows.length < setCount) {
-    return {
-      label: "Earn the new set",
-      detail: `Last time: ${previousLoad.summary} on ${previousLoad.date}. Repeat that load while you add the new set, then chase the top of the rep range before increasing pounds.`,
-      tone: "steady",
-    };
+  if (isConsolidationWeek(coachingWeek(selectedDay))) {
+    return { label: "Consolidate", detail: `${lastSummary} Keep the planned easier week. Repeat a comfortable load or reduce it; do not increase load while consolidating.`, tone: "deload" };
   }
-
-  const rowsToJudge = previousLoad.rows.slice(0, setCount);
-  const repValues = rowsToJudge
-    .map((row) => parseLoadValue(row.reps))
-    .filter((value): value is number => typeof value === "number" && Number.isFinite(value));
-  const reachedTop =
-    Boolean(repRange) &&
-    previousLoad.allDone &&
-    repValues.length >= Math.min(setCount, previousLoad.rows.length) &&
-    repValues.every((reps) => reps >= (repRange?.high ?? reps));
-  const hadVeryHard = rowsToJudge.some((row) => row.effort === "very-hard");
-  const mostlyTooEasy =
-    rowsToJudge.length > 0 && rowsToJudge.every((row) => row.effort === "too-easy");
-
-  if (reachedTop && !hadVeryHard) {
+  if (previous.rows.some((row) => row.effort === "very-hard") || readinessStatusFor(previous.log.readiness) !== "green") {
+    return { label: "Recover before increasing", detail: `${lastSummary} The last session was very hard or had reduced readiness. Repeat or use a lighter comfortable load; stop symptoms rather than pushing through.`, tone: "deload" };
+  }
+  if (previous.skipped || previous.rows.some((row) => !row.done)) {
+    return { label: "Finish the current load first", detail: `${lastSummary} This attempt was skipped or incomplete. There is no earned increase yet; resume at a comfortable load and complete the planned work.`, tone: "steady" };
+  }
+  if (previous.rows.length < setCount) {
+    return { label: "Earn the new set", detail: `${lastSummary} Establish today's full ${setCount} sets before adding weight. More sets and more pounds should not arrive together.`, tone: "steady" };
+  }
+  // Strict numeric logs avoid interpreting "20 + 5", "2x25", or draft text as
+  // comparable pounds. Missing reps/effort are unknown, never automatic success.
+  const numeric = (value: string) => /^\d+(?:[.,]\d+)?$/.test(value.trim()) ? Number(value.trim().replace(",", ".")) : NaN;
+  const qualifies = (attempt: typeof previous | undefined) => {
+    if (!attempt || !repRange || attempt.skipped || !attempt.top ||
+        diffDays(attempt.day.iso, selectedDay.iso) > 21 ||
+        readinessStatusFor(attempt.log.readiness) !== "green" ||
+        isConsolidationWeek(coachingWeek(attempt.day))) return false;
+    const load = numeric(attempt.rows[0]?.weight ?? "");
+    return load > 0 && attempt.rows.length >= Math.max(setCount, attempt.requiredSets) &&
+      attempt.rows.every((row) => row.done && numeric(row.weight) === load &&
+        Number.isInteger(numeric(row.reps)) && numeric(row.reps) >= Math.max(repRange.high, attempt.top) &&
+        (row.effort === "about-right" || row.effort === "too-easy"));
+  };
+  const firstWin = qualifies(previous);
+  const secondWin = qualifies(attempts[1]) && numeric(previous.rows[0]?.weight ?? "") === numeric(attempts[1]?.rows[0]?.weight ?? "");
+  if (firstWin && secondWin) {
+    const load = numeric(previous.rows[0].weight);
     return {
       label: "Try the next jump",
-      detail: `Last time: ${previousLoad.summary} on ${previousLoad.date}. You hit the top target, so try the smallest available increase if warm-ups feel smooth.`,
+      detail: `2/2 qualifying sessions at ${formatLoadValue(load)} lb: all sets reached the top reps with reserve reported. On the SAME setup, consider the smallest available increase around 2.5-5% (about ${formatLoadValue(load * 1.025)}-${formatLoadValue(load * 1.05)} lb). If the next dumbbell or pin is a larger jump, keep this load. Only try it if warm-ups and form feel good; return to ${repRange?.low} reps and keep reserve. This is advice, not an automatic weight change.`,
       tone: "build",
     };
   }
-
-  if (repValues.length > 0 && repRange) {
-    return {
-      label: "Repeat and reach the top",
-      detail: `Last time: ${previousLoad.summary} on ${previousLoad.date}. Keep that load and try to move all sets toward ${repRange.high} clean reps before increasing.`,
-      tone: hadVeryHard ? "deload" : "steady",
-    };
-  }
-
-  if (previousLoad.allDone && mostlyTooEasy) {
-    return {
-      label: "Possibly nudge up",
-      detail: `Last time: ${previousLoad.summary} on ${previousLoad.date}. If today also feels too easy with clean form, use the smallest available increase next time.`,
-      tone: "build",
-    };
-  }
-
   return {
-    label: "Repeat and own it",
-    detail: `Last time: ${previousLoad.summary} on ${previousLoad.date}. Repeat it before increasing, especially if a set was incomplete or very hard.`,
+    label: firstWin ? "One more confirming session" : "Build reps before pounds",
+    detail: `${lastSummary} ${firstWin ? "1/2 qualifying sessions at this load." : "0/2 qualifying sessions at this load."} Aim for every planned set at ${repRange?.high ?? "the top target"} clean reps, with the planned reserve, twice in a row. Record reps and feel for each set. Time at the same weight alone does not justify increasing.`,
     tone: "steady",
   };
 }
@@ -5648,7 +5792,7 @@ function moveStatusForExercise(
   exerciseIndex: number,
 ): MoveStatus {
   const activeExercise = activeExerciseFor(originalExercise, log);
-  const setCount = recommendedSets(planDay, activeExercise, exerciseIndex, readinessStatusFor(log.readiness));
+  const setCount = recommendedSets(planDay, activeExercise, exerciseIndex, readinessStatusFor(log.readiness), originalExercise);
   const rows = ensureSetRows(log.exercises[activeExercise.id], setCount);
   if (rows.length > 0 && completedRows(rows) >= rows.length) return "done";
   if (skipReasonForExercise(log, originalExercise.id)) return "skipped";
@@ -5658,7 +5802,7 @@ function moveStatusForExercise(
 function areDayExercisesComplete(planDay: PlanDay, log: DayLog) {
   const exercises = scheduledExercisesForDay(planDay, log);
   const requiredExercises = exercises.filter(
-    (exercise) => exercisePriorityFor(activeExerciseFor(exercise, log), planDay) !== "optional",
+    (exercise) => exercisePriorityFor(exercise, planDay) !== "optional",
   );
   if (!requiredExercises.length) return false;
 
@@ -5675,7 +5819,7 @@ function dayStatusForDay(planDay: PlanDay, log: DayLog): DayStatus {
 
   const statuses = exercises.map((exercise, index) =>
     ({
-      priority: exercisePriorityFor(activeExerciseFor(exercise, log), planDay),
+      priority: exercisePriorityFor(exercise, planDay),
       status: moveStatusForExercise(planDay, log, exercise, index),
     }),
   );
@@ -5728,7 +5872,7 @@ function completePlanDay(planDay: PlanDay, log: DayLog) {
   exercises.forEach((originalExercise, exerciseIndex) => {
     const activeExercise = activeExerciseFor(originalExercise, normalizedLog);
     const setCount = Math.max(
-      recommendedSets(planDay, activeExercise, exerciseIndex, readinessStatusFor(normalizedLog.readiness)),
+      recommendedSets(planDay, activeExercise, exerciseIndex, readinessStatusFor(normalizedLog.readiness), originalExercise),
       normalizedLog.exercises[activeExercise.id]?.length ?? 0,
     );
     nextExercises[activeExercise.id] = ensureSetRows(
@@ -5888,6 +6032,39 @@ function ExerciseMediaLinks({
   );
 }
 
+// The same labeled fields serve Gym and exercise details. On phones CSS places
+// them below the target, avoiding a desktop-width table or unlabeled inputs.
+function SetLoadFields({ exercise, set, setIndex, onChange }: {
+  exercise: Exercise;
+  set: SetLog;
+  setIndex: number;
+  onChange: (id: string, index: number, field: keyof SetLog, value: string | boolean | undefined) => void;
+}) {
+  return <>
+    <label className="set-field set-weight">
+      <span className="set-field-label">{exercise.id.startsWith("mi6-") ? "Stack (lbs)" : "Weight (lbs)"}</span>
+      <input inputMode="decimal" value={set.weight} placeholder="lbs"
+        onChange={(event) => onChange(exercise.id, setIndex, "weight", event.target.value)}
+        aria-label={`${exercise.name} set ${setIndex + 1} weight in pounds`} />
+    </label>
+    <label className="set-field set-reps">
+      <span className="set-field-label">Reps</span>
+      <input inputMode="numeric" value={set.reps} placeholder="reps"
+        onChange={(event) => onChange(exercise.id, setIndex, "reps", event.target.value)}
+        aria-label={`${exercise.name} set ${setIndex + 1} reps`} />
+    </label>
+    <label className="set-field set-effort">
+      <span className="set-field-label">Feel</span>
+      <select className={`effort-select effort-${set.effort ?? "unset"}`} value={set.effort ?? ""}
+        onChange={(event) => onChange(exercise.id, setIndex, "effort", event.target.value || undefined)}
+        aria-label={`${exercise.name} set ${setIndex + 1} feel`}>
+        <option value="">Feel</option>
+        {effortOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+      </select>
+    </label>
+  </>;
+}
+
 // The test suite uses the same calculations as the interface, exercising complete
 // 26-week plans and saved progress without duplicating the coaching logic.
 export {
@@ -5899,6 +6076,7 @@ export {
   weightKgFromMetric, smartPortionAdviceForMeal, baseDietRecipeFor, smartLoadSuggestion,
   closestProgramDate, resolveGymDay, skipPlanDay, skipPlanMove, reopenPlanDay, reopenPlanMove,
   moveStatusForExercise, withAutomaticDayCompletion, isPlanDayComplete,
+  activeExerciseFor, locationGuideForExercise, swapOptionsFor,
 };
 
 export default function Home() {
@@ -6853,7 +7031,13 @@ export default function Home() {
       const exerciseIndex = originalExercise ? exercises.indexOf(originalExercise) : -1;
       const originalExerciseId = originalExercise?.id ?? exerciseId;
       const count = Math.max(
-        recommendedSets(planDay, exercise, Math.max(exerciseIndex, 0), readinessStatusFor(log.readiness)),
+        recommendedSets(
+          planDay,
+          exercise,
+          Math.max(exerciseIndex, 0),
+          readinessStatusFor(log.readiness),
+          originalExercise ?? exercise,
+        ),
         log.exercises[exerciseId]?.length ?? 0,
       );
       const rows = ensureSetRows(log.exercises[exerciseId], count);
@@ -7175,15 +7359,15 @@ export default function Home() {
     exercises.map((originalExercise, exerciseIndex) => {
       const activeExercise = activeExerciseFor(originalExercise, dayLog);
       const readinessStatus = readinessStatusFor(dayLog.readiness);
-      const priority = exercisePriorityFor(activeExercise, planDay);
-      const setCount = recommendedSets(planDay, activeExercise, exerciseIndex, readinessStatus);
+      const priority = exercisePriorityFor(originalExercise, planDay);
+      const setCount = recommendedSets(planDay, activeExercise, exerciseIndex, readinessStatus, originalExercise);
       const rows = ensureSetRows(dayLog.exercises[activeExercise.id], setCount);
       const doneCount = completedRows(rows);
       const isComplete = rows.length > 0 && doneCount >= rows.length;
       const skipReason = skipReasonForExercise(dayLog, originalExercise.id);
       const isSkipped = Boolean(skipReason && !isComplete);
       const status: MoveStatus = isComplete ? "done" : isSkipped ? "skipped" : "pending";
-      const suggestion = smartLoadSuggestion(planDays, store, planDay, activeExercise, exerciseIndex);
+      const suggestion = smartLoadSuggestion(planDays, store, planDay, activeExercise, exerciseIndex, originalExercise);
       const statusLabel =
         status === "done"
           ? "Done"
@@ -8656,6 +8840,7 @@ export default function Home() {
                 </span>
               </div>
             )}
+            {currentGymExercise.loadNote && <p className="equipment-load-note">{currentGymExercise.loadNote}</p>}
 
             {currentGymMove.beginnerTeaching && (
               <div className="beginner-teaching-card">
@@ -8709,50 +8894,7 @@ export default function Home() {
                 <div className="set-row" key={`${currentGymExercise.id}-gym-${setIndex}`}>
                   <span>{setIndex + 1}</span>
                   <strong className="target-pill">{currentGymTarget}</strong>
-                  {currentGymTracksWeight ? (
-                    <input
-                      inputMode="decimal"
-                      value={set.weight}
-                      placeholder="lbs"
-                      onChange={(event) =>
-                        updateGymSet(currentGymExercise.id, setIndex, "weight", event.target.value)
-                      }
-                      aria-label={`${currentGymExercise.name} set ${setIndex + 1} weight in pounds`}
-                    />
-                  ) : null}
-                  {currentGymTracksWeight ? (
-                    <input
-                      inputMode="numeric"
-                      value={set.reps}
-                      placeholder="reps"
-                      onChange={(event) =>
-                        updateGymSet(currentGymExercise.id, setIndex, "reps", event.target.value)
-                      }
-                      aria-label={`${currentGymExercise.name} set ${setIndex + 1} reps`}
-                    />
-                  ) : null}
-                  {currentGymTracksWeight ? (
-                    <select
-                      className={`effort-select effort-${set.effort ?? "unset"}`}
-                      value={set.effort ?? ""}
-                      onChange={(event) =>
-                        updateGymSet(
-                          currentGymExercise.id,
-                          setIndex,
-                          "effort",
-                          event.target.value || undefined,
-                        )
-                      }
-                      aria-label={`${currentGymExercise.name} set ${setIndex + 1} feel`}
-                    >
-                      <option value="">Feel</option>
-                      {effortOptions.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : null}
+                  {currentGymTracksWeight && <SetLoadFields exercise={currentGymExercise} set={set} setIndex={setIndex} onChange={updateGymSet} />}
                   <label className="mini-check">
                     <input
                       type="checkbox"
@@ -9620,6 +9762,7 @@ export default function Home() {
                 <small>{detailMove.suggestion.detail}</small>
               </span>
             </div>
+            {detailExercise.loadNote && <p className="equipment-load-note">{detailExercise.loadNote}</p>}
 
             <div className="detail-details-grid">
               <details className="form-details" open>
@@ -9660,50 +9803,7 @@ export default function Home() {
                 <div className="set-row" key={`${detailExercise.id}-detail-${setIndex}`}>
                   <span>{setIndex + 1}</span>
                   <strong className="target-pill">{detailMove.target}</strong>
-                  {tracksWeight(detailExercise) ? (
-                    <input
-                      inputMode="decimal"
-                      value={set.weight}
-                      placeholder="lbs"
-                      onChange={(event) =>
-                        updateSet(detailExercise.id, setIndex, "weight", event.target.value)
-                      }
-                      aria-label={`${detailExercise.name} set ${setIndex + 1} weight in pounds`}
-                    />
-                  ) : null}
-                  {tracksWeight(detailExercise) ? (
-                    <input
-                      inputMode="numeric"
-                      value={set.reps}
-                      placeholder="reps"
-                      onChange={(event) =>
-                        updateSet(detailExercise.id, setIndex, "reps", event.target.value)
-                      }
-                      aria-label={`${detailExercise.name} set ${setIndex + 1} reps`}
-                    />
-                  ) : null}
-                  {tracksWeight(detailExercise) ? (
-                    <select
-                      className={`effort-select effort-${set.effort ?? "unset"}`}
-                      value={set.effort ?? ""}
-                      onChange={(event) =>
-                        updateSet(
-                          detailExercise.id,
-                          setIndex,
-                          "effort",
-                          event.target.value || undefined,
-                        )
-                      }
-                      aria-label={`${detailExercise.name} set ${setIndex + 1} feel`}
-                    >
-                      <option value="">Feel</option>
-                      {effortOptions.map((option) => (
-                        <option key={option.id} value={option.id}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : null}
+                  {tracksWeight(detailExercise) && <SetLoadFields exercise={detailExercise} set={set} setIndex={setIndex} onChange={updateSet} />}
                   <label className="mini-check">
                     <input
                       type="checkbox"
