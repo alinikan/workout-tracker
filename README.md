@@ -1,8 +1,8 @@
 <div align="center">
 
-# Workout Tracker
+# Recomp
 
-### A mobile-first coaching app for workouts, nutrition, weigh-ins, and progress.
+### A premium personal coach for workouts, nutrition, weigh-ins, and progress.
 
 [![React](https://img.shields.io/badge/React-19-149eca?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -10,7 +10,7 @@
 [![Supabase](https://img.shields.io/badge/Supabase-Cloud%20Sync-3ecf8e?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com/)
 [![Vercel](https://img.shields.io/badge/Vercel-Deploy-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/)
 
-**Workout Tracker** turns a complete body recomposition routine into a clean, phone-friendly Progressive Web App. It helps a user follow a 26-week training program, track every set, log daily nutrition, record morning body weight in kg, and sync progress across devices.
+**Recomp** turns a complete body recomposition routine into a polished, phone-first Progressive Web App. It helps a user follow a 26-week training program, track every set, log daily nutrition, record morning body weight in kg, and sync progress across devices.
 
 [Live app](https://ali-workout.vercel.app) - [Features](#features) - [Run locally](#quick-start) - [Deploy](#deploy-to-vercel) - [Supabase sync](#supabase-cloud-sync)
 
@@ -51,7 +51,7 @@
 
 ## What This App Is
 
-Workout Tracker is a personal coaching dashboard for someone who wants a structured fitness routine without carrying a spreadsheet, notes app, printed plan, or messy document into the gym.
+Recomp is a personal coaching product for someone who wants a structured fitness routine without carrying a spreadsheet, notes app, printed plan, or messy document into the gym. Its interface uses a quiet native-system design language, progressive disclosure, meaningful training colors, and large touch targets without changing the program underneath.
 
 The app ships with:
 
@@ -94,6 +94,7 @@ That means the interface favors:
 | Diet | Daily meals with recipe photos, meal swaps, timing labels, plate portions, and a weekly to-buy list. |
 | Cloud Sync | Saves the same progress to Supabase for use across multiple devices. |
 | PWA | Can be installed on iPhone Home Screen and used like an app. |
+| Premium interface | Shared Coach/Workout/Nutrition navigation, responsive Gym controls, automatic light/dark appearance, reduced-motion support, and safe-area-aware mobile layout. |
 
 ### Workout Features
 
@@ -382,6 +383,7 @@ The added movements are intentionally conservative:
 | Language | TypeScript |
 | Build tool | Vite 8 |
 | Styling | Plain CSS with responsive design tokens |
+| Presentation | Shared React UI primitives plus a semantic premium CSS layer |
 | Local persistence | Browser `localStorage` |
 | Cloud auth | Supabase Auth |
 | Cloud database | Supabase Postgres with Row Level Security |
@@ -412,6 +414,8 @@ flowchart TD
 
 Data saves locally first. When signed in, the app compares the last synced copy with this device and the user's private cloud row. Independent changes are combined, including intentional unchecking, clearing fields, and reverting swaps. If both devices change exactly the same field, the saving device wins that field. A conditional database update retries if another device saves during the request.
 
+The presentation architecture is deliberately separated from that data flow. `src/styles.css` keeps the original feature and mobile-layout contract, while `src/premium.css` supplies semantic surfaces, typography, navigation, responsive composition, dark appearance, motion, and accessibility polish. `src/components/PremiumUI.tsx` contains stateless shell primitives, so none of them can mutate a workout, meal, weigh-in, or cloud record.
+
 Cloud checks resume after reconnection, when the app becomes visible, and every 30 seconds while visible. Coach Hub also has **Sync now**. Sign-in token refreshes no longer interrupt autosave. Each account has a separate device copy; switching accounts does not upload the previous account's data into the new account. A signed-out device retains its last local copy, so signing out is not a device-data wipe.
 
 Device storage and network operations can fail. The app reports saving errors; wait for **Synced across devices** before switching devices. The first upgrade of an older save uses the legacy merge once to establish a baseline. Subsequent merges can reliably distinguish a deletion from an unchanged field. No new Supabase tables, SQL migration, environment variables, or paid service are needed for this update.
@@ -424,6 +428,8 @@ This project is written to be readable for future contributors, not just functio
 
 - Important source files include tutorial-style comments explaining why each part exists.
 - The largest file, `src/App.tsx`, has section comments for the data model, workout plan, diet plan, progression engine, local/cloud sync, PWA behavior, Gym Mode logic, and completion rules.
+- `src/components/PremiumUI.tsx` explains the shared product navigation and accessible progress-ring primitives.
+- `src/premium.css` is organized by semantic tokens and product area, with explicit tablet, phone, standalone-PWA, dark, and reduced-motion sections.
 - JSON files cannot contain comments, so their purpose is explained in [`docs/code-walkthrough.md`](docs/code-walkthrough.md).
 
 Read the walkthrough first if you are new to the repository:
@@ -787,10 +793,16 @@ workout-tracker/
     og.png
     sw.js
   src/
+    components/
+      AppErrorBoundary.tsx
+      PremiumUI.tsx
     lib/
+      fetchWithTimeout.ts
       supabaseClient.ts
+      syncMerge.ts
     App.tsx
     main.tsx
+    premium.css
     styles.css
     vite-env.d.ts
   supabase/
@@ -810,10 +822,12 @@ workout-tracker/
 | `src/lib/syncMerge.ts` | Merge edits against the last synced baseline without losing deliberate clearing or unchecking. |
 | `src/lib/fetchWithTimeout.ts` | Bounds auth/sync requests to 20 seconds and forwards cancellation. |
 | `src/components/AppErrorBoundary.tsx` | Recovery screen for unexpected rendering failures. |
+| `src/components/PremiumUI.tsx` | Stateless level-one navigation and accessible progress-ring primitives. |
 | `tests/coach-behavior.test.mjs` | Runs actual calendar, coaching, completion, weight, and merge functions using synthetic data. |
 | `tests/service-worker.test.mjs` | Exercises offline recovery, failed responses, and cache cleanup using controlled fixtures. |
 | `.github/workflows/quality.yml` | Runs checks on pushes to main and pull requests without production credentials. |
 | `src/styles.css` | Responsive design system, workout UI, diet UI, Gym Mode, and PWA spacing. |
+| `src/premium.css` | Semantic premium presentation layer: typography, hierarchy, navigation, surfaces, dark appearance, motion, and breakpoint polish. |
 | `src/lib/supabaseClient.ts` | Supabase browser client and configuration validation. |
 | `api/workoutx-gif.js` | Serverless proxy for private WorkoutX GIF requests. |
 | `docs/code-walkthrough.md` | Tutorial-style file-by-file explanation for maintainers and learners. |
@@ -899,6 +913,7 @@ The existing source smoke tests additionally verify:
 - Supabase cloud sync is present.
 - GIF support is wired through the API route.
 - PWA assets and service worker behavior are present.
+- Premium navigation, semantic design tokens, automatic dark appearance, reduced motion, safe areas, and all responsive breakpoints are present.
 - Known mobile layout regressions are guarded.
 - Weighted set rows collapse into labeled phone-width fields so Gym Mode cannot widen the iPhone PWA viewport.
 - The code walkthrough and tutorial comments remain present.

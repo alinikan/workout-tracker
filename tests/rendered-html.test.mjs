@@ -246,9 +246,9 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "Coach Hub",
     "Coach Hub",
     "Recomp Diet Console",
-    "Diet tracker",
-    "Today&apos;s training",
-    "Today&apos;s meals",
+    "Nutrition",
+    "Today&apos;s workout",
+    "Today&apos;s nutrition",
     "Breakfast",
     "Lunch",
     "Snack",
@@ -669,8 +669,8 @@ test("day skip controls share date-scoped handlers and Gym shows a terminal summ
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v32/);
-  assert.match(serviceWorker, /equipment-progression-v32/);
+  assert.match(serviceWorker, /recomp-gym-console-v33/);
+  assert.match(serviceWorker, /premium-redesign-v33/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
@@ -728,4 +728,48 @@ test("documents the codebase with tutorial-style comments and a walkthrough", as
   assert.match(walkthrough, /Commenting Philosophy/);
   assert.match(readme, /Code Comments And Walkthrough/);
   assert.match(readme, /docs\/code-walkthrough\.md/);
+});
+
+test("ships the premium responsive presentation without replacing the data contract", async () => {
+  const [main, premium, primitives, manifest] = await Promise.all([
+    text("src/main.tsx"),
+    text("src/premium.css"),
+    text("src/components/PremiumUI.tsx"),
+    text("public/manifest.json"),
+  ]);
+
+  assert.match(main, /import "\.\/premium\.css"/);
+  for (const token of [
+    "--surface-primary",
+    "--surface-secondary",
+    "--text-primary",
+    "--text-secondary",
+    "--separator",
+    "--success",
+    "--warning",
+    "--danger",
+  ]) assert.match(premium, new RegExp(token));
+  assert.match(premium, /prefers-color-scheme: dark/);
+  assert.match(premium, /prefers-reduced-motion: reduce/);
+  assert.match(premium, /safe-area-inset-bottom/);
+  for (const protectedSelector of [
+    ".today-day-button.active span",
+    ".dashboard-stat.strength",
+    ".exercise-detail-sheet",
+    ".skip-reason-grid button:hover",
+    ".diet-basics-grid li",
+    ".preworkout-fuel-card .fuel-step-list span",
+  ]) {
+    assert.match(
+      premium,
+      new RegExp(protectedSelector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+    );
+  }
+  for (const width of [1024, 980, 720, 430, 390, 360, 320]) {
+    assert.match(premium, new RegExp(`max-width: ${width}px`));
+  }
+  assert.match(primitives, /ProductNavigation/);
+  assert.match(primitives, /ProgressRing/);
+  assert.match(primitives, /aria-current/);
+  assert.match(manifest, /Recomp Personal Coach/);
 });

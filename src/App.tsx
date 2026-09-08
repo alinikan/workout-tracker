@@ -2,6 +2,7 @@ import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } fro
 import type { Session } from "@supabase/supabase-js";
 import { isSupabaseConfigured, supabase, supabaseConfigError } from "./lib/supabaseClient";
 import { canClaimLocalProgress, mergeProgressChanges, sameData } from "./lib/syncMerge";
+import { ProductNavigation, ProgressRing, type ProductMode } from "./components/PremiumUI";
 
 /**
  * App.tsx is intentionally the main "product brain" for this personal tracker.
@@ -7622,19 +7623,41 @@ export default function Home() {
   };
 
   const headerDay = activeSection === "gym" ? gymDay : selectedDay;
+  const productStatusTone = localSaveError || cloudStatus === "error"
+    ? "attention"
+    : cloudStatus === "loading" || cloudStatus === "saving"
+      ? "working"
+      : "calm";
+  const switchProductMode = (mode: ProductMode) => {
+    if (mode === "workout") {
+      goToCurrentProgramDay();
+      setActiveSection("today");
+    }
+    if (mode === "diet") setSelectedDietDate(closestProgramDate());
+    setAppMode(mode);
+  };
+  const greeting = (() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning.";
+    if (hour < 18) return "Good afternoon.";
+    return "Good evening.";
+  })();
 
   if (appMode === "hub") {
     return (
       <main className="app-shell coach-hub-shell">
+        <ProductNavigation
+          activeMode="hub"
+          statusLabel={localSaveError ? "Save needs attention" : syncHeadline}
+          statusTone={productStatusTone}
+          onSelect={switchProductMode}
+        />
         <section className="coach-hub-hero" aria-labelledby="coach-hub-heading">
           <div className="brand-lockup hub-brand">
-            <span className="brand-mark">RC</span>
             <div>
-              <p className="eyebrow">Recomp coach</p>
-              <h1 id="coach-hub-heading">Coach Hub</h1>
-              <p className="hero-text">
-                {formatDate(currentProgramDate)} · Week {gymDay.week} of 26
-              </p>
+              <p className="eyebrow">{formatDate(currentProgramDate)}</p>
+              <h1 id="coach-hub-heading">{greeting}</h1>
+              <p className="hero-text">Your body recomposition plan is on Week {gymDay.week} of 26.</p>
             </div>
           </div>
           <a className={`hub-save-status ${localSaveError ? "error" : ""}`} href="#coach-account">
@@ -7647,11 +7670,16 @@ export default function Home() {
               type="button"
               onClick={() => { goToCurrentProgramDay(); setActiveSection("today"); setAppMode("workout"); }}
             >
-              <span><Icon name="dumbbell" size={22} /> Today&apos;s training <Icon name="chevronRight" size={18} /></span>
-              <strong>Workout</strong>
-              <small>
-                {gymDay.session.title} · {gymMoveRows.filter((move) => move.isComplete).length}/{gymMoveRows.length} moves done
-              </small>
+              <div className="hub-choice-content">
+                <span><Icon name="dumbbell" size={22} /> Today&apos;s workout <Icon name="chevronRight" size={18} /></span>
+                <strong>{gymDay.session.title}</strong>
+                <small>{gymMoveRows.length - gymMoveRows.filter((move) => move.isComplete || move.isSkipped).length} movements remaining</small>
+              </div>
+              <ProgressRing
+                value={gymMoveRows.filter((move) => move.isComplete).length}
+                max={gymMoveRows.length}
+                label="Today's workout progress"
+              />
               <progress aria-label="Today's workout progress" value={gymMoveRows.filter((move) => move.isComplete).length} max={gymMoveRows.length || 1} />
             </button>
             <button
@@ -7659,11 +7687,16 @@ export default function Home() {
               type="button"
               onClick={() => { setSelectedDietDate(currentProgramDate); setAppMode("diet"); }}
             >
-              <span><Icon name="cart" size={22} /> Today&apos;s meals <Icon name="chevronRight" size={18} /></span>
-              <strong>Diet</strong>
-              <small>
-                {gymDietTarget.label} · {Object.values(normalizeDietDayLog(store.dietDays[currentProgramDate]).meals).filter(Boolean).length}/4 meals eaten
-              </small>
+              <div className="hub-choice-content">
+                <span><Icon name="cart" size={22} /> Today&apos;s nutrition <Icon name="chevronRight" size={18} /></span>
+                <strong>{gymDietTarget.label}</strong>
+                <small>{gymDietTarget.calories} · {gymDietTarget.protein}</small>
+              </div>
+              <ProgressRing
+                value={Object.values(normalizeDietDayLog(store.dietDays[currentProgramDate]).meals).filter(Boolean).length}
+                max={4}
+                label="Today's meal progress"
+              />
               <progress aria-label="Today's meal progress" value={Object.values(normalizeDietDayLog(store.dietDays[currentProgramDate]).meals).filter(Boolean).length} max={4} />
             </button>
           </div>
@@ -8003,12 +8036,18 @@ export default function Home() {
   if (appMode === "diet") {
     return (
       <main className={`app-shell diet-shell diet-${selectedDietType} ${selectedDietAccent}`}>
-        <header className="app-header diet-app-header">
+        <ProductNavigation
+          activeMode="diet"
+          statusLabel={localSaveError ? "Save needs attention" : syncHeadline}
+          statusTone={productStatusTone}
+          onSelect={switchProductMode}
+        />
+        <header className="app-header diet-app-header" aria-label="Recomp Diet Console">
           <div className="brand-lockup">
-            <span className="brand-mark diet-mark">DP</span>
+            <span className="brand-mark diet-mark">N</span>
             <div>
-              <p className="eyebrow">Diet tracker · {selectedDietTarget.label}</p>
-              <h1>Recomp Diet Console</h1>
+              <p className="eyebrow">Daily plan · {selectedDietTarget.label}</p>
+              <h1>Nutrition</h1>
             </div>
           </div>
 
@@ -8027,23 +8066,19 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mode-inline-actions">
-            <button type="button" onClick={() => setAppMode("hub")}>
-              Coach Hub
-            </button>
-            <button type="button" onClick={() => setAppMode("workout")}>
-              Workout
-            </button>
-          </div>
         </header>
 
         <section className="diet-summary-panel" aria-labelledby="diet-heading">
           <div>
-            <p className="eyebrow">Today&apos;s diet plan</p>
+            <p className="eyebrow">Today&apos;s nutrition</p>
             <h2 id="diet-heading">
-              {formatDate(selectedDietDay.iso)} · {selectedDietTarget.label}
+              {selectedDietTarget.label}
             </h2>
-            <p>{selectedDietCoachNote}</p>
+            <p className="diet-summary-date">{formatDate(selectedDietDay.iso)}</p>
+            <details className="diet-coach-note">
+              <summary>Today&apos;s coaching</summary>
+              <p>{selectedDietCoachNote}</p>
+            </details>
           </div>
           <div className="diet-target-grid">
             <div>
@@ -8209,24 +8244,30 @@ export default function Home() {
                   </div>
                 )}
 
-                <div className="diet-card-grid diet-basics-grid">
-                  <div>
-                    <h4>Ingredients</h4>
-                    <ul>
-                      {meal.recipe.ingredients.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
+                <details className="diet-basics-disclosure">
+                  <summary>
+                    <span>Ingredients &amp; plate</span>
+                    <small>{meal.recipe.ingredients.length} ingredients · exact portions</small>
+                  </summary>
+                  <div className="diet-card-grid diet-basics-grid">
+                    <div>
+                      <h4>Ingredients</h4>
+                      <ul>
+                        {meal.recipe.ingredients.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div>
+                      <h4>Plate</h4>
+                      <ul>
+                        {meal.recipe.plate.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
-                  <div>
-                    <h4>Plate</h4>
-                    <ul>
-                      {meal.recipe.plate.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
+                </details>
 
                 <details className={`smart-portion-card ${meal.portionAdvice.tone}`}>
                   <summary className="flow-heading">
@@ -8356,8 +8397,11 @@ export default function Home() {
               <p>Use this as the weekly ingredient list for the recipes currently showing, including your swaps.</p>
               <div className="shopping-list-groups">
                 {dietShoppingGroups.map((group) => (
-                  <div key={group.category} className="shopping-group">
-                    <h3>{group.category}</h3>
+                  <details key={group.category} className="shopping-group">
+                    <summary>
+                      <h3>{group.category}</h3>
+                      <span>{group.items.length} items</span>
+                    </summary>
                     {group.items.slice(0, 8).map((item) => (
                       <div key={`${group.category}-${item.name}`} className="shopping-item">
                         <strong>{item.name}</strong>
@@ -8365,7 +8409,7 @@ export default function Home() {
                         <small>{item.portions.slice(0, 2).join(" · ")}</small>
                       </div>
                     ))}
-                  </div>
+                  </details>
                 ))}
               </div>
             </section>
@@ -8426,12 +8470,18 @@ export default function Home() {
 
   return (
     <main className={`app-shell section-${activeSection}`}>
-      <header className={`app-header ${headerDay.session.accent}`}>
+      <ProductNavigation
+        activeMode="workout"
+        statusLabel={localSaveError ? "Save needs attention" : syncHeadline}
+        statusTone={productStatusTone}
+        onSelect={switchProductMode}
+      />
+      <header className={`app-header ${headerDay.session.accent}`} aria-label="Recomp Gym Console">
         <div className="brand-lockup">
-          <span className="brand-mark">RG</span>
+          <span className="brand-mark">W</span>
           <div>
-            <p className="eyebrow">Workout tracker · {activeSectionLabel}</p>
-            <h1>Recomp Gym Console</h1>
+            <p className="eyebrow">Training · {activeSectionLabel}</p>
+            <h1>Workout</h1>
           </div>
         </div>
 
@@ -8448,14 +8498,6 @@ export default function Home() {
             <strong>{localSaveError ? "Save needs attention" : lastSavedAt ?? "Ready"}</strong>
             <small>{syncHeadline}</small>
           </div>
-        </div>
-        <div className="mode-inline-actions">
-          <button type="button" onClick={() => setAppMode("hub")}>
-            Coach Hub
-          </button>
-          <button type="button" onClick={() => setAppMode("diet")}>
-            Diet
-          </button>
         </div>
       </header>
 
@@ -8684,44 +8726,50 @@ export default function Home() {
               </div>
             </div>
 
-            <div className={`gym-coach-strip readiness-${gymReadinessStatus}`}>
-              <div>
-                <span>Today</span>
-                <strong>{gymPhase.title}</strong>
-                <small>Training Week {gymTrainingWeek} · {gymPhase.timeCap} · {gymSessionTime}</small>
+            <details className="gym-session-guidance">
+              <summary>
+                <span>Session guidance</span>
+                <strong>{gymReadinessCopy.label} · {gymPhase.rir}</strong>
+              </summary>
+              <div className={`gym-coach-strip readiness-${gymReadinessStatus}`}>
+                <div>
+                  <span>Today</span>
+                  <strong>{gymPhase.title}</strong>
+                  <small>Training Week {gymTrainingWeek} · {gymPhase.timeCap} · {gymSessionTime}</small>
+                </div>
+                <div>
+                  <span>RIR target</span>
+                  <strong>{gymPhase.rir}</strong>
+                  <small>{rirExplanationForWeek(gymTrainingWeek)}</small>
+                </div>
+                <div>
+                  <span>Readiness</span>
+                  <strong>{gymReadinessCopy.label}</strong>
+                  <small>{gymReadinessCopy.detail}</small>
+                </div>
               </div>
-              <div>
-                <span>RIR target</span>
-                <strong>{gymPhase.rir}</strong>
-                <small>{rirExplanationForWeek(gymTrainingWeek)}</small>
-              </div>
-              <div>
-                <span>Readiness</span>
-                <strong>{gymReadinessCopy.label}</strong>
-                <small>{gymReadinessCopy.detail}</small>
-              </div>
-            </div>
 
-            <div className="gym-priority-panel" aria-label="Gym priority plan">
-              <div>
-                <span>Must complete</span>
-                <strong>
-                  {gymPriorityBuckets.main.map((move) => move.activeExercise.shortName).join(" · ") || "Done"}
-                </strong>
+              <div className="gym-priority-panel" aria-label="Gym priority plan">
+                <div>
+                  <span>Must complete</span>
+                  <strong>
+                    {gymPriorityBuckets.main.map((move) => move.activeExercise.shortName).join(" · ") || "Done"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Next priority</span>
+                  <strong>
+                    {gymPriorityBuckets.accessory.map((move) => move.activeExercise.shortName).join(" · ") || "Done"}
+                  </strong>
+                </div>
+                <div>
+                  <span>Optional if time</span>
+                  <strong>
+                    {gymPriorityBuckets.optional.map((move) => move.activeExercise.shortName).join(" · ") || "None today"}
+                  </strong>
+                </div>
               </div>
-              <div>
-                <span>Next priority</span>
-                <strong>
-                  {gymPriorityBuckets.accessory.map((move) => move.activeExercise.shortName).join(" · ") || "Done"}
-                </strong>
-              </div>
-              <div>
-                <span>Optional if time</span>
-                <strong>
-                  {gymPriorityBuckets.optional.map((move) => move.activeExercise.shortName).join(" · ") || "None today"}
-                </strong>
-              </div>
-            </div>
+            </details>
 
             {restTimer && (
               <div className={`rest-timer-card ${restSecondsLeft === 0 ? "ready" : ""}`}>
@@ -9053,14 +9101,22 @@ export default function Home() {
             </div>
           </div>
 
-          <p className="plan-note">{selectedSessionSummary}</p>
-          <p className="phase-note">{phase.note}</p>
-          <p className="phase-note">
-            <strong>{phase.title}:</strong> {phase.sets} · {phase.timeCap} target · {phase.rir}.
-          </p>
-          <p className="location-flow-note">
-            <strong>Home/gym split:</strong> {selectedLocationNote}
-          </p>
+          <details className="today-session-guidance">
+            <summary>
+              <span>Session guidance</span>
+              <strong>{phase.title} · {phase.rir}</strong>
+            </summary>
+            <div>
+              <p className="plan-note">{selectedSessionSummary}</p>
+              <p className="phase-note">{phase.note}</p>
+              <p className="phase-note">
+                <strong>{phase.title}:</strong> {phase.sets} · {phase.timeCap} target · {phase.rir}.
+              </p>
+              <p className="location-flow-note">
+                <strong>Home/gym split:</strong> {selectedLocationNote}
+              </p>
+            </div>
+          </details>
 
           <section className={`readiness-card readiness-${selectedReadinessStatus}`} aria-labelledby="readiness-heading">
             <div className="flow-heading">

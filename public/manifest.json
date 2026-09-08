@@ -1,7 +1,7 @@
 {
-  "name": "Recomp Gym Console",
-  "short_name": "Recomp Gym",
-  "description": "A 6-month body recomposition workout tracker with videos, logs, check-ins, and cloud sync.",
+  "name": "Recomp Personal Coach",
+  "short_name": "Recomp",
+  "description": "A personal coach for progressive workouts, nutrition, weigh-ins, and cross-device progress.",
   "id": "/",
   "start_url": "/?source=pwa",
   "scope": "/",

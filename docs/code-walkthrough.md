@@ -31,7 +31,9 @@ when the network is available.
 | File | What It Is For |
 | --- | --- |
 | `src/App.tsx` | Main application logic, data, helpers, and UI. This is the product brain. |
-| `src/styles.css` | Full visual system: colors, layout, workout UI, diet UI, modals, and PWA spacing. |
+| `src/styles.css` | Stable feature styles and the original mobile/PWA layout contract. |
+| `src/premium.css` | Semantic premium presentation layer loaded last: surfaces, typography, navigation, responsive composition, dark appearance, and motion. |
+| `src/components/PremiumUI.tsx` | Stateless product navigation and accessible progress-ring components. |
 | `src/main.tsx` | Browser entry point that mounts React into `index.html`. |
 | `src/lib/supabaseClient.ts` | Safe Supabase client creation and environment validation. |
 | `src/vite-env.d.ts` | TypeScript declarations for Vite environment variables. |
@@ -270,6 +272,26 @@ Important layout ideas:
 - Detail sheets use safe-area insets for iPhone Home Screen mode.
 - Recipe images use fixed aspect ratios so text below them does not jump.
 
+## `src/premium.css` And Shared Presentation
+
+`src/main.tsx` imports `premium.css` after `styles.css`. That order is intentional: the established
+feature stylesheet continues to protect display rules, safe-area spacing, Gym set grids, and older
+class contracts, while the premium layer can evolve the visual language without touching data.
+
+The premium file begins with semantic tokens such as `--surface-primary`, `--text-secondary`,
+`--separator`, `--success`, and `--danger`. Product screens consume meaning instead of hard-coded
+colors. Session and movement colors remain separate because teal Strength A, violet Strength B,
+green Strength C, cardio, warm-up, arms, and recovery communicate useful program information.
+
+Responsive sections explicitly cover desktop, tablet, 720px mobile, 430px, 390px, 360px, and 320px.
+The standalone-PWA rules add iPhone safe-area padding. Automatic dark appearance uses
+`prefers-color-scheme`, and `prefers-reduced-motion` removes movement while preserving state changes.
+
+`src/components/PremiumUI.tsx` is presentation-only. `ProductNavigation` receives the active mode,
+save status, and callbacks from `App.tsx`; it never reads or writes storage. `ProgressRing` receives
+already-derived counts and exposes a full text alternative, so its conic visual is not the only way
+to understand progress.
+
 ## Supabase Files
 
 `src/lib/supabaseClient.ts` creates the browser client only when the required environment variables
@@ -346,6 +368,8 @@ push to main. Tests do not sign in to a live account or claim to emulate a real 
 | Change grocery grouping | `shoppingIngredientFor()` |
 | Change cloud table | `supabase/schema.sql` and sync helpers in `src/App.tsx` |
 | Change iPhone PWA behavior | `public/manifest.json`, `public/sw.js`, and standalone CSS media queries |
+| Change premium colors or spacing | Semantic tokens at the top of `src/premium.css` |
+| Change shared Coach/Workout/Nutrition navigation | `src/components/PremiumUI.tsx` |
 
 ## Commenting Philosophy
 

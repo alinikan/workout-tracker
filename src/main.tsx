@@ -3,6 +3,9 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
 import "./styles.css";
+// The premium layer is intentionally last. styles.css remains the stable
+// feature contract; this focused layer owns the modern visual language.
+import "./premium.css";
 
 // main.tsx is the browser entry point. Vite loads index.html, this script finds the #root element,
 // and React takes over rendering from there.
