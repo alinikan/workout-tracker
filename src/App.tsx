@@ -176,6 +176,7 @@ type AdaptiveDietCoach = {
 type SmartPortionAdvice = {
   tone: AdaptiveDietTone;
   title: string;
+  status: string;
   detail: string;
   items: string[];
 };
@@ -4355,9 +4356,9 @@ function adaptiveDietCoachForDay({
     return {
       tone: "logging",
       label: "Learning",
-      headline: "Use the base portions while the app learns your body.",
+      headline: "Use the recipe amounts while the app learns your trend.",
       detail:
-        "Protein follows your logged weight, but calorie portion changes wait for weekly-average evidence so one noisy scale day does not rewrite your meals.",
+        "Make each recipe with the ingredient and plate amounts shown. Protein follows your logged weight, but calorie changes wait for reliable weekly averages so one noisy scale day does not rewrite your meals.",
       trend,
       adherence,
     };
@@ -4400,7 +4401,7 @@ function adaptiveDietCoachForDay({
       label: "Consistency",
       headline: "Keep portions steady and win the routine first.",
       detail:
-        "The weight trend is not clearly moving down yet, but recent training consistency is the first lever. Follow the base plan before making food smaller.",
+        "The weight trend is not clearly moving down yet, but recent training consistency is the first lever. Follow the listed recipe amounts before making food smaller.",
       trend,
       adherence,
     };
@@ -4614,24 +4615,44 @@ function smartPortionAdviceForMeal(
 
   const title =
     mealTone === "fuel"
-      ? "Fuel this meal"
+      ? "Keep the full recipe"
       : mealTone === "tighten"
-        ? "Tighten this plate"
+        ? "Make one small change"
         : coach.tone === "consistency"
-          ? "Base plate first"
+          ? "Use the recipe amounts"
           : coach.tone === "logging"
-            ? "Base portions"
-            : "Hold portions";
+            ? "Use the recipe amounts"
+            : "Keep the recipe amounts";
+
+  const status =
+    mealTone === "tighten"
+      ? "One change today"
+      : mealTone === "fuel"
+        ? "Training fuel"
+        : coach.tone === "tighten"
+          ? "No change to this meal"
+          : "No change today";
+
+  const detail =
+    mealTone === "tighten"
+      ? "Make only one of the suggested adjustments below. Keep the recipe's protein amount unchanged."
+      : protectedSnack
+        ? "Use the ingredient and plate amounts shown in the recipe. This pre-workout snack stays intact because you usually train after work."
+        : mealTone === "fuel"
+          ? "Use the listed recipe amounts and follow the fuel note below; today is not a day to reduce the planned training food."
+          : coach.tone === "consistency"
+            ? "Use the ingredient and plate amounts shown in the recipe. The app is keeping food steady while workout consistency improves."
+            : coach.tone === "logging"
+              ? "Use the ingredient and plate amounts shown in the recipe. The app needs more weekly weight data before recommending a change."
+              : coach.tone === "tighten"
+                ? "Use this recipe exactly as listed. Today's single portion adjustment is assigned to breakfast, not this meal."
+                : "No portion change is recommended for this meal today. Use the ingredient and plate amounts shown in the recipe.";
 
   return {
     tone: mealTone,
     title,
-    detail:
-      mealTone === "tighten"
-        ? "Small adjustment today: keep protein high and trim the easiest calories."
-        : protectedSnack
-          ? "This meal is protected because you usually train after work."
-          : "Use this as the plate check for today.",
+    status,
+    detail,
     items,
   };
 }
@@ -8308,11 +8329,11 @@ export default function Home() {
           </div>
           <details className={`adaptive-diet-panel ${adaptiveDietCoach.tone}`}>
             <summary>
-              <span className="eyebrow"><Icon name="spark" size={14} /> Smart portions · {adaptiveDietCoach.label}</span>
+              <span className="eyebrow"><Icon name="spark" size={14} /> Today&apos;s portion coach · {adaptiveDietCoach.label}</span>
               <strong>{adaptiveDietCoach.headline}</strong>
             </summary>
             <p>{adaptiveDietCoach.detail}</p>
-            <div className="adaptive-signal-grid" aria-label="Smart portion signals">
+            <div className="adaptive-signal-grid" aria-label="Signals used for today's portion guidance">
               <span>
                 <strong>{adaptiveDietCoach.label}</strong>
                 Coach mode
@@ -8480,7 +8501,7 @@ export default function Home() {
                 <details className={`smart-portion-card ${meal.portionAdvice.tone}`}>
                   <summary className="flow-heading">
                     <h4>{meal.portionAdvice.title}</h4>
-                    <span>Smart plate</span>
+                    <span>{meal.portionAdvice.status}</span>
                   </summary>
                   <p>{meal.portionAdvice.detail}</p>
                   <ul>

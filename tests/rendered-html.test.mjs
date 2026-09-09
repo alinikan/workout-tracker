@@ -334,12 +334,13 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "proteinBoostForRecipe",
     "carbPortionTweakForRecipe",
     "optionalCalorieTweakForRecipe",
-    "Smart portions",
-    "Smart plate",
+    "Today&apos;s portion coach",
+    "Use the recipe amounts",
+    "No change today",
     "Coach mode",
     "Weight trend",
     "Workout follow-through",
-    "weekly-average evidence",
+    "reliable weekly averages",
     "Protect this pre-workout snack",
     "Add 25-40 g cooked chicken breast or skinless thigh",
     "Reduce cooked rice by 35-50 g",
@@ -439,7 +440,7 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
   assert.match(readme, /Preference-aware defaults/);
   assert.match(readme, /After-Work Training Fuel/);
   assert.match(readme, /Expandable Make It guide/);
-  assert.match(readme, /Smart portions/);
+  assert.match(readme, /Today's portion coach/);
   assert.match(readme, /protein needs, workout adherence, readiness, and day type/);
   assert.match(readme, /Calorie tightening waits for completed weekly-average evidence/);
   assert.match(readme, /weight trend chart/);
@@ -676,8 +677,8 @@ test("day skip controls share date-scoped handlers and Gym shows a terminal summ
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v35/);
-  assert.match(serviceWorker, /tracking-rollover-v35/);
+  assert.match(serviceWorker, /recomp-gym-console-v36/);
+  assert.match(serviceWorker, /clear-portion-coach-v36/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);

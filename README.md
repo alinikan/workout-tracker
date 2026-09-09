@@ -135,7 +135,7 @@ That means the interface favors:
 | Plate portions | Shows what to actually put on the plate after cooking. |
 | Timing labels | Uses practical labels like Morning, Midday, Before workout, and After workout. |
 | After-work gym fuel | Strength days explain what to eat 60-120 minutes before a typical 5pm+ workout. |
-| Smart portions | Uses morning weight trends, protein needs, workout adherence, readiness, and day type to suggest realistic portion adjustments without hiding the original plan. |
+| Today's portion coach | Says plainly whether to use the recipe amounts or make one small change, using morning weight trends, protein needs, workout adherence, readiness, and day type. |
 | Meal swaps | Swap within the same meal category for variety while keeping the plan aligned. Swapped meals are clearly labeled and include a visible Revert to original button. |
 | Preference-aware defaults | Beans, chickpeas, turkey, rice cakes, and muesli stay available as swaps but are not default meals. |
 | To-buy list | Builds a store-neutral ingredient list from the selected week and active swaps. |
@@ -319,14 +319,16 @@ Nutrition uses calorie cycling by day type, but targets are configurable because
 
 Coach Hub lets the user choose a calorie mode, while protein is calculated automatically from existing weigh-ins. Once the user has at least three recent morning logs, the app uses the recent average body weight; before that, it uses the latest logged weight. If no weight has been logged yet, it shows the general `1.6-2.0 g/kg` protein range instead of asking for another confusing input.
 
-The Diet page includes a **Smart portions** panel. It does not randomly replace recipes when body weight changes. Instead, it keeps the plan stable and adjusts the plate guidance:
+The Diet page includes a **Today's portion coach** panel. This is not another meal, plate, or diet plan. It answers one question: **Should I make this recipe using the listed amounts today, or change one portion?** Most days it says **Use the recipe amounts**, which means no change is recommended: cook and plate the quantities already shown under Ingredients & Plate. It only suggests a small change when the weight trend, workout follow-through, readiness, and selected calorie mode provide a good reason.
+
+The coach does not randomly replace recipes when body weight changes. Instead, it keeps the plan stable and adjusts the portion guidance:
 
 - Protein portions follow the latest useful body-weight signal, preferably a recent average.
 - Calorie tightening waits for completed weekly-average evidence so one salty meal or one high-water day does not cause an overreaction.
 - Workout adherence matters. If training consistency is low, the app keeps portions steady and asks the user to build the routine first.
 - Training-day pre-workout snacks are protected, including swapped snacks. Readiness can trigger fuel guidance even before weight history is available.
 - If weight is dropping too fast, readiness is poor, or the user manually chooses the higher-calorie mode, the app shifts to fuel mode instead of cutting food.
-- Automatic tightening requires a sustained stall and consistent workouts. One higher week does not trigger a cut. The suggestion is limited to breakfast: choose one small carb adjustment OR an optional topping adjustment, never both. Lunch, the training snack, and dinner keep their base portions.
+- Automatic tightening requires a sustained stall and consistent workouts. One higher week does not trigger a cut. The suggestion is limited to breakfast: choose one small carb adjustment OR an optional topping adjustment, never both. Lunch, the training snack, and dinner keep the amounts already listed in their recipes.
 
 The confidence rule is **at least four logged mornings in each of the last two completed, consecutive weeks**. Missing weeks are not bridged, forgotten days are named and excluded rather than counted as zero, and today's unfinished workout is not counted as a missed session. Four readings is a conservative product rule, not a medical threshold. Protein uses up to seven entries from the last 14 calendar days when at least three are available; otherwise the latest weight is used, with older readings clearly labelled.
 
