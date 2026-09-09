@@ -60,7 +60,7 @@ type MotionDemo = {
 };
 
 type TrainingLocation = "upstairs" | "downstairs" | "downstairs-outside" | "either";
-type SkipReason = "time" | "pain" | "equipment" | "fatigue" | "other";
+type SkipReason = "time" | "pain" | "equipment" | "fatigue" | "other" | "forgotten";
 type MoveStatus = "pending" | "done" | "skipped";
 type DayStatus = "incomplete" | "complete" | "finished-with-skips" | "skipped";
 type DietMealSlot = "breakfast" | "lunch" | "snack" | "dinner";
@@ -128,6 +128,8 @@ type WeightWeekSummary = {
   startIso: string;
   endIso: string;
   loggedDays: number;
+  forgottenDays: number;
+  openDays: number;
   missingDays: number;
   average: number | null;
 };
@@ -304,6 +306,7 @@ type DayLog = {
 type MetricLog = {
   weight: string;
   weightKg: string;
+  weightForgotten: boolean;
   photoReminderDone: boolean;
   note: string;
 };
@@ -362,7 +365,7 @@ const strengthWarmupIds = [
   "warmup-treadmill-walk",
 ];
 
-const skipReasonOptions: Array<{ id: SkipReason; label: string }> = [
+const skipReasonOptions: Array<{ id: Exclude<SkipReason, "forgotten">; label: string }> = [
   { id: "time", label: "Time" },
   { id: "pain", label: "Pain" },
   { id: "equipment", label: "Equipment" },
@@ -508,6 +511,7 @@ const createEmptyDay = (): DayLog => ({
 const createEmptyMetric = (): MetricLog => ({
   weight: "",
   weightKg: "",
+  weightForgotten: false,
   photoReminderDone: false,
   note: "",
 });
@@ -591,11 +595,15 @@ function normalizeSettings(value: unknown): UserSettings {
 // Normalizers act like small migrations. They protect the UI when localStorage or Supabase contains
 // older data from before diet tracking, kg weigh-ins, skips, or swaps existed.
 function normalizeDayLog(log: DayLog | undefined): DayLog {
+  const savedSkipReason = isSkipReason(log?.daySkipReason) ? log.daySkipReason : undefined;
+  // A real completion from another device beats an automatic rollover skip. Deliberate skip
+  // reasons still beat a stale completed flag, preserving the existing safety invariant.
+  const completedOverAutomaticSkip = savedSkipReason === "forgotten" && Boolean(log?.completed);
   return {
     ...createEmptyDay(),
     ...log,
-    completed: !isSkipReason(log?.daySkipReason) && Boolean(log?.completed),
-    daySkipReason: isSkipReason(log?.daySkipReason) ? log.daySkipReason : undefined,
+    completed: (!savedSkipReason || completedOverAutomaticSkip) && Boolean(log?.completed),
+    daySkipReason: completedOverAutomaticSkip ? undefined : savedSkipReason,
     warmup: log?.warmup ?? {},
     tasks: log?.tasks ?? {},
     exercises: normalizeExerciseRows(log?.exercises),
@@ -611,6 +619,7 @@ function normalizeMetricLogShape(metric: Partial<MetricLog> | undefined): Metric
   return {
     weight: typeof metric?.weight === "string" ? metric.weight : "",
     weightKg: typeof metric?.weightKg === "string" ? metric.weightKg : "",
+    weightForgotten: Boolean(metric?.weightForgotten),
     photoReminderDone: Boolean(metric?.photoReminderDone),
     note: typeof metric?.note === "string" ? metric.note : "",
   };
@@ -646,7 +655,7 @@ function normalizeDietDayLog(log: DietDayLog | undefined): DietDayLog {
 }
 
 function isSkipReason(value: unknown): value is SkipReason {
-  return skipReasonOptions.some((reason) => reason.id === value);
+  return value === "forgotten" || skipReasonOptions.some((reason) => reason.id === value);
 }
 
 function normalizeSkips(value: unknown): Record<string, SkipReason> {
@@ -659,6 +668,7 @@ function normalizeSkips(value: unknown): Record<string, SkipReason> {
 }
 
 function skipReasonLabel(reason: SkipReason) {
+  if (reason === "forgotten") return "Not logged before the next day";
   return skipReasonOptions.find((option) => option.id === reason)?.label ?? "Other";
 }
 
@@ -4111,6 +4121,12 @@ function weightKgFromMetric(metric: MetricLog) {
     ? legacyPounds * 0.45359237 : null;
 }
 
+// A forgotten weigh-in is an explicit missing-data state, never a zero and never an estimated
+// value. A real weight always wins if an older sync payload happens to contain both states.
+function isWeightForgotten(metric: MetricLog) {
+  return metric.weightForgotten && weightKgFromMetric(metric) === null;
+}
+
 function proteinReferenceFromMetrics(
   planDays: PlanDay[],
   metrics: Record<string, MetricLog>,
@@ -4733,9 +4749,11 @@ function shoppingItemsForRecipes(recipes: DietRecipe[]) {
 // filling blanks with guesses and helps the user understand how reliable each comparison is.
 function weightWeekSummary(planDays: PlanDay[], metrics: Record<string, MetricLog>, weekIndex: number): WeightWeekSummary {
   const days = planDays.slice(weekIndex * 7, weekIndex * 7 + 7);
-  const loggedWeights = days
-    .map((day) => weightKgFromMetric(normalizeMetricLogShape(metrics[day.iso])))
+  const dayMetrics = days.map((day) => normalizeMetricLogShape(metrics[day.iso]));
+  const loggedWeights = dayMetrics
+    .map(weightKgFromMetric)
     .filter((weight): weight is number => weight !== null);
+  const forgottenDays = dayMetrics.filter(isWeightForgotten).length;
   const average =
     loggedWeights.length > 0
       ? loggedWeights.reduce((sum, weight) => sum + weight, 0) / loggedWeights.length
@@ -4746,9 +4764,18 @@ function weightWeekSummary(planDays: PlanDay[], metrics: Record<string, MetricLo
     startIso: days[0]?.iso ?? START_DATE,
     endIso: days[days.length - 1]?.iso ?? START_DATE,
     loggedDays: loggedWeights.length,
+    forgottenDays,
+    openDays: Math.max(0, days.length - loggedWeights.length - forgottenDays),
     missingDays: Math.max(0, days.length - loggedWeights.length),
     average,
   };
+}
+
+function weightCoverageLabel(summary: WeightWeekSummary) {
+  const parts = [`${summary.loggedDays}/7 logged`];
+  if (summary.forgottenDays > 0) parts.push(`${summary.forgottenDays} forgotten`);
+  if (summary.openDays > 0) parts.push(`${summary.openDays} open`);
+  return parts.join(" · ");
 }
 
 // The coach insight waits for two completed weeks because one or two scale readings can be noisy
@@ -4774,9 +4801,10 @@ function weightComparisonInsight(previous: WeightWeekSummary | null, current: We
   const absoluteDelta = Math.abs(delta);
   const direction = delta < 0 ? "down" : delta > 0 ? "up" : "unchanged";
   const missingTotal = previous.missingDays + current.missingDays;
+  const forgottenTotal = previous.forgottenDays + current.forgottenDays;
   const reliability =
     missingTotal > 0
-      ? ` Missing ${missingTotal} of 14 mornings, so the average uses logged days only.`
+      ? ` Missing ${missingTotal} of 14 mornings${forgottenTotal ? ` (${forgottenTotal} marked forgotten)` : ""}, so the average uses logged days only.`
       : " All 14 mornings are logged, so this is a clean comparison.";
   const headline =
     absoluteDelta < 0.2
@@ -5166,13 +5194,16 @@ function mergeDayLog(cloudLog: DayLog | undefined, localLog: DayLog | undefined)
     ...Object.keys(localExercises),
   ]);
 
+  const completed = normalizedLocalLog.completed || normalizedCloudLog.completed;
   return {
-    completed: normalizedLocalLog.completed || normalizedCloudLog.completed,
-    daySkipReason: normalizedLocalLog.daySkipReason ?? normalizedCloudLog.daySkipReason,
+    completed,
+    daySkipReason: completed
+      ? undefined
+      : normalizedLocalLog.daySkipReason ?? normalizedCloudLog.daySkipReason,
     warmup: mergeChecks(normalizedCloudLog.warmup, normalizedLocalLog.warmup),
     tasks: mergeChecks(normalizedCloudLog.tasks, normalizedLocalLog.tasks),
     swaps: mergeSwaps(normalizedCloudLog.swaps, normalizedLocalLog.swaps),
-    skips: mergeSkips(normalizedCloudLog.skips, normalizedLocalLog.skips),
+    skips: completed ? {} : mergeSkips(normalizedCloudLog.skips, normalizedLocalLog.skips),
     readiness: {
       ...normalizedCloudLog.readiness,
       ...normalizedLocalLog.readiness,
@@ -5214,12 +5245,17 @@ function mergeMetricLog(metric: MetricLog | undefined, localMetric: MetricLog | 
   if (!metric) return normalizedLocalMetric;
   if (!localMetric) return normalizedCloudMetric;
 
-  return {
+  const mergedMetric = {
     weight: preferFilled(normalizedLocalMetric.weight, normalizedCloudMetric.weight),
     weightKg: preferFilled(normalizedLocalMetric.weightKg, normalizedCloudMetric.weightKg),
+    weightForgotten: normalizedLocalMetric.weightForgotten || normalizedCloudMetric.weightForgotten,
     photoReminderDone:
       normalizedLocalMetric.photoReminderDone || normalizedCloudMetric.photoReminderDone,
     note: preferFilled(normalizedLocalMetric.note, normalizedCloudMetric.note),
+  };
+  return {
+    ...mergedMetric,
+    weightForgotten: weightKgFromMetric(mergedMetric) === null && mergedMetric.weightForgotten,
   };
 }
 
@@ -5855,6 +5891,85 @@ function isPlanDayComplete(planDay: PlanDay, log: DayLog) {
   return dayStatusForDay(planDay, log) === "complete";
 }
 
+/**
+ * Close tracking gaps only after their calendar day has ended.
+ *
+ * The routine is deliberately idempotent: opening the app many times returns the same store after
+ * the first reconciliation. Completed sets and deliberate skip reasons remain untouched. If a
+ * workout was partly completed, only its unresolved moves become skipped; if nothing was recorded,
+ * the whole day becomes skipped. Missing weights are recorded as forgotten and remain excluded from
+ * every average instead of being converted to zero or copied from a nearby date.
+ */
+function reconcilePastTracking(
+  planDays: PlanDay[],
+  store: TrackerStore,
+  currentDate: string,
+): TrackerStore {
+  const currentIndex = planDays.findIndex((day) => day.iso === currentDate);
+  const pastDayCount =
+    currentIndex >= 0
+      ? currentIndex
+      : currentDate > (planDays.at(-1)?.iso ?? currentDate)
+        ? planDays.length
+        : 0;
+  if (pastDayCount <= 0) return store;
+
+  let nextDays = store.days;
+  let nextMetrics = store.metrics;
+  let daysChanged = false;
+  let metricsChanged = false;
+
+  for (const rawDay of planDays.slice(0, pastDayCount)) {
+    const metric = normalizeMetricLogShape(nextMetrics[rawDay.iso]);
+    if (weightKgFromMetric(metric) === null && !metric.weightForgotten) {
+      if (!metricsChanged) nextMetrics = { ...nextMetrics };
+      metricsChanged = true;
+      nextMetrics[rawDay.iso] = { ...metric, weightForgotten: true };
+    }
+
+    const workingStore = { ...store, days: nextDays, metrics: nextMetrics };
+    const planDay = withTrainingWeek(
+      rawDay,
+      earnedTrainingWeekForDay(planDays, workingStore, rawDay),
+    );
+    const log = normalizeDayLog(nextDays[rawDay.iso]);
+    if (log.daySkipReason) continue;
+
+    const exercises = scheduledExercisesForDay(planDay, log);
+    let nextLog = log;
+
+    if (exercises.length > 0) {
+      const statuses = exercises.map((exercise, index) =>
+        moveStatusForExercise(planDay, log, exercise, index),
+      );
+      const pendingExercises = exercises.filter((_exercise, index) => statuses[index] === "pending");
+      if (pendingExercises.length === 0) continue;
+
+      const hasRecordedWork =
+        statuses.some((status) => status !== "pending") ||
+        Object.values(log.tasks).some(Boolean);
+      nextLog = hasRecordedWork
+        ? pendingExercises.reduce(
+            (currentLog, exercise) => skipPlanMove(planDay, currentLog, exercise.id, "forgotten"),
+            log,
+          )
+        : skipPlanDay(planDay, log, "forgotten");
+    } else if (dayStatusForDay(planDay, log) === "incomplete") {
+      nextLog = skipPlanDay(planDay, log, "forgotten");
+    }
+
+    if (!sameData(nextLog, log)) {
+      if (!daysChanged) nextDays = { ...nextDays };
+      daysChanged = true;
+      nextDays[rawDay.iso] = nextLog;
+    }
+  }
+
+  return daysChanged || metricsChanged
+    ? { ...store, days: nextDays, metrics: nextMetrics }
+    : store;
+}
+
 // "Mark Complete" intentionally fills every move and task for that day. This keeps the top-level
 // day status and per-move checkmarks synchronized in both Today and Gym Mode.
 function completePlanDay(planDay: PlanDay, log: DayLog) {
@@ -6066,6 +6181,23 @@ function SetLoadFields({ exercise, set, setIndex, onChange }: {
   </>;
 }
 
+// Modern browsers can cross-fade substantial screen changes without a routing library. The
+// feature is progressive: older browsers and people who request reduced motion get the immediate
+// state update they already expect.
+function runViewTransition(update: () => void) {
+  const transitionDocument = document as Document & {
+    startViewTransition?: (callback: () => void) => unknown;
+  };
+  if (
+    !transitionDocument.startViewTransition ||
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
+    update();
+    return;
+  }
+  transitionDocument.startViewTransition(update);
+}
+
 // The test suite uses the same calculations as the interface, exercising complete
 // 26-week plans and saved progress without duplicating the coaching logic.
 export {
@@ -6074,7 +6206,8 @@ export {
   recommendedSets, targetForExercise, dayStatusForDay, firstUnfinishedMoveIndex,
   nextUnfinishedMoveIndex, proteinReferenceFromMetrics, weightTrendSignalFor,
   adaptiveDietCoachForDay, recentTrainingAdherenceFor, weightChartModel,
-  weightKgFromMetric, smartPortionAdviceForMeal, baseDietRecipeFor, smartLoadSuggestion,
+  weightKgFromMetric, isWeightForgotten, weightWeekSummary, reconcilePastTracking,
+  smartPortionAdviceForMeal, baseDietRecipeFor, smartLoadSuggestion,
   closestProgramDate, resolveGymDay, skipPlanDay, skipPlanMove, reopenPlanDay, reopenPlanMove,
   moveStatusForExercise, withAutomaticDayCompletion, isPlanDayComplete,
   activeExerciseFor, locationGuideForExercise, swapOptionsFor,
@@ -6085,10 +6218,12 @@ export default function Home() {
   // would only make the component harder to reason about.
   const planDays = useMemo(buildPlanDays, []);
 
-  // There are three day concepts on purpose:
+  // There are four day concepts on purpose:
+  // calendarDate is the device's unclamped date used to close yesterday (including after Week 26),
   // currentProgramDate is the real "today" inside the program window,
   // selectedDate is the browsable workout day in Today/Week/Progress/Library,
   // selectedDietDate is the browsable diet day.
+  const [calendarDate, setCalendarDate] = useState(() => isoFromDate(new Date()));
   const [currentProgramDate, setCurrentProgramDate] = useState(() => closestProgramDate());
   const [selectedDate, setSelectedDate] = useState(() => closestProgramDate());
   const [store, setStore] = useState<TrackerStore>(() => loadStore());
@@ -6106,6 +6241,7 @@ export default function Home() {
   );
   const [cloudError, setCloudError] = useState(supabaseConfigError);
   const [cloudReadyForUser, setCloudReadyForUser] = useState<string | null>(null);
+  const [authResolved, setAuthResolved] = useState(!isSupabaseConfigured);
   const [lastCloudSyncedAt, setLastCloudSyncedAt] = useState<string | null>(
     () => formatClock(loadStoreMeta().lastCloudSyncedAt),
   );
@@ -6147,6 +6283,7 @@ export default function Home() {
     setIsHydrated(true);
 
     const alignWithCurrentProgramDate = () => {
+      setCalendarDate(isoFromDate(new Date()));
       const nextProgramDate = closestProgramDate();
       setCurrentProgramDate(nextProgramDate);
       if (lastAutoAlignedDateRef.current === nextProgramDate) return;
@@ -6275,6 +6412,7 @@ export default function Home() {
 
     const acceptSession = (nextSession: Session | null) => {
       if (!isMounted) return;
+      setAuthResolved(true);
       const nextId = nextSession?.user.id ?? null;
       const changedAccount = activeUserIdRef.current !== nextId;
       activeUserIdRef.current = nextId;
@@ -6314,6 +6452,7 @@ export default function Home() {
     supabase.auth.getSession().then(({ data, error }) => {
       if (!isMounted || receivedAuthEvent) return;
       if (error) {
+        setAuthResolved(true);
         setCloudStatus("error");
         setCloudError(error.message);
         return;
@@ -6321,6 +6460,7 @@ export default function Home() {
       acceptSession(data.session);
     }).catch((error: unknown) => {
       if (!isMounted) return;
+      setAuthResolved(true);
       setCloudStatus("error");
       setCloudError(error instanceof Error ? error.message : "Could not restore sign-in. Try signing in again.");
     });
@@ -6396,6 +6536,20 @@ export default function Home() {
       window.clearTimeout(timer);
     };
   }, [isHydrated, session?.user.id, store, syncRevision]);
+
+  useEffect(() => {
+    // Rollover runs only after account restoration is settled. On a new device this prevents an
+    // empty local store from auto-skipping old dates before the real Supabase history arrives.
+    if (!isHydrated || !authResolved) return;
+    const userId = session?.user.id ?? null;
+    const hasAccountSnapshot =
+      !userId ||
+      cloudReadyForUser === userId ||
+      (syncBaselineRef.current.userId === userId && Boolean(syncBaselineRef.current.store));
+    if (!hasAccountSnapshot) return;
+
+    setStore((current) => reconcilePastTracking(planDays, current, calendarDate));
+  }, [authResolved, calendarDate, cloudReadyForUser, isHydrated, planDays, session?.user.id]);
 
   useEffect(() => {
     const refresh = () => {
@@ -6957,6 +7111,21 @@ export default function Home() {
         },
       };
     });
+  };
+
+  const markWeightForgotten = (date: string) => {
+    updateMetric(date, (metric) => ({
+      ...metric,
+      // Clear both the current kg field and the legacy pounds field so a forgotten day can never
+      // leak an old value into an average.
+      weight: "",
+      weightKg: "",
+      weightForgotten: true,
+    }));
+  };
+
+  const reopenWeightEntry = (date: string) => {
+    updateMetric(date, (metric) => ({ ...metric, weightForgotten: false }));
   };
 
   const updateDietDay = (date: string, updater: (log: DietDayLog) => DietDayLog) => {
@@ -7574,25 +7743,27 @@ export default function Home() {
   };
 
   const switchSection = (section: AppSection) => {
-    // Gym Mode always uses actual today, even if the user has browsed a different date in Today.
-    if (section === "gym") {
-      const nextProgramDate = closestProgramDate();
-      const nextGymDay = resolveGymDay(planDays, nextProgramDate);
-      const nextGymCoachDay = withTrainingWeek(
-        nextGymDay,
-        earnedTrainingWeekForDay(planDays, store, nextGymDay),
-      );
-      const nextGymLog = normalizeDayLog(store.days[nextGymDay.iso]);
-      const nextGymExercises = scheduledExercisesForDay(nextGymCoachDay, nextGymLog);
-      const nextGymRows = buildWorkoutMoveRows(nextGymCoachDay, nextGymLog, nextGymExercises);
+    runViewTransition(() => {
+      // Gym Mode always uses actual today, even if the user has browsed a different date in Today.
+      if (section === "gym") {
+        const nextProgramDate = closestProgramDate();
+        const nextGymDay = resolveGymDay(planDays, nextProgramDate);
+        const nextGymCoachDay = withTrainingWeek(
+          nextGymDay,
+          earnedTrainingWeekForDay(planDays, store, nextGymDay),
+        );
+        const nextGymLog = normalizeDayLog(store.days[nextGymDay.iso]);
+        const nextGymExercises = scheduledExercisesForDay(nextGymCoachDay, nextGymLog);
+        const nextGymRows = buildWorkoutMoveRows(nextGymCoachDay, nextGymLog, nextGymExercises);
 
-      setCurrentProgramDate(nextProgramDate);
-      setSelectedDate(nextProgramDate);
-      setGymExerciseIndex(firstUnfinishedMoveIndex(nextGymRows));
-      setGymStartedAt((startedAt) => startedAt ?? Date.now());
-    }
+        setCurrentProgramDate(nextProgramDate);
+        setSelectedDate(nextProgramDate);
+        setGymExerciseIndex(firstUnfinishedMoveIndex(nextGymRows));
+        setGymStartedAt((startedAt) => startedAt ?? Date.now());
+      }
 
-    setActiveSection(section);
+      setActiveSection(section);
+    });
   };
 
   const completeNextGymSet = () => {
@@ -7629,12 +7800,14 @@ export default function Home() {
       ? "working"
       : "calm";
   const switchProductMode = (mode: ProductMode) => {
-    if (mode === "workout") {
-      goToCurrentProgramDay();
-      setActiveSection("today");
-    }
-    if (mode === "diet") setSelectedDietDate(closestProgramDate());
-    setAppMode(mode);
+    runViewTransition(() => {
+      if (mode === "workout") {
+        goToCurrentProgramDay();
+        setActiveSection("today");
+      }
+      if (mode === "diet") setSelectedDietDate(closestProgramDate());
+      setAppMode(mode);
+    });
   };
   const greeting = (() => {
     const hour = new Date().getHours();
@@ -7668,7 +7841,7 @@ export default function Home() {
             <button
               className="hub-choice-card workout"
               type="button"
-              onClick={() => { goToCurrentProgramDay(); setActiveSection("today"); setAppMode("workout"); }}
+              onClick={() => switchProductMode("workout")}
             >
               <div className="hub-choice-content">
                 <span><Icon name="dumbbell" size={22} /> Today&apos;s workout <Icon name="chevronRight" size={18} /></span>
@@ -7685,7 +7858,7 @@ export default function Home() {
             <button
               className="hub-choice-card diet"
               type="button"
-              onClick={() => { setSelectedDietDate(currentProgramDate); setAppMode("diet"); }}
+              onClick={() => switchProductMode("diet")}
             >
               <div className="hub-choice-content">
                 <span><Icon name="cart" size={22} /> Today&apos;s nutrition <Icon name="chevronRight" size={18} /></span>
@@ -7716,15 +7889,38 @@ export default function Home() {
                 <input
                   inputMode="decimal"
                   value={currentProgramMetric.weightKg}
-                  placeholder="78.0"
+                  placeholder={isWeightForgotten(currentProgramMetric) ? "Not logged" : "78.0"}
                   onChange={(event) =>
                     updateMetric(currentProgramDate, (metric) => ({
                       ...metric,
                       weightKg: event.target.value,
+                      weightForgotten: false,
                     }))
                   }
                 />
               </label>
+            </div>
+            <div className={`weighin-state-row ${isWeightForgotten(currentProgramMetric) ? "forgotten" : weightKgFromMetric(currentProgramMetric) !== null ? "logged" : "open"}`}>
+              <span>
+                {isWeightForgotten(currentProgramMetric)
+                  ? "This morning is marked as forgotten and excluded from averages."
+                  : weightKgFromMetric(currentProgramMetric) !== null
+                    ? "Today's weight is logged."
+                    : "No weight has been logged yet."}
+              </span>
+              {weightKgFromMetric(currentProgramMetric) === null && (
+                <button
+                  className="forgot-weight-button"
+                  type="button"
+                  onClick={() =>
+                    isWeightForgotten(currentProgramMetric)
+                      ? reopenWeightEntry(currentProgramDate)
+                      : markWeightForgotten(currentProgramDate)
+                  }
+                >
+                  {isWeightForgotten(currentProgramMetric) ? "Enter weight instead" : "Forgot to input weight"}
+                </button>
+              )}
             </div>
             <label className="notes-field hub-checkin-note">
               Check-in note
@@ -7820,12 +8016,12 @@ export default function Home() {
             <div>
               <span>This week</span>
               <strong>{currentWeightWeek?.average === null || !currentWeightWeek ? "No data" : `${formatLoadValue(currentWeightWeek.average)} kg`}</strong>
-              <small>{currentWeightWeek ? `${currentWeightWeek.loggedDays}/7 mornings logged` : "Start logging today"}</small>
+              <small>{currentWeightWeek ? weightCoverageLabel(currentWeightWeek) : "Start logging today"}</small>
             </div>
             <div>
               <span>Previous week</span>
               <strong>{previousWeightWeek?.average === null || !previousWeightWeek ? "No data" : `${formatLoadValue(previousWeightWeek.average)} kg`}</strong>
-              <small>{previousWeightWeek ? `${previousWeightWeek.loggedDays}/7 mornings logged` : "Unlocks after Week 1"}</small>
+              <small>{previousWeightWeek ? weightCoverageLabel(previousWeightWeek) : "Unlocks after Week 1"}</small>
             </div>
             <div className="weight-coach-note">
               <span>Coach read</span>
@@ -7907,23 +8103,35 @@ export default function Home() {
               {hubWeightDays.map((day) => {
                 const metric = normalizeMetricLogShape(store.metrics[day.iso]);
                 const hasWeight = weightKgFromMetric(metric) !== null;
+                const wasForgotten = isWeightForgotten(metric);
 
                 return (
-                  <label key={day.iso} className={`daily-weight-cell ${hasWeight ? "logged" : ""}`}>
+                  <div key={day.iso} className={`daily-weight-cell ${hasWeight ? "logged" : wasForgotten ? "forgotten" : "open"}`}>
                     <span>{formatDate(day.iso, "short")}</span>
                     <small>Day {day.index + 1}</small>
                     <input
                       inputMode="decimal"
                       value={metric.weightKg}
-                      placeholder="kg"
+                      placeholder={wasForgotten ? "Forgotten" : "kg"}
+                      aria-label={`${formatDate(day.iso)} morning weight in kilograms`}
                       onChange={(event) =>
                         updateMetric(day.iso, (currentMetric) => ({
                           ...currentMetric,
                           weightKg: event.target.value,
+                          weightForgotten: false,
                         }))
                       }
                     />
-                  </label>
+                    {!hasWeight && (
+                      <button
+                        className="daily-forgot-button"
+                        type="button"
+                        onClick={() => wasForgotten ? reopenWeightEntry(day.iso) : markWeightForgotten(day.iso)}
+                      >
+                        {wasForgotten ? "Enter instead" : "Mark forgotten"}
+                      </button>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -7936,11 +8144,11 @@ export default function Home() {
             </summary>
             <div className="weekly-weight-list">
               {visibleWeightWeeks.map((summary) => (
-                <div key={summary.week} className={summary.loggedDays > 0 ? "logged" : ""}>
+                <div key={summary.week} className={`${summary.loggedDays > 0 ? "logged" : ""} ${summary.forgottenDays > 0 ? "has-forgotten" : ""}`}>
                   <span>Week {summary.week}</span>
                   <strong>{summary.average === null ? "No data" : `${formatLoadValue(summary.average)} kg`}</strong>
                   <small>
-                    {formatDate(summary.startIso, "short")} - {formatDate(summary.endIso, "short")} · {summary.loggedDays}/7 logged
+                    {formatDate(summary.startIso, "short")} - {formatDate(summary.endIso, "short")} · {weightCoverageLabel(summary)}
                   </small>
                 </div>
               ))}
@@ -8454,10 +8662,10 @@ export default function Home() {
         </div>
 
         <nav className="diet-bottom-bar" aria-label="Diet mode navigation">
-          <button type="button" onClick={() => setAppMode("hub")}>
+          <button type="button" onClick={() => switchProductMode("hub")}>
             Hub
           </button>
-          <button type="button" onClick={() => setAppMode("workout")}>
+          <button type="button" onClick={() => switchProductMode("workout")}>
             Workout
           </button>
           <button type="button" onClick={() => setSelectedDietDate(closestProgramDate())}>

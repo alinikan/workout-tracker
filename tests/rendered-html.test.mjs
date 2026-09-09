@@ -210,6 +210,12 @@ test("includes researched movement resources and autosave controls", async () =>
     "requestSkipReason",
     "submitSkipReason",
     "reopenSkippedExerciseForDay",
+    "reconcilePastTracking",
+    "weightForgotten",
+    "Forgot to input weight",
+    "Mark forgotten",
+    "Not logged before the next day",
+    "runViewTransition",
     "With skips",
   ]) {
     assert.match(page, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
@@ -670,8 +676,8 @@ test("day skip controls share date-scoped handlers and Gym shows a terminal summ
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v34/);
-  assert.match(serviceWorker, /ui-polish-v34/);
+  assert.match(serviceWorker, /recomp-gym-console-v35/);
+  assert.match(serviceWorker, /tracking-rollover-v35/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);

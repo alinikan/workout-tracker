@@ -12,7 +12,7 @@ after(() => server.close());
 const model = await server.ssrLoadModule("/src/App.tsx");
 const days = model.buildPlanDays();
 const reference = { weight: 80, label: "Recent average", detail: "Test fixture" };
-const weight = (kg) => ({ weightKg: String(kg), weight: "", note: "", photoReminderDone: false });
+const weight = (kg) => ({ weightKg: String(kg), weight: "", weightForgotten: false, note: "", photoReminderDone: false });
 
 function recordWeek(store, week, kg, count = 7) {
   for (let day = 0; day < count; day += 1) store.metrics[days[week * 7 + day].iso] = weight(kg);
@@ -315,6 +315,9 @@ test("day skips survive save/reload and independent cross-device date edits", ()
   assert.equal(model.normalizeDayLog(invalid).daySkipReason, undefined);
   const conflict = { ...local.days[days[4].iso], completed: true };
   assert.equal(model.normalizeDayLog(conflict).completed, false, "a skipped day cannot earn training credit");
+  const automaticConflict = { ...local.days[days[4].iso], daySkipReason: "forgotten", completed: true };
+  assert.equal(model.normalizeDayLog(automaticConflict).completed, true, "real completion beats automatic rollover");
+  assert.equal(model.normalizeDayLog(automaticConflict).daySkipReason, undefined);
 });
 
 test("invalid and negative weights never enter averages; legacy pounds still convert", () => {
@@ -323,6 +326,70 @@ test("invalid and negative weights never enter averages; legacy pounds still con
   }
   assert.equal(model.weightKgFromMetric(weight("80,5")), 80.5);
   assert.ok(Math.abs(model.weightKgFromMetric({ ...weight(""), weight: "176.37" }) - 80) < 0.01);
+});
+
+test("past-date rollover records forgotten weights without treating them as zero", () => {
+  const store = model.emptyStore();
+  store.metrics[days[0].iso] = weight(80);
+
+  const reconciled = model.reconcilePastTracking(days, store, days[3].iso);
+  assert.equal(model.isWeightForgotten(reconciled.metrics[days[0].iso]), false);
+  assert.equal(model.isWeightForgotten(reconciled.metrics[days[1].iso]), true);
+  assert.equal(model.isWeightForgotten(reconciled.metrics[days[2].iso]), true);
+  assert.equal(reconciled.metrics[days[3].iso], undefined, "today stays open until tomorrow");
+
+  const summary = model.weightWeekSummary(days, reconciled.metrics, 0);
+  assert.equal(summary.loggedDays, 1);
+  assert.equal(summary.forgottenDays, 2);
+  assert.equal(summary.openDays, 4);
+  assert.equal(summary.average, 80);
+  assert.equal(model.reconcilePastTracking(days, reconciled, days[3].iso), reconciled, "rollover is idempotent");
+
+  const afterProgram = model.reconcilePastTracking(days, model.emptyStore(), "2027-03-01");
+  assert.equal(model.isWeightForgotten(afterProgram.metrics[days.at(-1).iso]), true);
+  assert.equal(model.normalizeDayLog(afterProgram.days[days.at(-1).iso]).daySkipReason, "forgotten");
+});
+
+test("past-date rollover skips only unresolved workout moves after partial work", () => {
+  const store = model.emptyStore();
+  const firstDay = model.withTrainingWeek(days[0], 1);
+  const exercises = model.scheduledExercisesForDay(firstDay);
+  const complete = model.completePlanDay(firstDay, model.normalizeDayLog(undefined));
+  const partial = model.normalizeDayLog(undefined);
+  partial.exercises[exercises[0].id] = complete.exercises[exercises[0].id];
+  store.days[firstDay.iso] = partial;
+
+  const reconciled = model.reconcilePastTracking(days, store, days[2].iso);
+  const firstLog = model.normalizeDayLog(reconciled.days[firstDay.iso]);
+  assert.equal(model.moveStatusForExercise(firstDay, firstLog, exercises[0], 0), "done");
+  exercises.slice(1).forEach((exercise, relativeIndex) => {
+    assert.equal(
+      model.moveStatusForExercise(firstDay, firstLog, exercise, relativeIndex + 1),
+      "skipped",
+    );
+    assert.equal(firstLog.skips[exercise.id], "forgotten");
+  });
+  assert.equal(model.dayStatusForDay(firstDay, firstLog), "finished-with-skips");
+
+  const untouchedDay = model.withTrainingWeek(days[1], 1);
+  const untouchedLog = model.normalizeDayLog(reconciled.days[untouchedDay.iso]);
+  assert.equal(untouchedLog.daySkipReason, "forgotten");
+  assert.equal(model.dayStatusForDay(untouchedDay, untouchedLog), "skipped");
+  assert.equal(reconciled.days[days[2].iso], undefined, "today's workout remains open");
+});
+
+test("concurrent cloud completion beats automatic rollover housekeeping", () => {
+  const base = model.emptyStore();
+  base.days[days[0].iso] = model.normalizeDayLog(undefined);
+  const local = structuredClone(base);
+  const remote = structuredClone(base);
+  local.days[days[0].iso] = model.skipPlanDay(days[0], local.days[days[0].iso], "forgotten");
+  remote.days[days[0].iso] = model.completePlanDay(days[0], remote.days[days[0].iso]);
+
+  const merged = mergeProgressChanges(base, local, remote);
+  const normalized = model.normalizeDayLog(merged.days[days[0].iso]);
+  assert.equal(normalized.completed, true);
+  assert.equal(normalized.daySkipReason, undefined);
 });
 
 test("recent protein averages cannot silently include months-old or future entries", () => {

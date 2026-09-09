@@ -3563,3 +3563,217 @@ h3 {
     transform: none !important;
   }
 }
+
+/*
+ * Weight-state clarity and 2026 progressive presentation
+ * -------------------------------------------------------
+ * These rules sit at the end of the cascade so semantic foreground/background pairs win over
+ * older card-specific colors. Forgotten is always expressed with text as well as amber color.
+ */
+.morning-weighin-card input,
+.daily-weight-cell input {
+  border-color: var(--separator-strong);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  caret-color: var(--accent);
+  color-scheme: light dark;
+}
+
+.morning-weighin-card input::placeholder,
+.daily-weight-cell input::placeholder {
+  color: var(--text-tertiary);
+  opacity: 1;
+}
+
+.weighin-state-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 10px 12px;
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-card);
+  background: var(--surface-secondary);
+}
+
+.weighin-state-row > span {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.weighin-state-row.logged {
+  border-color: color-mix(in srgb, var(--success) 32%, var(--separator));
+  background: var(--success-soft);
+}
+
+.weighin-state-row.forgotten,
+.daily-weight-cell.forgotten,
+.weekly-weight-list > div.has-forgotten:not(.logged) {
+  border-color: color-mix(in srgb, var(--warning) 38%, var(--separator));
+  background: var(--warning-soft);
+}
+
+.weighin-state-row.forgotten > span,
+.daily-weight-cell.forgotten > span,
+.weekly-weight-list > div.has-forgotten:not(.logged) > strong {
+  color: var(--warning);
+}
+
+.forgot-weight-button,
+.daily-forgot-button {
+  min-height: 36px;
+  border: 1px solid color-mix(in srgb, var(--warning) 34%, var(--separator));
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--warning-soft) 68%, var(--surface-primary));
+  color: color-mix(in srgb, var(--warning) 84%, var(--text-primary));
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.forgot-weight-button {
+  flex: 0 0 auto;
+  padding-inline: 12px;
+}
+
+.daily-forgot-button {
+  width: 100%;
+  padding: 5px 7px;
+}
+
+.daily-weight-cell {
+  align-content: start;
+}
+
+.daily-weight-cell.logged,
+.weekly-weight-list > div.logged {
+  color: var(--text-primary);
+}
+
+/* Long workout, recipe, and library pages skip off-screen paint while staying in the DOM and
+ * accessibility tree. The remembered intrinsic size prevents the scroll position from jumping. */
+@supports (content-visibility: auto) {
+  .move-item,
+  .diet-meal-card,
+  .library-card {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 420px;
+  }
+}
+
+/* A short cross-fade helps the eye follow a product- or tab-level context change. */
+::view-transition-old(root) {
+  animation: recomp-view-out 130ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+::view-transition-new(root) {
+  animation: recomp-view-in 180ms cubic-bezier(0, 0, 0.2, 1) both;
+}
+
+@keyframes recomp-view-out {
+  to { opacity: 0.72; }
+}
+
+@keyframes recomp-view-in {
+  from { opacity: 0.72; }
+}
+
+/* New details-content interpolation is an enhancement only. Unsupported browsers keep native,
+ * instant disclosure behavior, while current browsers get a compact height-and-fade transition. */
+@supports selector(details::details-content) {
+  :root {
+    interpolate-size: allow-keywords;
+  }
+
+  .compact-weight-log::details-content,
+  .weekly-weight-history::details-content,
+  .coach-disclosure::details-content {
+    block-size: 0;
+    overflow: clip;
+    opacity: 0;
+    transition: block-size 180ms ease, opacity 140ms ease;
+  }
+
+  .compact-weight-log[open]::details-content,
+  .weekly-weight-history[open]::details-content,
+  .coach-disclosure[open]::details-content {
+    block-size: auto;
+    opacity: 1;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hub-choice-card,
+  .move-item,
+  .diet-meal-card,
+  .library-card,
+  .weight-summary-grid > div,
+  .weekly-weight-list > div {
+    transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+  }
+
+  .hub-choice-card:hover,
+  .move-item:hover,
+  .diet-meal-card:hover,
+  .library-card:hover {
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  /* These selectors intentionally match the specificity of the old .logged rules. Without them,
+   * light cards can be paired with light dark-mode text and the number effectively disappears. */
+  .daily-weight-cell.logged,
+  .weekly-weight-list > div.logged {
+    border-color: color-mix(in srgb, var(--success) 42%, var(--separator));
+    background: color-mix(in srgb, var(--success-soft) 66%, var(--surface-secondary));
+    color: var(--text-primary);
+  }
+
+  .daily-weight-cell.forgotten,
+  .weekly-weight-list > div.has-forgotten:not(.logged),
+  .weighin-state-row.forgotten {
+    border-color: color-mix(in srgb, var(--warning) 46%, var(--separator));
+    background: color-mix(in srgb, var(--warning-soft) 70%, var(--surface-secondary));
+  }
+
+  .morning-weighin-card input,
+  .daily-weight-cell input {
+    border-color: var(--separator-strong);
+    background: #111316;
+    color: #f5f5f7;
+  }
+
+  .forgot-weight-button,
+  .daily-forgot-button {
+    background: color-mix(in srgb, var(--warning-soft) 74%, #111316);
+    color: #ffd27a;
+  }
+}
+
+@media (max-width: 720px) {
+  .weighin-state-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .forgot-weight-button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none !important;
+  }
+
+  .compact-weight-log::details-content,
+  .weekly-weight-history::details-content,
+  .coach-disclosure::details-content {
+    transition: none !important;
+  }
+}

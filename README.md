@@ -94,7 +94,7 @@ That means the interface favors:
 | Diet | Daily meals with recipe photos, meal swaps, timing labels, plate portions, and a weekly to-buy list. |
 | Cloud Sync | Saves the same progress to Supabase for use across multiple devices. |
 | PWA | Can be installed on iPhone Home Screen and used like an app. |
-| Premium interface | Shared Coach/Workout/Nutrition navigation, responsive Gym controls, automatic light/dark appearance, reduced-motion support, and safe-area-aware mobile layout. |
+| Premium interface | Shared Coach/Workout/Nutrition navigation, responsive Gym controls, automatic light/dark appearance, reduced-motion support, safe-area-aware mobile layout, and progressive view transitions. |
 
 ### Workout Features
 
@@ -116,6 +116,7 @@ That means the interface favors:
 | Rest timer | Completing a set starts a movement-specific rest timer with longer rest for main lifts and shorter rest for core/accessories. |
 | Monthly check-ins | Every 4 weeks, the app reviews strength, cardio, weight trend, optional photos, and recovery feedback. |
 | Skip tracking | Skip a move or the remaining day with a Time, Pain, Equipment, Fatigue, or Other reason. Resume without losing logged sets. |
+| Automatic day rollover | When a new calendar day starts, unresolved moves from earlier dates are marked Skipped. Partial workouts keep completed sets and skip only what remained open. |
 | Day status | Separates Complete, Finished with skips, Day skipped, and Incomplete days. |
 | Home/gym labels | Marks exercises as Upstairs OK, Downstairs, Downstairs/outside, or Either. |
 | Home-equipment swaps | Includes carefully scoped options for selectorized press/leg stations and the HOIST Mi6 without silently adding extra sets. |
@@ -145,6 +146,7 @@ That means the interface favors:
 | Feature | Details |
 | --- | --- |
 | Morning weight in kg | Daily weigh-ins live in Coach Hub. |
+| Forgotten weigh-ins | Mark a missing morning explicitly. Unresolved past mornings roll over to Forgotten automatically and are never treated as zero. |
 | Weekly averages | Compares week-to-week averages once there is enough data. |
 | Weight trend chart | Shows the latest logged weights as a visual line chart with high, low, and window change. |
 | Expandable history | Recent daily weight inputs and weekly average history are tucked behind expandable panels to avoid a 182-day wall of data. |
@@ -165,6 +167,7 @@ Use Coach Hub to:
 - Sign in or create an account.
 - Check sync status.
 - Log morning body weight in kg.
+- Mark a missed weigh-in as **Forgot to input weight**, or replace that status later with a real entry.
 - Review the weight trend chart.
 - Expand recent daily weight entries only when editing older mornings.
 - Compare weekly weight averages.
@@ -325,7 +328,7 @@ The Diet page includes a **Smart portions** panel. It does not randomly replace 
 - If weight is dropping too fast, readiness is poor, or the user manually chooses the higher-calorie mode, the app shifts to fuel mode instead of cutting food.
 - Automatic tightening requires a sustained stall and consistent workouts. One higher week does not trigger a cut. The suggestion is limited to breakfast: choose one small carb adjustment OR an optional topping adjustment, never both. Lunch, the training snack, and dinner keep their base portions.
 
-The confidence rule is **at least four logged mornings in each of the last two completed, consecutive weeks**. Missing weeks are not bridged, missing days are not counted as zero, and today's unfinished workout is not counted as a missed session. Four readings is a conservative product rule, not a medical threshold. Protein uses up to seven entries from the last 14 calendar days when at least three are available; otherwise the latest weight is used, with older readings clearly labelled.
+The confidence rule is **at least four logged mornings in each of the last two completed, consecutive weeks**. Missing weeks are not bridged, forgotten days are named and excluded rather than counted as zero, and today's unfinished workout is not counted as a missed session. Four readings is a conservative product rule, not a medical threshold. Protein uses up to seven entries from the last 14 calendar days when at least three are available; otherwise the latest weight is used, with older readings clearly labelled.
 
 Recipe calories and protein are **base-recipe estimates**. Optional ingredients, brands, swaps, and portion advice change actual intake; the app does not calculate exact adjusted macros or measure calorie expenditure. The calorie setting is a planning target, not a guarantee that every combination of meals totals that number. A protein add-on is an option toward the daily target, not a promise that the target has been reached.
 
@@ -337,7 +340,7 @@ Each recipe has a compact card for quick gym-day scanning and an expandable Make
 
 Lean beef meals are portioned around extra-lean beef, measured rice or potatoes, and a large vegetable serving. Oils, marinara, salsa, and avocado-style add-ons are marked optional where skipping or measuring them better supports fat loss.
 
-Coach Hub keeps weight tracking compact. The main view shows weekly averages, a recent weight trend graph, a motivating coach note, and only expands the daily log when the user wants to edit recent mornings. Weekly history shows the latest weeks first so the dashboard stays useful across the full 182-day program.
+Coach Hub keeps weight tracking compact. The main view shows weekly averages, a recent weight trend graph, a motivating coach note, and only expands the daily log when the user wants to edit recent mornings. Weekly history shows logged, forgotten, and still-open mornings separately so the dashboard stays honest across the full 182-day program.
 
 For users who train after work, strength-day snacks are treated as the pre-workout fuel window. The app recommends eating the planned snack about 60-120 minutes before lifting and keeping lunch complete earlier in the day so the gym session does not start under-fueled.
 
@@ -955,8 +958,11 @@ Skipped status belongs to one workout date, not to the exercise across the progr
 - **Resume Day** removes the whole-day skip. Previously skipped individual moves retain their own reasons; reopen those separately if needed.
 - Reopening just one move leaves the other skipped moves skipped.
 - **Mark Complete** should only be used for work actually performed. It clears the day's skip and marks all scheduled sets complete in both views.
+- At the first app open after midnight, an earlier untouched workout becomes **Day skipped**. If some sets were completed, those sets stay done and only unresolved moves receive the automatic **Not logged before the next day** skip reason.
 - Skipped days do not earn completion credit, shift the calendar, or change diet and weigh-in logs.
 - Once no moves remain open, Gym shows a summary instead of cycling back to a skipped exercise. **Review Today** lets you inspect or reopen individual moves.
+
+Weight rollover follows the same honest-data rule. A past morning with no valid kg entry is marked **Forgotten**. Weekly averages continue to use only real weights, while coverage text reports how many mornings were logged, forgotten, or still open. On a newly signed-in device, rollover waits until Supabase history has loaded so a blank local store cannot replace cloud progress.
 
 These changes use the existing local autosave and account sync. No new Supabase table, SQL migration, or environment variable is required.
 
