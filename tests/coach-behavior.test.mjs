@@ -18,12 +18,13 @@ function recordWeek(store, week, kg, count = 7) {
   for (let day = 0; day < count; day += 1) store.metrics[days[week * 7 + day].iso] = weight(kg);
 }
 
-test("Coach Hub renders with useful actions and no saved user data", () => {
+test("Workout Today is the useful default with no saved user data", () => {
   const html = renderToString(createElement(model.default));
-  assert.match(html, /Coach Hub/);
-  assert.match(html, /Today&#x27;s workout progress/);
-  assert.match(html, /Today&#x27;s meal progress/);
-  assert.match(html, /Morning weight \(kg\)/);
+  assert.match(html, /section-today/);
+  assert.match(html, /Workout planning tools/);
+  assert.match(html, /Selected workout day/);
+  assert.match(html, /Workout Flow/);
+  assert.match(html, /Recomp app navigation/);
   assert.doesNotMatch(html, /NaN|undefined/);
 });
 

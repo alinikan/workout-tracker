@@ -127,7 +127,7 @@ test("includes researched movement resources and autosave controls", async () =>
     "dashboard-stat-grid",
     "activeExerciseFor",
     "workoutMoveRows",
-    "bottom-nav",
+    "primary-app-dock",
     "section-tabs",
     "move.exerciseIndex + 1",
     "move-check-indicator",
@@ -397,7 +397,7 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "fuel-step-list",
     "fuel-caution",
     "diet-week-strip",
-    "diet-bottom-bar",
+    "diet-meal-stack",
     "hub-weight-panel",
     "daily-weight-grid",
     "protein-reference-card",
@@ -677,8 +677,8 @@ test("day skip controls share date-scoped handlers and Gym shows a terminal summ
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v36/);
-  assert.match(serviceWorker, /clear-portion-coach-v36/);
+  assert.match(serviceWorker, /recomp-gym-console-v37/);
+  assert.match(serviceWorker, /iphone-experience-v37/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
@@ -784,4 +784,28 @@ test("ships the premium responsive presentation without replacing the data contr
   assert.match(primitives, /ProgressRing/);
   assert.match(primitives, /aria-current/);
   assert.match(manifest, /Recomp Personal Coach/);
+});
+
+test("ships an iPhone-first app shell with Today as the primary working surface", async () => {
+  const [app, premium, packageJson] = await Promise.all([
+    text("src/App.tsx"),
+    text("src/premium.css"),
+    text("package.json"),
+  ]);
+
+  assert.match(app, /useState<AppMode>\("workout"\)/);
+  assert.match(app, /function PrimaryAppDock/);
+  assert.match(app, /Continue Today/);
+  assert.match(app, /focusNextTodayMove/);
+  assert.match(app, /Workout planning tools/);
+  assert.match(app, /gym-live-progress/);
+  assert.match(app, /Next open movement/);
+  assert.match(app, /26-week program map/);
+  assert.match(app, /Achievement unlocked/);
+  assert.match(premium, /view-transition-name: active-exercise/);
+  assert.match(premium, /\.primary-app-dock/);
+  assert.match(premium, /\.workout-context-nav/);
+  assert.match(premium, /bottom: calc\(var\(--mobile-nav-height\) \+ 16px/);
+  assert.match(packageJson, /"lucide-react"/);
+  assert.match(packageJson, /"motion"/);
 });

@@ -1,5 +1,29 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
+import {
+  Activity,
+  CalendarDays,
+  ChartNoAxesCombined,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Cloud,
+  Dumbbell,
+  LibraryBig,
+  Mail,
+  Play,
+  Scale,
+  Search,
+  ShoppingBasket,
+  Sparkles,
+  Trophy,
+  UserRound,
+  Video,
+  X,
+  ArrowLeftRight,
+  type LucideIcon,
+} from "lucide-react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { isSupabaseConfigured, supabase, supabaseConfigError } from "./lib/supabaseClient";
 import { canClaimLocalProgress, mergeProgressChanges, sameData } from "./lib/syncMerge";
 import { ProductNavigation, ProgressRing, type ProductMode } from "./components/PremiumUI";
@@ -25,6 +49,7 @@ import { ProductNavigation, ProgressRing, type ProductMode } from "./components/
 type SessionType = "strength" | "cardio" | "movement" | "recovery";
 type AppMode = "hub" | "workout" | "diet";
 type AppSection = "today" | "gym" | "week" | "progress" | "library";
+type PrimaryDestination = "today" | "gym" | "diet" | "progress" | "coach";
 type PlanWeekday = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday";
 type IconName =
   | "activity"
@@ -181,69 +206,104 @@ type SmartPortionAdvice = {
   items: string[];
 };
 
-// The app uses a tiny inline icon system instead of a larger icon dependency. That keeps the bundle
-// small and makes every icon available offline after the PWA shell is cached.
-function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
-  const commonProps = {
-    width: size,
-    height: size,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2.2,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    "aria-hidden": true,
-  };
+// Lucide gives every product surface the same optical weight and stroke language. Keeping this
+// small adapter means the rest of the application can continue using its semantic icon names.
+const iconComponents: Record<IconName, LucideIcon> = {
+  activity: Activity,
+  calendar: CalendarDays,
+  cart: ShoppingBasket,
+  check: Check,
+  chevronLeft: ChevronLeft,
+  chevronRight: ChevronRight,
+  cloud: Cloud,
+  dumbbell: Dumbbell,
+  library: LibraryBig,
+  mail: Mail,
+  play: Play,
+  progress: ChartNoAxesCombined,
+  scale: Scale,
+  search: Search,
+  spark: Sparkles,
+  swap: ArrowLeftRight,
+  trophy: Trophy,
+  user: UserRound,
+  video: Video,
+  x: X,
+};
 
+function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
+  const Component = iconComponents[name];
+  return <Component aria-hidden="true" size={size} strokeWidth={2.1} />;
+}
+
+const primaryDockItems: Array<{
+  id: PrimaryDestination;
+  label: string;
+  icon: IconName;
+}> = [
+  { id: "today", label: "Today", icon: "activity" },
+  { id: "gym", label: "Gym", icon: "dumbbell" },
+  { id: "diet", label: "Diet", icon: "cart" },
+  { id: "progress", label: "Progress", icon: "progress" },
+  { id: "coach", label: "Coach", icon: "user" },
+];
+
+// The iPhone gets one navigation dock in every product area. Today is intentionally first because
+// it is the user's main working surface; Week and Library remain contextual Workout tools.
+function PrimaryAppDock({
+  active,
+  onSelect,
+}: {
+  active: PrimaryDestination;
+  onSelect: (destination: PrimaryDestination) => void;
+}) {
   return (
-    <svg {...commonProps}>
-      {name === "activity" && <path d="M3 12h4l3-8 4 16 3-8h4" />}
-      {name === "calendar" && (
-        <>
-          <rect x="4" y="5" width="16" height="15" rx="2" />
-          <path d="M8 3v4M16 3v4M4 10h16" />
-        </>
+    <nav className="primary-app-dock" aria-label="Recomp app navigation">
+      {primaryDockItems.map((item) => (
+        <button
+          key={item.id}
+          className={active === item.id ? "active" : ""}
+          type="button"
+          aria-current={active === item.id ? "page" : undefined}
+          onClick={() => onSelect(item.id)}
+        >
+          <span className="primary-dock-icon">
+            {active === item.id && (
+              <motion.span
+                className="primary-dock-active"
+                layoutId="primary-dock-active"
+                transition={{ type: "spring", stiffness: 520, damping: 38 }}
+              />
+            )}
+            <Icon name={item.icon} size={20} />
+          </span>
+          <span>{item.label}</span>
+        </button>
+      ))}
+    </nav>
+  );
+}
+
+function AchievementMoment({ label }: { label: string | null }) {
+  return (
+    <AnimatePresence>
+      {label && (
+        <motion.aside
+          className="achievement-moment"
+          role="status"
+          initial={{ opacity: 0, y: 18, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 12, scale: 0.98 }}
+          transition={{ type: "spring", stiffness: 420, damping: 32 }}
+        >
+          <span><Trophy aria-hidden="true" size={20} /></span>
+          <div>
+            <small>Achievement unlocked</small>
+            <strong>{label}</strong>
+          </div>
+        </motion.aside>
       )}
-      {name === "cart" && <path d="M5 6h2l2 10h8l2-7H8M10 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2ZM17 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />}
-      {name === "check" && <path d="M5 13l4 4L19 7" />}
-      {name === "chevronLeft" && <path d="M15 18l-6-6 6-6" />}
-      {name === "chevronRight" && <path d="M9 6l6 6-6 6" />}
-      {name === "cloud" && <path d="M6 18h11a4 4 0 0 0 0-8 6 6 0 0 0-11.5 2A3 3 0 0 0 6 18Z" />}
-      {name === "dumbbell" && <path d="M4 9v6M8 7v10M16 7v10M20 9v6M8 12h8" />}
-      {name === "library" && <path d="M5 4v16M10 6v14M15 4l4 16" />}
-      {name === "mail" && (
-        <>
-          <rect x="4" y="6" width="16" height="12" rx="2" />
-          <path d="m4 8 8 6 8-6" />
-        </>
-      )}
-      {name === "play" && <path d="M8 5v14l11-7Z" />}
-      {name === "progress" && <path d="M4 17 9 12l4 4 7-9M4 21h16" />}
-      {name === "scale" && <path d="M12 3v18M7 6h10M5 6l-3 7h6L5 6ZM19 6l-3 7h6l-3-7ZM8 21h8" />}
-      {name === "search" && (
-        <>
-          <circle cx="11" cy="11" r="6" />
-          <path d="m16 16 4 4" />
-        </>
-      )}
-      {name === "spark" && <path d="m12 3 1.7 5.1L19 10l-5.3 1.9L12 17l-1.7-5.1L5 10l5.3-1.9L12 3ZM5 16l.8 2.2L8 19l-2.2.8L5 22l-.8-2.2L2 19l2.2-.8L5 16ZM19 15l.7 2.1L22 18l-2.3.9L19 21l-.7-2.1L16 18l2.3-.9L19 15Z" />}
-      {name === "swap" && <path d="M7 7h11l-3-3M17 17H6l3 3M18 7l-4 4M6 17l4-4" />}
-      {name === "trophy" && <path d="M8 4h8v3a4 4 0 0 1-8 0V4ZM6 6H4a4 4 0 0 0 4 4M18 6h2a4 4 0 0 1-4 4M12 12v5M9 20h6" />}
-      {name === "user" && (
-        <>
-          <circle cx="12" cy="8" r="4" />
-          <path d="M5 21a7 7 0 0 1 14 0" />
-        </>
-      )}
-      {name === "video" && (
-        <>
-          <rect x="4" y="6" width="12" height="12" rx="2" />
-          <path d="m16 10 4-2v8l-4-2" />
-        </>
-      )}
-      {name === "x" && <path d="M18 6 6 18M6 6l12 12" />}
-    </svg>
+    </AnimatePresence>
   );
 }
 
@@ -6266,7 +6326,9 @@ export default function Home() {
   const [lastCloudSyncedAt, setLastCloudSyncedAt] = useState<string | null>(
     () => formatClock(loadStoreMeta().lastCloudSyncedAt),
   );
-  const [appMode, setAppMode] = useState<AppMode>("hub");
+  // Today is the real product home: opening the PWA should put the next actionable workout in
+  // front of the user, while Coach, Diet, and Progress remain one tap away in the global dock.
+  const [appMode, setAppMode] = useState<AppMode>("workout");
   const [activeSection, setActiveSection] = useState<AppSection>("today");
   const [selectedDietDate, setSelectedDietDate] = useState(() => closestProgramDate());
   const [openDietSwapSlot, setOpenDietSwapSlot] = useState<DietMealSlot | null>(null);
@@ -6283,6 +6345,7 @@ export default function Home() {
     totalSeconds: number;
     label: string;
   } | null>(null);
+  const [achievementMoment, setAchievementMoment] = useState<string | null>(null);
   const [initialSyncBaseline] = useState(() => {
     const userId = loadStoreMeta().lastUserId;
     return { userId, store: userId ? readStoredProgress(syncBaseKey(userId)) : null };
@@ -6297,6 +6360,7 @@ export default function Home() {
   const suppressLocalChangeMetaRef = useRef(false);
   const activeUserIdRef = useRef<string | null>(null);
   const cloudQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const earnedAchievementSnapshotRef = useRef<string | null>(null);
 
   useEffect(() => {
     // On iPhone Home Screen apps, the app may stay suspended overnight. When it wakes or regains
@@ -7082,6 +7146,33 @@ export default function Home() {
       detail: "Reach the final comparison block.",
     },
   ];
+  const earnedAchievementSignature = achievements
+    .filter((achievement) => achievement.earned)
+    .map((achievement) => achievement.label)
+    .join("|");
+  const nextAchievement = achievements.find((achievement) => !achievement.earned) ?? null;
+
+  useEffect(() => {
+    // The first render establishes a baseline so returning users are not congratulated for every
+    // old milestone at once. Later changes reveal only the achievement that was just unlocked.
+    if (earnedAchievementSnapshotRef.current === null) {
+      earnedAchievementSnapshotRef.current = earnedAchievementSignature;
+      return;
+    }
+
+    const previousLabels = new Set(
+      earnedAchievementSnapshotRef.current.split("|").filter(Boolean),
+    );
+    const newlyEarned = achievements.find(
+      (achievement) => achievement.earned && !previousLabels.has(achievement.label),
+    );
+    earnedAchievementSnapshotRef.current = earnedAchievementSignature;
+    if (!newlyEarned) return;
+
+    setAchievementMoment(newlyEarned.label);
+    const dismissTimer = window.setTimeout(() => setAchievementMoment(null), 4200);
+    return () => window.clearTimeout(dismissTimer);
+  }, [earnedAchievementSignature]);
 
   // These small updater wrappers keep all edits immutable. React notices the changed objects, and
   // the autosave effects above persist the updated store.
@@ -7601,6 +7692,12 @@ export default function Home() {
     : gymDayStatus === "complete");
   const gymCompletedMoves = gymMoveRows.filter((move) => move.isComplete).length;
   const gymSkippedMoves = gymMoveRows.filter((move) => move.isSkipped).length;
+  const gymResolvedMoves = gymMoveRows.filter((move) => move.isComplete || move.isSkipped).length;
+  const gymSessionProgressPercent = gymMoveRows.length
+    ? Math.round((gymResolvedMoves / gymMoveRows.length) * 100)
+    : gymSessionResolved
+      ? 100
+      : 0;
   const completedMoveCount = workoutMoveRows.filter((move) => move.isComplete).length;
   const skippedMoveCount = workoutMoveRows.filter((move) => move.isSkipped).length;
   const moveCompletionPercent = workoutMoveRows.length
@@ -7614,6 +7711,29 @@ export default function Home() {
     : 0;
   const nextOpenMove =
     workoutMoveRows.find((move) => !move.isComplete && !move.isSkipped) ?? null;
+  const todayCoachPrompt = selectedDay.iso !== currentProgramDate
+    ? {
+        label: "Reviewing another day",
+        headline: `${formatDate(selectedDay.iso, "short")} is open for review.`,
+        detail: "The Today dock returns to the current workout whenever you are ready.",
+      }
+    : selectedDayStatus !== "incomplete"
+      ? {
+          label: "Session recorded",
+          headline: selectedDayStatusText,
+          detail: `${completedMoveCount} movements completed${skippedMoveCount ? ` and ${skippedMoveCount} skipped` : ""}.`,
+        }
+      : nextOpenMove
+        ? {
+            label: "Up next",
+            headline: nextOpenMove.activeExercise.name,
+            detail: `${nextOpenMove.target} · ${nextOpenMove.location.label}`,
+          }
+        : {
+            label: "Recovery focus",
+            headline: selectedDay.session.title,
+            detail: selectedSessionSummary,
+          };
   const currentGymMove = gymMoveRows[gymExerciseIndex] ?? null;
   const currentGymExercise = currentGymMove?.activeExercise ?? null;
   const currentGymOriginalExercise = currentGymMove?.originalExercise ?? null;
@@ -7634,6 +7754,9 @@ export default function Home() {
     "previous",
   );
   const nextUnfinishedGymIndex = nextUnfinishedMoveIndex(gymMoveRows, gymExerciseIndex, "next");
+  const upcomingGymMove = nextUnfinishedGymIndex !== gymExerciseIndex
+    ? gymMoveRows[nextUnfinishedGymIndex] ?? null
+    : null;
   const hasPreviousUnfinishedGymMove = previousUnfinishedGymIndex !== gymExerciseIndex;
   const hasNextUnfinishedGymMove = nextUnfinishedGymIndex !== gymExerciseIndex;
   const gymPrimaryIsResolved = Boolean(currentGymMove?.isComplete || currentGymMove?.isSkipped);
@@ -7763,28 +7886,42 @@ export default function Home() {
     setSelectedDate(nextProgramDate);
   };
 
+  const activateWorkoutSection = (section: AppSection) => {
+    // Gym Mode always uses actual today, even if the user has browsed a different date in Today.
+    if (section === "gym") {
+      const nextProgramDate = closestProgramDate();
+      const nextGymDay = resolveGymDay(planDays, nextProgramDate);
+      const nextGymCoachDay = withTrainingWeek(
+        nextGymDay,
+        earnedTrainingWeekForDay(planDays, store, nextGymDay),
+      );
+      const nextGymLog = normalizeDayLog(store.days[nextGymDay.iso]);
+      const nextGymExercises = scheduledExercisesForDay(nextGymCoachDay, nextGymLog);
+      const nextGymRows = buildWorkoutMoveRows(nextGymCoachDay, nextGymLog, nextGymExercises);
+
+      setCurrentProgramDate(nextProgramDate);
+      setSelectedDate(nextProgramDate);
+      setGymExerciseIndex(firstUnfinishedMoveIndex(nextGymRows));
+      setGymStartedAt((startedAt) => startedAt ?? Date.now());
+    }
+
+    if (section === "today") goToCurrentProgramDay();
+    setActiveSection(section);
+  };
+
   const switchSection = (section: AppSection) => {
-    runViewTransition(() => {
-      // Gym Mode always uses actual today, even if the user has browsed a different date in Today.
-      if (section === "gym") {
-        const nextProgramDate = closestProgramDate();
-        const nextGymDay = resolveGymDay(planDays, nextProgramDate);
-        const nextGymCoachDay = withTrainingWeek(
-          nextGymDay,
-          earnedTrainingWeekForDay(planDays, store, nextGymDay),
-        );
-        const nextGymLog = normalizeDayLog(store.days[nextGymDay.iso]);
-        const nextGymExercises = scheduledExercisesForDay(nextGymCoachDay, nextGymLog);
-        const nextGymRows = buildWorkoutMoveRows(nextGymCoachDay, nextGymLog, nextGymExercises);
+    runViewTransition(() => activateWorkoutSection(section));
+  };
 
-        setCurrentProgramDate(nextProgramDate);
-        setSelectedDate(nextProgramDate);
-        setGymExerciseIndex(firstUnfinishedMoveIndex(nextGymRows));
-        setGymStartedAt((startedAt) => startedAt ?? Date.now());
-      }
-
-      setActiveSection(section);
-    });
+  const focusNextTodayMove = () => {
+    if (!nextOpenMove) return;
+    const move = document.getElementById(`today-move-${nextOpenMove.originalExercise.id}`);
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    move?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
+    window.setTimeout(
+      () => move?.querySelector<HTMLButtonElement>(".move-main-button")?.focus({ preventScroll: true }),
+      reducedMotion ? 0 : 360,
+    );
   };
 
   const completeNextGymSet = () => {
@@ -7823,11 +7960,35 @@ export default function Home() {
   const switchProductMode = (mode: ProductMode) => {
     runViewTransition(() => {
       if (mode === "workout") {
-        goToCurrentProgramDay();
-        setActiveSection("today");
+        activateWorkoutSection("today");
       }
       if (mode === "diet") setSelectedDietDate(closestProgramDate());
       setAppMode(mode);
+    });
+  };
+  const primaryDestination: PrimaryDestination = appMode === "hub"
+    ? "coach"
+    : appMode === "diet"
+      ? "diet"
+      : activeSection === "gym"
+        ? "gym"
+        : activeSection === "progress"
+          ? "progress"
+          : "today";
+  const switchPrimaryDestination = (destination: PrimaryDestination) => {
+    runViewTransition(() => {
+      if (destination === "coach") {
+        setAppMode("hub");
+        return;
+      }
+      if (destination === "diet") {
+        setSelectedDietDate(closestProgramDate());
+        setAppMode("diet");
+        return;
+      }
+
+      setAppMode("workout");
+      activateWorkoutSection(destination);
     });
   };
   const greeting = (() => {
@@ -7839,6 +8000,7 @@ export default function Home() {
 
   if (appMode === "hub") {
     return (
+      <MotionConfig reducedMotion="user">
       <main className="app-shell coach-hub-shell">
         <ProductNavigation
           activeMode="hub"
@@ -8258,12 +8420,16 @@ export default function Home() {
           {authMessage && <p className="sync-message">{authMessage}</p>}
           {cloudError && <p className="sync-message error" role="alert">{cloudError}</p>}
         </section>
+        <AchievementMoment label={achievementMoment} />
+        <PrimaryAppDock active={primaryDestination} onSelect={switchPrimaryDestination} />
       </main>
+      </MotionConfig>
     );
   }
 
   if (appMode === "diet") {
     return (
+      <MotionConfig reducedMotion="user">
       <main className={`app-shell diet-shell diet-${selectedDietType} ${selectedDietAccent}`}>
         <ProductNavigation
           activeMode="diet"
@@ -8426,9 +8592,11 @@ export default function Home() {
 
         <div className="diet-layout">
           <section className="diet-meal-stack" aria-label="Meals for selected day">
-            {dietMealRows.map((meal) => (
-              <article
+            {dietMealRows.map((meal, mealIndex) => (
+              <motion.article
                 key={meal.slot}
+                layout="position"
+                data-meal-order={mealIndex + 1}
                 className={`diet-meal-card slot-${meal.slot} ${meal.isComplete ? "complete" : ""} ${
                   meal.isSwapped ? "swapped" : ""
                 }`}
@@ -8554,8 +8722,14 @@ export default function Home() {
                   )}
                 </div>
 
+                <AnimatePresence initial={false}>
                 {openDietHowToSlot === meal.slot && (
-                  <div className="diet-howto-panel">
+                  <motion.div
+                    className="diet-howto-panel"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                  >
                     <div className="flow-heading">
                       <h4>How To: {meal.recipe.title}</h4>
                       <span>Beginner steps</span>
@@ -8570,11 +8744,18 @@ export default function Home() {
                         <li key={`${meal.recipe.id}-how-to-${stepIndex}`}>{step}</li>
                       ))}
                     </ol>
-                  </div>
+                  </motion.div>
                 )}
+                </AnimatePresence>
 
+                <AnimatePresence initial={false}>
                 {openDietSwapSlot === meal.slot && (
-                  <div className="diet-swap-panel">
+                  <motion.div
+                    className="diet-swap-panel"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                  >
                     <div className="flow-heading">
                       <h4>Swap {meal.label}</h4>
                       <span>Same meal category</span>
@@ -8592,9 +8773,10 @@ export default function Home() {
                         </button>
                       ))}
                     </div>
-                  </div>
+                  </motion.div>
                 )}
-              </article>
+                </AnimatePresence>
+              </motion.article>
             ))}
           </section>
 
@@ -8682,23 +8864,16 @@ export default function Home() {
           </aside>
         </div>
 
-        <nav className="diet-bottom-bar" aria-label="Diet mode navigation">
-          <button type="button" onClick={() => switchProductMode("hub")}>
-            Hub
-          </button>
-          <button type="button" onClick={() => switchProductMode("workout")}>
-            Workout
-          </button>
-          <button type="button" onClick={() => setSelectedDietDate(closestProgramDate())}>
-            Today
-          </button>
-        </nav>
+        <AchievementMoment label={achievementMoment} />
+        <PrimaryAppDock active={primaryDestination} onSelect={switchPrimaryDestination} />
       </main>
+      </MotionConfig>
     );
   }
 
   return (
-    <main className={`app-shell section-${activeSection}`}>
+    <MotionConfig reducedMotion="user">
+    <main className={`app-shell workout-shell section-${activeSection}`}>
       <ProductNavigation
         activeMode="workout"
         statusLabel={localSaveError ? "Save needs attention" : syncHeadline}
@@ -8743,6 +8918,27 @@ export default function Home() {
             <span>{label}</span>
           </button>
         ))}
+      </nav>
+
+      <nav className="workout-context-nav" aria-label="Workout planning tools">
+        <button
+          className={activeSection === "week" ? "active" : ""}
+          type="button"
+          onClick={() => switchSection("week")}
+          aria-current={activeSection === "week" ? "page" : undefined}
+        >
+          <CalendarDays aria-hidden="true" size={17} />
+          Week plan
+        </button>
+        <button
+          className={activeSection === "library" ? "active" : ""}
+          type="button"
+          onClick={() => switchSection("library")}
+          aria-current={activeSection === "library" ? "page" : undefined}
+        >
+          <LibraryBig aria-hidden="true" size={17} />
+          Exercise library
+        </button>
       </nav>
 
       <section className="week-planner" aria-label="Program week">
@@ -8901,7 +9097,13 @@ export default function Home() {
             </div>
           </section>
         ) : currentGymMove && currentGymExercise && currentGymRows ? (
-          <article key={`${gymDay.iso}:${currentGymExercise.id}`} className={`gym-card ${currentGymExercise.family} ${currentGymMove.isSkipped ? "skipped" : ""}`}>
+          <motion.article
+            key={`${gymDay.iso}:${currentGymExercise.id}`}
+            className={`gym-card ${currentGymExercise.family} ${currentGymMove.isSkipped ? "skipped" : ""}`}
+            initial={{ opacity: 0.65, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2 }}
+          >
             <div className="gym-topbar">
               <button
                 type="button"
@@ -8922,6 +9124,9 @@ export default function Home() {
               >
                 <Icon name="chevronRight" size={18} />
               </button>
+            </div>
+            <div className="gym-live-progress" aria-label={`${gymSessionProgressPercent}% of today's workout resolved`}>
+              <span style={{ width: `${gymSessionProgressPercent}%` }} />
             </div>
 
             <div className="gym-main">
@@ -9205,6 +9410,19 @@ export default function Home() {
               </details>
             </div>
 
+            {upcomingGymMove && (
+              <button
+                className="gym-next-preview"
+                type="button"
+                onClick={goToNextGymMove}
+              >
+                <span>Next open movement</span>
+                <strong>{upcomingGymMove.activeExercise.name}</strong>
+                <small>{upcomingGymMove.target}</small>
+                <ChevronRight aria-hidden="true" size={20} />
+              </button>
+            )}
+
             <div className="gym-action-bar">
               <button
                 type="button"
@@ -9241,7 +9459,7 @@ export default function Home() {
                 <Icon name="chevronRight" size={18} />
               </button>
             </div>
-          </article>
+          </motion.article>
         ) : (
           <section className="empty-gym-card">
             <p className="eyebrow">{gymDay.session.title}</p>
@@ -9268,6 +9486,15 @@ export default function Home() {
               </span>
             </div>
             <div className="today-actions">
+              {nextOpenMove && (
+                <button
+                  className="today-continue-button"
+                  type="button"
+                  onClick={focusNextTodayMove}
+                >
+                  <Icon name="activity" size={18} /> Continue Today
+                </button>
+              )}
               {selectedExercises.length > 0 && (
                 <button className="gym-launch-button" type="button" onClick={() => switchSection("gym")}
                   aria-label={`Open Gym Mode for today, ${formatDate(gymDay.iso)}`}>
@@ -9297,6 +9524,34 @@ export default function Home() {
             </div>
           </div>
 
+          <div className={`today-coach-prompt ${selectedDayStatus}`} aria-live="polite">
+            <span className="today-coach-icon"><Sparkles aria-hidden="true" size={19} /></span>
+            <div>
+              <small>{todayCoachPrompt.label}</small>
+              <strong>{todayCoachPrompt.headline}</strong>
+              <p>{todayCoachPrompt.detail}</p>
+            </div>
+            {nextOpenMove && (
+              <button type="button" onClick={focusNextTodayMove} aria-label="Go to the next open movement">
+                <ChevronRight aria-hidden="true" size={20} />
+              </button>
+            )}
+          </div>
+
+          {selectedDayComplete && (
+            <motion.div
+              className="today-completion-moment"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+            >
+              <span><Check aria-hidden="true" size={22} /></span>
+              <div>
+                <strong>Workout complete</strong>
+                <small>{completedMoveCount} movements recorded for {formatDate(selectedDay.iso, "short")}.</small>
+              </div>
+            </motion.div>
+          )}
+
           {selectedLog.daySkipReason && (
             <p className="day-skipped-notice" role="status">
               <strong>{formatDate(selectedDay.iso, "short")} skipped:</strong> {skipReasonLabel(selectedLog.daySkipReason)}.
@@ -9313,11 +9568,16 @@ export default function Home() {
                 <span style={{ width: `${moveCompletionPercent}%` }} />
               </div>
             </div>
-            <div className="command-progress-card">
+            <button
+              className="command-progress-card today-next-card"
+              type="button"
+              onClick={focusNextTodayMove}
+              disabled={!nextOpenMove}
+            >
               <span>Next</span>
               <strong>{nextOpenMove?.activeExercise.shortName ?? (selectedLog.daySkipReason ? "Day skipped" : selectedDayStatus !== "incomplete" ? "Nothing remaining" : "Recovery")}</strong>
               <small>{nextOpenMove?.target ?? (selectedDayStatus !== "incomplete" ? selectedDayStatusText : selectedSessionSummary)}</small>
-            </div>
+            </button>
             <div className="command-progress-card">
               <span>Session</span>
               <strong>{selectedSessionTime}</strong>
@@ -9455,8 +9715,10 @@ export default function Home() {
               </div>
               <div className="move-list">
                 {workoutMoveRows.map((move) => (
-                  <article
+                  <motion.article
                     key={move.originalExercise.id}
+                    id={`today-move-${move.originalExercise.id}`}
+                    layout="position"
                     className={`move-item ${move.activeExercise.family} ${
                       move.isComplete ? "complete" : ""
                     } ${move.isSkipped ? "skipped" : ""
@@ -9539,7 +9801,7 @@ export default function Home() {
                         </button>
                       )}
                     </div>
-                  </article>
+                  </motion.article>
                 ))}
               </div>
             </section>
@@ -9682,6 +9944,50 @@ export default function Home() {
         </section>
 
         <aside className="side-panel" aria-label="Progress and check-ins">
+          <section className="metric-panel progress-card progress-story-card">
+            <div className="progress-story-heading">
+              <div>
+                <p className="eyebrow"><Sparkles aria-hidden="true" size={14} /> Your journey</p>
+                <h2>Week {gymDay.week} of 26</h2>
+                <p>{phaseForWeek(gymDay.week).title} · {stats.percent}% of the full program complete</p>
+              </div>
+              <ProgressRing value={stats.completedDays} max={PROGRAM_DAYS} label="Full program completion" />
+            </div>
+            <div className="program-map" aria-label="26-week program map">
+              {weeklyCompletion.map((week, weekIndex) => (
+                <button
+                  key={week.value}
+                  className={`${week.percent === 100 ? "complete" : week.percent > 0 ? "started" : ""} ${weekIndex + 1 === gymDay.week ? "current" : ""}`}
+                  type="button"
+                  title={`${week.label}: ${week.completed} of ${week.total} days complete`}
+                  aria-label={`${week.label}, ${week.percent}% complete${weekIndex + 1 === gymDay.week ? ", current week" : ""}`}
+                  onClick={() => {
+                    setSelectedDate(week.value);
+                    switchSection("week");
+                  }}
+                >
+                  <span>{weekIndex + 1}</span>
+                  <i style={{ height: `${Math.max(week.percent, 8)}%` }} />
+                </button>
+              ))}
+            </div>
+            <div className="program-map-legend">
+              <span><i className="complete" /> Complete</span>
+              <span><i className="current" /> Current week</span>
+              <span><i /> Upcoming</span>
+            </div>
+            {nextAchievement && (
+              <div className="next-achievement-card">
+                <span><Trophy aria-hidden="true" size={18} /></span>
+                <div>
+                  <small>Next achievement</small>
+                  <strong>{nextAchievement.label}</strong>
+                  <p>{nextAchievement.detail}</p>
+                </div>
+              </div>
+            )}
+          </section>
+
           <section className="metric-panel progress-card">
             <div className="section-heading compact">
               <div>
@@ -10189,20 +10495,9 @@ export default function Home() {
         </div>
       )}
 
-      <nav className="bottom-nav" aria-label="Main app sections">
-        {navItems.map(({ id, label, icon }) => (
-          <button
-            key={id}
-            className={activeSection === id ? "active" : ""}
-            type="button"
-            onClick={() => switchSection(id)}
-            aria-current={activeSection === id ? "page" : undefined}
-          >
-            <Icon name={icon} size={20} />
-            <span>{label}</span>
-          </button>
-        ))}
-      </nav>
+      <AchievementMoment label={achievementMoment} />
+      <PrimaryAppDock active={primaryDestination} onSelect={switchPrimaryDestination} />
     </main>
+    </MotionConfig>
   );
 }

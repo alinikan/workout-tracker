@@ -89,12 +89,13 @@ That means the interface favors:
 
 | Area | What It Does |
 | --- | --- |
-| Coach Hub | Home base for sign-in, morning weight, weekly weight averages, and quick access to Workout or Diet. |
-| Workout | Full workout tracker with Today, Week, Gym Mode, Progress, and Library sections. |
+| Coach Hub | Account, cloud sync, morning weight, and weekly weight averages, always one tap away. |
+| Workout Today | The app opens here. It is the primary working surface for reviewing the ordered plan, opening details, logging sets, skipping, and completing the workout. |
+| Workout tools | Gym provides an immersive live-session view; Week and Library remain contextual planning and reference tools. |
 | Diet | Daily meals with recipe photos, meal swaps, timing labels, plate portions, and a weekly to-buy list. |
 | Cloud Sync | Saves the same progress to Supabase for use across multiple devices. |
 | PWA | Can be installed on iPhone Home Screen and used like an app. |
-| Premium interface | Shared Coach/Workout/Nutrition navigation, responsive Gym controls, automatic light/dark appearance, reduced-motion support, safe-area-aware mobile layout, and progressive view transitions. |
+| Premium interface | One iPhone dock for Today, Gym, Diet, Progress, and Coach; Lucide icons; Motion transitions; distinct product colors; responsive Gym controls; automatic light/dark appearance; reduced-motion support; safe-area-aware layout; and progressive view transitions. |
 
 ### Workout Features
 
@@ -102,6 +103,7 @@ That means the interface favors:
 | --- | --- |
 | 26-week calendar | Program starts from a configurable start date and runs for 182 days. |
 | Smart Today behavior | Workout and Diet open to the current program week and day. |
+| Continue Today | A state-aware coach prompt and primary action jump directly to the next unfinished movement without leaving Today. |
 | Gym Mode | Always shows the actual current day and starts on the first unfinished movement. |
 | Ordered move list | Warm-ups, ramp sets, lifting, accessories, cardio, and core are shown in the correct order. |
 | One-trip home-gym flow | Gentle Upstairs OK prep comes first, downstairs lifting/cables stay together, the treadmill finisher happens before optional floor work, and Either movements finish the session. |
@@ -122,6 +124,7 @@ That means the interface favors:
 | Home-equipment swaps | Includes carefully scoped options for selectorized press/leg stations and the HOIST Mi6 without silently adding extra sets. |
 | Smart Load | Suggests a small increase only after two recent, comparable top-rep sessions; incomplete, skipped, hard, stale, recovery, and changed-volume attempts block the increase. |
 | Exercise library | Searchable movement library with demos and coaching notes. |
+| Meaningful feedback | Completing a day produces a visible completion moment, while newly earned milestones appear without interrupting the workout. |
 
 ### Diet Features
 
@@ -148,6 +151,7 @@ That means the interface favors:
 | Morning weight in kg | Daily weigh-ins live in Coach Hub. |
 | Forgotten weigh-ins | Mark a missing morning explicitly. Unresolved past mornings roll over to Forgotten automatically and are never treated as zero. |
 | Weekly averages | Compares week-to-week averages once there is enough data. |
+| 26-week journey map | A compact interactive map shows complete, active, and upcoming weeks and opens any week for review. |
 | Weight trend chart | Shows the latest logged weights as a visual line chart with high, low, and window change. |
 | Expandable history | Recent daily weight inputs and weekly average history are tucked behind expandable panels to avoid a 182-day wall of data. |
 | Missing data awareness | If some mornings are not logged, the app calculates from logged days and tells the user. |
@@ -388,7 +392,7 @@ The added movements are intentionally conservative:
 | Language | TypeScript |
 | Build tool | Vite 8 |
 | Styling | Plain CSS with responsive design tokens |
-| Presentation | Shared React UI primitives plus a semantic premium CSS layer |
+| Presentation | Lucide React icons, Motion for React, shared UI primitives, and a semantic premium CSS layer |
 | Local persistence | Browser `localStorage` |
 | Cloud auth | Supabase Auth |
 | Cloud database | Supabase Postgres with Row Level Security |
@@ -403,10 +407,14 @@ The added movements are intentionally conservative:
 ```mermaid
 flowchart TD
   User["User on iPhone, MacBook, or browser"] --> App["React PWA"]
+  App --> Dock["Global iPhone dock"]
+  Dock --> Today["Workout Today - default home"]
+  Dock --> Gym["Live Gym cockpit"]
+  Dock --> Diet["Daily nutrition"]
+  Dock --> Progress["26-week progress story"]
+  Dock --> Coach["Account and weight coach"]
   App --> Local["localStorage autosave"]
-  App --> Coach["Coach Hub"]
-  App --> Workout["Workout tracker"]
-  App --> Diet["Diet tracker"]
+  Today --> Workout["Workout tracker"]
   Coach --> Weight["Daily kg weigh-ins"]
   Workout --> Logs["Workout sets, skips, swaps, notes"]
   Diet --> Meals["Meals, recipe swaps, diet notes"]
@@ -419,7 +427,9 @@ flowchart TD
 
 Data saves locally first. When signed in, the app compares the last synced copy with this device and the user's private cloud row. Independent changes are combined, including intentional unchecking, clearing fields, and reverting swaps. If both devices change exactly the same field, the saving device wins that field. A conditional database update retries if another device saves during the request.
 
-The presentation architecture is deliberately separated from that data flow. `src/styles.css` keeps the original feature and mobile-layout contract, while `src/premium.css` supplies semantic surfaces, typography, navigation, responsive composition, dark appearance, motion, and accessibility polish. `src/components/PremiumUI.tsx` contains stateless shell primitives, so none of them can mutate a workout, meal, weigh-in, or cloud record.
+The presentation architecture is deliberately separated from that data flow. `src/styles.css` keeps the original feature and mobile-layout contract, while `src/premium.css` supplies semantic surfaces, typography, the iPhone dock, responsive composition, dark appearance, motion, and accessibility polish. `lucide-react` provides a consistent icon language, and `motion` animates only navigational context, expandable recipe content, and meaningful state changes. Both honor the device's Reduced Motion preference. `src/components/PremiumUI.tsx` contains stateless shell primitives, so none of them can mutate a workout, meal, weigh-in, or cloud record.
+
+On iPhone, **Today is intentionally the app home**. The fixed dock keeps Today, Gym, Diet, Progress, and Coach in the same positions everywhere. Week Plan and Exercise Library appear as contextual Workout tools instead of competing with daily actions. On MacBook, the wider product and section navigation remains available for efficient browsing.
 
 Cloud checks resume after reconnection, when the app becomes visible, and every 30 seconds while visible. Coach Hub also has **Sync now**. Sign-in token refreshes no longer interrupt autosave. Each account has a separate device copy; switching accounts does not upload the previous account's data into the new account. A signed-out device retains its last local copy, so signing out is not a device-data wipe.
 

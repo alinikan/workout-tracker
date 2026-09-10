@@ -8,9 +8,16 @@ export default defineConfig({
   build: {
     rolldownOptions: {
       output: {
-        // React and Supabase change less often than recipes and screens. Keeping
-        // them in a separate hashed file lets returning devices reuse that cache.
-        codeSplitting: { groups: [{ name: "vendor", test: /node_modules/ }] },
+        // Stable libraries are split by responsibility. A recipe or layout edit can then ship a
+        // small app chunk while iPhones reuse React, Supabase, and Motion from the browser cache.
+        codeSplitting: {
+          groups: [
+            { name: "react", test: /node_modules\/(react|react-dom|scheduler)\// },
+            { name: "supabase", test: /node_modules\/@supabase\// },
+            { name: "motion", test: /node_modules\/(motion|motion-dom|motion-utils)\// },
+            { name: "vendor", test: /node_modules\// },
+          ],
+        },
       },
     },
   },
