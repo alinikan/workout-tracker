@@ -6326,9 +6326,9 @@ export default function Home() {
   const [lastCloudSyncedAt, setLastCloudSyncedAt] = useState<string | null>(
     () => formatClock(loadStoreMeta().lastCloudSyncedAt),
   );
-  // Today is the real product home: opening the PWA should put the next actionable workout in
-  // front of the user, while Coach, Diet, and Progress remain one tap away in the global dock.
-  const [appMode, setAppMode] = useState<AppMode>("workout");
+  // Coach Hub is the product home so the first screen gives a balanced workout, nutrition,
+  // weigh-in, and sync overview. Today remains the primary workspace after entering Workout.
+  const [appMode, setAppMode] = useState<AppMode>("hub");
   const [activeSection, setActiveSection] = useState<AppSection>("today");
   const [selectedDietDate, setSelectedDietDate] = useState(() => closestProgramDate());
   const [openDietSwapSlot, setOpenDietSwapSlot] = useState<DietMealSlot | null>(null);

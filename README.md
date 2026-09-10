@@ -90,7 +90,7 @@ That means the interface favors:
 | Area | What It Does |
 | --- | --- |
 | Coach Hub | Account, cloud sync, morning weight, and weekly weight averages, always one tap away. |
-| Workout Today | The app opens here. It is the primary working surface for reviewing the ordered plan, opening details, logging sets, skipping, and completing the workout. |
+| Workout Today | The primary workout surface for reviewing the ordered plan, opening details, logging sets, skipping, and completing the workout. |
 | Workout tools | Gym provides an immersive live-session view; Week and Library remain contextual planning and reference tools. |
 | Diet | Daily meals with recipe photos, meal swaps, timing labels, plate portions, and a weekly to-buy list. |
 | Cloud Sync | Saves the same progress to Supabase for use across multiple devices. |
@@ -408,7 +408,7 @@ The added movements are intentionally conservative:
 flowchart TD
   User["User on iPhone, MacBook, or browser"] --> App["React PWA"]
   App --> Dock["Global iPhone dock"]
-  Dock --> Today["Workout Today - default home"]
+  Dock --> Today["Workout Today"]
   Dock --> Gym["Live Gym cockpit"]
   Dock --> Diet["Daily nutrition"]
   Dock --> Progress["26-week progress story"]
@@ -429,7 +429,7 @@ Data saves locally first. When signed in, the app compares the last synced copy 
 
 The presentation architecture is deliberately separated from that data flow. `src/styles.css` keeps the original feature and mobile-layout contract, while `src/premium.css` supplies semantic surfaces, typography, the iPhone dock, responsive composition, dark appearance, motion, and accessibility polish. `lucide-react` provides a consistent icon language, and `motion` animates only navigational context, expandable recipe content, and meaningful state changes. Both honor the device's Reduced Motion preference. `src/components/PremiumUI.tsx` contains stateless shell primitives, so none of them can mutate a workout, meal, weigh-in, or cloud record.
 
-On iPhone, **Today is intentionally the app home**. The fixed dock keeps Today, Gym, Diet, Progress, and Coach in the same positions everywhere. Week Plan and Exercise Library appear as contextual Workout tools instead of competing with daily actions. On MacBook, the wider product and section navigation remains available for efficient browsing.
+On iPhone, **Coach Hub is the app home**, providing the first overview of today&apos;s workout, nutrition, weight, and sync status. Inside Workout, **Today remains the primary working surface**. The fixed dock keeps Today, Gym, Diet, Progress, and Coach in the same positions everywhere. Week Plan and Exercise Library appear as contextual Workout tools instead of competing with daily actions. On MacBook, the wider product and section navigation remains available for efficient browsing.
 
 Cloud checks resume after reconnection, when the app becomes visible, and every 30 seconds while visible. Coach Hub also has **Sync now**. Sign-in token refreshes no longer interrupt autosave. Each account has a separate device copy; switching accounts does not upload the previous account's data into the new account. A signed-out device retains its last local copy, so signing out is not a device-data wipe.
 

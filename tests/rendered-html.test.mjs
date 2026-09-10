@@ -677,8 +677,8 @@ test("day skip controls share date-scoped handlers and Gym shows a terminal summ
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v37/);
-  assert.match(serviceWorker, /iphone-experience-v37/);
+  assert.match(serviceWorker, /recomp-gym-console-v38/);
+  assert.match(serviceWorker, /coach-home-v38/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);
@@ -786,14 +786,14 @@ test("ships the premium responsive presentation without replacing the data contr
   assert.match(manifest, /Recomp Personal Coach/);
 });
 
-test("ships an iPhone-first app shell with Today as the primary working surface", async () => {
+test("ships an iPhone-first app shell with Coach Hub home and Today as the primary workout surface", async () => {
   const [app, premium, packageJson] = await Promise.all([
     text("src/App.tsx"),
     text("src/premium.css"),
     text("package.json"),
   ]);
 
-  assert.match(app, /useState<AppMode>\("workout"\)/);
+  assert.match(app, /useState<AppMode>\("hub"\)/);
   assert.match(app, /function PrimaryAppDock/);
   assert.match(app, /Continue Today/);
   assert.match(app, /focusNextTodayMove/);
