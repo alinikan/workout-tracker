@@ -17,4 +17,15 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - name: Install isolated browser test engines
+        run: npx playwright install --with-deps chromium webkit
+      - name: Phone and desktop UI checks
+        run: npm run test:ui
+      - name: Keep UI screenshots when a check fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-check-screenshots
+          path: outputs/ui-check
+          if-no-files-found: ignore
       - run: npm audit --audit-level=high

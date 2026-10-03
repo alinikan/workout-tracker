@@ -1,3 +1,5 @@
+import { resolveResetConflict } from "./programLifecycle.ts";
+
 /**
  * Three-way merging compares the last synced copy with this device and the server.
  * Unlike an OR merge, it preserves deliberate unchecking, clearing a weight, and
@@ -24,6 +26,8 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 export function mergeProgressChanges<T>(base: T, local: T, remote: T): T {
+  const resetWinner = resolveResetConflict(base, local, remote);
+  if (resetWinner !== undefined) return resetWinner;
   if (sameData(local, base)) return remote;
   if (sameData(remote, base) || sameData(local, remote)) return local;
 

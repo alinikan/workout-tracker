@@ -138,13 +138,42 @@ chosen as swaps.
 
 ### Schedule And Program Days
 
-The app does not hand-write 182 days. Instead:
+The app builds a live calendar rather than a fixed 182-day deadline:
 
 - `weeklySchedule` defines Monday through Sunday training.
 - `weeklyDietMealMap` defines Monday through Sunday default meals.
-- `START_DATE` defines the first program date.
-- `PROGRAM_DAYS` defines the 26-week length.
-- `buildPlanDays()` generates every day.
+- `store.program.startedOn` defines this user's first date; new users start today.
+- `LEGACY_START_DATE` only preserves the original dates of pre-upgrade saves.
+- `PROGRAM_DAYS` defines the initial preview, not an expiration date.
+- `buildPlanDays(startedOn, through)` generates enough full seven-day rows to include today plus four upcoming weeks, with a minimum six-month preview.
+- Actual weekdays select the training and meal templates, even when a restart is not on Monday.
+
+`coachedDaysForStore()` scans the dates once. It assigns a training level from the count of fully
+completed, non-red strength sessions before that day: `floor(credits / 3) + 1`, capped at 26. A
+saved `DayLog.trainingWeek` freezes an already edited current/past day's targets. `trainingWeekForEdit()`
+leaves future notes and swaps unfrozen so those sessions can receive the level earned by their date. Skips, partial days, and
+recovery/cardio days don't earn a strength credit. `trainingProgressFor()` summarizes the 78-lift
+journey independently of calendar weeks. Training-block check-ins unlock after 12 completed lifts
+(six in the final block); weight averages still follow real seven-day calendar windows.
+
+### Program Lifecycle And Reset
+
+`src/lib/programLifecycle.ts` owns date validation and reset generations. A reset gets a monotonic
+timestamp and unique ID. `resolveResetConflict()` compares whole documents before ordinary
+three-way merging: when generation IDs differ, the newer timestamp wins and the other history is
+discarded. Equal timestamps use an ID tie-breaker. Comparing timestamps numerically is important:
+an initial null timestamp must rank below a real reset, not above it as a string delimiter might.
+
+`ProgramControls.tsx` renders the earned-session rail and a native modal `<dialog>`. Native dialogs
+keep focus inside, make the background inert, support Escape, and restore focus on close. The
+user must type RESET and choose a valid date before the parent commits an empty progress document.
+The account/auth session is never deleted. Local storage is committed before closing the dialog;
+the old sync baseline stays intact so autosave can identify the new generation. Offline resets show
+a pending notice; the account JSONB row is replaced on sync without a schema migration.
+
+Each product/tab also remembers its own scroll position through a passive scroll listener. Entering
+Gym does not reuse an unrelated offset from a long Today list; returning to Today restores the user's
+place. A program reset clears those transient positions along with open details and timers.
 
 This keeps the plan easy to maintain. A change to Monday's Strength A order automatically repeats
 through all Monday-style program days.
@@ -354,7 +383,7 @@ push to main. Tests do not sign in to a live account or claim to emulate a real 
 
 | Goal | Edit |
 | --- | --- |
-| Change program start | `START_DATE` in `src/App.tsx` |
+| Change program start | Coach Hub's Start fresh dialog; saved `store.program.startedOn` |
 | Change program length | `PROGRAM_DAYS` in `src/App.tsx` |
 | Add an exercise | Add to `exerciseMap`, then include its ID in `weeklySchedule` or `libraryOrder` |
 | Add a swap | Add the replacement to `exerciseMap`, then add its ID to the original `swapIds` |

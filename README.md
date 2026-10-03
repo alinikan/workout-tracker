@@ -101,7 +101,8 @@ That means the interface favors:
 
 | Feature | Details |
 | --- | --- |
-| 26-week calendar | Program starts from a configurable start date and runs for 182 days. |
+| Live calendar | Starts on your chosen date, previews six months, and keeps extending beyond it. Returning after a break still opens the actual current day. |
+| Fresh start | Coach Hub can reset workout, nutrition, weight, notes, and preferences without deleting your account. A synced reset generation prevents old-device history from reappearing. |
 | Smart Today behavior | Workout and Diet open to the current program week and day. |
 | Continue Today | A state-aware coach prompt and primary action jump directly to the next unfinished movement without leaving Today. |
 | Gym Mode | Always shows the actual current day and starts on the first unfinished movement. |
@@ -112,11 +113,11 @@ That means the interface favors:
 | Exercise detail sheet | Includes cues, mistakes, progression notes, resources, inline YouTube, GIF option, swaps, and set log. |
 | Knee/hip-friendly lower body | Default lower-body work avoids forced deep squats and uses supported leg press ranges, quad/hamstring machines, glute bridges, and hip-control warm-ups. |
 | Beginner-to-trained progression | Month 1 teaches the gym, then each 4-week block earns more volume, stronger loading, longer cardio, and more confident execution. |
-| Earned training week | Targets advance with the calendar only when enough strength sessions have been completed, so missed weeks do not automatically create harder workouts. |
+| Earned training week | Every 3 fully completed lifting sessions earns a training week. The 26-week journey requires 78 completed lifts, regardless of how many calendar months that takes. |
 | RIR and set feel | Gym Mode explains Reps In Reserve and lets each set be marked Too easy, About right, or Very hard for smarter load suggestions. |
 | Readiness check | Energy, soreness, joint pain, and sleep create Green, Yellow, or Red training guidance before each workout. |
 | Rest timer | Completing a set starts a movement-specific rest timer with longer rest for main lifts and shorter rest for core/accessories. |
-| Monthly check-ins | Every 4 weeks, the app reviews strength, cardio, weight trend, optional photos, and recovery feedback. |
+| Training-block check-ins | After each 12 completed lifts (4 earned weeks), review strength, cardio, weight trends, optional photos, and recovery. The final 2-week block needs 6 lifts. |
 | Skip tracking | Skip a move or the remaining day with a Time, Pain, Equipment, Fatigue, or Other reason. Resume without losing logged sets. |
 | Automatic day rollover | When a new calendar day starts, unresolved moves from earlier dates are marked Skipped. Partial workouts keep completed sets and skip only what remained open. |
 | Day status | Separates Complete, Finished with skips, Day skipped, and Incomplete days. |
@@ -151,9 +152,9 @@ That means the interface favors:
 | Morning weight in kg | Daily weigh-ins live in Coach Hub. |
 | Forgotten weigh-ins | Mark a missing morning explicitly. Unresolved past mornings roll over to Forgotten automatically and are never treated as zero. |
 | Weekly averages | Compares week-to-week averages once there is enough data. |
-| 26-week journey map | A compact interactive map shows complete, active, and upcoming weeks and opens any week for review. |
+| 26-week journey map | Shows earned training weeks rather than elapsed calendar time. Earned weeks open their workout history; upcoming levels remain locked. |
 | Weight trend chart | Shows the latest logged weights as a visual line chart with high, low, and window change. |
-| Expandable history | Recent daily weight inputs and weekly average history are tucked behind expandable panels to avoid a 182-day wall of data. |
+| Expandable history | Recent daily weight inputs and weekly average history sit behind expandable panels, even when the calendar extends beyond six months. |
 | Missing data awareness | If some mornings are not logged, the app calculates from logged days and tells the user. |
 | Workout achievements | Tracks consistency, completed sets, cardio minutes, strength days, skipped work, and best logged loads. |
 | Automatic saving | Saves locally first, then syncs to Supabase when signed in. |
@@ -238,9 +239,27 @@ The weekly structure stays consistent:
 
 ### Earned Progression
 
-The app separates **calendar week** from **training week**. If the calendar says Week 4 but the user missed too many strength sessions, the targets can stay closer to Week 2 until more sessions are completed.
+The app separates **calendar week** from **earned training week**. If the calendar says Week 5 but you only completed two lifting sessions, your targets still use Training Week 1. Complete the third lift to earn Week 2 for your next unstarted workout. No calendar deadline removes your chance to finish.
 
-That matters for a beginner because adaptation is earned by repeated practice, not by time passing on a calendar. The app uses strength-session completion, monthly recovery feedback, and readiness to decide whether today should progress normally, hold steady, or reduce volume.
+Three fully completed strength sessions earn one week; 78 earn the full 26-week journey. Cardio, recovery replacements, skipped days, and partially completed lifts do not earn strength credit, although their logged activity remains visible. Calendar dates still organize meals, actual weekdays, weigh-ins, and weekly averages. A restart on Saturday uses Saturday's session; Monday/Wednesday/Friday remain the normal lifting days.
+
+The app freezes a day's training level when you first edit it. Backfilling older history cannot add sets to a workout you already logged. Readiness can reduce today's work, and Smart Load still requires two recent comparable top-rep sessions with manageable effort before recommending heavier weights. Finishing a training week is not proof you should increase every weight.
+
+**This is a conservative tracking rule, not a clinical measure of adaptation.** The [Physical Activity Guidelines](https://health.gov/paguidelines/second-edition/pdf/Physical_Activity_Guidelines_2nd_edition.pdf) support starting with manageable activity and increasing gradually. After an extended break, rebuild with comfortable loads; the app blocks stale-history load increases and shows a return-to-training reminder. Recovery feedback records how the block felt; the next session's readiness check controls reduced/recovery work. The app does not automatically diagnose recovery or guarantee results.
+
+### Restart Without Losing Your Account
+
+1. Open **Coach** and sign in to the account you want to reset. Wait until its progress loads.
+2. Scroll to **Need a fresh start?** and select **Start fresh**.
+3. Choose today or a future start date. Read the list of data that will be cleared.
+4. Type `RESET`, then select **Reset & start fresh**. Canceling does not change anything.
+5. Keep the app open until Coach shows **Synced across devices**. If offline, the fresh start saves on this device and a notice says it is waiting for cloud sync.
+6. Open your other updated devices online so they receive the new program.
+
+> [!WARNING]
+> A reset removes this account's workout, diet, weigh-in, note, swap, skip, achievement, and preference history. It cannot be undone in the app. Your Supabase user, email/password, and signed-in session stay intact. This clears app data in the account's progress row; it does not erase backups retained by your hosting provider.
+
+Every reset has its own generation ID. Updated clients choose the reset document as a whole instead of merging old history into it, including when an old save was already in flight. If two devices restart offline, the later reset wins when synced. Ordinary edits within the same generation still merge normally. **Update/reopen all installed app copies before resetting; old code cannot honor a protocol it does not know.** No SQL migration, new environment variable, or account recreation is required for this feature.
 
 ### Month 1 Strength Sessions
 
@@ -300,7 +319,7 @@ The Mi6 manual specifies a **2:1 pulley ratio**, or about half of the selected s
 
 ### Monthly Check-Ins
 
-Every 4 weeks, the app opens a coach-style review:
+Every four **earned training weeks** (12 completed lifts), the app opens a coach-style review; the final two-week block needs six. It does not unlock merely because 28 days passed:
 
 - Strength sessions completed.
 - Cardio days completed.
@@ -346,7 +365,7 @@ Each recipe has a compact card for quick gym-day scanning and an expandable Make
 
 Lean beef meals are portioned around extra-lean beef, measured rice or potatoes, and a large vegetable serving. Oils, marinara, salsa, and avocado-style add-ons are marked optional where skipping or measuring them better supports fat loss.
 
-Coach Hub keeps weight tracking compact. The main view shows weekly averages, a recent weight trend graph, a motivating coach note, and only expands the daily log when the user wants to edit recent mornings. Weekly history shows logged, forgotten, and still-open mornings separately so the dashboard stays honest across the full 182-day program.
+Coach Hub keeps weight tracking compact. The main view shows weekly averages, a recent weight trend graph, a motivating coach note, and only expands the daily log when the user wants to edit recent mornings. Weekly history separates logged, forgotten, and still-open mornings throughout the live calendar. Weight averages use seven-day calendar windows from the chosen start date, independently of earned training weeks.
 
 For users who train after work, strength-day snacks are treated as the pre-workout fuel window. The app recommends eating the planned snack about 60-120 minutes before lifting and keeping lunch complete earlier in the day so the gym session does not start under-fueled.
 
@@ -835,6 +854,8 @@ workout-tracker/
 | --- | --- |
 | `src/App.tsx` | Main app, program data, recipes, exercise library, logging, sync, and UI state. |
 | `src/lib/syncMerge.ts` | Merge edits against the last synced baseline without losing deliberate clearing or unchecking. |
+| `src/lib/programLifecycle.ts` | Validates start dates, migrates old program metadata, creates reset generations, and prevents cross-reset history merging. |
+| `src/components/ProgramControls.tsx` | Earned training overview and accessible, explicitly confirmed fresh-start dialog. |
 | `src/lib/fetchWithTimeout.ts` | Bounds auth/sync requests to 20 seconds and forwards cancellation. |
 | `src/components/AppErrorBoundary.tsx` | Recovery screen for unexpected rendering failures. |
 | `src/components/PremiumUI.tsx` | Stateless level-one navigation and accessible progress-ring primitives. |
@@ -860,8 +881,9 @@ Most program content currently lives in `src/App.tsx`.
 
 | Change | Where To Look |
 | --- | --- |
-| Program start date | `START_DATE` |
-| Program length | `PROGRAM_DAYS` |
+| User's start date | `store.program.startedOn`; choose a new date through Coach's fresh-start dialog |
+| Initial calendar preview | `PROGRAM_DAYS` (not an expiry); `buildPlanDays()` extends through today plus four weeks |
+| Earned program length | `TRAINING_WEEKS` and `STRENGTH_SESSIONS_PER_WEEK` |
 | Weekly schedule | `weeklySchedule` |
 | Exercise details | `exerciseMap` |
 | Exercise order | `exerciseIds` inside each schedule day |
@@ -884,10 +906,11 @@ Most program content currently lives in `src/App.tsx`.
 | Rest timers | `restTimerSecondsFor()` |
 | Monthly check-ins | `monthlyCheckInForDay()` |
 
-Example start date:
+Example calendar generation for a developer fixture (users choose their date in Coach):
 
 ```ts
-const START_DATE = "2026-08-31";
+const preview = buildPlanDays("2026-10-05", "2027-08-01");
+// Includes Aug 1, 2027 and more upcoming dates, even after the original 182 days.
 ```
 
 > [!TIP]
@@ -906,6 +929,17 @@ npm audit --audit-level=high
 git diff --check
 ```
 
+### Browser Checks
+
+Install the test browsers once, then run the phone/desktop checks:
+
+```bash
+npx playwright install chromium webkit
+npm run test:ui
+```
+
+This starts its own local Vite server with `.env` loading disabled, uses synthetic data and a mocked Supabase API, and closes the server afterward. It checks WebKit at 402 px and 375 px plus Chromium at MacBook dimensions, in light and dark appearance with both normal and reduced motion. It exercises Today logging, swap/revert, selected-control and caption contrast (4.5:1 minimum), Gym, Diet, the earned journey map, reset confirmation/cancellation, cross-tab resets, and two-device reset/reconnection through the actual sync client. External media requests are blocked for deterministic fixtures; these screenshots do not validate the remote videos or food photos. Screenshots go to the Git-ignored `outputs/ui-check/` folder. WebKit emulation is useful regression coverage, not a substitute for checking a real iPhone Home Screen app after deployment.
+
 The behavioral tests execute the actual app functions and a server-rendered Coach Hub, using synthetic data with environment loading disabled. They verify:
 
 - Ordered movements, valid targets, and bounded set counts throughout all 182 days.
@@ -918,13 +952,15 @@ The behavioral tests execute the actual app functions and a server-rendered Coac
 - Invalid weights, older readings, incomplete weeks, and missing mornings do not create misleading diet changes.
 - Poor readiness protects fuel even while the coach is still learning.
 - Independent device edits, unchecks, cleared weights, and swap reversions survive merges.
+- Live dates after long absences, exact three-lift week boundaries, and a full 78-lift journey across more than 26 calendar weeks.
+- Stable historical target levels without prematurely freezing future notes/swaps, attendance-based check-in unlocks, non-mutating resets, legacy migration, stale devices, in-flight writes, and competing offline resets.
 
 The existing source smoke tests additionally verify:
 
 - The app is not the default Vite starter.
 - Workout resources and autosave controls exist.
 - Diet tracker, meal swaps, kg weigh-ins, and to-buy list exist.
-- The program runs for 182 days.
+- The initial calendar previews 182 days; the earned journey retains 26 levels while actual dates continue growing.
 - Supabase cloud sync is present.
 - GIF support is wired through the API route.
 - PWA assets and service worker behavior are present.
@@ -933,7 +969,7 @@ The existing source smoke tests additionally verify:
 - Weighted set rows collapse into labeled phone-width fields so Gym Mode cannot widen the iPhone PWA viewport.
 - The code walkthrough and tutorial comments remain present.
 
-`npm run build` now fails on TypeScript errors, including in Vercel. GitHub's **Quality checks** workflow runs the suite and dependency audit on main/pull requests. This does not replace checking sign-in on a real device: automated tests do not use a live Supabase account, real iOS Safari, or assert pixel-perfect browser layout.
+`npm run build` now fails on TypeScript errors, including in Vercel. GitHub's **Quality checks** workflow runs the regression suite, browser UI checks, and dependency audit on main/pull requests. Failed runs attach their UI screenshots as a downloadable GitHub Actions artifact. This does not replace checking sign-in on a real device: automated tests do not use a live Supabase account, real iOS Safari, or assert pixel-perfect browser layout.
 
 <details>
 <summary><strong>What changed in the reliability and usability update?</strong></summary>
@@ -959,7 +995,7 @@ Deploy through the existing GitHub/Vercel connection. Commit the changed files, 
 <details>
 <summary><strong>Why does Gym Mode show a different day from the one I was browsing?</strong></summary>
 
-**Today** lets you browse any program date. **Gym Mode** always opens the actual current day according to your device's local date, bounded to the 182-day program. For example, previewing Saturday while it is still Friday does not start Saturday's workout. Gym opens Friday, including any skips logged on Friday. Entering Gym also aligns the workout calendar to that date, and its header shows the full date.
+**Today** lets you browse any program date. **Gym Mode** always opens the actual current day according to your device's local date, without an end-date clamp. Before a future start, it previews the first date. For example, previewing Saturday while it is still Friday does not start Saturday's workout. Gym opens Friday, including any skips logged on Friday. Entering Gym also aligns the workout calendar to that date, and its header shows the full date.
 
 Skipped status belongs to one workout date, not to the exercise across the program. Friday's skipped exercise stays pending on Saturday unless you separately log Saturday. On a date change, reopening the iPhone Home Screen app realigns to the new day.
 

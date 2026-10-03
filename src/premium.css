@@ -39,6 +39,9 @@
   --danger-soft: #fdebea;
   --info: #236fa6;
   --info-soft: #e9f3fb;
+  /* Selections own both colors. Never inherit white text onto a pale tint. */
+  --selection-fill: #075c64;
+  --selection-ink: #ffffff;
 
   /* Meaningful training identities */
   --strength-a: #087e8b;
@@ -1934,7 +1937,8 @@ h3 {
 }
 
 .swap-option-grid button.selected {
-  background: var(--accent-soft);
+  background: var(--selection-fill);
+  color: var(--selection-ink);
   box-shadow: inset 0 0 0 2px var(--accent);
 }
 
@@ -4612,4 +4616,156 @@ h3 {
   .gym-live-progress > span {
     transition: none;
   }
+}
+
+/* Live program surfaces: a compact earned-session rail, not another dashboard
+   full of calendar counters. Semantic selections stay readable in both themes. */
+.training-journey,
+.program-controls {
+  margin: 24px 0;
+  padding: 24px 0;
+  border-block: 1px solid var(--separator);
+}
+
+.journey-heading,
+.journey-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.journey-heading h2,
+.program-controls h2 { font-size: 24px; line-height: 1.2; }
+.journey-heading button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border: 1px solid var(--separator);
+  border-radius: 8px;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+}
+.journey-session-rail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 20px 0 16px;
+}
+.journey-session-rail > span {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  border: 1px solid var(--separator);
+  border-radius: 6px;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+.journey-session-rail > span.earned { background: var(--selection-fill); color: var(--selection-ink); border-color: transparent; }
+.journey-session-rail small { font-size: 12px; }
+.journey-meta { font-size: 13px; flex-wrap: wrap; }
+.journey-meta span { color: var(--text-secondary); }
+.journey-track { height: 6px; background: var(--surface-tertiary); border-radius: 3px; margin: 12px 0; overflow: hidden; }
+.journey-track > span { display: block; height: 100%; background: var(--selection-fill); transition: width 250ms ease; }
+.training-journey > p,
+.program-controls p:not(.eyebrow),
+.reset-availability-note { color: var(--text-secondary); font-size: 14px; margin: 8px 0 0; }
+.program-controls { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.program-controls > div { flex: 1 1 260px; }
+.restart-plan-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 16px; border: 1px solid var(--separator-strong); border-radius: 8px; background: var(--surface-secondary); color: var(--text-primary); font-weight: 700; }
+.program-controls .reset-sync-notice { flex-basis: 100%; color: var(--warning); }
+.returning-coach-note { border-left: 3px solid var(--warning); padding: 12px 16px; color: var(--text-secondary); background: var(--surface-secondary); border-radius: 0; }
+.returning-coach-note strong { color: var(--text-primary); }
+
+.reset-dialog {
+  position: fixed;
+  width: min(520px, calc(100% - 32px));
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+  padding: 24px;
+  border: 1px solid var(--separator-strong);
+  border-radius: 8px;
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-md);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.reset-dialog::backdrop { background: rgba(0, 0, 0, .62); backdrop-filter: blur(6px); }
+body:has(.reset-dialog[open]) { overflow: hidden; }
+.reset-dialog header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.reset-dialog-symbol { color: var(--danger); }
+.reset-close { display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 8px; background: var(--surface-secondary); color: var(--text-primary); }
+.reset-dialog h2 { font-size: 24px; }
+.reset-dialog p:not(.eyebrow) { font-size: 14px; line-height: 1.5; margin-block: 12px; }
+.reset-dialog .reset-account-note { display: flex; gap: 10px; color: var(--text-secondary); }
+.reset-account-note svg { flex-shrink: 0; margin-top: 2px; }
+.reset-dialog label { display: grid; gap: 8px; font-size: 14px; font-weight: 700; margin-top: 16px; }
+.reset-dialog input { width: 100%; min-width: 0; min-height: 48px; padding: 12px; border: 1px solid var(--separator-strong); border-radius: 6px; background: var(--surface-secondary); color: var(--text-primary); font-size: 16px; }
+.reset-dialog footer { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 24px; }
+.reset-dialog footer button { min-height: 48px; padding: 12px; border: 1px solid var(--separator); border-radius: 6px; background: var(--surface-secondary); color: var(--text-primary); font-weight: 700; }
+.reset-dialog footer .reset-confirm { background: #a62e2e; color: #ffffff; border-color: transparent; }
+.reset-dialog .reset-error { color: var(--danger); }
+.reset-dialog button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Match foreground and background as a pair; descendant captions were formerly
+   inheriting white from the old violet selection and disappearing on pale blue. */
+.swap-option-grid button,
+.swap-control-strip button,
+.readiness-options button,
+.calorie-mode-control button,
+.monthly-recovery-row button {
+  /* Changing text/fill together avoids an illegible intermediate cross-fade. */
+  transition-property: border-color, box-shadow, transform;
+}
+.swap-option-grid button :is(strong, small, span),
+.swap-control-strip button :is(strong, small, span),
+.readiness-options button :is(strong, small, span),
+.calorie-mode-control button :is(strong, small, span),
+.monthly-recovery-row button :is(strong, small, span) {
+  /* The universal reduced-motion rule assigns a tiny duration even to labels.
+     Disable their transition property so ink changes in the same frame as fill. */
+  transition-property: none;
+}
+.swap-option-grid button.selected,
+.swap-control-strip button.selected,
+.readiness-options button.selected,
+.calorie-mode-control button.selected,
+.monthly-recovery-row button.selected {
+  background: var(--selection-fill);
+  color: var(--selection-ink);
+  border-color: var(--selection-fill);
+  box-shadow: inset 0 0 0 1px var(--selection-fill);
+}
+.swap-option-grid button.selected :is(strong, small, span),
+.swap-control-strip button.selected :is(strong, small, span) { color: var(--selection-ink); opacity: 1; }
+.swap-option-grid button:not(.selected) :is(strong, small, span) { color: var(--text-primary); opacity: 1; }
+
+/* The status describes the whole weigh-in, not just the left grid column. */
+.hub-body-check-card .weighin-state-row { grid-column: 1 / -1; }
+.hub-dashboard-grid { align-items: start; }
+.forgot-weight-button { min-height: 44px; flex-shrink: 0; }
+
+@media (prefers-color-scheme: dark) {
+  :root { --selection-fill: #8ad9cf; --selection-ink: #102925; }
+  /* These shell tokens are declared after the older theme rules, so their dark
+     counterparts must live here too. Tints are dark surfaces, not white panels. */
+  .workout-shell { --accent: #5fc3b4; --accent-strong: #8ad1d8; --accent-soft: #163b3f; }
+  .diet-shell { --accent: #efa387; --accent-strong: #ffc2a6; --accent-soft: #412a21; }
+  .coach-hub-shell { --accent: #aea9ee; --accent-strong: #cfcbff; --accent-soft: #292744; }
+}
+@media (max-width: 720px) {
+  .training-journey, .program-controls { padding: 20px 0; margin: 20px 0; }
+  .journey-heading h2, .program-controls h2 { font-size: 22px; }
+  .restart-plan-button { width: 100%; }
+  .reset-dialog { padding: 20px; max-height: calc(100dvh - 32px); }
+  .today-command-header h2 { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .journey-track > span { transition: none; }
 }

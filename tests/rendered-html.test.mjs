@@ -19,7 +19,7 @@ test("ships the finished workout tracker instead of the starter preview", async 
   ]);
 
   assert.match(app, /Recomp Gym Console/);
-  assert.match(app, /START_DATE = "2026-08-31"/);
+  assert.match(app, /LEGACY_START_DATE = "2026-08-31"/);
   assert.match(app, /PROGRAM_DAYS = 182/);
   assert.match(app, /Strength A/);
   assert.match(app, /Cardio Base/);
@@ -104,7 +104,7 @@ test("includes researched movement resources and autosave controls", async () =>
     "smartLoadSuggestion",
     "One more confirming session",
     "Earn the new set",
-    "EARNED_WEEK_ADHERENCE_GATE",
+    "STRENGTH_SESSIONS_PER_WEEK",
     "Training Week",
     "RIR target",
     "rirExplanationForWeek",
@@ -579,24 +579,24 @@ test("includes API-backed autoplay exercise GIF support", async () => {
   assert.match(readme, /npx vercel dev/);
 });
 
-test("starts Aug 31 on the PDF Monday workout slot and ignores scratch folders", async () => {
+test("preserves legacy dates while new live calendars follow actual weekdays and ignore scratch folders", async () => {
   const [page, viteConfig] = await Promise.all([text("src/App.tsx"), text("vite.config.ts")]);
 
-  assert.match(page, /START_DATE = "2026-08-31"/);
-  assert.match(page, /const scheduleOrder = \[/);
+  assert.match(page, /LEGACY_START_DATE = "2026-08-31"/);
+  assert.match(page, /const planName = actualName as PlanWeekday/);
   assert.match(page, /planDayName: planName/);
-  assert.match(page, /const \[selectedDate, setSelectedDate\] = useState\(\(\) => closestProgramDate\(\)\)/);
-  assert.match(page, /function closestProgramDate\(now = new Date\(\)\)/);
+  assert.match(page, /const \[selectedDate, setSelectedDate\] = useState\(\(\) => currentProgramDate\)/);
+  assert.match(page, /function closestProgramDate\(now = new Date\(\), startedOn/);
   assert.match(page, /date\.getFullYear\(\)/);
   assert.match(page, /date\.getMonth\(\) \+ 1/);
   assert.match(page, /date\.getDate\(\)/);
   assert.match(page, /lastAutoAlignedDateRef/);
-  assert.match(page, /setCurrentProgramDate\(nextProgramDate\)/);
+  assert.match(page, /setCalendarDate\(isoFromDate\(new Date\(\)\)\)/);
   assert.match(page, /visibilitychange/);
   assert.match(page, /document\.visibilityState === "visible"/);
   assert.match(page, /window\.addEventListener\("focus", alignWithCurrentProgramDate\)/);
   assert.match(page, /setActiveSection\("today"\)/);
-  assert.match(page, /const nextProgramDate = closestProgramDate\(\)/);
+  assert.match(page, /const nextProgramDate = closestProgramDate\(new Date\(\), store.program.startedOn\)/);
   assert.match(page, /const nextGymRows = buildWorkoutMoveRows\(nextGymCoachDay, nextGymLog, nextGymExercises\)/);
   assert.match(page, /setGymExerciseIndex\(firstUnfinishedMoveIndex\(nextGymRows\)\)/);
   assert.match(viteConfig, /\*\*\/work\/\*\*/);
@@ -677,8 +677,8 @@ test("day skip controls share date-scoped handlers and Gym shows a terminal summ
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v38/);
-  assert.match(serviceWorker, /coach-home-v38/);
+  assert.match(serviceWorker, /recomp-gym-console-v39/);
+  assert.match(serviceWorker, /earned-program-v39/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);

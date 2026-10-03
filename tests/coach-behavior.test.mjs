@@ -10,7 +10,7 @@ import { canClaimLocalProgress, mergeProgressChanges, sameData } from "../src/li
 const server = await createServer({ envDir: false, server: { middlewareMode: true, hmr: false, ws: false, watch: null } });
 after(() => server.close());
 const model = await server.ssrLoadModule("/src/App.tsx");
-const days = model.buildPlanDays();
+const days = model.buildPlanDays("2026-08-31");
 const reference = { weight: 80, label: "Recent average", detail: "Test fixture" };
 const weight = (kg) => ({ weightKg: String(kg), weight: "", weightForgotten: false, note: "", photoReminderDone: false });
 
@@ -204,12 +204,12 @@ test("equivalent swaps preserve the original program slot's priority and late-ph
 });
 
 test("Gym uses the device date across midnight, independently of the browsed workout", () => {
-  const friday = model.closestProgramDate(new Date(2026, 8, 4, 23, 59));
-  const saturday = model.closestProgramDate(new Date(2026, 8, 5, 0, 1));
+  const friday = model.closestProgramDate(new Date(2026, 8, 4, 23, 59), "2026-08-31");
+  const saturday = model.closestProgramDate(new Date(2026, 8, 5, 0, 1), "2026-08-31");
   assert.equal(model.resolveGymDay(days, friday).iso, days[4].iso);
   assert.equal(model.resolveGymDay(days, saturday).iso, days[5].iso);
-  assert.equal(model.closestProgramDate(new Date(2026, 7, 1)), days[0].iso);
-  assert.equal(model.closestProgramDate(new Date(2027, 8, 1)), days.at(-1).iso);
+  assert.equal(model.closestProgramDate(new Date(2026, 7, 1), "2026-08-31"), days[0].iso);
+  assert.equal(model.closestProgramDate(new Date(2027, 8, 1), "2026-08-31"), "2027-09-01");
 });
 
 test("Friday skips never carry to Saturday or next Friday's matching exercise IDs", () => {
@@ -498,4 +498,144 @@ test("clearing a field during an in-flight write survives the next cloud read", 
   // render was superseded while waiting for the network.
   const nextSave = mergeProgressChanges(acceptedByServer, pending, acceptedByServer);
   assert.deepEqual(nextSave, { weight: "", note: "new note" });
+});
+
+test("calendar stays live after long absences and has no hard-coded expiry", () => {
+  const live = model.buildPlanDays("2026-08-31", "2028-03-14");
+  const actual = live.find((day) => day.iso === "2028-03-14");
+  assert.ok(live.length > 182);
+  assert.equal(model.resolveGymDay(live, "2028-03-14").iso, actual.iso);
+  assert.equal(actual.planDayName, "Tuesday");
+  assert.equal(actual.session.type, "cardio");
+  assert.ok(live.at(-1).iso >= "2028-04-10");
+  assert.equal(model.earnedTrainingWeekForDay(live, model.emptyStore("2026-08-31"), actual), 1);
+  const fresh = model.buildPlanDays("2026-10-03");
+  assert.equal(fresh[0].planDayName, "Saturday", "restart uses real weekday, not a fictional Monday");
+});
+
+test("exactly three full lifts earn a week; skips, partial work and cardio earn none", () => {
+  const store = model.emptyStore("2026-08-31");
+  for (const index of [0, 2]) store.days[days[index].iso] = model.completePlanDay(days[index], model.normalizeDayLog());
+  store.days[days[1].iso] = model.completePlanDay(days[1], model.normalizeDayLog());
+  store.days[days[4].iso] = model.skipPlanDay(days[4], model.normalizeDayLog(), "time");
+  store.days[days[7].iso] = model.normalizeDayLog();
+  store.days[days[7].iso].exercises["leg-press"] = [{ weight: "50", reps: "10", done: true }];
+  assert.equal(model.earnedTrainingWeekForDay(days, store, days[28]), 1);
+  assert.equal(model.trainingProgressFor(days, store, days[28].iso).credits, 2);
+  store.days[days[9].iso] = model.completePlanDay(model.withTrainingWeek(days[9], 1), model.normalizeDayLog());
+  assert.equal(model.earnedTrainingWeekForDay(days, store, days[9]), 1, "completing a day doesn't change that day's level");
+  assert.equal(model.earnedTrainingWeekForDay(days, store, days[28]), 2);
+  const rolled = model.reconcilePastTracking(days, store, days[28].iso);
+  assert.equal(model.earnedTrainingWeekForDay(days, rolled, days[28]), 2);
+  assert.equal(model.trainingProgressFor(days, rolled, days[28].iso).credits, 3);
+});
+
+test("six-month journey requires 78 real lifts even across more than 26 calendar weeks", () => {
+  const live = model.buildPlanDays("2026-08-31", "2027-09-01");
+  const store = model.emptyStore("2026-08-31");
+  const lifts = live.filter((day) => day.index >= 70 && day.session.type === "strength").slice(0, 78);
+  for (const day of lifts) {
+    const coached = model.withTrainingWeek(day, model.earnedTrainingWeekForDay(live, store, day));
+    store.days[day.iso] = { ...model.completePlanDay(coached, model.normalizeDayLog()), trainingWeek: coached.trainingWeek };
+  }
+  const progress = model.trainingProgressFor(live, store, lifts.at(-1).iso);
+  assert.equal(progress.credits, 78);
+  assert.equal(progress.completedWeeks, 26);
+  assert.equal(progress.percent, 100);
+  assert.equal(progress.isComplete, true);
+  assert.equal(model.earnedTrainingWeekForDay(live, store, live.at(-1)), 26);
+});
+
+test("saved historical target levels remain stable after backfilling earlier workouts", () => {
+  const store = model.emptyStore("2026-08-31");
+  store.days[days[28].iso] = { ...model.completePlanDay(model.withTrainingWeek(days[28], 1), model.normalizeDayLog()), trainingWeek: 1 };
+  for (const day of days.slice(0, 28).filter((item) => item.session.type === "strength")) {
+    store.days[day.iso] = model.completePlanDay(model.withTrainingWeek(day, 1), model.normalizeDayLog());
+  }
+  assert.equal(model.earnedTrainingWeekForDay(days, store, days[28]), 1);
+  assert.equal(model.earnedTrainingWeekForDay(days, store, days[30]), 5);
+  assert.equal(model.normalizeStore(store).days[days[28].iso].trainingWeek, 1);
+});
+
+test("future notes and swaps do not freeze targets before the session date", () => {
+  const store = model.emptyStore("2026-08-31");
+  store.days[days[28].iso] = { ...model.normalizeDayLog(), notes: "Prepare the cable handle" };
+  assert.equal(model.trainingWeekForEdit(days, store, days[28], days[0].iso), undefined);
+  for (const index of [0, 2, 4]) store.days[days[index].iso] = model.completePlanDay(days[index], model.normalizeDayLog());
+  assert.equal(model.trainingWeekForEdit(days, store, days[28], days[28].iso), 2);
+  store.days[days[28].iso].trainingWeek = 2;
+  assert.equal(model.trainingWeekForEdit(days, store, days[28], days[35].iso), 2);
+});
+
+test("block reviews unlock after completed practice, not after 28 absent calendar days", () => {
+  const store = model.emptyStore("2026-08-31");
+  let review = model.monthlyCheckInForDay(days, store, days[35]);
+  assert.equal(review.month, 1);
+  assert.equal(review.isUnlocked, false);
+  assert.equal(review.totalStrength, 12);
+  const lifts = days.slice(0, 28).filter((day) => day.session.type === "strength");
+  for (const day of lifts) store.days[day.iso] = model.completePlanDay(model.withTrainingWeek(day, 1), model.normalizeDayLog());
+  review = model.monthlyCheckInForDay(days, store, lifts.at(-1));
+  assert.equal(review.isUnlocked, true);
+  assert.equal(review.completedStrength, 12);
+});
+
+test("restart clears all progress but keeps the account sync document and start date", () => {
+  const old = model.emptyStore("2026-08-31");
+  old.days[days[0].iso] = model.completePlanDay(days[0], model.normalizeDayLog());
+  old.dietDays[days[0].iso] = { completed: true, meals: { breakfast: true } };
+  old.metrics[days[0].iso] = weight(80);
+  old.settings.calorieMode = "lower";
+  const fresh = model.resetProgress(old, "2026-10-05", new Date("2026-10-03T20:00:00Z"));
+  assert.deepEqual(fresh.days, {});
+  assert.deepEqual(fresh.dietDays, {});
+  assert.deepEqual(fresh.metrics, {});
+  assert.equal(fresh.settings.calorieMode, "calculated");
+  assert.equal(fresh.program.startedOn, "2026-10-05");
+  assert.notEqual(fresh.program.resetId, old.program.resetId);
+  assert.equal(model.normalizeStore(fresh).program.resetId, fresh.program.resetId);
+  assert.equal(Object.keys(model.reconcilePastTracking(model.buildPlanDays(fresh.program.startedOn), fresh, "2026-10-03").days).length, 0);
+  assert.equal(Object.keys(old.days).length, 1, "reset doesn't mutate the input");
+});
+
+test("reset beats stale devices, initial sign-in merges and in-flight old responses", () => {
+  const baseline = model.emptyStore("2026-08-31");
+  baseline.metrics[days[0].iso] = weight(80);
+  const oldEdited = structuredClone(baseline);
+  oldEdited.days[days[0].iso] = model.completePlanDay(days[0], model.normalizeDayLog());
+  const fresh = model.resetProgress(baseline, "2026-10-05");
+  assert.deepEqual(mergeProgressChanges(baseline, oldEdited, fresh), fresh);
+  assert.deepEqual(mergeProgressChanges(baseline, fresh, oldEdited), fresh);
+  assert.deepEqual(model.chooseInitialSyncedStore(oldEdited, fresh, { localUpdatedAt: "2099-01-01" }), fresh);
+  const editedAfterReset = structuredClone(fresh);
+  editedAfterReset.metrics["2026-10-05"] = weight(79);
+  assert.deepEqual(mergeProgressChanges(baseline, editedAfterReset, oldEdited), editedAfterReset);
+  assert.deepEqual(mergeProgressChanges(fresh, editedAfterReset, oldEdited), editedAfterReset, "old software cannot roll back an accepted reset");
+  const receivedReset = mergeProgressChanges(baseline, oldEdited, fresh);
+  assert.deepEqual(mergeProgressChanges(fresh, receivedReset, fresh), fresh);
+});
+
+test("two offline resets converge and ordinary post-reset device edits still merge", () => {
+  const base = model.emptyStore("2026-08-31");
+  const earlier = model.resetProgress(base, "2026-10-03", new Date("2026-10-03T10:00:00Z"));
+  const later = model.resetProgress(base, "2026-10-04", new Date("2026-10-03T11:00:00Z"));
+  assert.deepEqual(mergeProgressChanges(base, earlier, later), later);
+  assert.deepEqual(mergeProgressChanges(base, later, earlier), later);
+  const left = structuredClone(later);
+  const right = structuredClone(later);
+  left.metrics["2026-10-04"] = weight(78);
+  right.days["2026-10-05"] = model.normalizeDayLog();
+  right.days["2026-10-05"].notes = "New session";
+  const merged = mergeProgressChanges(later, left, right);
+  assert.equal(merged.metrics["2026-10-04"].weightKg, "78");
+  assert.equal(merged.days["2026-10-05"].notes, "New session");
+});
+
+test("legacy account migration keeps history and its original dates", () => {
+  const legacy = { days: { "2026-09-04": model.normalizeDayLog() }, dietDays: {}, metrics: { "2026-09-04": weight(80) }, settings: { calorieMode: "lower" } };
+  const upgraded = model.normalizeStore(legacy);
+  assert.equal(upgraded.program.startedOn, "2026-08-31");
+  assert.equal(upgraded.program.resetId, "initial");
+  assert.equal(upgraded.metrics["2026-09-04"].weightKg, "80");
+  assert.equal(upgraded.settings.calorieMode, "lower");
 });

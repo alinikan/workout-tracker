@@ -27,6 +27,8 @@ import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { isSupabaseConfigured, supabase, supabaseConfigError } from "./lib/supabaseClient";
 import { canClaimLocalProgress, mergeProgressChanges, sameData } from "./lib/syncMerge";
 import { ProductNavigation, ProgressRing, type ProductMode } from "./components/PremiumUI";
+import { ProgramControls, TrainingJourney } from "./components/ProgramControls";
+import { initialProgram, isCalendarDate, normalizeProgram, restartedProgram, resolveResetConflict, type ProgramState } from "./lib/programLifecycle";
 
 /**
  * App.tsx is intentionally the main "product brain" for this personal tracker.
@@ -353,6 +355,9 @@ type SetLog = {
 
 type DayLog = {
   completed: boolean;
+  // Freeze the earned level when a current/past day is first edited; later history edits
+  // must not add sets to a workout that was already logged at an easier level.
+  trainingWeek?: number;
   daySkipReason?: SkipReason;
   warmup: Record<string, boolean>;
   tasks: Record<string, boolean>;
@@ -380,6 +385,7 @@ type DietDayLog = {
 };
 
 type TrackerStore = {
+  program: ProgramState;
   days: Record<string, DayLog>;
   dietDays: Record<string, DietDayLog>;
   metrics: Record<string, MetricLog>;
@@ -410,13 +416,13 @@ type PlanDay = {
 const STORAGE_KEY = "body-recomp-gym-tracker-v1";
 const STORAGE_META_KEY = "body-recomp-gym-tracker-meta-v1";
 
-// The program calendar starts on a Monday and runs for 26 weeks. The real calendar date and the
-// program weekday are both stored on each PlanDay so the app can show "today" while still following
-// the Monday-through-Sunday training rhythm.
-const START_DATE = "2026-08-31";
+// This date is only a migration fallback for pre-lifecycle saves, never a new
+// user's start date. Calendar dates grow; training has 26 earned levels / 78 lifts.
+const LEGACY_START_DATE = "2026-08-31";
 const PROGRAM_DAYS = 182;
+const TRAINING_WEEKS = 26;
 const STRENGTH_SESSIONS_PER_WEEK = 3;
-const EARNED_WEEK_ADHERENCE_GATE = 0.75;
+const PROGRAM_STRENGTH_SESSIONS = TRAINING_WEEKS * STRENGTH_SESSIONS_PER_WEEK;
 
 // Strength sessions start with a short, repeatable warm-up. The extra squat, hinge, push-up, and
 // plank drills stay in the library, but Month 1 should not feel like a long circuit before lifting.
@@ -530,7 +536,8 @@ const defaultDietCalories: Record<DietDayType, number> = {
   recovery: 1850,
 };
 
-const emptyStore = (): TrackerStore => ({
+const emptyStore = (startedOn = isoFromDate(new Date())): TrackerStore => ({
+  program: initialProgram(startedOn),
   days: {},
   dietDays: {},
   metrics: {},
@@ -663,6 +670,8 @@ function normalizeDayLog(log: DayLog | undefined): DayLog {
   return {
     ...createEmptyDay(),
     ...log,
+    trainingWeek: typeof log?.trainingWeek === "number" && Number.isInteger(log.trainingWeek) && log.trainingWeek >= 1 && log.trainingWeek <= TRAINING_WEEKS
+      ? log.trainingWeek : undefined,
     completed: (!savedSkipReason || completedOverAutomaticSkip) && Boolean(log?.completed),
     daySkipReason: completedOverAutomaticSkip ? undefined : savedSkipReason,
     warmup: log?.warmup ?? {},
@@ -3332,18 +3341,6 @@ const weeklySchedule: Record<string, SessionTemplate> = {
   },
 };
 
-// The calendar builder loops through this order for 182 days, which is why Day 1 can stay Monday
-// even though the app still knows the user's actual calendar date.
-const scheduleOrder = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-] as const;
-
 const sessionTypeLabels: Record<SessionType, string> = {
   strength: "Strength",
   cardio: "Cardio",
@@ -4842,8 +4839,8 @@ function weightWeekSummary(planDays: PlanDay[], metrics: Record<string, MetricLo
 
   return {
     week: weekIndex + 1,
-    startIso: days[0]?.iso ?? START_DATE,
-    endIso: days[days.length - 1]?.iso ?? START_DATE,
+    startIso: days[0]?.iso ?? planDays[0]?.iso ?? isoFromDate(new Date()),
+    endIso: days[days.length - 1]?.iso ?? planDays[0]?.iso ?? isoFromDate(new Date()),
     loggedDays: loggedWeights.length,
     forgottenDays,
     openDays: Math.max(0, days.length - loggedWeights.length - forgottenDays),
@@ -5144,6 +5141,7 @@ function normalizeStore(value: unknown): TrackerStore | null {
     : {};
 
   return {
+    program: normalizeProgram(value.program, LEGACY_START_DATE),
     days,
     dietDays,
     metrics,
@@ -5201,6 +5199,7 @@ function syncBaseKey(userId: string) { return `${STORAGE_KEY}:baseline:${userId}
 
 function hasStoreData(store: TrackerStore) {
   return (
+    store.program.resetAt !== null ||
     Object.keys(store.days).length > 0 ||
     Object.keys(store.dietDays).length > 0 ||
     Object.keys(store.metrics).length > 0 ||
@@ -5290,6 +5289,7 @@ function mergeDayLog(cloudLog: DayLog | undefined, localLog: DayLog | undefined)
       ...normalizedLocalLog.readiness,
     },
     monthlyRecovery: normalizedLocalLog.monthlyRecovery ?? normalizedCloudLog.monthlyRecovery,
+    trainingWeek: normalizedLocalLog.trainingWeek ?? normalizedCloudLog.trainingWeek,
     exercises: [...exerciseIds].reduce<Record<string, SetLog[]>>((merged, id) => {
       merged[id] = mergeSetRows(cloudExercises[id], localExercises[id]);
       return merged;
@@ -5343,6 +5343,8 @@ function mergeMetricLog(metric: MetricLog | undefined, localMetric: MetricLog | 
 // Store merging happens once when an account loads. After that, normal autosave writes the unified
 // result back to Supabase.
 function mergeStores(localStore: TrackerStore, cloudStore: TrackerStore) {
+  const resetWinner = resolveResetConflict(undefined, localStore, cloudStore);
+  if (resetWinner) return resetWinner;
   const dayIds = new Set([...Object.keys(cloudStore.days), ...Object.keys(localStore.days)]);
   const dietDayIds = new Set([
     ...Object.keys(cloudStore.dietDays),
@@ -5354,6 +5356,7 @@ function mergeStores(localStore: TrackerStore, cloudStore: TrackerStore) {
   ]);
 
   return {
+    program: hasStoreData(cloudStore) ? cloudStore.program : localStore.program,
     days: [...dayIds].reduce<Record<string, DayLog>>((merged, id) => {
       merged[id] = mergeDayLog(cloudStore.days[id], localStore.days[id]);
       return merged;
@@ -5383,6 +5386,8 @@ function shouldMergeLocalWithCloud(localStore: TrackerStore, cloudStore: Tracker
 }
 
 function chooseInitialSyncedStore(localStore: TrackerStore, cloudStore: TrackerStore, meta: StoreMeta) {
+  const resetWinner = resolveResetConflict(undefined, localStore, cloudStore);
+  if (resetWinner) return resetWinner;
   return shouldMergeLocalWithCloud(localStore, cloudStore, meta)
     ? mergeStores(localStore, cloudStore)
     : cloudStore;
@@ -5449,13 +5454,17 @@ async function upsertCloudStore(userId: string, store: TrackerStore, expectedUpd
   return (data as { updated_at: string } | null)?.updated_at ?? null;
 }
 
-// The app does not manually write 182 calendar entries. Instead, it generates them from START_DATE,
-// PROGRAM_DAYS, and the weekly schedule so long plans remain easy to maintain.
-function buildPlanDays(): PlanDay[] {
-  return Array.from({ length: PROGRAM_DAYS }, (_, index) => {
-    const iso = addDays(START_DATE, index);
+// The initial six-month calendar is a preview, not a deadline. Grow to include
+// today and four more weeks when someone returns after a long break. Week rows
+// contain seven dates, and the real weekday determines A/B/C/cardio/recovery.
+function buildPlanDays(startedOn = isoFromDate(new Date()), through = startedOn): PlanDay[] {
+  const start = isCalendarDate(startedOn) ? startedOn : isoFromDate(new Date());
+  const horizon = isCalendarDate(through) ? through : start;
+  const length = Math.ceil(Math.max(PROGRAM_DAYS, diffDays(start, horizon) + 29) / 7) * 7;
+  return Array.from({ length }, (_, index) => {
+    const iso = addDays(start, index);
     const actualName = dayName(iso);
-    const planName = scheduleOrder[index % scheduleOrder.length];
+    const planName = actualName as PlanWeekday;
     return {
       iso,
       index,
@@ -5467,86 +5476,91 @@ function buildPlanDays(): PlanDay[] {
   });
 }
 
-function completedStrengthSessionsBefore(planDays: PlanDay[], store: TrackerStore, selectedDay: PlanDay) {
-  return planDays
-    .slice(0, selectedDay.index)
-    .filter((day) => day.session.type === "strength")
-    .filter((day) => normalizeDayLog(store.days[day.iso]).completed)
-    .filter((day) => readinessStatusFor(normalizeDayLog(store.days[day.iso]).readiness) !== "red")
-    .length;
+function qualifiesForTrainingCredit(planDay: PlanDay, log: DayLog) {
+  return planDay.session.type === "strength" &&
+    readinessStatusFor(log.readiness) !== "red" && isPlanDayComplete(planDay, log);
 }
 
-function recoveryCapForNewBlock(planDays: PlanDay[], store: TrackerStore, selectedDay: PlanDay) {
-  const isFirstWeekOfBlock = selectedDay.week > 1 && (selectedDay.week - 1) % 4 === 0;
-  if (!isFirstWeekOfBlock) return 26;
-
-  const previousCheckpointIndex = (selectedDay.week - 1) * 7 - 1;
-  const checkpointDay = planDays[previousCheckpointIndex];
-  if (!checkpointDay) return 26;
-
-  const checkpointRecovery = normalizeDayLog(store.days[checkpointDay.iso]).monthlyRecovery;
-  return checkpointRecovery === "very-hard" ? selectedDay.week - 1 : 26;
+// One forward pass supplies stable historical levels and avoids repeatedly
+// scanning years of history for every day rendered. Credits are full lifts only:
+// three completed sessions earn the next level; missed calendar weeks earn none.
+function coachedDaysForStore(planDays: PlanDay[], store: TrackerStore): PlanDay[] {
+  let credits = 0;
+  return planDays.map((day) => {
+    const log = normalizeDayLog(store.days[day.iso]);
+    const earned = Math.min(TRAINING_WEEKS, Math.floor(credits / STRENGTH_SESSIONS_PER_WEEK) + 1);
+    const coached = withTrainingWeek(day, log.trainingWeek ?? earned);
+    if (qualifiesForTrainingCredit(coached, log)) credits += 1;
+    return coached;
+  });
 }
 
 function earnedTrainingWeekForDay(planDays: PlanDay[], store: TrackerStore, selectedDay: PlanDay) {
-  const completedStrength = completedStrengthSessionsBefore(planDays, store, selectedDay);
-  const strengthSessionsNeededPerWeek =
-    STRENGTH_SESSIONS_PER_WEEK * EARNED_WEEK_ADHERENCE_GATE;
-  const earnedByAdherence = Math.floor(completedStrength / strengthSessionsNeededPerWeek) + 1;
-  const recoveryCap = recoveryCapForNewBlock(planDays, store, selectedDay);
-  return Math.max(1, Math.min(selectedDay.week, earnedByAdherence, recoveryCap, 26));
+  return coachingWeek(coachedDaysForStore(planDays.slice(0, selectedDay.index + 1), store)[selectedDay.index] ?? withTrainingWeek(selectedDay, 1));
 }
 
-function trainingLevelCopy(calendarWeek: number, trainingWeek: number) {
-  if (trainingWeek >= calendarWeek) {
-    return `Training level is aligned with the calendar because you have earned at least ${Math.round(
-      EARNED_WEEK_ADHERENCE_GATE * 100,
-    )}% of the strength practice needed for this block.`;
-  }
-  return `Calendar is Week ${calendarWeek}, but targets use earned Training Week ${trainingWeek}. The app is holding volume until enough strength sessions are completed.`;
+function trainingWeekForEdit(planDays: PlanDay[], store: TrackerStore, day: PlanDay, today: string) {
+  const saved = normalizeDayLog(store.days[day.iso]).trainingWeek;
+  // Planning a future swap or note must not lock that workout to today's level.
+  // Once its date arrives, the first edit freezes its actually earned targets.
+  return saved ?? (day.iso <= today ? earnedTrainingWeekForDay(planDays, store, day) : undefined);
 }
 
-function monthWindowForWeek(week: number) {
-  const month = trainingMonthForWeek(week);
-  const startWeek = month === 7 ? 25 : (month - 1) * 4 + 1;
-  const endWeek = month === 7 ? 26 : month * 4;
+function trainingProgressFor(planDays: PlanDay[], store: TrackerStore, through: string) {
+  const creditedDays = coachedDaysForStore(planDays, store).filter((day) =>
+    day.iso <= through && qualifiesForTrainingCredit(day, normalizeDayLog(store.days[day.iso])));
+  const credits = creditedDays.length;
   return {
-    month,
-    startIndex: (startWeek - 1) * 7,
-    endIndex: Math.min(PROGRAM_DAYS - 1, endWeek * 7 - 1),
+    credits,
+    trainingWeek: Math.min(TRAINING_WEEKS, Math.floor(credits / STRENGTH_SESSIONS_PER_WEEK) + 1),
+    completedWeeks: Math.min(TRAINING_WEEKS, Math.floor(credits / STRENGTH_SESSIONS_PER_WEEK)),
+    inWeek: credits >= PROGRAM_STRENGTH_SESSIONS ? 3 : credits % STRENGTH_SESSIONS_PER_WEEK,
+    percent: Math.min(100, Math.round(credits / PROGRAM_STRENGTH_SESSIONS * 100)),
+    isComplete: credits >= PROGRAM_STRENGTH_SESSIONS,
+    lastCompletedOn: creditedDays.at(-1)?.iso ?? null,
+    creditedDays,
   };
 }
 
+function trainingLevelCopy(_calendarWeek: number, trainingWeek: number) {
+  return `Training Week ${trainingWeek} of ${TRAINING_WEEKS}. Three completed lifting sessions earn the next week. Missed days never increase your targets; load increases need performance evidence.`;
+}
+
+function resetProgress(store: TrackerStore, startedOn: string, now = new Date()): TrackerStore {
+  return { ...emptyStore(startedOn), program: restartedProgram(store.program, startedOn, now) };
+}
+
 function monthlyCheckInForDay(planDays: PlanDay[], store: TrackerStore, selectedDay: PlanDay) {
-  const window = monthWindowForWeek(selectedDay.week);
+  const month = trainingMonthForWeek(earnedTrainingWeekForDay(planDays, store, selectedDay));
+  const progress = trainingProgressFor(planDays, store, selectedDay.iso);
+  const firstCredit = (month - 1) * 12;
+  const totalStrength = month === 7 ? 6 : 12;
+  const blockSessions = progress.creditedDays.slice(firstCredit, firstCredit + totalStrength);
+  const previousCheckpoint = progress.creditedDays[firstCredit - 1];
+  const checkpointDay = blockSessions.length === totalStrength ? blockSessions.at(-1)! : selectedDay;
+  const window = { month, startIndex: previousCheckpoint ? previousCheckpoint.index + 1 : 0, endIndex: checkpointDay.index };
   const days = planDays.slice(window.startIndex, window.endIndex + 1);
-  const strengthDays = days.filter((day) => day.session.type === "strength");
   const cardioDays = days.filter((day) => day.session.type === "cardio");
-  const completedStrength = strengthDays.filter((day) =>
-    normalizeDayLog(store.days[day.iso]).completed,
-  ).length;
+  const completedStrength = blockSessions.length;
   const completedCardio = cardioDays.filter((day) =>
     normalizeDayLog(store.days[day.iso]).completed,
   ).length;
-  const checkpointDay = planDays[window.endIndex] ?? selectedDay;
   const checkpointMetric = normalizeMetricLogShape(store.metrics[checkpointDay.iso]);
   const firstWeek = weightWeekSummary(planDays, store.metrics, Math.floor(window.startIndex / 7));
   const lastWeek = weightWeekSummary(planDays, store.metrics, Math.floor(window.endIndex / 7));
   const recovery = normalizeDayLog(store.days[checkpointDay.iso]).monthlyRecovery;
-  const completionRate = strengthDays.length
-    ? Math.round((completedStrength / strengthDays.length) * 100)
-    : 0;
-  const isUnlocked = selectedDay.index >= checkpointDay.index;
+  const completionRate = Math.round(completedStrength / totalStrength * 100);
+  const isUnlocked = completedStrength === totalStrength;
   const recoveryAnswered = Boolean(recovery);
   const shouldProgress =
-    completionRate >= 75 && recoveryAnswered && recovery !== "very-hard" && isUnlocked;
+    recoveryAnswered && recovery !== "very-hard" && isUnlocked;
 
   return {
     ...window,
     checkpointDay,
     checkpointMetric,
     completedStrength,
-    totalStrength: strengthDays.length,
+    totalStrength,
     completedCardio,
     totalCardio: cardioDays.length,
     completionRate,
@@ -5591,14 +5605,10 @@ function longestCompletedCardioBetween(
   return durations.length ? Math.max(...durations) : null;
 }
 
-// "Today" clamps to the program window. Before the plan starts, it shows Day 1; after the program
-// ends, it shows the final day instead of crashing or returning nothing.
-function closestProgramDate(now = new Date()) {
+// Before an explicitly future start show Day 1. There is no upper calendar bound.
+function closestProgramDate(now = new Date(), startedOn = isoFromDate(now)) {
   const today = isoFromDate(now);
-  const offset = diffDays(START_DATE, today);
-  if (offset < 0) return START_DATE;
-  if (offset >= PROGRAM_DAYS) return addDays(START_DATE, PROGRAM_DAYS - 1);
-  return today;
+  return today < startedOn ? startedOn : today;
 }
 
 // Gym's date is independent of calendar browsing. Never fall back to a selected
@@ -6000,6 +6010,7 @@ function reconcilePastTracking(
   let daysChanged = false;
   let metricsChanged = false;
 
+  const coachedDays = coachedDaysForStore(planDays, store);
   for (const rawDay of planDays.slice(0, pastDayCount)) {
     const metric = normalizeMetricLogShape(nextMetrics[rawDay.iso]);
     if (weightKgFromMetric(metric) === null && !metric.weightForgotten) {
@@ -6008,11 +6019,7 @@ function reconcilePastTracking(
       nextMetrics[rawDay.iso] = { ...metric, weightForgotten: true };
     }
 
-    const workingStore = { ...store, days: nextDays, metrics: nextMetrics };
-    const planDay = withTrainingWeek(
-      rawDay,
-      earnedTrainingWeekForDay(planDays, workingStore, rawDay),
-    );
+    const planDay = coachedDays[rawDay.index];
     const log = normalizeDayLog(nextDays[rawDay.iso]);
     if (log.daySkipReason) continue;
 
@@ -6042,7 +6049,7 @@ function reconcilePastTracking(
     if (!sameData(nextLog, log)) {
       if (!daysChanged) nextDays = { ...nextDays };
       daysChanged = true;
-      nextDays[rawDay.iso] = nextLog;
+      nextDays[rawDay.iso] = { ...nextLog, trainingWeek: coachingWeek(planDay) };
     }
   }
 
@@ -6292,22 +6299,21 @@ export {
   closestProgramDate, resolveGymDay, skipPlanDay, skipPlanMove, reopenPlanDay, reopenPlanMove,
   moveStatusForExercise, withAutomaticDayCompletion, isPlanDayComplete,
   activeExerciseFor, locationGuideForExercise, swapOptionsFor,
+  resetProgress, trainingProgressFor, trainingWeekForEdit, coachedDaysForStore, monthlyCheckInForDay, chooseInitialSyncedStore,
 };
 
 export default function Home() {
-  // Build the full calendar once. The plan is deterministic, so recalculating it on every render
-  // would only make the component harder to reason about.
-  const planDays = useMemo(buildPlanDays, []);
-
   // There are four day concepts on purpose:
   // calendarDate is the device's unclamped date used to close yesterday (including after Week 26),
-  // currentProgramDate is the real "today" inside the program window,
+  // currentProgramDate is today (or the first date of a future start),
   // selectedDate is the browsable workout day in Today/Week/Progress/Library,
   // selectedDietDate is the browsable diet day.
   const [calendarDate, setCalendarDate] = useState(() => isoFromDate(new Date()));
-  const [currentProgramDate, setCurrentProgramDate] = useState(() => closestProgramDate());
-  const [selectedDate, setSelectedDate] = useState(() => closestProgramDate());
   const [store, setStore] = useState<TrackerStore>(() => loadStore());
+  const currentProgramDate = closestProgramDate(dateFromIso(calendarDate), store.program.startedOn);
+  const planDays = useMemo(() => buildPlanDays(store.program.startedOn, calendarDate), [store.program.startedOn, calendarDate]);
+  const [selectedDate, setSelectedDate] = useState(() => currentProgramDate);
+  const [resetError, setResetError] = useState("");
   const [isHydrated, setIsHydrated] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [localSaveError, setLocalSaveError] = useState("");
@@ -6330,7 +6336,8 @@ export default function Home() {
   // weigh-in, and sync overview. Today remains the primary workspace after entering Workout.
   const [appMode, setAppMode] = useState<AppMode>("hub");
   const [activeSection, setActiveSection] = useState<AppSection>("today");
-  const [selectedDietDate, setSelectedDietDate] = useState(() => closestProgramDate());
+  const viewScrollPositions = useRef<Record<string, number>>({});
+  const [selectedDietDate, setSelectedDietDate] = useState(() => currentProgramDate);
   const [openDietSwapSlot, setOpenDietSwapSlot] = useState<DietMealSlot | null>(null);
   const [openDietHowToSlot, setOpenDietHowToSlot] = useState<DietMealSlot | null>(null);
   const [gymExerciseIndex, setGymExerciseIndex] = useState(0);
@@ -6363,14 +6370,24 @@ export default function Home() {
   const earnedAchievementSnapshotRef = useRef<string | null>(null);
 
   useEffect(() => {
+    // Each app tab keeps its own scroll position. Entering Gym after browsing a
+    // long Today list starts at Gym's header, while returning to Today restores
+    // the user's place without mixing the two screens' scroll offsets.
+    const view = appMode === "workout" ? `workout:${activeSection}` : appMode;
+    window.scrollTo({ top: viewScrollPositions.current[view] ?? 0, behavior: "instant" });
+    const rememberScroll = () => { viewScrollPositions.current[view] = window.scrollY; };
+    window.addEventListener("scroll", rememberScroll, { passive: true });
+    return () => window.removeEventListener("scroll", rememberScroll);
+  }, [appMode, activeSection]);
+
+  useEffect(() => {
     // On iPhone Home Screen apps, the app may stay suspended overnight. When it wakes or regains
     // focus, this effect realigns the landing day to the current program date.
     setIsHydrated(true);
 
     const alignWithCurrentProgramDate = () => {
       setCalendarDate(isoFromDate(new Date()));
-      const nextProgramDate = closestProgramDate();
-      setCurrentProgramDate(nextProgramDate);
+      const nextProgramDate = closestProgramDate(new Date(), latestStoreRef.current.program.startedOn);
       if (lastAutoAlignedDateRef.current === nextProgramDate) return;
 
       lastAutoAlignedDateRef.current = nextProgramDate;
@@ -6395,6 +6412,21 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    // Account restoration or a reset on another device can replace the start
+    // date without changing today's date. Re-align both calendars in that case.
+    lastAutoAlignedDateRef.current = currentProgramDate;
+    setSelectedDate(currentProgramDate);
+    setSelectedDietDate(currentProgramDate);
+    setDetailExerciseId(null);
+    setSkipRequest(null);
+    setGymExerciseIndex(0);
+    setGymStartedAt(null);
+    setRestTimer(null);
+    viewScrollPositions.current = {};
+    earnedAchievementSnapshotRef.current = null;
+  }, [store.program.resetId, store.program.startedOn]);
+
+  useEffect(() => {
     // Changing the browsed workout day should close detail UI from the previous day so the user
     // never edits the wrong set by accident.
     setDetailExerciseId(null);
@@ -6415,7 +6447,7 @@ export default function Home() {
 
     const previousOverflow = document.body.style.overflow;
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const dialog = document.querySelector<HTMLElement>(skipRequest ? ".skip-sheet" : ".detail-sheet");
+    const dialog = document.querySelector<HTMLElement>(skipRequest ? ".skip-sheet" : ".exercise-detail-sheet");
     const focusable = () => Array.from(dialog?.querySelectorAll<HTMLElement>(
       'button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, iframe, [tabindex="0"]',
     ) ?? []).filter((element) => element.getClientRects().length > 0);
@@ -6453,6 +6485,29 @@ export default function Home() {
     // not the state that existed when the timeout or request was created.
     latestStoreRef.current = store;
   }, [store]);
+
+  useEffect(() => {
+    // Other tabs share localStorage. Adopt a newer reset immediately, rather
+    // than letting a stale tab overwrite the fresh device copy before cloud sync.
+    const acceptTabReset = (event: StorageEvent) => {
+      const userId = session?.user.id;
+      const accountKey = userId ? accountProgressKey(userId) : STORAGE_KEY;
+      if (event.key !== accountKey && event.key !== STORAGE_KEY) return;
+      if (event.key === STORAGE_KEY && (loadStoreMeta().lastUserId ?? null) !== (userId ?? null)) return;
+      if (!event.newValue) return;
+      try {
+        const incoming = normalizeStore(JSON.parse(event.newValue));
+        if (!incoming) return;
+        const current = latestStoreRef.current;
+        const winner = resolveResetConflict(undefined, current, incoming);
+        if (winner?.program.resetId !== incoming.program.resetId || incoming.program.resetId === current.program.resetId) return;
+        latestStoreRef.current = incoming;
+        setStore(incoming);
+      } catch { /* Ignore malformed storage events; keep the last valid copy. */ }
+    };
+    window.addEventListener("storage", acceptTabReset);
+    return () => window.removeEventListener("storage", acceptTabReset);
+  }, [session?.user.id]);
 
   useEffect(() => {
     // Every change saves to localStorage first. This makes the app resilient in gyms with spotty
@@ -6736,8 +6791,8 @@ export default function Home() {
   const gymLog = normalizeDayLog(store.days[gymDay.iso]);
   const selectedDietLog = normalizeDietDayLog(store.dietDays[selectedDietDay.iso]);
   const currentProgramMetric = normalizeMetricLogShape(store.metrics[currentProgramDate]);
-  const coachedPlanDays = useMemo(() => planDays.map((day) =>
-    withTrainingWeek(day, earnedTrainingWeekForDay(planDays, store, day))), [planDays, store.days]);
+  const coachedPlanDays = useMemo(() => coachedDaysForStore(planDays, store), [planDays, store.days]);
+  const trainingProgress = useMemo(() => trainingProgressFor(planDays, store, calendarDate), [planDays, store.days, calendarDate]);
   const coachedPlanDayFor = useCallback((day: PlanDay) => coachedPlanDays[day.index], [coachedPlanDays]);
   const selectedTrainingWeek = coachingWeek(coachedPlanDayFor(selectedDay));
   const gymTrainingWeek = coachingWeek(coachedPlanDayFor(gymDay));
@@ -6807,7 +6862,7 @@ export default function Home() {
   const selectedDietWeekStart = planDays[dietWeekStartIndex]?.iso ?? selectedDietDay.iso;
   const weekOptions = useMemo(
     () =>
-      Array.from({ length: Math.ceil(PROGRAM_DAYS / 7) }, (_, weekIndex) => {
+      Array.from({ length: Math.ceil(planDays.length / 7) }, (_, weekIndex) => {
         const firstDay = planDays[weekIndex * 7];
         const lastDay = planDays[Math.min(weekIndex * 7 + 6, planDays.length - 1)];
         return {
@@ -6913,12 +6968,12 @@ export default function Home() {
       ? "Final Comparison"
       : `Month ${selectedMonthlyCheckIn.month} Check-In`;
   const selectedMonthlyCoachLine = !selectedMonthlyCheckIn.isUnlocked
-    ? `Unlocks on ${formatDate(selectedMonthlyCheckIn.checkpointDay.iso, "short")}. Keep logging workouts, cardio, and morning weight.`
+    ? `Unlocks after ${selectedMonthlyCheckIn.totalStrength} completed lifting sessions in this training block. ${selectedMonthlyCheckIn.completedStrength} earned so far; there is no calendar deadline.`
     : !selectedMonthlyCheckIn.recoveryAnswered
-      ? "Answer the recovery question to decide whether the next block should progress or repeat."
+      ? "Record how this block felt. Your next session's readiness check can reduce volume when needed."
       : selectedMonthlyCheckIn.shouldProgress
         ? "Progress normally next block. You completed enough strength practice and recovery was manageable."
-        : "Hold or repeat the block. Keep the main lifts, trim extras if needed, and build consistency before adding more work.";
+        : "Recovery felt difficult. Use the readiness check before your next session, keep loads manageable, and avoid adding weight until performance confirms you are ready.";
   const checkInLiftIds = ["leg-press", "incline-db-press", "lat-pulldown", "db-rdl"];
   const monthlyLiftComparisons = checkInLiftIds.map((exerciseId) => {
     const exercise = exerciseMap[exerciseId];
@@ -6958,9 +7013,7 @@ export default function Home() {
     );
 
     const completedDays = completedDates.size;
-    const strengthSessions = planDays.filter(
-      (day) => day.session.type === "strength" && completedDates.has(day.iso),
-    ).length;
+    const strengthSessions = trainingProgress.credits;
 
     const cardioMinutes = planDays.reduce(
       (sum, day) => (completedDates.has(day.iso) ? sum + estimatedCardioMinutes(coachedPlanDayFor(day)) : sum),
@@ -7030,9 +7083,9 @@ export default function Home() {
         ["cardio", "movement"].includes(day.session.type) &&
         estimatedCardioMinutes(coachedPlanDayFor(day)) >= 30,
     );
-    const monthAdherence90 = Array.from({ length: 7 }, (_item, monthIndex) => {
-      const startIndex = monthIndex < 6 ? monthIndex * 28 : 168;
-      const endIndex = monthIndex < 6 ? startIndex + 27 : PROGRAM_DAYS - 1;
+    const monthAdherence90 = Array.from({ length: Math.floor((gymDay.index + 1) / 28) }, (_item, monthIndex) => {
+      const startIndex = monthIndex * 28;
+      const endIndex = startIndex + 27;
       const days = planDays.slice(startIndex, endIndex + 1);
       const completed = days.filter((day) => completedDates.has(day.iso)).length;
       return days.length > 0 && completed / days.length >= 0.9;
@@ -7061,9 +7114,9 @@ export default function Home() {
       firstThirtyCardio,
       monthAdherence90,
       streak,
-      percent: Math.round((completedDays / PROGRAM_DAYS) * 100),
+      percent: trainingProgress.percent,
     };
-  }, [coachedPlanDayFor, gymDay.index, planDays, store.days, store.dietDays, store.metrics]);
+  }, [coachedPlanDayFor, gymDay.index, planDays, store.days, store.dietDays, store.metrics, trainingProgress.percent, trainingProgress.credits]);
 
   const achievements = [
     {
@@ -7083,10 +7136,8 @@ export default function Home() {
     },
     {
       label: "First 4 weeks",
-      earned: planDays
-        .slice(0, 28)
-        .every((day) => isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso]))),
-      detail: "Complete the first month of the program.",
+      earned: trainingProgress.completedWeeks >= 4,
+      detail: "Earn four training weeks with 12 completed lifts.",
     },
     {
       label: "12 strength sessions",
@@ -7119,11 +7170,9 @@ export default function Home() {
       detail: "Log 2 weigh-ins.",
     },
     {
-      label: "Week one locked",
-      earned: planDays
-        .slice(0, 7)
-        .every((day) => isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso]))),
-      detail: "Complete the first 7 program days.",
+      label: "First training week",
+      earned: trainingProgress.completedWeeks >= 1,
+      detail: "Earn one training week with 3 completed lifts.",
     },
     {
       label: "90% month adherence",
@@ -7132,8 +7181,8 @@ export default function Home() {
     },
     {
       label: "Three months trained",
-      earned: stats.completedDays >= 84,
-      detail: "Reach the Month 3 comparison window.",
+      earned: trainingProgress.completedWeeks >= 12,
+      detail: "Earn twelve training weeks with 36 completed lifts.",
     },
     {
       label: "Doubled a starting load",
@@ -7142,8 +7191,8 @@ export default function Home() {
     },
     {
       label: "Six-month finish",
-      earned: stats.completedDays >= 168,
-      detail: "Reach the final comparison block.",
+      earned: trainingProgress.isComplete,
+      detail: "Earn all 26 training weeks with 78 completed lifts.",
     },
   ];
   const earnedAchievementSignature = achievements
@@ -7178,7 +7227,10 @@ export default function Home() {
   // the autosave effects above persist the updated store.
   const updateDay = (date: string, updater: (log: DayLog) => DayLog) => {
     setStore((current) => {
-      const nextLog = updater(normalizeDayLog(current.days[date]));
+      const rawDay = planDays.find((day) => day.iso === date);
+      const log = normalizeDayLog(current.days[date]);
+      const frozenLevel = rawDay ? trainingWeekForEdit(planDays, current, rawDay, calendarDate) : log.trainingWeek;
+      const nextLog = { ...updater({ ...log, trainingWeek: frozenLevel }), trainingWeek: frozenLevel };
       return {
         ...current,
         days: {
@@ -7881,15 +7933,15 @@ export default function Home() {
   ];
 
   const goToCurrentProgramDay = () => {
-    const nextProgramDate = closestProgramDate();
-    setCurrentProgramDate(nextProgramDate);
+    const nextProgramDate = closestProgramDate(new Date(), store.program.startedOn);
+    setCalendarDate(isoFromDate(new Date()));
     setSelectedDate(nextProgramDate);
   };
 
   const activateWorkoutSection = (section: AppSection) => {
     // Gym Mode always uses actual today, even if the user has browsed a different date in Today.
     if (section === "gym") {
-      const nextProgramDate = closestProgramDate();
+      const nextProgramDate = closestProgramDate(new Date(), store.program.startedOn);
       const nextGymDay = resolveGymDay(planDays, nextProgramDate);
       const nextGymCoachDay = withTrainingWeek(
         nextGymDay,
@@ -7899,7 +7951,7 @@ export default function Home() {
       const nextGymExercises = scheduledExercisesForDay(nextGymCoachDay, nextGymLog);
       const nextGymRows = buildWorkoutMoveRows(nextGymCoachDay, nextGymLog, nextGymExercises);
 
-      setCurrentProgramDate(nextProgramDate);
+      setCalendarDate(isoFromDate(new Date()));
       setSelectedDate(nextProgramDate);
       setGymExerciseIndex(firstUnfinishedMoveIndex(nextGymRows));
       setGymStartedAt((startedAt) => startedAt ?? Date.now());
@@ -7962,7 +8014,7 @@ export default function Home() {
       if (mode === "workout") {
         activateWorkoutSection("today");
       }
-      if (mode === "diet") setSelectedDietDate(closestProgramDate());
+      if (mode === "diet") setSelectedDietDate(closestProgramDate(new Date(), store.program.startedOn));
       setAppMode(mode);
     });
   };
@@ -7982,7 +8034,7 @@ export default function Home() {
         return;
       }
       if (destination === "diet") {
-        setSelectedDietDate(closestProgramDate());
+        setSelectedDietDate(closestProgramDate(new Date(), store.program.startedOn));
         setAppMode("diet");
         return;
       }
@@ -7997,6 +8049,33 @@ export default function Home() {
     if (hour < 18) return "Good afternoon.";
     return "Good evening.";
   })();
+
+  const resetDisabled = !isHydrated || !authResolved || Boolean(isSupabaseConfigured && (
+    (!session && loadStoreMeta().lastUserId) ||
+    (session && cloudReadyForUser !== session.user.id &&
+      (syncBaselineRef.current.userId !== session.user.id || !syncBaselineRef.current.store))
+  ));
+  const handleStartFresh = (startedOn: string) => {
+    if (resetDisabled || !isCalendarDate(startedOn) || startedOn < calendarDate) return false;
+    const next = resetProgress(latestStoreRef.current, startedOn);
+    try {
+      // Commit the device copy before dismissing the destructive confirmation.
+      // Keep the old sync baseline: it tells the merge that this is a new reset.
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      setResetError("Couldn't save the fresh start. Your current progress is unchanged. Check browser storage and try again.");
+      return false;
+    }
+    saveStoreMeta({ ...loadStoreMeta(), localUpdatedAt: nowIso() });
+    latestStoreRef.current = next;
+    setStore(next);
+    setResetError("");
+    setAchievementMoment(null);
+    setActiveSection("today");
+    setSyncRevision((value) => value + 1);
+    if (session) setCloudStatus("saving");
+    return true;
+  };
 
   if (appMode === "hub") {
     return (
@@ -8013,7 +8092,7 @@ export default function Home() {
             <div>
               <p className="eyebrow">{formatDate(currentProgramDate)}</p>
               <h1 id="coach-hub-heading">{greeting}</h1>
-              <p className="hero-text">Your body recomposition plan is on Week {gymDay.week} of 26.</p>
+              <p className="hero-text">Training Week {trainingProgress.trainingWeek} · {phaseForWeek(trainingProgress.trainingWeek).title}. Your pace, not a deadline.</p>
             </div>
           </div>
           <a className={`hub-save-status ${localSaveError ? "error" : ""}`} href="#coach-account">
@@ -8163,6 +8242,7 @@ export default function Home() {
                   <button
                     key={mode}
                     className={store.settings.calorieMode === mode ? "selected" : ""}
+                    aria-pressed={store.settings.calorieMode === mode}
                     type="button"
                     onClick={() =>
                       updateSettings((settings) => ({
@@ -8346,6 +8426,12 @@ export default function Home() {
           </details>
         </section>
 
+        <TrainingJourney week={trainingProgress.trainingWeek} credits={trainingProgress.credits}
+          inWeek={trainingProgress.inWeek} complete={trainingProgress.isComplete}
+          startedOn={formatDate(store.program.startedOn, "short")} onContinue={() => switchProductMode("workout")} />
+        {trainingProgress.lastCompletedOn && diffDays(trainingProgress.lastCompletedOn, calendarDate) > 21 && (
+          <p className="returning-coach-note"><strong>Welcome back.</strong> Your earned progress is still here. Start with comfortable loads, check your readiness, and rebuild consistency before increasing weight.</p>
+        )}
         <section id="coach-account" className={`metric-panel sync-panel account-card hub-sync ${cloudStatus}`}>
           <div className="sync-heading">
             <div>
@@ -8420,6 +8506,10 @@ export default function Home() {
           {authMessage && <p className="sync-message">{authMessage}</p>}
           {cloudError && <p className="sync-message error" role="alert">{cloudError}</p>}
         </section>
+        <ProgramControls today={calendarDate} disabled={resetDisabled} signedIn={Boolean(session)}
+          pending={Boolean(session && store.program.resetAt && syncBaselineRef.current.store?.program.resetId !== store.program.resetId)}
+          error={resetError} onReset={handleStartFresh} />
+        {resetDisabled && <p className="reset-availability-note">Sign in and load your account before resetting synced progress.</p>}
         <AchievementMoment label={achievementMoment} />
         <PrimaryAppDock active={primaryDestination} onSelect={switchPrimaryDestination} />
       </main>
@@ -8451,7 +8541,7 @@ export default function Home() {
               <span>Selected day</span>
               <strong>{selectedDietDay.session.title}</strong>
               <small>
-                {formatDate(selectedDietDay.iso)} · Week {selectedDietDay.week} · Day {selectedDietDay.index + 1}
+                {formatDate(selectedDietDay.iso)} · Calendar week {selectedDietDay.week}
               </small>
             </div>
             <div className={`header-status-card sync-mini ${cloudStatus}`}>
@@ -8564,7 +8654,7 @@ export default function Home() {
             <button type="button" onClick={() => setSelectedDietDate(previousDietDay.iso)}>
               Prev
             </button>
-            <button type="button" onClick={() => setSelectedDietDate(closestProgramDate())}>
+            <button type="button" onClick={() => setSelectedDietDate(closestProgramDate(new Date(), store.program.startedOn))}>
               Today
             </button>
             <button type="button" onClick={() => setSelectedDietDate(nextDietDay.iso)}>
@@ -8894,7 +8984,7 @@ export default function Home() {
             <span>{headerDay.iso === currentProgramDate ? "Today" : "Selected day"}</span>
             <strong>{headerDay.session.title}</strong>
             <small>
-              {formatDate(headerDay.iso)} · Week {headerDay.week} · Day {headerDay.index + 1}
+              {formatDate(headerDay.iso)} · Calendar week {headerDay.week}
             </small>
           </div>
           <div className={`header-status-card sync-mini ${cloudStatus}`}>
@@ -8944,7 +9034,7 @@ export default function Home() {
       <section className="week-planner" aria-label="Program week">
         <div className="week-planner-top">
           <div>
-            <p className="eyebrow">Week {selectedDay.week}</p>
+            <p className="eyebrow">Calendar week {selectedDay.week}</p>
             <h2>{selectedDay.session.title}</h2>
           </div>
           <label className="week-jump">
@@ -8999,7 +9089,7 @@ export default function Home() {
         <div className="quick-stat">
           <span>Completed</span>
           <strong>
-            {stats.completedDays}/{PROGRAM_DAYS}
+            {Math.min(trainingProgress.credits, PROGRAM_STRENGTH_SESSIONS)}/{PROGRAM_STRENGTH_SESSIONS} lifts
           </strong>
         </div>
         <div className="strip-actions">
@@ -9025,7 +9115,7 @@ export default function Home() {
           <p className="eyebrow">Selected workout day</p>
           <h2>{selectedDay.session.title}</h2>
           <p>
-            {formatDate(selectedDay.iso)} · Day {selectedDay.index + 1} · PDF {selectedDay.planDayName}
+            {formatDate(selectedDay.iso)} · Calendar week {selectedDay.week}
           </p>
         </div>
         <label className="week-jump">
@@ -9295,6 +9385,7 @@ export default function Home() {
                 </span>
                 <button
                   className={!currentGymMove.isSwapped ? "selected" : ""}
+                  aria-pressed={!currentGymMove.isSwapped}
                   type="button"
                   onClick={() => setGymExerciseSwap(currentGymOriginalExercise.id, currentGymOriginalExercise.id)}
                 >
@@ -9304,6 +9395,7 @@ export default function Home() {
                   <button
                     key={swap.id}
                     className={currentGymExercise.id === swap.id ? "selected" : ""}
+                    aria-pressed={currentGymExercise.id === swap.id}
                     type="button"
                     onClick={() => setGymExerciseSwap(currentGymOriginalExercise.id, swap.id)}
                   >
@@ -9479,7 +9571,7 @@ export default function Home() {
               <p className="eyebrow">{sessionTypeLabels[selectedDay.session.type]}</p>
               <h2 id="today-heading">{selectedDay.session.title}</h2>
               <p className="today-command-date">
-                {formatDate(selectedDay.iso)} · Day {selectedDay.index + 1} · {phase.label}
+                {formatDate(selectedDay.iso)} · Training Week {selectedTrainingWeek}
               </p>
               <span className={`day-status-chip ${selectedDayStatus}`}>
                 {selectedDayStatusText}
@@ -9624,6 +9716,7 @@ export default function Home() {
                     <button
                       key={option.id}
                       className={selectedLog.readiness.energy === option.id ? "selected" : ""}
+                      aria-pressed={selectedLog.readiness.energy === option.id}
                       type="button"
                       onClick={() => updateReadiness(selectedCoachDay, "energy", option.id)}
                     >
@@ -9639,6 +9732,7 @@ export default function Home() {
                     <button
                       key={option.id}
                       className={selectedLog.readiness.soreness === option.id ? "selected" : ""}
+                      aria-pressed={selectedLog.readiness.soreness === option.id}
                       type="button"
                       onClick={() => updateReadiness(selectedCoachDay, "soreness", option.id)}
                     >
@@ -9654,6 +9748,7 @@ export default function Home() {
                     <button
                       key={option.id}
                       className={selectedLog.readiness.jointPain === option.id ? "selected" : ""}
+                      aria-pressed={selectedLog.readiness.jointPain === option.id}
                       type="button"
                       onClick={() => updateReadiness(selectedCoachDay, "jointPain", option.id)}
                     >
@@ -9669,6 +9764,7 @@ export default function Home() {
                     <button
                       key={option.id}
                       className={selectedLog.readiness.sleep === option.id ? "selected" : ""}
+                      aria-pressed={selectedLog.readiness.sleep === option.id}
                       type="button"
                       onClick={() => updateReadiness(selectedCoachDay, "sleep", option.id)}
                     >
@@ -9718,7 +9814,6 @@ export default function Home() {
                   <motion.article
                     key={move.originalExercise.id}
                     id={`today-move-${move.originalExercise.id}`}
-                    layout="position"
                     className={`move-item ${move.activeExercise.family} ${
                       move.isComplete ? "complete" : ""
                     } ${move.isSkipped ? "skipped" : ""
@@ -9845,7 +9940,7 @@ export default function Home() {
                 <strong>
                   {selectedMonthlyCheckIn.completedStrength}/{selectedMonthlyCheckIn.totalStrength}
                 </strong>
-                <small>{selectedMonthlyCheckIn.completionRate}% strength adherence</small>
+                <small>{selectedMonthlyCheckIn.completionRate}% of this earned block</small>
               </div>
               <div>
                 <span>Cardio</span>
@@ -9948,28 +10043,33 @@ export default function Home() {
             <div className="progress-story-heading">
               <div>
                 <p className="eyebrow"><Sparkles aria-hidden="true" size={14} /> Your journey</p>
-                <h2>Week {gymDay.week} of 26</h2>
-                <p>{phaseForWeek(gymDay.week).title} · {stats.percent}% of the full program complete</p>
+                <h2>Training Week {trainingProgress.trainingWeek} of 26</h2>
+                <p>{phaseForWeek(trainingProgress.trainingWeek).title} · {stats.percent}% of your training journey earned</p>
               </div>
-              <ProgressRing value={stats.completedDays} max={PROGRAM_DAYS} label="Full program completion" />
+              <ProgressRing value={Math.min(trainingProgress.credits, PROGRAM_STRENGTH_SESSIONS)} max={PROGRAM_STRENGTH_SESSIONS} label="Earned training program completion" />
             </div>
             <div className="program-map" aria-label="26-week program map">
-              {weeklyCompletion.map((week, weekIndex) => (
+              {Array.from({ length: TRAINING_WEEKS }, (_, weekIndex) => {
+                const completed = Math.max(0, Math.min(3, trainingProgress.credits - weekIndex * 3));
+                const percent = Math.round(completed / 3 * 100);
+                const linkedDay = trainingProgress.creditedDays[weekIndex * 3];
+                return (
                 <button
-                  key={week.value}
-                  className={`${week.percent === 100 ? "complete" : week.percent > 0 ? "started" : ""} ${weekIndex + 1 === gymDay.week ? "current" : ""}`}
+                  key={weekIndex}
+                  className={`${completed === 3 ? "complete" : completed > 0 ? "started" : ""} ${weekIndex + 1 === trainingProgress.trainingWeek ? "current" : ""}`}
                   type="button"
-                  title={`${week.label}: ${week.completed} of ${week.total} days complete`}
-                  aria-label={`${week.label}, ${week.percent}% complete${weekIndex + 1 === gymDay.week ? ", current week" : ""}`}
+                  disabled={weekIndex + 1 > trainingProgress.trainingWeek}
+                  title={`Training Week ${weekIndex + 1}: ${completed} of 3 lifts earned`}
+                  aria-label={`Training Week ${weekIndex + 1}, ${percent}% earned`}
                   onClick={() => {
-                    setSelectedDate(week.value);
-                    switchSection("week");
+                    setSelectedDate(linkedDay?.iso ?? currentProgramDate);
+                    setActiveSection("week");
                   }}
                 >
                   <span>{weekIndex + 1}</span>
-                  <i style={{ height: `${Math.max(week.percent, 8)}%` }} />
+                  <i style={{ height: `${Math.max(percent, 8)}%` }} />
                 </button>
-              ))}
+              ); })}
             </div>
             <div className="program-map-legend">
               <span><i className="complete" /> Complete</span>
@@ -10042,7 +10142,7 @@ export default function Home() {
               <div className="dashboard-stat strength">
                 <span>Program</span>
                 <strong>{stats.percent}%</strong>
-                <small>{stats.completedDays} of {PROGRAM_DAYS} days</small>
+                <small>{Math.min(trainingProgress.credits, PROGRAM_STRENGTH_SESSIONS)} of {PROGRAM_STRENGTH_SESSIONS} lifts earned</small>
               </div>
               <div className="dashboard-stat skipped">
                 <span>With skips</span>
@@ -10326,6 +10426,7 @@ export default function Home() {
                 <div className="swap-option-grid">
                   <button
                     className={!detailMove.isSwapped ? "selected" : ""}
+                    aria-pressed={!detailMove.isSwapped}
                     type="button"
                     onClick={() =>
                       setExerciseSwap(detailMove.originalExercise.id, detailMove.originalExercise.id)
@@ -10339,6 +10440,7 @@ export default function Home() {
                     <button
                       key={swap.id}
                       className={detailExercise.id === swap.id ? "selected" : ""}
+                      aria-pressed={detailExercise.id === swap.id}
                       type="button"
                       onClick={() => setExerciseSwap(detailMove.originalExercise.id, swap.id)}
                     >
