@@ -6152,14 +6152,17 @@ function ExerciseMedia({
   const demo = exercise.motionDemo;
   const canShowGif = Boolean(demo && !gifFailed);
   const isShowingGif = Boolean(canShowGif && showGif);
+  // A missing video is not a media frame. GIF-only exercises start with just
+  // their button; exercises with neither usable source render nothing here.
+  if (!exercise.youtubeId && !canShowGif) return null;
   const className = `exercise-media exercise-media-${variant} ${
-    isShowingGif ? "has-gif" : exercise.youtubeId ? "has-video" : "placeholder"
+    isShowingGif ? "has-gif" : "has-video"
   }`;
 
   return (
     <div
       className={`exercise-media-shell exercise-media-shell-${variant} ${
-        isShowingGif ? "showing-gif" : "showing-video"
+        isShowingGif ? "showing-gif" : exercise.youtubeId ? "showing-video" : "controls-only"
       }`}
     >
       {isShowingGif && demo ? (
@@ -6194,11 +6197,7 @@ function ExerciseMedia({
             </button>
           )}
         </div>
-      ) : (
-        <div className={className}>
-          <span className="motion-badge">Guide</span>
-        </div>
-      )}
+      ) : null}
 
       {canShowGif && demo && (
         <div className="gif-controls">
@@ -6298,7 +6297,7 @@ export {
   smartPortionAdviceForMeal, baseDietRecipeFor, smartLoadSuggestion,
   closestProgramDate, resolveGymDay, skipPlanDay, skipPlanMove, reopenPlanDay, reopenPlanMove,
   moveStatusForExercise, withAutomaticDayCompletion, isPlanDayComplete,
-  activeExerciseFor, locationGuideForExercise, swapOptionsFor,
+  activeExerciseFor, locationGuideForExercise, swapOptionsFor, ExerciseMedia, exerciseMap,
   resetProgress, trainingProgressFor, trainingWeekForEdit, coachedDaysForStore, monthlyCheckInForDay, chooseInitialSyncedStore,
 };
 
@@ -9190,8 +9189,9 @@ export default function Home() {
           <motion.article
             key={`${gymDay.iso}:${currentGymExercise.id}`}
             className={`gym-card ${currentGymExercise.family} ${currentGymMove.isSkipped ? "skipped" : ""}`}
-            initial={{ opacity: 0.65, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            // Keep instructions fully opaque even if Safari suspends an entry animation.
+            initial={{ y: 10 }}
+            animate={{ y: 0 }}
             transition={{ duration: 0.2 }}
           >
             <div className="gym-topbar">
@@ -9219,7 +9219,7 @@ export default function Home() {
               <span style={{ width: `${gymSessionProgressPercent}%` }} />
             </div>
 
-            <div className="gym-main">
+            <div className={`gym-main ${currentGymExercise.youtubeId ? "" : "no-video"}`}>
               <div>
                 <div className="exercise-labels">
                   <span className="family-chip">{familyLabel(currentGymExercise.family)}</span>
@@ -9244,10 +9244,12 @@ export default function Home() {
                 <h2>{currentGymExercise.name}</h2>
                 <p>{currentGymTarget}</p>
               </div>
-              <div className="gym-media-stack">
-                <ExerciseMedia exercise={currentGymExercise} variant="gym" />
-                <ExerciseMediaLinks exercise={currentGymExercise} />
-              </div>
+              {(currentGymExercise.youtubeId || currentGymExercise.motionDemo) && (
+                <div className="gym-media-stack">
+                  <ExerciseMedia exercise={currentGymExercise} variant="gym" />
+                  <ExerciseMediaLinks exercise={currentGymExercise} />
+                </div>
+              )}
             </div>
 
             <details className="gym-session-guidance">
@@ -10271,10 +10273,12 @@ export default function Home() {
             const location = locationGuideForExercise(exercise);
 
             return (
-              <article key={exercise.id} className={`library-card ${exercise.family}`}>
-                <div className="library-media">
-                  <ExerciseMedia exercise={exercise} variant="library" />
-                </div>
+              <article key={exercise.id} className={`library-card ${exercise.family} ${exercise.youtubeId ? "" : "no-video"}`}>
+                {(exercise.youtubeId || exercise.motionDemo) && (
+                  <div className="library-media">
+                    <ExerciseMedia exercise={exercise} variant="library" />
+                  </div>
+                )}
                 <ExerciseMediaLinks exercise={exercise} compact />
                 <div className="library-chip-row">
                   <span className="family-chip">{familyLabel(exercise.family)}</span>

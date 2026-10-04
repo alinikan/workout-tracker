@@ -54,7 +54,7 @@ function fixtureBackend(initial) {
   };
 }
 
-async function prepare(context, backend, seed) {
+async function prepare(context, backend, seed, now = "2026-10-05T18:00:00Z") {
   await context.route(`https://${fixtureHost}/**`, backend.route);
   // External recipe/video images are irrelevant to the persistence tests. Abort
   // them to keep the fixture deterministic; the real media links stay unchanged.
@@ -63,8 +63,11 @@ async function prepare(context, backend, seed) {
     return host === "127.0.0.1" || host === fixtureHost ? route.fallback() : route.abort();
   });
   const page = await context.newPage();
-  await page.clock.setFixedTime(new Date("2026-10-05T18:00:00Z"));
+  await page.clock.setFixedTime(new Date(now));
   if (seed) await context.addInitScript(({ key, data }) => {
+    // YouTube frames have their own origin/storage. Seed only our top-level
+    // app, never an embedded frame (including blocked opaque-origin fixtures).
+    if (window !== window.top) return;
     if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify(data));
   }, { key: storageKey, data: seed });
   const errors = [];
@@ -125,6 +128,47 @@ async function navigate(page, destination) {
   if (product === "Workout") await page.locator(".section-tabs").getByRole("button", { name: destination, exact: true }).click();
 }
 
+async function settlePresentation(page) {
+  // Wait for finite screen transitions, but not repeating sync-status pulses.
+  // This keeps screenshots and touch coordinates on the final, stable layout.
+  await page.evaluate(async () => {
+    const frame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+    await frame();
+    await frame();
+    const animations = document.getAnimations().filter((animation) => {
+      const endTime = animation.effect?.getComputedTiming().endTime;
+      return animation.playState === "running" && typeof endTime === "number" && Number.isFinite(endTime);
+    });
+    // WebKit can retain unresolved pseudo-element animation promises. Bound
+    // this cosmetic wait; the assertions still check the actual final layout.
+    await Promise.race([
+      Promise.all(animations.map((animation) => animation.finished.catch(() => {}))),
+      new Promise((resolve) => setTimeout(resolve, 1000)),
+    ]);
+    await frame();
+    await frame();
+  });
+}
+
+async function assertNoVideoLayout(page, label) {
+  await settlePresentation(page);
+  await expect(page.locator(".gym-card")).toHaveCSS("opacity", "1");
+  await expect(page.locator(".gym-main.no-video")).toBeVisible();
+  await expect(page.locator(".gym-main .exercise-media, .gym-main .video-poster, .gym-main iframe, .gym-main .motion-badge")).toHaveCount(0);
+  await assertLayout(page, label);
+  if (page.viewportSize().width < 720) {
+    const card = await page.locator(".gym-card").boundingBox();
+    assert.ok(Math.abs(card.x) <= 1 && Math.abs(card.x + card.width - page.viewportSize().width) <= 1, `${label}: Gym card does not align with both phone edges`);
+  }
+  const layout = await page.locator(".gym-main").evaluate((main) => {
+    const heading = main.firstElementChild.getBoundingClientRect();
+    const controls = main.querySelector(".gif-controls")?.getBoundingClientRect();
+    return { columns: getComputedStyle(main).gridTemplateColumns, headingX: heading.x, controlsX: controls?.x };
+  });
+  assert.equal(layout.columns.split(" ").length, 1, `${label}: reserved empty media column`);
+  if (layout.controlsX !== undefined) assert.ok(Math.abs(layout.headingX - layout.controlsX) <= 1, `${label}: GIF control is not aligned with the heading`);
+}
+
 const browsers = [];
 try {
   for (const [engineName, engine, viewport] of [
@@ -160,7 +204,7 @@ try {
       // Position the action away from the fixed dock before tapping, just as a
       // user scrolls it into view. This also avoids WebKit's edge-focus scrolling.
       await detailsButton.evaluate((button) => button.scrollIntoView({ block: "center", behavior: "instant" }));
-      await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      await settlePresentation(page);
       if (viewport.width < 720) await detailsButton.tap();
       else await detailsButton.click();
       try {
@@ -182,6 +226,33 @@ try {
       await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
       await assertLayout(page, `${label}-gym`);
       await page.screenshot({ path: `outputs/ui-check/${label}-gym.png` });
+      // Walk through the real move navigation to the GIF-only finisher from
+      // the user's screenshot. Video exercises must still play inline first.
+      await page.locator(".gym-main .video-poster").click();
+      await expect(page.locator(".gym-main iframe")).toBeVisible();
+      for (let index = 0; index < 12 && await page.locator(".gym-main h2").innerText() !== "Brisk Treadmill Finisher"; index += 1) {
+        const previous = await page.locator(".gym-main h2").innerText();
+        await page.locator(".gym-topbar").getByRole("button", { name: "Next move", exact: true }).click();
+        await expect(page.locator(".gym-main h2")).not.toHaveText(previous);
+      }
+      await expect(page.locator(".gym-main h2")).toHaveText("Brisk Treadmill Finisher");
+      await assertNoVideoLayout(page, `${label}-finisher`);
+      await page.screenshot({ path: `outputs/ui-check/${label}-finisher-no-video.png` });
+      // A synthetic GIF exercises open/close layout without a real API key.
+      await context.route("**/api/workoutx-gif?**", (route) => route.fulfill({ contentType: "image/gif", body: Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64") }));
+      await page.locator(".gym-main").getByRole("button", { name: "Show GIF", exact: true }).click();
+      await expect.poll(() => page.locator(".gym-main .exercise-gif").evaluate((img) => img.naturalWidth)).toBe(1);
+      await assertLayout(page, `${label}-expanded-gif`);
+      await page.locator(".gym-main").getByRole("button", { name: "Hide GIF", exact: true }).click();
+      await assertNoVideoLayout(page, `${label}-hidden-gif`);
+      await page.clock.setFixedTime(new Date("2026-10-10T18:00:00Z"));
+      // Reopen on Saturday as a new session, retaining the same saved progress.
+      await page.reload();
+      await expect(page.locator(".coach-hub-shell")).toBeVisible();
+      await navigate(page, "Gym");
+      await expect(page.locator(".gym-main h2")).toHaveText("Long Brisk Walk");
+      await assertNoVideoLayout(page, `${label}-long-walk`);
+      await page.screenshot({ path: `outputs/ui-check/${label}-long-walk-no-video.png` });
       await navigate(page, "Diet");
       await expect(page.locator(".diet-shell")).toBeVisible();
       await assertLayout(page, `${label}-diet`);
@@ -198,9 +269,29 @@ try {
       assert.equal(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)).metrics["2026-10-04"].weightKg, storageKey), "80");
       assert.deepEqual(errors, [], `${label}: browser errors`);
       await context.close();
-      console.log(`PASS ${label}: Coach, Today logging, swap/revert contrast, Gym, Diet, Progress, reset/cancel`);
+      console.log(`PASS ${label}: Coach, Today, swap/revert contrast, video/GIF-only Gym, Diet, Progress, reset/cancel`);
     }
   }
+
+  const fallbackBrowser = await webkit.launch();
+  browsers.push(fallbackBrowser);
+  const fallbackContext = await fallbackBrowser.newContext({ viewport: { width: 402, height: 874 }, isMobile: true, hasTouch: true, colorScheme: "dark", timezoneId: "America/Vancouver", reducedMotion: "reduce" });
+  const fallbackSeed = model.emptyStore("2026-10-03");
+  const { page: fallbackPage, errors: fallbackErrors } = await prepare(fallbackContext, fixtureBackend(fallbackSeed), fallbackSeed, "2026-10-03T18:00:00Z");
+  await fallbackContext.route("**/api/workoutx-gif?**", (route) => route.fulfill({ status: 503, contentType: "text/plain", body: "Unavailable fixture" }));
+  await navigate(fallbackPage, "Gym");
+  await assertNoVideoLayout(fallbackPage, "failed-gif-before");
+  await fallbackPage.locator(".gym-main").getByRole("button", { name: "Show GIF", exact: true }).click();
+  await expect(fallbackPage.locator(".gym-main .exercise-media-shell")).toHaveCount(0);
+  await expect(fallbackPage.locator(".gym-main .gym-media-stack")).toBeHidden();
+  await assertNoVideoLayout(fallbackPage, "failed-gif-after");
+  await expect(fallbackPage.locator(".gym-set-table")).toBeVisible();
+  await fallbackPage.screenshot({ path: "outputs/ui-check/iphone-webkit-failed-gif-no-frame.png" });
+  await fallbackPage.locator(".gym-action-bar").getByRole("button", { name: /Complete Set 1/ }).click();
+  await expect(fallbackPage.locator(".gym-session-summary h2")).toHaveText("Workout complete");
+  assert.deepEqual(fallbackErrors, []);
+  await fallbackContext.close();
+  console.log("PASS WebKit unavailable GIF: no placeholder, no blank gap, completion stays usable");
 
   // Two independent browser storage contexts share only the fake server. This
   // exercises the actual Supabase client, auth restoration and optimistic saves.

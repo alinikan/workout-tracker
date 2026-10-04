@@ -28,6 +28,34 @@ test("Coach Hub is the useful default with no saved user data", () => {
   assert.doesNotMatch(html, /NaN|undefined/);
 });
 
+test("GIF-only exercises start with compact controls, never an empty video frame", () => {
+  for (const exercise of Object.values(model.exerciseMap).filter((move) => !move.youtubeId && move.motionDemo)) {
+    for (const variant of ["gym", "thumb", "library"]) {
+      const html = renderToString(createElement(model.ExerciseMedia, { exercise, variant }));
+      assert.match(html, /controls-only/);
+      assert.match(html, /Show GIF/);
+      assert.doesNotMatch(html, /placeholder|motion-badge|<iframe|video-poster|<img/);
+    }
+  }
+});
+
+test("exercises with no video or GIF render no media section", () => {
+  const exercise = { ...model.exerciseMap["long-cardio-walk"], motionDemo: undefined };
+  for (const variant of ["gym", "thumb", "library"]) {
+    assert.equal(renderToString(createElement(model.ExerciseMedia, { exercise, variant })), "");
+  }
+});
+
+test("video exercises retain their clickable inline poster and optional GIF control", () => {
+  const exercise = model.exerciseMap["lat-pulldown"];
+  const html = renderToString(createElement(model.ExerciseMedia, { exercise, variant: "gym" }));
+  assert.match(html, /showing-video/);
+  assert.match(html, /has-video/);
+  assert.match(html, /video-poster/);
+  assert.match(html, /Play Seated Lat Pulldown video here/);
+  assert.match(html, /Show GIF/);
+});
+
 test("all 182 days have valid ordered movements, targets, and bounded set counts", () => {
   assert.equal(days.length, 182);
   assert.equal(days[0].iso, "2026-08-31");

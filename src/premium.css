@@ -4751,6 +4751,29 @@ body:has(.reset-dialog[open]) { overflow: hidden; }
 .hub-dashboard-grid { align-items: start; }
 .forgot-weight-button { min-height: 44px; flex-shrink: 0; }
 
+/* Without a video, there is no empty preview column or full-bleed black frame.
+   Keep an optional GIF button aligned with the exercise's heading and target. */
+.gym-main.no-video { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.gym-main.no-video .gym-media-stack { width: 100%; margin-inline: 0; }
+.gym-media-stack:empty { display: none; }
+.exercise-media-shell-gym.controls-only .gif-controls { justify-content: flex-start; }
+.library-card.no-video { display: block; padding: 0 0 var(--space-4); }
+.library-card.no-video .library-media {
+  width: auto;
+  min-height: 0;
+  aspect-ratio: auto;
+  padding: 16px 16px 0;
+  background: transparent;
+}
+.library-media:empty { display: none; }
+
+@media (max-width: 720px) {
+  /* Full-bleed margins expand these boxes beyond their grid track. A 100%
+     max-width was truncating the right edge rather than matching that expansion. */
+  .section-gym .gym-card { max-width: none; }
+  .gym-main:not(.no-video) .gym-media-stack { width: auto; max-width: none; }
+}
+
 @media (prefers-color-scheme: dark) {
   :root { --selection-fill: #8ad9cf; --selection-ink: #102925; }
   /* These shell tokens are declared after the older theme rules, so their dark

@@ -635,7 +635,10 @@ https://ali-workout.vercel.app
 
 ## WorkoutX GIF Setup
 
-YouTube is the default movement guide. GIFs are optional.
+YouTube is the default movement guide. GIFs are optional. An exercise without a video does not
+show an empty video preview: only its compact **Show GIF** button appears when a GIF is available.
+The animation expands only after you press that button and disappears again with **Hide GIF**.
+If neither source is available, the exercise goes straight to its written guidance and set log.
 
 The app includes a Vercel API route at `api/workoutx-gif.js`. This route keeps the WorkoutX API key private and serves GIFs to the app from the same domain.
 
@@ -945,6 +948,7 @@ The behavioral tests execute the actual app functions and a server-rendered Coac
 - Ordered movements, valid targets, and bounded set counts throughout all 182 days.
 - Training progression based on real lifting completion, excluding recovery replacements.
 - Completing a day fills its sets; Gym navigation follows unfinished moves in order.
+- GIF-only exercises render compact controls instead of empty video frames; exercises without either source render no media section. Video posters keep inline playback. Browser fixtures additionally cover the two no-video treadmill moves, GIF expansion/collapse, unavailable GIFs, and phone-edge alignment, using a synthetic GIF rather than a real API key.
 - Missing effort feedback does not recommend a load increase.
 - Two qualifying same-load sessions are required before Smart Load suggests roughly 2.5-5% more; skips, partial rows, stale history, reduced readiness, new set counts, and consolidation weeks block it.
 - Home-gym swaps keep their own logs, include setup/media guidance, and preserve the original movement for one-tap reversion.
