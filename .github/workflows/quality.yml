@@ -9,6 +9,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,7 +22,7 @@ jobs:
         run: npx playwright install --with-deps chromium webkit
       - name: Phone and desktop UI checks
         run: npm run test:ui
-      - name: Keep UI screenshots when a check fails
+      - name: Keep UI screenshots and traces when a check fails
         if: failure()
         uses: actions/upload-artifact@v4
         with:

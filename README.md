@@ -1020,7 +1020,7 @@ The existing source smoke tests additionally verify:
 - Weighted set rows collapse into labeled phone-width fields so Gym Mode cannot widen the iPhone PWA viewport.
 - The code walkthrough and tutorial comments remain present.
 
-`npm run build` now fails on TypeScript errors, including in Vercel. GitHub's **Quality checks** workflow runs the regression suite, browser UI checks, and dependency audit on main/pull requests. Failed runs attach their UI screenshots as a downloadable GitHub Actions artifact. This does not replace checking sign-in on a real device: automated tests do not use a live Supabase account, real iOS Safari, or assert pixel-perfect browser layout.
+`npm run build` now fails on TypeScript errors, including in Vercel. GitHub's **Quality checks** workflow runs the regression suite, browser UI checks, and dependency audit on main/pull requests. Failed runs attach UI screenshots and Playwright interaction traces as a downloadable `ui-check-screenshots` artifact. See the [diagnostic guide](docs/session-experience.md#verification) for trace-viewing instructions. This does not replace checking sign-in on a real device: automated tests do not use a live Supabase account, real iOS Safari, or assert pixel-perfect browser layout.
 
 <details>
 <summary><strong>What changed in the reliability and usability update?</strong></summary>

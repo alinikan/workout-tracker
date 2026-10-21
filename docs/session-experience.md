@@ -100,6 +100,16 @@ GIF, so these tests verify player behavior and layout, not external video availa
 
 Screenshots are written under `outputs/ui-check/` (ignored by Git). The test server disables source watching
 so editing a source file cannot silently reload a fixture into a different product area mid-test.
+If a check fails, the runner also saves the failing screen and a Playwright trace in that folder.
+GitHub Actions uploads both in the `ui-check-screenshots` artifact. Download and extract the artifact,
+then inspect a trace locally with `npx playwright show-trace path/to/failure-trace-1.zip` (use the
+actual file name). The trace includes only the isolated test account and synthetic progress.
+
+Phone interactions scroll the actual control into the center before tapping, so native WebKit
+auto-scrolling cannot move a lower button between pointer-down and pointer-up. Copying a previous
+load is tested both on an empty field and after a manual edit, without completing the set or
+inventing repetitions. The copy button sits outside the input label, and interactive Today rows
+do not use layout-position transforms; the small log entrance animation remains separate.
 
 ## Design References
 

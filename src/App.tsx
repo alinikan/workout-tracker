@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
   Activity,
@@ -6274,10 +6274,13 @@ function SetLoadFields({ exercise, set, setIndex, onChange, previous }: {
   onChange: (id: string, index: number, field: keyof SetLog, value: string | boolean | undefined) => void;
   previous?: SetLog;
 }) {
+  // A label may own the input, not the separate copy command. Unique IDs also
+  // keep the Today, Gym and detail-sheet fields associated correctly.
+  const weightInputId = useId();
   return <>
-    <label className="set-field set-weight">
-      <span className="set-field-label">{exercise.id.startsWith("mi6-") ? "Stack (lbs)" : "Weight (lbs)"}</span>
-      <input inputMode="decimal" value={set.weight} placeholder="lbs"
+    <div className="set-field set-weight">
+      <label className="set-field-label" htmlFor={weightInputId}>{exercise.id.startsWith("mi6-") ? "Stack (lbs)" : "Weight (lbs)"}</label>
+      <input id={weightInputId} inputMode="decimal" value={set.weight} placeholder="lbs"
         onChange={(event) => onChange(exercise.id, setIndex, "weight", event.target.value)}
         aria-label={`${exercise.name} set ${setIndex + 1} weight in pounds`} />
       {previous?.done && Number.isFinite(Number(previous.weight.replace(",", "."))) && Number(previous.weight.replace(",", ".")) > 0 && (
@@ -6287,7 +6290,7 @@ function SetLoadFields({ exercise, set, setIndex, onChange, previous }: {
           Last: {previous.weight} lb
         </button>
       )}
-    </label>
+    </div>
     <label className="set-field set-reps">
       <span className="set-field-label">Reps</span>
       <input inputMode="numeric" value={set.reps} placeholder="reps"
@@ -9876,11 +9879,11 @@ export default function Home() {
                 {workoutMoveRows.map((move) => {
                   const expanded = (expandedTodayMoveId ?? nextOpenMove?.originalExercise.id) === move.originalExercise.id;
                   const previous = lastExerciseLoad(planDays, store, selectedDay, move.activeExercise.id);
+                  // Keep interactive rows untransformed as other logs expand or
+                  // collapse: their touch targets should not travel during a tap.
                   return (
-                  <motion.article
+                  <article
                     key={move.originalExercise.id}
-                    layout="position"
-                    transition={{ duration: 0.18 }}
                     id={`today-move-${move.originalExercise.id}`}
                     className={`move-item ${move.activeExercise.family} ${
                       move.isComplete ? "complete" : ""
@@ -9984,7 +9987,7 @@ export default function Home() {
                         <p>{move.suggestion.detail}</p>
                       </details>
                     </div>}
-                  </motion.article>
+                  </article>
                 ); })}
               </div>
             </section>

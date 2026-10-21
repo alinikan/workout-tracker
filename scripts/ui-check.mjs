@@ -10,6 +10,7 @@ import { chromium, webkit, expect } from "playwright/test";
 
 const storageKey = "body-recomp-gym-tracker-v1";
 const fixtureHost = "tracker-fixture.supabase.co";
+const diagnosticContexts = new Set();
 const server = await createServer({
   envDir: false,
   cacheDir: "node_modules/.vite-ui-check",
@@ -56,6 +57,13 @@ function fixtureBackend(initial) {
 }
 
 async function prepare(context, backend, seed, now = "2026-10-05T18:00:00Z") {
+  // Keep a real interaction trace when a standalone assertion fails. Successful
+  // contexts discard it on close; the fixture contains no production credentials.
+  context.setDefaultTimeout(15_000);
+  context.setDefaultNavigationTimeout(30_000);
+  await context.tracing.start({ screenshots: true, snapshots: true });
+  diagnosticContexts.add(context);
+  context.on("close", () => diagnosticContexts.delete(context));
   await context.route(`https://${fixtureHost}/**`, backend.route);
   // External recipe/video images are irrelevant to the persistence tests. Abort
   // them to keep the fixture deterministic; the real media links stay unchanged.
@@ -202,8 +210,20 @@ async function verifyInlineExperience(page, label, viewport) {
   await pressStable(page, lift.locator(".move-main-button"));
   await expect(lift.locator(".today-inline-log")).toBeVisible();
   const weight = lift.getByRole("textbox", { name: "Leg Press set 1 weight in pounds", exact: true });
-  await lift.getByRole("button", { name: "Copy 35 pounds to Leg Press set 1", exact: true }).click();
+  const copyPrevious = lift.getByRole("button", { name: "Copy 35 pounds to Leg Press set 1", exact: true });
+  // Center this lower control before touching it, not just the row's heading.
+  // Native auto-scroll can shift the button between down/up on mobile WebKit.
+  await pressStable(page, copyPrevious);
   await expect(weight).toHaveValue("35");
+  assert.equal(await copyPrevious.evaluate((button) => button.closest("label") === null), true,
+    `${label}: copying weight must not also activate the input's label`);
+  await weight.fill("45");
+  // Exercise the same shortcut again after a manual edit; it must replace only
+  // the weight, not mark a set complete or fill in repetitions.
+  await pressStable(page, copyPrevious);
+  await expect(weight).toHaveValue("35");
+  await expect(lift.getByRole("textbox", { name: "Leg Press set 1 reps", exact: true })).toHaveValue("");
+  await expect(lift.getByRole("checkbox", { name: "Leg Press set 1 complete", exact: true })).not.toBeChecked();
   await weight.fill("45");
   await lift.getByRole("checkbox", { name: "Leg Press set 1 complete", exact: true }).check();
   await expect(lift.locator(".today-inline-log")).toBeVisible();
@@ -504,6 +524,17 @@ try {
   await expect(pages[0].locator(".training-journey h2")).toHaveText("Training Week 1 of 26");
   await Promise.all(contexts.map((context) => context.close()));
   console.log("PASS two-device auth/reset/same-browser tab/offline stale-save/reconnect/reload integration (fixture only)");
+} catch (error) {
+  // Preserve the failing screen itself, not only earlier milestone screenshots.
+  // Do not let diagnostic I/O hide the original assertion or delay cleanup.
+  let index = 0;
+  for (const context of diagnosticContexts) {
+    for (const page of context.pages()) {
+      if (!page.isClosed()) await page.screenshot({ path: `outputs/ui-check/failure-${index++}.png`, timeout: 5000 }).catch(() => {});
+    }
+    await context.tracing.stop({ path: `outputs/ui-check/failure-trace-${index++}.zip` }).catch(() => {});
+  }
+  throw error;
 } finally {
   await Promise.all(browsers.map((browser) => browser.close()));
   await server.close();
