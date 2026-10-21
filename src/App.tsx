@@ -1,4 +1,4 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
   Activity,
@@ -28,6 +28,9 @@ import { isSupabaseConfigured, supabase, supabaseConfigError } from "./lib/supab
 import { canClaimLocalProgress, mergeProgressChanges, sameData } from "./lib/syncMerge";
 import { ProductNavigation, ProgressRing, type ProductMode } from "./components/PremiumUI";
 import { ProgramControls, TrainingJourney } from "./components/ProgramControls";
+import { DeviceSaveStatus, SectionTabs, UndoNotice } from "./components/SessionUI";
+import { WeightTrendChart } from "./components/WeightTrendChart";
+import { savePresentation, undoUnchangedFields } from "./lib/presentationState";
 import { initialProgram, isCalendarDate, normalizeProgram, restartedProgram, resolveResetConflict, type ProgramState } from "./lib/programLifecycle";
 
 /**
@@ -255,11 +258,26 @@ const primaryDockItems: Array<{
 function PrimaryAppDock({
   active,
   onSelect,
+  notice,
 }: {
   active: PrimaryDestination;
   onSelect: (destination: PrimaryDestination) => void;
+  notice?: ReactNode;
 }) {
+  const dock = useRef<HTMLElement>(null);
+  useEffect(() => {
+    // Measure the whole dock, including Undo and safe-area padding. Gym's action
+    // bar and document padding use this value rather than guessing a phone size.
+    const measure = () => document.documentElement.style.setProperty("--control-dock-height", `${dock.current?.getBoundingClientRect().height ?? 88}px`);
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    if (dock.current) observer?.observe(dock.current);
+    window.addEventListener("resize", measure);
+    measure();
+    return () => { observer?.disconnect(); window.removeEventListener("resize", measure); };
+  }, []);
   return (
+    <footer className="mobile-control-dock" ref={dock}>
+    {notice}
     <nav className="primary-app-dock" aria-label="Recomp app navigation">
       {primaryDockItems.map((item) => (
         <button
@@ -283,6 +301,7 @@ function PrimaryAppDock({
         </button>
       ))}
     </nav>
+    </footer>
   );
 }
 
@@ -5732,6 +5751,17 @@ function lastExerciseLoad(planDays: PlanDay[], store: TrackerStore, selectedDay:
   return null;
 }
 
+/** Only this exact movement's past logs belong in its history. A machine swap
+ * cannot inherit dumbbell records or future drafts. Incomplete attempts remain
+ * visible and labeled rather than being presented as completed sessions. */
+function exerciseHistoryFor(planDays: PlanDay[], store: TrackerStore, beforeDate: string, exerciseId: string) {
+  return planDays.filter((day) => day.iso < beforeDate).flatMap((day) => {
+    const rows = normalizeDayLog(store.days[day.iso]).exercises[exerciseId] ?? [];
+    return rows.some((row) => row.done || row.weight.trim() || row.reps.trim())
+      ? [{ date: day.iso, done: completedRows(rows), total: rows.length, summary: formatPreviousSetSummary(rows) }] : [];
+  }).slice(-12).reverse();
+}
+
 function smartLoadSuggestion(
   planDays: PlanDay[],
   store: TrackerStore,
@@ -6237,11 +6267,12 @@ function ExerciseMediaLinks({
 
 // The same labeled fields serve Gym and exercise details. On phones CSS places
 // them below the target, avoiding a desktop-width table or unlabeled inputs.
-function SetLoadFields({ exercise, set, setIndex, onChange }: {
+function SetLoadFields({ exercise, set, setIndex, onChange, previous }: {
   exercise: Exercise;
   set: SetLog;
   setIndex: number;
   onChange: (id: string, index: number, field: keyof SetLog, value: string | boolean | undefined) => void;
+  previous?: SetLog;
 }) {
   return <>
     <label className="set-field set-weight">
@@ -6249,6 +6280,13 @@ function SetLoadFields({ exercise, set, setIndex, onChange }: {
       <input inputMode="decimal" value={set.weight} placeholder="lbs"
         onChange={(event) => onChange(exercise.id, setIndex, "weight", event.target.value)}
         aria-label={`${exercise.name} set ${setIndex + 1} weight in pounds`} />
+      {previous?.done && Number.isFinite(Number(previous.weight.replace(",", "."))) && Number(previous.weight.replace(",", ".")) > 0 && (
+        <button className="copy-previous-load" type="button" title="Copy this previous set's weight only"
+          onClick={() => onChange(exercise.id, setIndex, "weight", previous.weight)}
+          aria-label={`Copy ${previous.weight} pounds to ${exercise.name} set ${setIndex + 1}`}>
+          Last: {previous.weight} lb
+        </button>
+      )}
     </label>
     <label className="set-field set-reps">
       <span className="set-field-label">Reps</span>
@@ -6297,7 +6335,7 @@ export {
   smartPortionAdviceForMeal, baseDietRecipeFor, smartLoadSuggestion,
   closestProgramDate, resolveGymDay, skipPlanDay, skipPlanMove, reopenPlanDay, reopenPlanMove,
   moveStatusForExercise, withAutomaticDayCompletion, isPlanDayComplete,
-  activeExerciseFor, locationGuideForExercise, swapOptionsFor, ExerciseMedia, exerciseMap,
+  activeExerciseFor, locationGuideForExercise, swapOptionsFor, ExerciseMedia, exerciseMap, exerciseHistoryFor,
   resetProgress, trainingProgressFor, trainingWeekForEdit, coachedDaysForStore, monthlyCheckInForDay, chooseInitialSyncedStore,
 };
 
@@ -6343,6 +6381,16 @@ export default function Home() {
   const [libraryFilter, setLibraryFilter] = useState("all");
   const [librarySearch, setLibrarySearch] = useState("");
   const [detailExerciseId, setDetailExerciseId] = useState<string | null>(null);
+  const [detailTab, setDetailTab] = useState<"log" | "technique" | "history">("log");
+  const [mealTab, setMealTab] = useState<"ingredients" | "cook" | "portion">("cook");
+  const [expandedTodayMoveId, setExpandedTodayMoveId] = useState<string | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [undoAction, setUndoAction] = useState<({
+    date: string; label: string; resetId: string; owner: string | null;
+  } & ({ kind: "workout"; before: DayLog; after: DayLog } | {
+    kind: "meal"; before: DietDayLog; after: DietDayLog;
+  })) | null>(null);
   const [skipRequest, setSkipRequest] = useState<SkipRequest | null>(null);
   const [gymStartedAt, setGymStartedAt] = useState<number | null>(null);
   const [timerNow, setTimerNow] = useState(() => Date.now());
@@ -6430,13 +6478,41 @@ export default function Home() {
     // never edits the wrong set by accident.
     setDetailExerciseId(null);
     setSkipRequest(null);
+    setExpandedTodayMoveId(null);
+    setUndoAction(null);
   }, [selectedDate]);
+
+  useEffect(() => { setUndoAction(null); }, [session?.user.id, store.program.resetId]);
+
+  useEffect(() => {
+    // Safari's visual viewport shrinks above the software keyboard. Remove the
+    // fixed dock/action chrome while typing so it cannot cover the input or Done.
+    const viewport = window.visualViewport;
+    let fullHeight = window.innerHeight;
+    const update = () => {
+      const element = document.activeElement;
+      const editing = element instanceof HTMLElement && element.matches("input, textarea, select");
+      if (!editing) fullHeight = window.innerHeight;
+      setKeyboardOpen(Boolean(editing && viewport && fullHeight - viewport.height > 140));
+    };
+    viewport?.addEventListener("resize", update);
+    window.addEventListener("resize", update);
+    document.addEventListener("focusin", update);
+    document.addEventListener("focusout", update);
+    return () => {
+      viewport?.removeEventListener("resize", update);
+      window.removeEventListener("resize", update);
+      document.removeEventListener("focusin", update);
+      document.removeEventListener("focusout", update);
+    };
+  }, []);
 
   useEffect(() => {
     // Diet panels are day-specific. Closing them on day change avoids showing a swap panel for the
     // previous day's recipe.
     setOpenDietSwapSlot(null);
     setOpenDietHowToSlot(null);
+    setUndoAction(null);
   }, [selectedDietDate]);
 
   useEffect(() => {
@@ -6941,18 +7017,11 @@ export default function Home() {
         .filter((entry): entry is WeightEntry => Boolean(entry)),
     [planDays, store.metrics, gymDay.index],
   );
-  const recentWeightEntries = weightEntries.slice(-28);
-  const weightChart = weightChartModel(recentWeightEntries);
   const weightMomentum = weightMomentumCoach(
     weightEntries,
     comparableWeightWeeks[0] ?? null,
     comparableWeightWeeks[1] ?? null,
   );
-  const weightChartDeltaText = weightChart
-    ? weightChart.delta === 0
-      ? "0 kg"
-      : `${formatLoadValue(Math.abs(weightChart.delta))} kg ${weightChart.delta < 0 ? "down" : "up"}`
-    : "Waiting";
   const hubWeightDays = planDays.slice(Math.max(0, gymDay.index - 13), gymDay.index + 1);
   const visibleWeightWeeks = weightWeekSummaries.slice(Math.max(0, gymDay.week - 8), gymDay.week);
   const selectedMonthlyCheckIn = monthlyCheckInForDay(planDays, store, selectedDay);
@@ -7215,16 +7284,31 @@ export default function Home() {
       (achievement) => achievement.earned && !previousLabels.has(achievement.label),
     );
     earnedAchievementSnapshotRef.current = earnedAchievementSignature;
-    if (!newlyEarned) return;
+    if (!newlyEarned) {
+      setAchievementMoment((current) => current && !achievements.some((item) => item.label === current && item.earned) ? null : current);
+      return;
+    }
 
     setAchievementMoment(newlyEarned.label);
+  }, [earnedAchievementSignature]);
+
+  useEffect(() => {
+    // The timer belongs to the visible celebration, not to changing statistics.
+    // Undo can remove an achievement and must also remove its stale popup.
+    if (!achievementMoment) return;
     const dismissTimer = window.setTimeout(() => setAchievementMoment(null), 4200);
     return () => window.clearTimeout(dismissTimer);
-  }, [earnedAchievementSignature]);
+  }, [achievementMoment]);
 
   // These small updater wrappers keep all edits immutable. React notices the changed objects, and
   // the autosave effects above persist the updated store.
-  const updateDay = (date: string, updater: (log: DayLog) => DayLog) => {
+  const updateDay = (date: string, updater: (log: DayLog) => DayLog, undoLabel?: string) => {
+    if (undoLabel) {
+      const current = latestStoreRef.current;
+      const before = normalizeDayLog(current.days[date]);
+      setUndoAction({ kind: "workout", date, before, after: updater(before), label: undoLabel,
+        resetId: current.program.resetId, owner: session?.user.id ?? null });
+    }
     setStore((current) => {
       const rawDay = planDays.find((day) => day.iso === date);
       const log = normalizeDayLog(current.days[date]);
@@ -7238,6 +7322,25 @@ export default function Home() {
         },
       };
     });
+  };
+
+  const undoLastDayAction = () => {
+    if (!undoAction) return;
+    const action = undoAction;
+    setUndoAction(null);
+    setAchievementMoment(null);
+    // A reset or account switch invalidates an old action, even if its date exists.
+    if (action.resetId !== latestStoreRef.current.program.resetId || action.owner !== (session?.user.id ?? null)) return;
+    if (action.kind === "meal") {
+      updateDietDay(action.date, (current) => normalizeDietDayLog(undoUnchangedFields(action.before, action.after, current)));
+      return;
+    }
+    const day = planDays.find((item) => item.iso === action.date);
+    if (!day) return;
+    updateDay(action.date, (current) => withAutomaticDayCompletion(coachedPlanDayFor(day), normalizeDayLog({
+      ...undoUnchangedFields(action.before, action.after, current), trainingWeek: current.trainingWeek,
+    })));
+    setExpandedTodayMoveId(null);
   };
 
   const updateReadiness = <K extends keyof ReadinessLog>(
@@ -7291,7 +7394,13 @@ export default function Home() {
     updateMetric(date, (metric) => ({ ...metric, weightForgotten: false }));
   };
 
-  const updateDietDay = (date: string, updater: (log: DietDayLog) => DietDayLog) => {
+  const updateDietDay = (date: string, updater: (log: DietDayLog) => DietDayLog, undoLabel?: string) => {
+    if (undoLabel) {
+      const current = latestStoreRef.current;
+      const before = normalizeDietDayLog(current.dietDays[date]);
+      setUndoAction({ kind: "meal", date, before, after: withAutomaticDietCompletion(updater(before)),
+        label: undoLabel, resetId: current.program.resetId, owner: session?.user.id ?? null });
+    }
     setStore((current) => {
       const nextLog = updater(normalizeDietDayLog(current.dietDays[date]));
       return {
@@ -7318,7 +7427,7 @@ export default function Home() {
         ...log.meals,
         [slot]: !log.meals[slot],
       },
-    }));
+    }), selectedDietLog.meals[slot] ? "Meal reopened" : "Meal marked eaten");
   };
 
   const setDietSwap = (slot: DietMealSlot, recipeId: string) => {
@@ -7394,7 +7503,12 @@ export default function Home() {
       };
 
       return withAutomaticDayCompletion(planDay, nextLog);
-    });
+    }, field === "done" ? (value ? "Set completed" : "Set reopened") : undefined);
+    if (field === "done" && value === true) {
+      const move = buildWorkoutMoveRows(planDay, normalizeDayLog(latestStoreRef.current.days[planDay.iso]), exercises)
+        .find((item) => item.activeExercise.id === exerciseId);
+      if (move?.rows.every((row, index) => index === setIndex || row.done)) setExpandedTodayMoveId(null);
+    }
   };
 
   const updateSet = (
@@ -7451,7 +7565,8 @@ export default function Home() {
     originalExerciseId: string,
     reason: SkipReason,
   ) => {
-    updateDay(planDay.iso, (log) => skipPlanMove(planDay, log, originalExerciseId, reason));
+    updateDay(planDay.iso, (log) => skipPlanMove(planDay, log, originalExerciseId, reason), "Movement skipped");
+    setExpandedTodayMoveId(null);
   };
 
   const reopenSkippedExerciseForDay = (planDay: PlanDay, originalExerciseId: string) => {
@@ -7475,7 +7590,7 @@ export default function Home() {
     // The dialog captures its date when opened. Browsing or midnight must never
     // redirect this write into another day's log.
     if (skipRequest.originalExerciseId === null) {
-      updateDay(planDay.iso, (log) => skipPlanDay(coachedPlanDayFor(planDay), log, reason));
+      updateDay(planDay.iso, (log) => skipPlanDay(coachedPlanDayFor(planDay), log, reason), "Remaining workout skipped");
       if (planDay.iso === gymDay.iso) {
         setRestTimer(null);
         setGymStartedAt(null);
@@ -7509,7 +7624,8 @@ export default function Home() {
       };
 
       return withAutomaticDayCompletion(planDay, nextLog);
-    });
+    }, isComplete ? "Movement reopened" : "Movement completed");
+    setExpandedTodayMoveId(null);
   };
 
   const toggleExerciseDone = (exerciseId: string, setCount: number, isComplete: boolean) => {
@@ -7966,6 +8082,7 @@ export default function Home() {
 
   const focusNextTodayMove = () => {
     if (!nextOpenMove) return;
+    setExpandedTodayMoveId(nextOpenMove.originalExercise.id);
     const move = document.getElementById(`today-move-${nextOpenMove.originalExercise.id}`);
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     move?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "center" });
@@ -8076,16 +8193,26 @@ export default function Home() {
     return true;
   };
 
+  const deviceSave = savePresentation({ localError: localSaveError, online: isOnline,
+    signedIn: Boolean(session), status: cloudStatus, saved: Boolean(lastSavedAt) });
+  const undoNotice = undoAction ? <UndoNotice label={undoAction.label} onUndo={undoLastDayAction}
+    onDismiss={() => setUndoAction(null)} /> : null;
+  const coachRecentDays = planDays.filter((day) => day.iso <= calendarDate && diffDays(day.iso, calendarDate) < 7);
+  const todayMealLog = normalizeDietDayLog(store.dietDays[currentProgramDate]);
+  const nextMealSlot = dietMealSlots.find((slot) => !todayMealLog.meals[slot.id]);
+  const nextMealRecipe = nextMealSlot ? activeDietRecipeFor(gymDay, todayMealLog, nextMealSlot.id) : null;
+
   if (appMode === "hub") {
     return (
       <MotionConfig reducedMotion="user">
-      <main className="app-shell coach-hub-shell">
+      <main className={`app-shell coach-hub-shell ${keyboardOpen ? "keyboard-open" : ""}`}>
         <ProductNavigation
           activeMode="hub"
           statusLabel={localSaveError ? "Save needs attention" : syncHeadline}
           statusTone={productStatusTone}
           onSelect={switchProductMode}
         />
+        <DeviceSaveStatus status={deviceSave} />
         <section className="coach-hub-hero" aria-labelledby="coach-hub-heading">
           <div className="brand-lockup hub-brand">
             <div>
@@ -8107,7 +8234,8 @@ export default function Home() {
               <div className="hub-choice-content">
                 <span><Icon name="dumbbell" size={22} /> Today&apos;s workout <Icon name="chevronRight" size={18} /></span>
                 <strong>{gymDay.session.title}</strong>
-                <small>{gymMoveRows.length - gymMoveRows.filter((move) => move.isComplete || move.isSkipped).length} movements remaining</small>
+                <small>{gymMoveRows.find((move) => !move.isComplete && !move.isSkipped)?.activeExercise.name ?? (gymSessionResolved ? "Session recorded" : "Recovery day")}</small>
+                <span className="hub-next-label">{gymSessionResolved ? "Review workout" : "Continue training"}</span>
               </div>
               <ProgressRing
                 value={gymMoveRows.filter((move) => move.isComplete).length}
@@ -8124,7 +8252,8 @@ export default function Home() {
               <div className="hub-choice-content">
                 <span><Icon name="cart" size={22} /> Today&apos;s nutrition <Icon name="chevronRight" size={18} /></span>
                 <strong>{gymDietTarget.label}</strong>
-                <small>{gymDietTarget.calories} · {gymDietTarget.protein}</small>
+                <small>{nextMealSlot && nextMealRecipe ? `${nextMealSlot.label}: ${nextMealRecipe.shortTitle}` : "All meals recorded"}</small>
+                <span className="hub-next-label">{dietMealSlots.some((slot) => !normalizeDietDayLog(store.dietDays[currentProgramDate]).meals[slot.id]) ? "Plan your next meal" : "Review nutrition"}</span>
               </div>
               <ProgressRing
                 value={Object.values(normalizeDietDayLog(store.dietDays[currentProgramDate]).meals).filter(Boolean).length}
@@ -8200,16 +8329,16 @@ export default function Home() {
 
           <div className="hub-mini-grid">
             <div>
-              <span>Workout streak</span>
-              <strong>{stats.streak}</strong>
+              <span>Workouts · last 7 days</span>
+              <strong>{coachRecentDays.filter((day) => isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso]))).length}</strong>
             </div>
             <div>
-              <span>Diet meals</span>
-              <strong>{stats.completedDietMeals}</strong>
+              <span>Meals · last 7 days</span>
+              <strong>{coachRecentDays.reduce((count, day) => count + Object.values(normalizeDietDayLog(store.dietDays[day.iso]).meals).filter(Boolean).length, 0)}</strong>
             </div>
             <div>
-              <span>Weigh-ins</span>
-              <strong>{stats.weighIns}</strong>
+              <span>Weigh-ins · last 7 days</span>
+              <strong>{coachRecentDays.filter((day) => weightKgFromMetric(normalizeMetricLogShape(store.metrics[day.iso])) !== null).length}</strong>
             </div>
           </div>
         </section>
@@ -8293,55 +8422,7 @@ export default function Home() {
           </div>
 
           <div className="weight-visual-grid">
-            <section className="weight-chart-card" aria-label="Weight trend chart">
-              <div className="flow-heading">
-                <h3>Weight Trend</h3>
-                <span>{weightChart ? weightChart.windowLabel : "Log 2+ mornings"}</span>
-              </div>
-              {weightChart ? (
-                <>
-                  <svg className="weight-line-chart" viewBox="0 0 100 72" role="img" aria-label="Recent weight trend line">
-                    <path className="chart-grid-line" d="M0 12H100M0 38H100M0 64H100" />
-                    {weightChart.points.length > 1 && (
-                      <path className="chart-trend-line" d={weightChart.path} />
-                    )}
-                    {weightChart.points.map((point, pointIndex) => (
-                      <g key={point.date}>
-                        <circle
-                          className={pointIndex === weightChart.points.length - 1 ? "latest" : ""}
-                          cx={point.x}
-                          cy={point.y}
-                          r={pointIndex === weightChart.points.length - 1 ? 2.8 : 2.1}
-                        />
-                        <title>
-                          Day {point.dayNumber}: {formatLoadValue(point.weight)} kg
-                        </title>
-                      </g>
-                    ))}
-                  </svg>
-                  <div className="weight-chart-stats">
-                    <div>
-                      <span>Window change</span>
-                      <strong>{weightChartDeltaText}</strong>
-                    </div>
-                    <div>
-                      <span>Highest</span>
-                      <strong>{formatLoadValue(weightChart.highest)} kg</strong>
-                    </div>
-                    <div>
-                      <span>Lowest</span>
-                      <strong>{formatLoadValue(weightChart.lowest)} kg</strong>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="empty-weight-chart">
-                  <Icon name="progress" size={22} />
-                  <strong>No chart yet</strong>
-                  <small>Log a few morning weigh-ins and the trend line will appear here.</small>
-                </div>
-              )}
-            </section>
+            <WeightTrendChart entries={weightEntries} weeks={weightWeekSummaries} today={calendarDate} />
 
             <section className="weight-motivation-card" aria-label="Weight motivation">
               <p className="eyebrow">
@@ -8510,7 +8591,7 @@ export default function Home() {
           error={resetError} onReset={handleStartFresh} />
         {resetDisabled && <p className="reset-availability-note">Sign in and load your account before resetting synced progress.</p>}
         <AchievementMoment label={achievementMoment} />
-        <PrimaryAppDock active={primaryDestination} onSelect={switchPrimaryDestination} />
+        <PrimaryAppDock active={primaryDestination} onSelect={switchPrimaryDestination} notice={undoNotice} />
       </main>
       </MotionConfig>
     );
@@ -8519,13 +8600,14 @@ export default function Home() {
   if (appMode === "diet") {
     return (
       <MotionConfig reducedMotion="user">
-      <main className={`app-shell diet-shell diet-${selectedDietType} ${selectedDietAccent}`}>
+      <main className={`app-shell diet-shell diet-${selectedDietType} ${selectedDietAccent} ${keyboardOpen ? "keyboard-open" : ""}`}>
         <ProductNavigation
           activeMode="diet"
           statusLabel={localSaveError ? "Save needs attention" : syncHeadline}
           statusTone={productStatusTone}
           onSelect={switchProductMode}
         />
+        <DeviceSaveStatus status={deviceSave} />
         <header className="app-header diet-app-header" aria-label="Recomp Diet Console">
           <div className="brand-lockup">
             <span className="brand-mark diet-mark">N</span>
@@ -8730,43 +8812,11 @@ export default function Home() {
                   </div>
                 )}
 
-                <details className="diet-basics-disclosure">
-                  <summary>
-                    <span>Ingredients &amp; plate</span>
-                    <small>{meal.recipe.ingredients.length} ingredients · exact portions</small>
-                  </summary>
-                  <div className="diet-card-grid diet-basics-grid">
-                    <div>
-                      <h4>Ingredients</h4>
-                      <ul>
-                        {meal.recipe.ingredients.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <h4>Plate</h4>
-                      <ul>
-                        {meal.recipe.plate.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </details>
-
-                <details className={`smart-portion-card ${meal.portionAdvice.tone}`}>
-                  <summary className="flow-heading">
-                    <h4>{meal.portionAdvice.title}</h4>
-                    <span>{meal.portionAdvice.status}</span>
-                  </summary>
-                  <p>{meal.portionAdvice.detail}</p>
-                  <ul>
-                    {meal.portionAdvice.items.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </details>
+                <div className="meal-portion-preview"><span>Recipe amounts</span><p>{meal.recipe.ingredients.slice(0, 2).join(" · ")}</p>
+                  <button className="portion-details-link" type="button" onClick={() => {
+                    setMealTab("portion"); setOpenDietHowToSlot(meal.slot); setOpenDietSwapSlot(null);
+                  }}>{meal.portionAdvice.status} · View portion</button>
+                </div>
 
                 <div className="diet-meal-actions">
                   <button
@@ -8783,6 +8833,7 @@ export default function Home() {
                     aria-expanded={openDietHowToSlot === meal.slot}
                     onClick={() => {
                       setOpenDietSwapSlot(null);
+                      setMealTab("cook");
                       setOpenDietHowToSlot((slot) => (slot === meal.slot ? null : meal.slot));
                     }}
                   >
@@ -8811,39 +8862,36 @@ export default function Home() {
                   )}
                 </div>
 
-                <AnimatePresence initial={false}>
                 {openDietHowToSlot === meal.slot && (
-                  <motion.div
+                  <div
                     className="diet-howto-panel"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
                   >
-                    <div className="flow-heading">
-                      <h4>How To: {meal.recipe.title}</h4>
-                      <span>Beginner steps</span>
-                    </div>
+                    <SectionTabs id={`meal-${meal.slot}`} label={`${meal.label} recipe sections`} value={mealTab} onChange={setMealTab}
+                      tabs={[{ id: "ingredients", label: "Ingredients" }, { id: "cook", label: "Cook" }, { id: "portion", label: "Portion" }]} />
+                    <div role="tabpanel" id={`meal-${meal.slot}-panel-${mealTab}`} aria-labelledby={`meal-${meal.slot}-tab-${mealTab}`}>
                     {meal.isSwapped && (
                       <p className="swap-note">
                         Swap version. Original plan: {meal.baseRecipe.title}. Use the revert button above if you want the main plan meal back.
                       </p>
                     )}
-                    <ol className="diet-howto-steps">
+                    {mealTab === "ingredients" && <div className="diet-basics-grid"><h4>Ingredients</h4><ul>{meal.recipe.ingredients.map((item) => <li key={item}>{item}</li>)}</ul></div>}
+                    {mealTab === "cook" && <><h4>How To: {meal.recipe.title}</h4><ol className="diet-howto-steps">
                       {meal.howTo.map((step, stepIndex) => (
                         <li key={`${meal.recipe.id}-how-to-${stepIndex}`}>{step}</li>
                       ))}
-                    </ol>
-                  </motion.div>
+                    </ol></>}
+                    {mealTab === "portion" && <div className={`smart-portion-card ${meal.portionAdvice.tone}`}>
+                      <h4>Plate your serving</h4><ul>{meal.recipe.plate.map((item) => <li key={item}>{item}</li>)}</ul>
+                      <h4>{meal.portionAdvice.title}</h4><p>{meal.portionAdvice.detail}</p>
+                      <ul>{meal.portionAdvice.items.map((item) => <li key={item}>{item}</li>)}</ul>
+                    </div>}
+                    </div>
+                  </div>
                 )}
-                </AnimatePresence>
 
-                <AnimatePresence initial={false}>
                 {openDietSwapSlot === meal.slot && (
-                  <motion.div
+                  <div
                     className="diet-swap-panel"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
                   >
                     <div className="flow-heading">
                       <h4>Swap {meal.label}</h4>
@@ -8862,9 +8910,8 @@ export default function Home() {
                         </button>
                       ))}
                     </div>
-                  </motion.div>
+                  </div>
                 )}
-                </AnimatePresence>
               </motion.article>
             ))}
           </section>
@@ -8954,7 +9001,7 @@ export default function Home() {
         </div>
 
         <AchievementMoment label={achievementMoment} />
-        <PrimaryAppDock active={primaryDestination} onSelect={switchPrimaryDestination} />
+        <PrimaryAppDock active={primaryDestination} onSelect={switchPrimaryDestination} notice={undoNotice} />
       </main>
       </MotionConfig>
     );
@@ -8962,13 +9009,14 @@ export default function Home() {
 
   return (
     <MotionConfig reducedMotion="user">
-    <main className={`app-shell workout-shell section-${activeSection}`}>
+    <main className={`app-shell workout-shell section-${activeSection} ${keyboardOpen ? "keyboard-open" : ""}`}>
       <ProductNavigation
         activeMode="workout"
         statusLabel={localSaveError ? "Save needs attention" : syncHeadline}
         statusTone={productStatusTone}
         onSelect={switchProductMode}
       />
+      <DeviceSaveStatus status={deviceSave} />
       <header className={`app-header ${headerDay.session.accent}`} aria-label="Recomp Gym Console">
         <div className="brand-lockup">
           <span className="brand-mark">W</span>
@@ -9109,6 +9157,8 @@ export default function Home() {
         <strong>{localSaveError ? "Save needs attention" : isHydrated ? lastSavedAt ?? "Ready" : "Loading"}</strong>
       </div>
 
+      <details className="today-calendar" open={calendarOpen} onToggle={(event) => setCalendarOpen(event.currentTarget.open)}>
+        <summary><CalendarDays size={18} aria-hidden="true" /><span>{formatDate(selectedDay.iso)}<small>{selectedDay.iso === currentProgramDate ? "Today" : "Viewing another day"} · Change day</small></span><ChevronRight size={18} aria-hidden="true" /></summary>
       <section className="today-day-switcher" aria-label="Choose workout day">
         <div>
           <p className="eyebrow">Selected workout day</p>
@@ -9138,7 +9188,7 @@ export default function Home() {
               className={`today-day-button ${day.iso === selectedDay.iso ? "active" : ""} ${
                 dayStatusForDay(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso]))
               } ${day.session.type}`}
-              onClick={() => setSelectedDate(day.iso)}
+              onClick={() => { setSelectedDate(day.iso); setCalendarOpen(false); }}
               type="button"
               aria-label={`${formatDate(day.iso)} ${day.session.title}, ${dayStatusLabel(dayStatusForDay(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])))}`}
             >
@@ -9148,7 +9198,9 @@ export default function Home() {
             </button>
           ))}
         </nav>
+        <button className="back-to-today" type="button" onClick={() => { goToCurrentProgramDay(); setCalendarOpen(false); }}>Back to Today</button>
       </section>
+      </details>
 
       <section className="gym-mode-shell" aria-label="Gym mode">
         <div className="gym-day-context">
@@ -9186,13 +9238,9 @@ export default function Home() {
             </div>
           </section>
         ) : currentGymMove && currentGymExercise && currentGymRows ? (
-          <motion.article
+          <article
             key={`${gymDay.iso}:${currentGymExercise.id}`}
             className={`gym-card ${currentGymExercise.family} ${currentGymMove.isSkipped ? "skipped" : ""}`}
-            // Keep instructions fully opaque even if Safari suspends an entry animation.
-            initial={{ y: 10 }}
-            animate={{ y: 0 }}
-            transition={{ duration: 0.2 }}
           >
             <div className="gym-topbar">
               <button
@@ -9470,11 +9518,12 @@ export default function Home() {
                 <div className="set-row" key={`${currentGymExercise.id}-gym-${setIndex}`}>
                   <span>{setIndex + 1}</span>
                   <strong className="target-pill">{currentGymTarget}</strong>
-                  {currentGymTracksWeight && <SetLoadFields exercise={currentGymExercise} set={set} setIndex={setIndex} onChange={updateGymSet} />}
+                  {currentGymTracksWeight && <SetLoadFields exercise={currentGymExercise} set={set} setIndex={setIndex} onChange={updateGymSet} previous={currentGymPreviousLoad?.rows[setIndex]} />}
                   <label className="mini-check">
                     <input
                       type="checkbox"
                       checked={set.done}
+                      aria-label={`${currentGymExercise.name} set ${setIndex + 1} complete`}
                       onChange={(event) =>
                         updateGymSet(currentGymExercise.id, setIndex, "done", event.target.checked)
                       }
@@ -9553,7 +9602,7 @@ export default function Home() {
                 <Icon name="chevronRight" size={18} />
               </button>
             </div>
-          </motion.article>
+          </article>
         ) : (
           <section className="empty-gym-card">
             <p className="eyebrow">{gymDay.session.title}</p>
@@ -9575,6 +9624,13 @@ export default function Home() {
               <p className="today-command-date">
                 {formatDate(selectedDay.iso)} · Training Week {selectedTrainingWeek}
               </p>
+              <p className="today-session-count">{workoutMoveRows.length
+                ? `${completedMoveCount} of ${workoutMoveRows.length} movements complete`
+                : `${completedTaskCount} of ${selectedDay.session.tasks.length} recovery steps complete`}</p>
+              <progress className="today-header-progress" aria-label="Workout progress"
+                max={workoutMoveRows.length || selectedDay.session.tasks.length || 1}
+                value={workoutMoveRows.length ? completedMoveCount : completedTaskCount} />
+              {selectedDay.iso !== currentProgramDate && <button className="back-to-today" type="button" onClick={goToCurrentProgramDay}>Back to Today</button>}
               <span className={`day-status-chip ${selectedDayStatus}`}>
                 {selectedDayStatusText}
               </span>
@@ -9610,7 +9666,7 @@ export default function Home() {
                 type="button"
                 disabled={selectedDayComplete}
                 onClick={() =>
-                  updateDay(selectedDay.iso, (log) => completePlanDay(selectedCoachDay, log))
+                  updateDay(selectedDay.iso, (log) => completePlanDay(selectedCoachDay, log), "Workout completed")
                 }
               >
                 {selectedCompletionButtonLabel}
@@ -9701,6 +9757,8 @@ export default function Home() {
             </div>
           </details>
 
+          <details className="readiness-disclosure">
+          <summary><Activity size={17} aria-hidden="true" /><span>Readiness check<small>{Object.values(selectedLog.readiness).filter(Boolean).length}/4 answered · {selectedReadinessCopy.label}</small></span></summary>
           <section className={`readiness-card readiness-${selectedReadinessStatus}`} aria-labelledby="readiness-heading">
             <div className="flow-heading">
               <div>
@@ -9778,6 +9836,8 @@ export default function Home() {
             </div>
           </section>
 
+          </details>
+          <details className="today-targets-disclosure" open={workoutMoveRows.length === 0}><summary>Daily targets <small>{completedTaskCount}/{selectedDay.session.tasks.length}</small></summary>
           <section className="checklist-block compact-targets" aria-labelledby="tasks-heading">
             <div className="flow-heading">
               <h3 id="tasks-heading">Today&apos;s Targets</h3>
@@ -9801,6 +9861,7 @@ export default function Home() {
               ))}
             </div>
           </section>
+          </details>
 
           {workoutMoveRows.length > 0 ? (
             <section className="exercise-stack compact-flow" aria-labelledby="exercise-heading">
@@ -9812,14 +9873,19 @@ export default function Home() {
                 </span>
               </div>
               <div className="move-list">
-                {workoutMoveRows.map((move) => (
+                {workoutMoveRows.map((move) => {
+                  const expanded = (expandedTodayMoveId ?? nextOpenMove?.originalExercise.id) === move.originalExercise.id;
+                  const previous = lastExerciseLoad(planDays, store, selectedDay, move.activeExercise.id);
+                  return (
                   <motion.article
                     key={move.originalExercise.id}
+                    layout="position"
+                    transition={{ duration: 0.18 }}
                     id={`today-move-${move.originalExercise.id}`}
                     className={`move-item ${move.activeExercise.family} ${
                       move.isComplete ? "complete" : ""
                     } ${move.isSkipped ? "skipped" : ""
-                    } ${nextOpenMove?.originalExercise.id === move.originalExercise.id ? "next-up" : ""}`}
+                    } ${nextOpenMove?.originalExercise.id === move.originalExercise.id ? "next-up" : ""} ${expanded ? "expanded" : ""}`}
                   >
                     <button
                       className="move-check-button"
@@ -9839,7 +9905,9 @@ export default function Home() {
                     <button
                       className="move-main-button"
                       type="button"
-                      onClick={() => setDetailExerciseId(move.originalExercise.id)}
+                      aria-expanded={expanded}
+                      aria-controls={`inline-log-${move.originalExercise.id}`}
+                      onClick={() => setExpandedTodayMoveId(expanded ? "" : move.originalExercise.id)}
                     >
                       <span className="move-title-row">
                         <strong>{move.activeExercise.name}</strong>
@@ -9859,13 +9927,7 @@ export default function Home() {
                         <span>{move.rest}</span>
                         <span>{move.activeExercise.equipment}</span>
                       </span>
-                      <span className={`smart-load-mini ${move.suggestion.tone}`}>
-                        <Icon name="spark" size={14} />
-                        <span>
-                          <strong>{move.suggestion.label}</strong>
-                          <small>{move.suggestion.detail}</small>
-                        </span>
-                      </span>
+                      <span className="move-inline-summary">{move.doneCount}/{move.setCount} sets <ChevronRight size={16} aria-hidden="true" /></span>
                     </button>
                     <div className="move-actions">
                       <button
@@ -9882,7 +9944,7 @@ export default function Home() {
                       <button
                         className="move-detail-button"
                         type="button"
-                        onClick={() => setDetailExerciseId(move.originalExercise.id)}
+                        onClick={() => { setDetailTab("log"); setDetailExerciseId(move.originalExercise.id); }}
                       >
                         <Icon name={move.swaps.length ? "swap" : "video"} size={16} />
                         <span>{move.swaps.length ? "Details / Swap" : "Details"}</span>
@@ -9898,8 +9960,32 @@ export default function Home() {
                         </button>
                       )}
                     </div>
+                    {expanded && <div className="today-inline-log" id={`inline-log-${move.originalExercise.id}`}
+                      role="region" aria-label={`${move.activeExercise.name} inline set log`}>
+                      <div className="inline-log-heading"><strong>{move.isSkipped ? "Skipped - resume to continue" : "Your sets"}</strong>
+                        <button type="button" onClick={() => { setDetailTab("technique"); setDetailExerciseId(move.originalExercise.id); }}>
+                          <Video size={16} aria-hidden="true" /> Technique
+                        </button>
+                      </div>
+                      {move.isSwapped && <p className="swap-note">Swap version of {move.originalExercise.name}. Revert to original is above.</p>}
+                      <div className={`set-table inline-set-table ${tracksWeight(move.activeExercise) ? "" : "no-load"}`}>
+                        {move.rows.map((set, setIndex) => <div className={`set-row ${set.done ? "set-done" : ""}`} key={setIndex}>
+                          <span className="inline-set-number">Set {setIndex + 1}</span>
+                          <strong className="target-pill">{move.target}</strong>
+                          {tracksWeight(move.activeExercise) && <SetLoadFields exercise={move.activeExercise} set={set} setIndex={setIndex}
+                            onChange={updateSet} previous={previous?.rows[setIndex]} />}
+                          <label className="mini-check"><input type="checkbox" checked={set.done}
+                            aria-label={`${move.activeExercise.name} set ${setIndex + 1} complete`}
+                            onChange={(event) => updateSet(move.activeExercise.id, setIndex, "done", event.target.checked)} /><span /></label>
+                        </div>)}
+                      </div>
+                      <details className={`inline-progression smart-load-mini ${move.suggestion.tone}`}>
+                        <summary><Sparkles size={14} aria-hidden="true" />{move.suggestion.label}</summary>
+                        <p>{move.suggestion.detail}</p>
+                      </details>
+                    </div>}
                   </motion.article>
-                ))}
+                ); })}
               </div>
             </section>
           ) : (
@@ -10358,6 +10444,10 @@ export default function Home() {
               </button>
             </div>
 
+            <SectionTabs id="exercise-detail" label="Exercise sections" value={detailTab} onChange={setDetailTab}
+              tabs={[{ id: "log", label: "Log" }, { id: "technique", label: "Technique" }, { id: "history", label: "History" }]} />
+            <div className="exercise-tab-panel" role="tabpanel" id={`exercise-detail-panel-${detailTab}`}
+              aria-labelledby={`exercise-detail-tab-${detailTab}`}>
             {detailMove.isSwapped && (
               <div className="swap-alert detail-swap-alert">
                 <div>
@@ -10379,7 +10469,7 @@ export default function Home() {
               </div>
             )}
 
-            <div className="detail-media-grid">
+            {detailTab === "technique" && <div className="detail-media-grid">
               <div className="detail-media-panel">
                 <ExerciseMedia exercise={detailExercise} variant="gym" />
                 <ExerciseMediaLinks exercise={detailExercise} />
@@ -10419,9 +10509,9 @@ export default function Home() {
                   </strong>
                 </div>
               </div>
-            </div>
+            </div>}
 
-            {detailMove.swaps.length > 0 && (
+            {detailTab === "log" && detailMove.swaps.length > 0 && (
               <section className="swap-panel" aria-labelledby="swap-heading">
                 <div className="flow-heading">
                   <h3 id="swap-heading">Swap Options</h3>
@@ -10457,16 +10547,16 @@ export default function Home() {
               </section>
             )}
 
-            <div className={`load-suggestion smart-load ${detailMove.suggestion.tone}`}>
+            {detailTab === "log" && <><div className={`load-suggestion smart-load ${detailMove.suggestion.tone}`}>
               <Icon name="spark" size={16} />
               <span>
                 <strong>{detailMove.suggestion.label}</strong>
                 <small>{detailMove.suggestion.detail}</small>
               </span>
             </div>
-            {detailExercise.loadNote && <p className="equipment-load-note">{detailExercise.loadNote}</p>}
+            {detailExercise.loadNote && <p className="equipment-load-note">{detailExercise.loadNote}</p>}</>}
 
-            <div className="detail-details-grid">
+            {detailTab === "technique" && <div className="detail-details-grid">
               <details className="form-details" open>
                 <summary>How to do it</summary>
                 <ul>
@@ -10487,9 +10577,9 @@ export default function Home() {
                 <summary>Progression</summary>
                 <p>{detailMove.progression}</p>
               </details>
-            </div>
+            </div>}
 
-            <div
+            {detailTab === "log" && <div
               className={`set-table detail-set-table ${tracksWeight(detailExercise) ? "" : "no-load"}`}
               aria-label={`${detailExercise.name} detail set log`}
             >
@@ -10505,11 +10595,12 @@ export default function Home() {
                 <div className="set-row" key={`${detailExercise.id}-detail-${setIndex}`}>
                   <span>{setIndex + 1}</span>
                   <strong className="target-pill">{detailMove.target}</strong>
-                  {tracksWeight(detailExercise) && <SetLoadFields exercise={detailExercise} set={set} setIndex={setIndex} onChange={updateSet} />}
+                  {tracksWeight(detailExercise) && <SetLoadFields exercise={detailExercise} set={set} setIndex={setIndex} onChange={updateSet} previous={detailPreviousLoad?.rows[setIndex]} />}
                   <label className="mini-check">
                     <input
                       type="checkbox"
                       checked={set.done}
+                      aria-label={`${detailExercise.name} set ${setIndex + 1} complete`}
                       onChange={(event) =>
                         updateSet(detailExercise.id, setIndex, "done", event.target.checked)
                       }
@@ -10518,6 +10609,16 @@ export default function Home() {
                   </label>
                 </div>
               ))}
+            </div>}
+
+            {detailTab === "history" && <section className="exercise-history" aria-label="Previous exercise sessions">
+              <h3>Your recent sessions</h3><p>Last 12 attempts before this date. {detailExercise.loadNote ?? "Only this exact exercise is included."}</p>
+              {exerciseHistoryFor(planDays, store, selectedDay.iso, detailExercise.id).length ?
+                <ol>{exerciseHistoryFor(planDays, store, selectedDay.iso, detailExercise.id).map((entry) => <li key={entry.date}>
+                  <span>{formatDate(entry.date, "short")}</span><strong>{entry.summary}</strong>
+                  <small>{entry.done}/{entry.total} sets completed{entry.done < entry.total ? " - partial attempt" : ""}</small>
+                </li>)}</ol> : <p className="history-empty">No previous logs for this movement yet. Your first session starts its history.</p>}
+            </section>}
             </div>
 
             <div className="sheet-action-row">
@@ -10602,7 +10703,7 @@ export default function Home() {
       )}
 
       <AchievementMoment label={achievementMoment} />
-      <PrimaryAppDock active={primaryDestination} onSelect={switchPrimaryDestination} />
+      <PrimaryAppDock active={primaryDestination} onSelect={switchPrimaryDestination} notice={undoNotice} />
     </main>
     </MotionConfig>
   );

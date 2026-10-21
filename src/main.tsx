@@ -6,6 +6,8 @@ import "./styles.css";
 // The premium layer is intentionally last. styles.css remains the stable
 // feature contract; this focused layer owns the modern visual language.
 import "./premium.css";
+// This layer owns the coordinated session experience and semantic color tokens.
+import "./experience.css";
 
 // main.tsx is the browser entry point. Vite loads index.html, this script finds the #root element,
 // and React takes over rendering from there.

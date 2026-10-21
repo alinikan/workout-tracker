@@ -145,7 +145,7 @@ test("includes researched movement resources and autosave controls", async () =>
     "setOpenDietHowToSlot",
     "detailedRecipeHowTo",
     "recipeHowToSteps",
-    "Beginner steps",
+    'label: "Cook"',
     "Spoon 300 g Greek yogurt into a bowl",
     "Slice the kiwi or pear into small pieces",
     "Warm 115 g cooked chicken until hot all the way through",
@@ -153,7 +153,7 @@ test("includes researched movement resources and autosave controls", async () =>
     "Bake or pan-cook the fish gently until it flakes easily",
     "weightChartModel",
     "weightMomentumCoach",
-    "weightChartDeltaText",
+    "WeightTrendChart",
     "sessionTimeForDay",
     "warmupTarget",
     "rampWarmupTarget",
@@ -317,9 +317,9 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "Daily Weight Log",
     "Weekly averages",
     "Weight logs",
-    "Weight Trend",
+    "WeightTrendChart",
     "Momentum",
-    "Window change",
+    "Recipe amounts",
     "Weekly Average History",
     "weightComparisonInsight",
     "weightWeekSummary",
@@ -677,8 +677,8 @@ test("day skip controls share date-scoped handlers and Gym shows a terminal summ
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v40/);
-  assert.match(serviceWorker, /media-layout-v40/);
+  assert.match(serviceWorker, /recomp-gym-console-v41/);
+  assert.match(serviceWorker, /session-experience-v41/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);

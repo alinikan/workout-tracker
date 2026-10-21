@@ -25,6 +25,7 @@
 - [What This App Is](#what-this-app-is)
 - [Product Philosophy](#product-philosophy)
 - [Features](#features)
+- [Session Experience](#session-experience)
 - [App Sections](#app-sections)
 - [How The Program Works](#how-the-program-works)
 - [Knee And Hip Friendly Lower Body](#knee-and-hip-friendly-lower-body)
@@ -83,6 +84,38 @@ That means the interface favors:
 
 ---
 
+## Session Experience
+
+Recomp opens in **Coach**, with distinct Training and Nutrition destinations. **Today** is the
+main workout workspace: the next unfinished exercise opens inline, while completed movements
+collapse into readable checked rows. You do not have to switch to Gym to log sets.
+
+| Improvement | How To Use It |
+| --- | --- |
+| Inline workout log | Tap an exercise in Today to open its sets. Check individual sets or the movement's completion control. |
+| Compact date navigation | Tap the date to open the calendar. When reviewing another day, **Back to Today** returns to the current workout. Gym always follows the actual current day. |
+| Previous performance | **Last: ... lb** beside a weight input copies only that previous completed set's weight. It never marks the new set done. |
+| Coordinated controls | The iPhone dock is measured, including Undo and safe-area padding. Gym's action bar sits above it. Fixed controls hide while a software keyboard occupies the screen. |
+| Meaningful color | Teal means training, coral means nutrition, violet means weight trends, green means completed, and amber means skipped/attention. Day accents remain secondary. |
+| Exercise sections | Open **Details / Swap** for **Log**, **Technique**, and **History**. Technique contains inline YouTube, optional GIF, setup, and cues; History shows the last 12 attempts for that exact exercise before the selected date. |
+| Recipe sections | **Make It** opens **Ingredients**, **Cook**, and **Portion**. Cook retains the detailed beginner instructions; Portion contains plated amounts and any existing portion advice. Swaps remain clearly labeled and reversible. |
+| Readable depth | Content and inputs use solid surfaces. Restrained translucency is limited to navigation, with a reduced-transparency fallback. |
+| Purposeful motion | Check states, inline expansion, and short positional transitions explain changes without delaying input. Reduced-motion preferences are respected. |
+| Weight story | Choose **7 days**, **28 days**, **90 days**, or **All**. Dots are actual daily readings; the prominent line shows weekly averages. Use **Inspect a reading** for exact values. Missing days never become zeros, missing weeks break the line, and current-week averages are provisional. |
+| Useful Coach home | Training shows the next unfinished movement; Nutrition shows the next uneaten meal. A last-seven-days summary accompanies the shared weigh-in and weight review. |
+| Trustworthy saving and Undo | The save indicator distinguishes the device copy, syncing, synced, offline, and errors. Undo reverses the latest explicit set/movement/day completion or skip, or meal completion, without reverting unrelated edits. |
+
+> [!IMPORTANT]
+> Undo is scoped to the action's workout or meal date and account/reset generation. It restores only fields
+> still equal to that action's result; a subsequently edited weight or note is preserved. Changing
+> the workout or meal date, changing accounts, or starting fresh clears the notification. It is not an
+> account-wide rollback or a substitute for the fresh-start confirmation.
+
+These improvements do **not** change the workout prescription, recipes, attendance-based
+progression, Supabase schema, units, or saved-data format. There is no new paid service or API key.
+Read the [session experience implementation guide](docs/session-experience.md) for architecture,
+accessibility, browser limitations, design references, and the verification matrix.
+
 ## Features
 
 ### Core Experience
@@ -110,7 +143,7 @@ That means the interface favors:
 | One-trip home-gym flow | Gentle Upstairs OK prep comes first, downstairs lifting/cables stay together, the treadmill finisher happens before optional floor work, and Either movements finish the session. |
 | Set logging | Strength sets track weight in pounds/lbs and completion. |
 | Done-only moves | Warm-ups, cardio, and bodyweight targets do not show fake weight inputs. |
-| Exercise detail sheet | Includes cues, mistakes, progression notes, resources, inline YouTube, GIF option, swaps, and set log. |
+| Exercise detail sheet | Log, Technique, and History tabs organize set logging, swaps, cues, mistakes, progression, resources, inline YouTube, and optional GIFs. |
 | Knee/hip-friendly lower body | Default lower-body work avoids forced deep squats and uses supported leg press ranges, quad/hamstring machines, glute bridges, and hip-control warm-ups. |
 | Beginner-to-trained progression | Month 1 teaches the gym, then each 4-week block earns more volume, stronger loading, longer cardio, and more confident execution. |
 | Earned training week | Every 3 fully completed lifting sessions earns a training week. The 26-week journey requires 78 completed lifts, regardless of how many calendar months that takes. |
@@ -821,6 +854,7 @@ workout-tracker/
     workoutx-gif.js
   docs/
     code-walkthrough.md
+    session-experience.md
   public/
     app-icon.svg
     favicon.svg
@@ -833,11 +867,17 @@ workout-tracker/
     components/
       AppErrorBoundary.tsx
       PremiumUI.tsx
+      ProgramControls.tsx
+      SessionUI.tsx
+      WeightTrendChart.tsx
     lib/
       fetchWithTimeout.ts
+      presentationState.ts
+      programLifecycle.ts
       supabaseClient.ts
       syncMerge.ts
     App.tsx
+    experience.css
     main.tsx
     premium.css
     styles.css
@@ -845,7 +885,9 @@ workout-tracker/
   supabase/
     schema.sql
   tests/
+    coach-behavior.test.mjs
     rendered-html.test.mjs
+    service-worker.test.mjs
   .env.example
   index.html
   package.json
@@ -862,6 +904,11 @@ workout-tracker/
 | `src/lib/fetchWithTimeout.ts` | Bounds auth/sync requests to 20 seconds and forwards cancellation. |
 | `src/components/AppErrorBoundary.tsx` | Recovery screen for unexpected rendering failures. |
 | `src/components/PremiumUI.tsx` | Stateless level-one navigation and accessible progress-ring primitives. |
+| `src/components/SessionUI.tsx` | Accessible section tabs, save states, and the dismissible Undo action. |
+| `src/components/WeightTrendChart.tsx` | Calendar-based daily/weekly weight visualization and exact-value inspection. |
+| `src/lib/presentationState.ts` | Pure conditional Undo and honest save-presentation helpers. |
+| `src/experience.css` | Coordinated session layouts, semantic colors, measured mobile controls, and keyboard/motion fallbacks. |
+| `docs/session-experience.md` | Detailed guide to the 12 interface improvements and their testing boundaries. |
 | `tests/coach-behavior.test.mjs` | Runs actual calendar, coaching, completion, weight, and merge functions using synthetic data. |
 | `tests/service-worker.test.mjs` | Exercises offline recovery, failed responses, and cache cleanup using controlled fixtures. |
 | `.github/workflows/quality.yml` | Runs checks on pushes to main and pull requests without production credentials. |

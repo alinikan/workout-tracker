@@ -298,6 +298,10 @@ Important layout ideas:
 - The app shell is capped on desktop but fills phone width.
 - Bottom navigation is fixed only on mobile-style layouts.
 - Gym Mode has extra bottom padding so the action bar does not cover set rows.
+- `experience.css` owns the coordinated session layer: an inline Today log, a measured mobile
+  dock, semantic colors, and solid content surfaces. `SessionUI.tsx` shares keyboard-accessible
+  tabs and save/Undo presentation; `WeightTrendChart.tsx` separates daily dots from weekly means.
+  See [Session Experience](session-experience.md) for the full flow and regression coverage.
 - `ExerciseMedia` renders a preview only for an actual video or an explicitly opened GIF. GIF-only
   exercises start with a compact button; missing or failed sources never create a black placeholder.
   Gym's `no-video` class removes the reserved desktop media column and aligns the GIF button with

@@ -2218,12 +2218,12 @@ h3 {
 }
 
 .diet-complete-button {
-  background: var(--meal-color) !important;
-  color: #fff !important;
+  background: var(--meal-color);
+  color: #fff;
 }
 
 .diet-complete-button.complete {
-  background: var(--success) !important;
+  background: var(--success);
 }
 
 .diet-howto-button[aria-expanded="true"] {

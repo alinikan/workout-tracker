@@ -4,15 +4,110 @@ import { createServer } from "vite";
 import { renderToString } from "react-dom/server";
 import { createElement } from "react";
 import { canClaimLocalProgress, mergeProgressChanges, sameData } from "../src/lib/syncMerge.ts";
+import { savePresentation, undoUnchangedFields } from "../src/lib/presentationState.ts";
 
 // Load the actual app through Vite's TS/JSX pipeline. envDir:false makes this a
 // local fixture: no production credentials, accounts, or saved data are used.
 const server = await createServer({ envDir: false, server: { middlewareMode: true, hmr: false, ws: false, watch: null } });
 after(() => server.close());
 const model = await server.ssrLoadModule("/src/App.tsx");
+const weightPresentation = await server.ssrLoadModule("/src/components/WeightTrendChart.tsx");
 const days = model.buildPlanDays("2026-08-31");
 const reference = { weight: 80, label: "Recent average", detail: "Test fixture" };
 const weight = (kg) => ({ weightKg: String(kg), weight: "", weightForgotten: false, note: "", photoReminderDone: false });
+
+test("save UI distinguishes device saving, account sync, offline and errors", () => {
+  const ready = { localError: "", online: true, signedIn: true, status: "synced", saved: true };
+  assert.equal(savePresentation(ready).label, "Synced");
+  assert.equal(savePresentation({ ...ready, saved: false }).label, "Preparing device save");
+  assert.equal(savePresentation({ ...ready, online: false }).label, "Saved on this device");
+  assert.match(savePresentation({ ...ready, online: false }).detail, /Offline/);
+  assert.equal(savePresentation({ ...ready, signedIn: false }).label, "Saved on this device");
+  for (const status of ["loading", "saving", "error", "signed-out"]) assert.notEqual(savePresentation({ ...ready, status }).label, "Synced");
+  assert.equal(savePresentation({ ...ready, localError: "Storage full" }).label, "Device save failed");
+});
+
+test("Undo reverses completion without erasing a later weight, note or other-device edit", () => {
+  const before = { completed: false, exercises: { lift: [{ weight: "40", reps: "8", done: false }] }, note: "" };
+  const after = { ...before, completed: true, exercises: { lift: [{ weight: "40", reps: "8", done: true }] } };
+  const current = { ...after, exercises: { lift: [{ weight: "45", reps: "8", done: true }], row: [{ done: true }] }, note: "Keep this new note" };
+  const undone = undoUnchangedFields(before, after, current);
+  assert.equal(undone.exercises.lift[0].done, false);
+  assert.equal(undone.exercises.lift[0].weight, "45");
+  assert.equal(undone.note, "Keep this new note");
+  assert.deepEqual(undone.exercises.row, [{ done: true }]);
+  assert.equal(current.exercises.lift[0].done, true, "Undo must be immutable");
+});
+
+test("Undo can remove a newly created skip while preserving a later set log", () => {
+  const before = model.normalizeDayLog(undefined);
+  const after = model.skipPlanDay(days[0], before, "time");
+  const current = { ...after, notes: "Keep me", exercises: { lift: [{ weight: "20", reps: "", done: false }] } };
+  const undone = model.normalizeDayLog(undoUnchangedFields(before, after, current));
+  assert.equal(undone.daySkipReason, undefined);
+  assert.equal(undone.notes, "Keep me");
+  assert.equal(undone.exercises.lift[0].weight, "20");
+});
+
+test("weight presentation uses calendar windows, excludes future/invalid weights, and preserves missing mornings", () => {
+  const entries = [{ date: "2026-09-01", weight: 80 }, { date: "2026-10-01", weight: 79 },
+    { date: "2026-10-07", weight: 78 }, { date: "2026-10-08", weight: 0 }, { date: "2026-10-09", weight: NaN }, { date: "2026-10-22", weight: 77 }];
+  const chart = weightPresentation.weightTrendPresentation(entries, [], "2026-10-21", 28);
+  assert.deepEqual(chart.daily.map((point) => point.date), ["2026-10-01", "2026-10-07"]);
+  assert.ok(chart.daily[1].x - chart.daily[0].x > 90, "Six missing calendar days must remain visible");
+  assert.ok(chart.daily.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y)));
+  assert.equal(weightPresentation.weightTrendPresentation(entries, [], "2026-10-21", 7).daily.length, 0);
+  assert.equal(weightPresentation.weightTrendPresentation(entries, [], "2026-10-21", null).daily.length, 3);
+});
+
+test("weight chart renders honest legends and incomplete weekly coverage", () => {
+  const html = renderToString(createElement(weightPresentation.WeightTrendChart, {
+    today: "2026-10-21", entries: [{ date: "2026-10-05", weight: 80 }, { date: "2026-10-14", weight: 79 }],
+    weeks: [{ week: 6, startIso: "2026-10-05", endIso: "2026-10-11", average: 80, loggedDays: 1, forgottenDays: 6 },
+      { week: 7, startIso: "2026-10-12", endIso: "2026-10-18", average: 79, loggedDays: 1, forgottenDays: 6 }],
+  }));
+  assert.match(html, /Weekly average/);
+  assert.match(html.replace(/<!--.*?-->/g, ""), /1\/7 mornings/);
+  assert.match(html, /Comparisons unlock/);
+  assert.match(html, /not counted as zero/);
+  assert.match(html, /not a measurement of fat or muscle/);
+  assert.doesNotMatch(html, /NaN|undefined/);
+});
+
+test("weekly chart comparisons need two consecutive finished weeks with sufficient measurements", () => {
+  const props = { today: "2026-10-26", entries: [{ date: "2026-10-05", weight: 80 }, { date: "2026-10-14", weight: 79 }],
+    weeks: [{ week: 6, startIso: "2026-10-05", endIso: "2026-10-11", average: 80, loggedDays: 4, forgottenDays: 3 },
+      { week: 7, startIso: "2026-10-12", endIso: "2026-10-18", average: 79, loggedDays: 4, forgottenDays: 3 }] };
+  const full = renderToString(createElement(weightPresentation.WeightTrendChart, props)).replace(/<!--.*?-->/g, "");
+  assert.match(full, /Weekly average: 80.0 kg \(4\/7 readings\) to 79.0 kg/);
+  const missingWeek = { ...props, weeks: [props.weeks[0], { ...props.weeks[1], week: 8, startIso: "2026-10-19", endIso: "2026-10-25" }] };
+  const gap = renderToString(createElement(weightPresentation.WeightTrendChart, missingWeek));
+  assert.match(gap, /Comparisons unlock/);
+  assert.doesNotMatch(gap, /class="story-average"/);
+});
+
+test("Undo normalizes a newly completed row while keeping its subsequently entered load", () => {
+  const before = model.normalizeDayLog(undefined);
+  const after = model.completePlanDay(days[0], before);
+  const current = structuredClone(after);
+  current.exercises["leg-press"][0].weight = "50";
+  const undone = model.normalizeDayLog(undoUnchangedFields(before, after, current));
+  assert.equal(undone.exercises["leg-press"][0].weight, "50");
+  assert.equal(undone.exercises["leg-press"][0].done, false);
+  assert.equal(model.isPlanDayComplete(days[0], undone), false);
+});
+
+test("exercise history isolates actual movements, excludes current/future dates and labels partial attempts", () => {
+  const store = model.emptyStore();
+  for (const day of [days[0], days[7], days[14]]) store.days[day.iso] = { ...model.normalizeDayLog(undefined),
+    exercises: { "leg-press": [{ weight: "50", reps: "8", done: true }, { weight: "50", reps: "", done: false }],
+      "mi6-row": [{ weight: "30", reps: "10", done: true }] } };
+  const history = model.exerciseHistoryFor(days, store, days[14].iso, "leg-press");
+  assert.deepEqual(history.map((entry) => entry.date), [days[7].iso, days[0].iso]);
+  assert.equal(history[0].done, 1);
+  assert.equal(history[0].total, 2);
+  assert.deepEqual(model.exerciseHistoryFor(days, store, days[14].iso, "incline-db-press"), []);
+});
 
 function recordWeek(store, week, kg, count = 7) {
   for (let day = 0; day < count; day += 1) store.metrics[days[week * 7 + day].iso] = weight(kg);

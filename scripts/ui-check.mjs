@@ -17,7 +17,8 @@ const server = await createServer({
     "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(`https://${fixtureHost}`),
     "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify("sb_publishable_test_fixture"),
   },
-  server: { host: "127.0.0.1", port: 0, watch: null },
+  // Do not reload a fixture if an editor saves a source file during a test.
+  server: { host: "127.0.0.1", port: 0, watch: { ignored: ["**/*"] } },
 });
 await server.listen();
 const baseURL = `http://127.0.0.1:${server.httpServer.address().port}`;
@@ -169,6 +170,126 @@ async function assertNoVideoLayout(page, label) {
   if (layout.controlsX !== undefined) assert.ok(Math.abs(layout.headingX - layout.controlsX) <= 1, `${label}: GIF control is not aligned with the heading`);
 }
 
+async function pressStable(page, locator) {
+  // A real user scrolls a long exercise list before tapping. WebKit's automatic
+  // edge scrolling during a synthetic click can otherwise move the target
+  // between pointer-down and pointer-up, especially after an inline collapse.
+  await locator.evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
+  await settlePresentation(page);
+  if (page.viewportSize().width < 720) await locator.tap();
+  else await locator.click();
+}
+
+async function verifyInlineExperience(page, label, viewport) {
+  const calendar = page.locator(".today-calendar");
+  await expect(calendar).not.toHaveAttribute("open", "");
+  await calendar.locator(":scope > summary").click();
+  await calendar.getByRole("button", { name: /Tuesday, Oct 6 Cardio Base/ }).click();
+  await expect(page.locator(".today-command-date")).toContainText("Tuesday, Oct 6");
+  await page.locator(".today-command-header").getByRole("button", { name: "Back to Today", exact: true }).click();
+  await expect(page.locator(".today-command-date")).toContainText("Monday, Oct 5");
+  const first = page.locator(".move-item").first();
+  await expect(first.locator(".today-inline-log")).toBeVisible();
+  // Completion intentionally unmounts this one-set inline log. Assert the row's
+  // completed state rather than waiting for the removed checkbox to stay mounted.
+  await first.getByRole("checkbox").click();
+  await expect(first).toHaveClass(/complete/);
+  await page.locator(".undo-notice").getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(first).not.toHaveClass(/complete/);
+  // Put the first movement back into its completed state for the shared Gym test.
+  await first.locator(".move-check-button").click();
+  const lift = page.locator("#today-move-leg-press");
+  await pressStable(page, lift.locator(".move-main-button"));
+  await expect(lift.locator(".today-inline-log")).toBeVisible();
+  const weight = lift.getByRole("textbox", { name: "Leg Press set 1 weight in pounds", exact: true });
+  await lift.getByRole("button", { name: "Copy 35 pounds to Leg Press set 1", exact: true }).click();
+  await expect(weight).toHaveValue("35");
+  await weight.fill("45");
+  await lift.getByRole("checkbox", { name: "Leg Press set 1 complete", exact: true }).check();
+  await expect(lift.locator(".today-inline-log")).toBeVisible();
+  await weight.fill("50");
+  await page.locator(".undo-notice").getByRole("button", { name: "Undo", exact: true }).click();
+  // Undo may collapse to the earliest unfinished move; reopening must keep the edit.
+  await pressStable(page, lift.locator(".move-main-button"));
+  await expect(weight).toHaveValue("50");
+  await expect(lift.getByRole("checkbox", { name: "Leg Press set 1 complete", exact: true })).not.toBeChecked();
+  await expect(page.locator(".achievement-moment")).toHaveCount(0);
+  const inputs = await lift.locator(".set-field input, .set-field select").evaluateAll((elements) => elements.map((element) => ({
+    height: element.getBoundingClientRect().height, font: parseFloat(getComputedStyle(element).fontSize),
+  })));
+  assert.ok(inputs.every((input) => input.height >= 43 && input.font >= 16), `${label}: cramped native input ${JSON.stringify(inputs)}`);
+  const fields = await lift.locator(".set-row").first().evaluate((row) => {
+    const weight = row.querySelector(".set-weight input").getBoundingClientRect();
+    const reps = row.querySelector(".set-reps input").getBoundingClientRect();
+    return { weightTop: weight.top, repsTop: reps.top };
+  });
+  assert.ok(Math.abs(fields.weightTop - fields.repsTop) < 2, `${label}: weight/reps inputs don't align`);
+  if (viewport.width < 720) {
+    await weight.focus();
+    await page.setViewportSize({ width: viewport.width, height: viewport.height - 240 });
+    await expect(page.locator("main")).toHaveClass(/keyboard-open/);
+    await expect(page.locator(".primary-app-dock")).toBeHidden();
+    await page.setViewportSize(viewport);
+    await weight.blur();
+    await expect(page.locator("main")).not.toHaveClass(/keyboard-open/);
+  }
+  await lift.getByRole("button", { name: "Technique", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Leg Press", exact: true });
+  await expect(dialog.getByRole("tab", { name: "Technique", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(dialog.locator(".video-poster")).toBeVisible();
+  await dialog.locator(".video-poster").click();
+  await expect(dialog.locator("iframe")).toBeVisible();
+  await dialog.getByRole("tab", { name: "History", exact: true }).click();
+  await expect(dialog.locator("iframe")).toHaveCount(0);
+  await expect(dialog.locator(".exercise-history")).toContainText("Sep 28");
+  await expect(dialog.locator(".exercise-history")).toContainText("partial attempt");
+  await dialog.getByRole("tab", { name: "Log", exact: true }).click();
+  await assertSelectionContrast(page, ".session-section-tabs [aria-selected='true']");
+  await dialog.getByRole("tab", { name: "Log", exact: true }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(dialog.getByRole("tab", { name: "Technique", exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("End");
+  await expect(dialog.getByRole("tab", { name: "History", exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Home");
+  await page.getByRole("button", { name: "Close exercise details", exact: true }).click();
+  await assertLayout(page, `${label}-inline`);
+  await lift.scrollIntoViewIfNeeded();
+  await settlePresentation(page);
+  await page.screenshot({ path: `outputs/ui-check/${label}-inline-log.png` });
+}
+
+async function verifyRecipeExperience(page, label) {
+  const meal = page.locator(".diet-meal-card").first();
+  await expect(meal.locator(".meal-portion-preview p")).toContainText(/\d/);
+  await meal.getByRole("button", { name: /View portion/ }).click();
+  await expect(meal.getByRole("tab", { name: "Portion", exact: true })).toHaveAttribute("aria-selected", "true");
+  await meal.getByRole("button", { name: "Make It", exact: true }).click();
+  await expect(meal.locator(".diet-howto-panel")).toHaveCount(0);
+  await meal.getByRole("button", { name: "Make It", exact: true }).click();
+  const panel = meal.locator(".diet-howto-panel");
+  await expect(panel.locator(".diet-howto-steps li").first()).toBeVisible();
+  await panel.getByRole("tab", { name: "Ingredients", exact: true }).click();
+  await expect(panel.locator(".diet-basics-grid li").first()).toBeVisible();
+  await panel.getByRole("tab", { name: "Portion", exact: true }).click();
+  await expect(panel.locator(".smart-portion-card")).toContainText("Plate your serving");
+  await assertSelectionContrast(page, ".diet-howto-panel [aria-selected='true']");
+  await meal.getByRole("button", { name: "Make It", exact: true }).click();
+  await expect(panel).toHaveCount(0);
+  await meal.getByRole("button", { name: "Swap", exact: true }).click();
+  await meal.locator(".diet-swap-grid button").first().click();
+  await expect(meal.locator(".diet-swap-alert")).toBeVisible();
+  await meal.locator(".diet-swap-alert").getByRole("button", { name: "Revert to original", exact: true }).click();
+  await expect(meal.locator(".diet-swap-alert")).toHaveCount(0);
+  await meal.getByRole("button", { name: "Mark eaten", exact: true }).click();
+  await expect(meal.getByRole("button", { name: "Done", exact: true })).toBeVisible();
+  await page.locator(".undo-notice").getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(meal.getByRole("button", { name: "Mark eaten", exact: true })).toBeVisible();
+  await meal.getByRole("button", { name: "Mark eaten", exact: true }).click();
+  await meal.getByRole("button", { name: "Done", exact: true }).click();
+  await page.locator(".undo-notice").getByRole("button", { name: "Dismiss undo", exact: true }).click();
+  await assertLayout(page, `${label}-recipes`);
+}
+
 const browsers = [];
 try {
   for (const [engineName, engine, viewport] of [
@@ -181,10 +302,26 @@ try {
     for (const colorScheme of ["light", "dark"]) {
       const context = await browser.newContext({ viewport, colorScheme, timezoneId: "America/Vancouver", isMobile: viewport.width < 720, hasTouch: viewport.width < 720, reducedMotion: colorScheme === "light" ? "reduce" : "no-preference" });
       const seed = model.emptyStore("2026-08-31");
+      seed.days["2026-09-28"] = { ...model.normalizeDayLog(undefined), exercises: {
+        "leg-press": [{ weight: "35", reps: "8", done: true }, { weight: "35", reps: "", done: false }],
+      } };
       seed.metrics["2026-10-04"] = { weightKg: "80", weight: "", weightForgotten: false, note: "", photoReminderDone: false };
+      seed.metrics["2026-08-31"] = { weightKg: "82", weight: "", weightForgotten: false, note: "", photoReminderDone: false };
       const { page, errors } = await prepare(context, fixtureBackend(seed), seed);
       const label = `${engineName}-${colorScheme}`;
       await expect(page.locator(".training-journey h2")).toHaveText("Training Week 1 of 26");
+      const chart = page.locator(".weight-story-chart");
+      await chart.getByRole("button", { name: "7 days", exact: true }).click();
+      await expect(chart.locator(".story-daily")).toHaveCount(1);
+      await chart.getByRole("button", { name: "All", exact: true }).click();
+      await expect(chart.locator(".story-daily")).toHaveCount(2);
+      await chart.getByRole("combobox", { name: "Inspect a reading", exact: true }).selectOption("2026-08-31");
+      await expect(chart.locator(".chart-reading")).toContainText("82.0");
+      await assertSelectionContrast(page, ".chart-range-control [aria-pressed='true']");
+      await chart.getByRole("button", { name: "28 days", exact: true }).click();
+      await context.setOffline(true);
+      await expect(page.locator(".device-save-status")).toContainText("Offline");
+      await context.setOffline(false);
       await assertLayout(page, `${label}-coach`);
       await page.screenshot({ path: `outputs/ui-check/${label}-coach.png` });
       await page.locator(".coach-disclosure > summary").click();
@@ -192,10 +329,12 @@ try {
       await page.locator(".coach-disclosure > summary").click();
       await navigate(page, "Today");
       await expect(page.locator(".today-command-date")).toContainText("Training Week 1");
+      await page.locator(".readiness-disclosure > summary").click();
       await page.locator(".readiness-options").getByRole("button", { name: "Good", exact: true }).click();
       await assertSelectionContrast(page, ".readiness-options button.selected");
+      await page.locator(".readiness-disclosure > summary").click();
+      await verifyInlineExperience(page, label, viewport);
       await expect(page.locator(".move-item").first()).toBeVisible();
-      await page.locator(".move-check-button").first().click();
       await expect(page.locator(".move-item").first()).toHaveClass(/complete/);
       await assertLayout(page, `${label}-today`);
       await page.locator(".move-item").first().scrollIntoViewIfNeeded();
@@ -225,6 +364,12 @@ try {
       await expect(page.locator(".gym-mode-shell")).toBeVisible();
       await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
       await assertLayout(page, `${label}-gym`);
+      if (viewport.width < 720) {
+        await settlePresentation(page);
+        const action = await page.locator(".gym-action-bar").boundingBox();
+        const dock = await page.locator(".mobile-control-dock").boundingBox();
+        assert.ok(action.y + action.height <= dock.y, `${label}: Gym actions overlap navigation ${JSON.stringify({ action, dock })}`);
+      }
       await page.screenshot({ path: `outputs/ui-check/${label}-gym.png` });
       // Walk through the real move navigation to the GIF-only finisher from
       // the user's screenshot. Video exercises must still play inline first.
@@ -255,7 +400,9 @@ try {
       await page.screenshot({ path: `outputs/ui-check/${label}-long-walk-no-video.png` });
       await navigate(page, "Diet");
       await expect(page.locator(".diet-shell")).toBeVisible();
+      await verifyRecipeExperience(page, label);
       await assertLayout(page, `${label}-diet`);
+      await settlePresentation(page);
       await page.screenshot({ path: `outputs/ui-check/${label}-diet.png` });
       await navigate(page, "Progress");
       await expect(page.locator(".program-map button")).toHaveCount(26);
@@ -269,7 +416,7 @@ try {
       assert.equal(await page.evaluate((key) => JSON.parse(localStorage.getItem(key)).metrics["2026-10-04"].weightKg, storageKey), "80");
       assert.deepEqual(errors, [], `${label}: browser errors`);
       await context.close();
-      console.log(`PASS ${label}: Coach, Today, swap/revert contrast, video/GIF-only Gym, Diet, Progress, reset/cancel`);
+      console.log(`PASS ${label}: inline logging/Undo, previous loads, tabs, charts, keyboard, contrast, Gym, recipes, Progress, reset/cancel`);
     }
   }
 
@@ -289,9 +436,25 @@ try {
   await fallbackPage.screenshot({ path: "outputs/ui-check/iphone-webkit-failed-gif-no-frame.png" });
   await fallbackPage.locator(".gym-action-bar").getByRole("button", { name: /Complete Set 1/ }).click();
   await expect(fallbackPage.locator(".gym-session-summary h2")).toHaveText("Workout complete");
+  await fallbackPage.locator(".undo-notice").getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(fallbackPage.locator(".gym-main h2")).toHaveText("Long Brisk Walk");
+  await fallbackPage.locator(".gym-day-context").getByRole("button", { name: /Skip/ }).click();
+  await fallbackPage.getByRole("dialog").getByRole("button", { name: "Time", exact: true }).click();
+  await expect(fallbackPage.locator(".gym-session-summary h2")).toContainText("skipped");
+  await fallbackPage.locator(".undo-notice").getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(fallbackPage.locator(".gym-main h2")).toHaveText("Long Brisk Walk");
+  await expect(fallbackPage.locator(".gym-main .move-status-chip")).not.toContainText("Skipped");
+  await fallbackPage.clock.setFixedTime(new Date("2026-10-04T18:00:00Z"));
+  await fallbackPage.reload();
+  await expect(fallbackPage.locator(".coach-hub-shell")).toBeVisible();
+  await navigate(fallbackPage, "Today");
+  await expect(fallbackPage.locator(".today-session-count")).toHaveText("0 of 3 recovery steps complete");
+  await expect(fallbackPage.locator(".today-targets-disclosure .check-row").first()).toBeVisible();
+  await fallbackPage.locator(".today-targets-disclosure .check-row").first().click();
+  await expect(fallbackPage.locator(".today-session-count")).toHaveText("1 of 3 recovery steps complete");
   assert.deepEqual(fallbackErrors, []);
   await fallbackContext.close();
-  console.log("PASS WebKit unavailable GIF: no placeholder, no blank gap, completion stays usable");
+  console.log("PASS WebKit unavailable GIF, Gym completion Undo, whole-day skip Undo");
 
   // Two independent browser storage contexts share only the fake server. This
   // exercises the actual Supabase client, auth restoration and optimistic saves.
