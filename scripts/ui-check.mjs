@@ -5,12 +5,16 @@
  */
 import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
+import { parseArgs } from "node:util";
 import { createServer } from "vite";
 import { chromium, webkit, expect } from "playwright/test";
 
 const storageKey = "body-recomp-gym-tracker-v1";
 const fixtureHost = "tracker-fixture.supabase.co";
 const diagnosticContexts = new Set();
+const { values } = parseArgs({ options: { repeat: { type: "string", default: "1" } } });
+const repeatCount = Number(values.repeat);
+assert.ok(Number.isInteger(repeatCount) && repeatCount >= 1 && repeatCount <= 5, "--repeat must be an integer from 1 to 5");
 const server = await createServer({
   envDir: false,
   cacheDir: "node_modules/.vite-ui-check",
@@ -189,6 +193,8 @@ async function pressStable(page, locator) {
 }
 
 async function verifyInlineExperience(page, label, viewport) {
+  await expect(page.locator("html")).toHaveCSS("scroll-behavior", "auto");
+  await expect(page.locator(".move-item").first()).toHaveCSS("content-visibility", "visible");
   const calendar = page.locator(".today-calendar");
   await expect(calendar).not.toHaveAttribute("open", "");
   await calendar.locator(":scope > summary").click();
@@ -280,6 +286,10 @@ async function verifyInlineExperience(page, label, viewport) {
 
 async function verifyRecipeExperience(page, label) {
   const meal = page.locator(".diet-meal-card").first();
+  // These are live forms, not virtualized previews. A real height and an
+  // untransformed ancestor keep hit targets stable across short/long panels.
+  await expect(meal).toHaveCSS("content-visibility", "visible");
+  await expect(meal).toHaveCSS("transform", "none");
   await expect(meal.locator(".meal-portion-preview p")).toContainText(/\d/);
   await meal.getByRole("button", { name: /View portion/ }).click();
   await expect(meal.getByRole("tab", { name: "Portion", exact: true })).toHaveAttribute("aria-selected", "true");
@@ -291,8 +301,23 @@ async function verifyRecipeExperience(page, label) {
   await panel.getByRole("tab", { name: "Ingredients", exact: true }).click();
   await expect(panel.locator(".diet-basics-grid li").first()).toBeVisible();
   await panel.getByRole("tab", { name: "Portion", exact: true }).click();
+  await expect(panel.getByRole("tab", { name: "Portion", exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(panel.locator(".smart-portion-card")).toContainText("Plate your serving");
   await assertSelectionContrast(page, ".diet-howto-panel [aria-selected='true']");
+  // Repeatedly replace the long instructions with the shorter panels using
+  // real input, not dispatchEvent/force/retries. This catches moving targets
+  // even when one lucky first click would have passed on a developer's Mac.
+  for (let cycle = 0; cycle < 3; cycle += 1) {
+    for (const name of ["Cook", "Ingredients", "Portion"]) {
+      const tab = panel.getByRole("tab", { name, exact: true });
+      // Center the strip as a phone user would, then test the actual tap.
+      await tab.evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
+      if (page.viewportSize().width < 720) await tab.tap();
+      else await tab.click();
+      await expect(tab).toHaveAttribute("aria-selected", "true");
+      await expect(panel.getByRole("tabpanel", { name, exact: true })).toBeVisible();
+    }
+  }
   await meal.getByRole("button", { name: "Make It", exact: true }).click();
   await expect(panel).toHaveCount(0);
   await meal.getByRole("button", { name: "Swap", exact: true }).click();
@@ -311,12 +336,15 @@ async function verifyRecipeExperience(page, label) {
 }
 
 const browsers = [];
+const browserCases = [
+  ["iphone-webkit", webkit, { width: 402, height: 874 }],
+  ["compact-webkit", webkit, { width: 375, height: 812 }],
+  ["macbook-chromium", chromium, { width: 1440, height: 900 }],
+];
+const runs = Array.from({ length: repeatCount }, (_, index) => index + 1)
+  .flatMap((iteration) => browserCases.map((entry) => [iteration, ...entry]));
 try {
-  for (const [engineName, engine, viewport] of [
-    ["iphone-webkit", webkit, { width: 402, height: 874 }],
-    ["compact-webkit", webkit, { width: 375, height: 812 }],
-    ["macbook-chromium", chromium, { width: 1440, height: 900 }],
-  ]) {
+  for (const [iteration, engineName, engine, viewport] of runs) {
     const browser = await engine.launch();
     browsers.push(browser);
     for (const colorScheme of ["light", "dark"]) {
@@ -328,7 +356,8 @@ try {
       seed.metrics["2026-10-04"] = { weightKg: "80", weight: "", weightForgotten: false, note: "", photoReminderDone: false };
       seed.metrics["2026-08-31"] = { weightKg: "82", weight: "", weightForgotten: false, note: "", photoReminderDone: false };
       const { page, errors } = await prepare(context, fixtureBackend(seed), seed);
-      const label = `${engineName}-${colorScheme}`;
+      const label = `${engineName}-${colorScheme}${repeatCount > 1 ? `-repeat-${iteration}` : ""}`;
+      console.log(`CHECK ${label}`);
       await expect(page.locator(".training-journey h2")).toHaveText("Training Week 1 of 26");
       const chart = page.locator(".weight-story-chart");
       await chart.getByRole("button", { name: "7 days", exact: true }).click();

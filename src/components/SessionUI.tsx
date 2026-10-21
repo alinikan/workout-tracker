@@ -19,7 +19,9 @@ export function SectionTabs<T extends string>({ id, label, tabs, value, onChange
         if (next < 0) return;
         event.preventDefault();
         onChange(tabs[next].id);
-        document.getElementById(`${id}-tab-${tabs[next].id}`)?.focus();
+        // Selecting a shorter panel must not scroll the page again after the
+        // browser has already brought this tab strip into view.
+        document.getElementById(`${id}-tab-${tabs[next].id}`)?.focus({ preventScroll: true });
       }}>{tab.label}</button>)}
   </div>;
 }

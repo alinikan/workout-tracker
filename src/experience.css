@@ -107,7 +107,8 @@
 .inline-progression { display: block; margin: 8px 0 0; font-size: 12px; }
 .inline-progression summary { display: flex; gap: 6px; align-items: center; min-height: 44px; cursor: pointer; color: var(--training-ink); font-weight: 650; }
 .inline-progression p { color: var(--text-secondary); line-height: 1.6; margin: 0 0 10px; }
-@keyframes log-reveal { from { transform: translateY(5px); } to { transform: translateY(0); } }
+/* Fade content without translating buttons while a user is about to tap. */
+@keyframes log-reveal { from { opacity: .75; } to { opacity: 1; } }
 /* Animate content, never the ancestor of a fixed-position Gym action bar. */
 .gym-main { animation: log-reveal 160ms ease-out; }
 

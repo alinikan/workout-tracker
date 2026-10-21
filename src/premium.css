@@ -3656,11 +3656,9 @@ h3 {
   color: var(--text-primary);
 }
 
-/* Long workout, recipe, and library pages skip off-screen paint while staying in the DOM and
- * accessibility tree. The remembered intrinsic size prevents the scroll position from jumping. */
+/* Only the read-mostly library uses off-screen rendering estimates. Workout
+ * logs and expanding recipes need their actual heights for stable focus/scroll. */
 @supports (content-visibility: auto) {
-  .move-item,
-  .diet-meal-card,
   .library-card {
     content-visibility: auto;
     contain-intrinsic-size: auto 420px;

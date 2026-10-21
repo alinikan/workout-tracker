@@ -100,7 +100,7 @@ collapse into readable checked rows. You do not have to switch to Gym to log set
 | Exercise sections | Open **Details / Swap** for **Log**, **Technique**, and **History**. Technique contains inline YouTube, optional GIF, setup, and cues; History shows the last 12 attempts for that exact exercise before the selected date. |
 | Recipe sections | **Make It** opens **Ingredients**, **Cook**, and **Portion**. Cook retains the detailed beginner instructions; Portion contains plated amounts and any existing portion advice. Swaps remain clearly labeled and reversible. |
 | Readable depth | Content and inputs use solid surfaces. Restrained translucency is limited to navigation, with a reduced-transparency fallback. |
-| Purposeful motion | Check states, inline expansion, and short positional transitions explain changes without delaying input. Reduced-motion preferences are respected. |
+| Purposeful motion | Check states, inline fades, and navigation transitions explain changes without moving live form targets. Reduced-motion preferences are respected. |
 | Weight story | Choose **7 days**, **28 days**, **90 days**, or **All**. Dots are actual daily readings; the prominent line shows weekly averages. Use **Inspect a reading** for exact values. Missing days never become zeros, missing weeks break the line, and current-week averages are provisional. |
 | Useful Coach home | Training shows the next unfinished movement; Nutrition shows the next uneaten meal. A last-seven-days summary accompanies the shared weigh-in and weight review. |
 | Trustworthy saving and Undo | The save indicator distinguishes the device copy, syncing, synced, offline, and errors. Undo reverses the latest explicit set/movement/day completion or skip, or meal completion, without reverting unrelated edits. |
@@ -479,7 +479,7 @@ flowchart TD
 
 Data saves locally first. When signed in, the app compares the last synced copy with this device and the user's private cloud row. Independent changes are combined, including intentional unchecking, clearing fields, and reverting swaps. If both devices change exactly the same field, the saving device wins that field. A conditional database update retries if another device saves during the request.
 
-The presentation architecture is deliberately separated from that data flow. `src/styles.css` keeps the original feature and mobile-layout contract, while `src/premium.css` supplies semantic surfaces, typography, the iPhone dock, responsive composition, dark appearance, motion, and accessibility polish. `lucide-react` provides a consistent icon language, and `motion` animates only navigational context, expandable recipe content, and meaningful state changes. Both honor the device's Reduced Motion preference. `src/components/PremiumUI.tsx` contains stateless shell primitives, so none of them can mutate a workout, meal, weigh-in, or cloud record.
+The presentation architecture is deliberately separated from that data flow. `src/styles.css` keeps the original feature and mobile-layout contract, while `src/premium.css` supplies semantic surfaces, typography, the iPhone dock, responsive composition, dark appearance, motion, and accessibility polish. `lucide-react` provides a consistent icon language, and `motion` animates navigational context and meaningful state changes. Interactive workout and recipe rows do not use positional layout animations; their content entrances use a short CSS fade. Both honor the device's Reduced Motion preference. `src/components/PremiumUI.tsx` contains stateless shell primitives, so none of them can mutate a workout, meal, weigh-in, or cloud record.
 
 On iPhone, **Coach Hub is the app home**, providing the first overview of today&apos;s workout, nutrition, weight, and sync status. Inside Workout, **Today remains the primary working surface**. The fixed dock keeps Today, Gym, Diet, Progress, and Coach in the same positions everywhere. Week Plan and Exercise Library appear as contextual Workout tools instead of competing with daily actions. On MacBook, the wider product and section navigation remains available for efficient browsing.
 
@@ -986,6 +986,8 @@ Install the test browsers once, then run the phone/desktop checks:
 ```bash
 npx playwright install chromium webkit
 npm run test:ui
+# Run all six configurations twice, as GitHub Actions does:
+npm run test:ui -- --repeat=2
 ```
 
 This starts its own local Vite server with `.env` loading disabled, uses synthetic data and a mocked Supabase API, and closes the server afterward. It checks WebKit at 402 px and 375 px plus Chromium at MacBook dimensions, in light and dark appearance with both normal and reduced motion. It exercises Today logging, swap/revert, selected-control and caption contrast (4.5:1 minimum), Gym, Diet, the earned journey map, reset confirmation/cancellation, cross-tab resets, and two-device reset/reconnection through the actual sync client. External media requests are blocked for deterministic fixtures; these screenshots do not validate the remote videos or food photos. Screenshots go to the Git-ignored `outputs/ui-check/` folder. WebKit emulation is useful regression coverage, not a substitute for checking a real iPhone Home Screen app after deployment.

@@ -21,7 +21,9 @@ jobs:
       - name: Install isolated browser test engines
         run: npx playwright install --with-deps chromium webkit
       - name: Phone and desktop UI checks
-        run: npm run test:ui
+        # Run every viewport/theme twice in fresh contexts. No automatic retry
+        # may turn a missed tap into a pass; each interaction must work first time.
+        run: npm run test:ui -- --repeat=2
       - name: Keep UI screenshots and traces when a check fails
         if: failure()
         uses: actions/upload-artifact@v4

@@ -8767,9 +8767,8 @@ export default function Home() {
         <div className="diet-layout">
           <section className="diet-meal-stack" aria-label="Meals for selected day">
             {dietMealRows.map((meal, mealIndex) => (
-              <motion.article
+              <article
                 key={meal.slot}
-                layout="position"
                 data-meal-order={mealIndex + 1}
                 className={`diet-meal-card slot-${meal.slot} ${meal.isComplete ? "complete" : ""} ${
                   meal.isSwapped ? "swapped" : ""
@@ -8915,7 +8914,7 @@ export default function Home() {
                     </div>
                   </div>
                 )}
-              </motion.article>
+              </article>
             ))}
           </section>
 

@@ -78,6 +78,10 @@ precedence over all success messages. Offline status never claims an edit reache
 - Content and input surfaces are opaque. Navigation has a reduced-transparency fallback. The
   interface does not require browser support for backdrop filters or view transitions to function.
 - Short transitions do not gate writes. Reduced motion disables the new decorative animations.
+- Native focus scrolling is immediate, not globally smooth. Today and recipe cards retain
+  their real heights without layout-position animations or off-screen size estimates. Panel
+  entrances fade without translating the controls. Explicit workout navigation can still
+  request a smooth scroll; normal tab and input interactions do not.
 - Labels, icons, check states, and text accompany semantic colors. Small inspection targets have
   an equivalent select control. Input font sizes avoid iOS focus-zoom for the primary logging fields.
 - WebKit emulation is useful but does not reproduce every physical iPhone keyboard, browser chrome,
@@ -98,6 +102,12 @@ and two-device/reset/offline-save integration. Test users and storage are synthe
 account or production database is used. Remote media is blocked except for an explicit synthetic
 GIF, so these tests verify player behavior and layout, not external video availability.
 
+Use `npm run test:ui -- --repeat=2` for the same repeated matrix that runs in GitHub Actions.
+Each repetition creates fresh contexts and exercises all six viewport/theme configurations.
+Recipe checks also switch Ingredients/Cook/Portion three times with real taps/clicks and assert
+both the selected tab and its panel. Repetition is not a retry: the first failed interaction
+fails the job. `--repeat` accepts integers from 1 through 5; the default is 1.
+
 Screenshots are written under `outputs/ui-check/` (ignored by Git). The test server disables source watching
 so editing a source file cannot silently reload a fixture into a different product area mid-test.
 If a check fails, the runner also saves the failing screen and a Playwright trace in that folder.
@@ -105,11 +115,17 @@ GitHub Actions uploads both in the `ui-check-screenshots` artifact. Download and
 then inspect a trace locally with `npx playwright show-trace path/to/failure-trace-1.zip` (use the
 actual file name). The trace includes only the isolated test account and synthetic progress.
 
-Phone interactions scroll the actual control into the center before tapping, so native WebKit
-auto-scrolling cannot move a lower button between pointer-down and pointer-up. Copying a previous
+Phone copy-weight and repeated-tab interactions center the actual control before tapping, reducing
+dependence on WebKit's automatic edge scrolling. Copying a previous
 load is tested both on an empty field and after a manual edit, without completing the set or
 inventing repetitions. The copy button sits outside the input label, and interactive Today rows
-do not use layout-position transforms; the small log entrance animation remains separate.
+do not use layout-position transforms; the small log entrance fade remains separate.
+
+Run #13's trace recorded a changing document scroll position during a recipe tab click, followed
+by an unchanged selected tab. That evidence motivated the geometry changes above. Background
+references: [MDN scroll-behavior](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/scroll-behavior),
+[MDN content-visibility](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/content-visibility),
+and [Playwright input actions](https://playwright.dev/docs/input).
 
 ## Design References
 
