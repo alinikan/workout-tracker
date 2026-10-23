@@ -11,6 +11,9 @@ create table if not exists momentum_private.momentum_owner (
   singleton boolean primary key default true check (singleton),
   user_id uuid not null unique references auth.users(id) on delete cascade
 );
+-- No browser policies: RLS also fails closed if a later grant is made by mistake.
+-- The administrator-owned SECURITY DEFINER functions can still check membership.
+alter table momentum_private.momentum_owner enable row level security;
 revoke all on momentum_private.momentum_owner from public, anon, authenticated;
 
 create or replace function public.momentum_access()

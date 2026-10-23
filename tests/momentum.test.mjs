@@ -516,6 +516,42 @@ test("Actual PostgreSQL: singleton allowlist, RLS, RPC ownership and compare-and
       );
     };
     await t.test(
+      "allowlist RLS denies direct reads even if browser grants are accidentally added",
+      async () => {
+        const tables = (
+          await db.query(
+            "select tablename,rowsecurity from pg_tables where (schemaname='momentum_private' and tablename='momentum_owner') or (schemaname='public' and tablename='momentum_progress')",
+          )
+        ).rows;
+        assert.equal(tables.length, 2);
+        assert.ok(tables.every((table) => table.rowsecurity));
+        await db.exec(
+          "begin;grant usage on schema momentum_private to authenticated;grant select on momentum_private.momentum_owner to authenticated;",
+        );
+        try {
+          await as(other);
+          assert.equal(
+            (await db.query("select * from momentum_private.momentum_owner"))
+              .rows.length,
+            0,
+          );
+          await as(owner);
+          assert.equal(
+            (await db.query("select * from momentum_private.momentum_owner"))
+              .rows.length,
+            0,
+          );
+          assert.equal(
+            (await db.query("select public.momentum_access() as allowed"))
+              .rows[0].allowed,
+            true,
+          );
+        } finally {
+          await db.exec("rollback;reset role;");
+        }
+      },
+    );
+    await t.test(
       "unapproved user cannot discover the owner, read records or invoke writes",
       async () => {
         await as(other);

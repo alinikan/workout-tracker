@@ -220,7 +220,7 @@ future booked/recorded appointments block automatic date shifting.
 
 | Layer | Boundary |
 | --- | --- |
-| Administrator allowlist | `momentum_private.momentum_owner` contains one authorized authentication UID; browser roles have no access. Existing unrelated private-schema grants are untouched. |
+| Administrator allowlist | `momentum_private.momentum_owner` contains one authorized authentication UID. Browser roles have no schema/table privileges, and RLS has no browser policies as an additional safeguard. Only administrator-owned security-definer functions check membership. Existing unrelated private-schema grants are untouched. |
 | Access discovery | `momentum_access()` returns whether the current signed-in user is authorized; no email comparisons. |
 | Reads | RLS requires both matching `auth.uid()` and allowlist membership. Guessing another UID returns no record. |
 | Writes | Direct browser table writes are denied. `momentum_save()` derives ownership from `auth.uid()` and uses compare-and-swap revisions under a row lock. |
