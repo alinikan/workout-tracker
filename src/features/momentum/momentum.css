@@ -1,0 +1,614 @@
+/* Scoped presentation: no Momentum selector changes the original Recomp views. */
+.momentum {
+  --mm-boxing: #ad3e35;
+  --mm-walk: #48710b;
+  --mm-strength: #086e64;
+  --mm-warning: #805600;
+  max-width: 1080px;
+  min-height: 100dvh;
+  margin: auto;
+  padding: max(18px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right)) max(36px, env(safe-area-inset-bottom));
+  color: var(--text-primary, #192426);
+  background: var(--surface-primary, #fff);
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.momentum *,
+.momentum *::before,
+.momentum *::after {
+  box-sizing: border-box;
+  min-width: 0;
+}
+.momentum :is(h1, h2, h3, p) {
+  margin: 0 0 12px;
+  letter-spacing: 0;
+}
+.momentum h1 {
+  font-size: 32px;
+  line-height: 1.2;
+  margin-top: 20px;
+}
+.momentum h1 span {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-top: 8px;
+}
+.momentum h2 {
+  font-size: 21px;
+  line-height: 1.35;
+}
+.momentum h3 {
+  font-size: 16px;
+  line-height: 1.4;
+}
+.momentum :is(button, a, input, select, textarea) {
+  font: inherit;
+  letter-spacing: 0;
+}
+.momentum button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid var(--separator-strong, #c5d2d0);
+  border-radius: 6px;
+  background: var(--surface-secondary, #edf3f2);
+  color: var(--text-primary, #192426);
+  cursor: pointer;
+  text-align: center;
+  line-height: 1.35;
+}
+.momentum button svg {
+  flex: 0 0 auto;
+}
+.momentum button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.momentum :is(button, a, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--training-ink, #086e64);
+  outline-offset: 3px;
+}
+.momentum button.mm-primary {
+  background: #086e64;
+  color: #fff;
+  border-color: #086e64;
+  font-weight: 650;
+}
+.momentum [aria-pressed="true"],
+.momentum [role="tab"][aria-selected="true"],
+.momentum [aria-current="step"] {
+  background: #d5eee8;
+  color: #074a42;
+  border-color: #0b776b;
+}
+.momentum a {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--training-ink, #086e64);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.momentum .mm-header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--separator);
+}
+.momentum .mm-header :is(h1, p) {
+  grid-column: 1/-1;
+}
+.momentum .mm-back {
+  justify-self: start;
+  border: 0;
+  padding-left: 0;
+  background: transparent;
+}
+.mm-private {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.mm-save {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  padding-block: 6px;
+}
+.momentum .mm-save button {
+  border: 0;
+  background: transparent;
+  padding: 6px;
+}
+.mm-notice {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  padding: 14px 0;
+  border-block: 2px solid var(--training-ink, #086e64);
+}
+.mm-notice p {
+  flex: 1;
+}
+.mm-tabs {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 5;
+  display: flex;
+  overflow-x: auto;
+  gap: 4px;
+  padding: 8px 0;
+  background: var(--surface-primary, #fff);
+  border-bottom: 1px solid var(--separator);
+  scrollbar-width: thin;
+}
+.momentum .mm-tabs button {
+  flex: 0 0 auto;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  font-size: 13px;
+  border-bottom: 3px solid transparent;
+}
+.momentum .mm-tabs button[aria-selected="true"] {
+  border-bottom-color: #0b776b;
+  background: var(--surface-secondary);
+  color: var(--training-ink);
+}
+.momentum .mm-tabs button[aria-selected="false"] {
+  color: var(--text-secondary);
+  background: transparent;
+}
+.mm-band,
+.mm-one-thing,
+.mm-safety,
+.mm-evidence {
+  padding-block: 24px;
+  border-bottom: 1px solid var(--separator, #d5dfdc);
+}
+.momentum :is(#mm-session-exercises, #mm-session-record) {
+  scroll-margin-top: calc(76px + env(safe-area-inset-top, 0px));
+}
+.mm-one-thing {
+  border-left: 4px solid var(--mm-walk);
+  padding-left: 16px;
+  margin-block: 20px;
+}
+.mm-one-thing.boxing {
+  border-left-color: var(--mm-boxing);
+}
+.mm-one-thing:is(.strength-a, .strength-b) {
+  border-left-color: var(--mm-strength);
+}
+.mm-one-thing.preparation,
+.mm-safety {
+  border-left: 4px solid var(--mm-warning);
+  padding-left: 16px;
+}
+.mm-section-title {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.mm-section-title svg {
+  flex: 0 0 auto;
+  margin-top: 4px;
+  color: var(--training-ink);
+}
+.mm-section-title h2 {
+  margin: 0;
+}
+.mm-one-thing > small {
+  display: block;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+.mm-enough {
+  font-size: 17px;
+}
+.mm-callout {
+  border-left: 3px solid var(--mm-warning);
+  padding: 10px 12px;
+  background: var(--surface-secondary, #f1f5f4);
+}
+.mm-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px;
+  margin-block: 14px;
+}
+.mm-field {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+.mm-field > span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.momentum .mm-field :is(input, select, textarea) {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--separator-strong, #b6c7c4);
+  border-radius: 5px;
+  padding: 10px;
+  color: var(--text-primary, #192426);
+  background: var(--surface-primary, #fff);
+  font-size: 16px;
+}
+.momentum .mm-field select {
+  height: 46px;
+}
+.momentum .mm-field textarea {
+  min-height: 78px;
+  resize: vertical;
+}
+.momentum input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  accent-color: #086e64;
+}
+.mm-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding-block: 5px;
+}
+.momentum fieldset {
+  border: 0;
+  padding: 0;
+  margin: 14px 0;
+}
+.momentum legend {
+  font-size: 13px;
+  font-weight: 650;
+}
+.mm-actions,
+.mm-outcomes,
+.mm-day-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 12px;
+}
+.mm-onboarding {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-block: 16px;
+}
+.mm-onboarding button {
+  flex: 1 0 100px;
+  font-size: 12px;
+}
+.mm-row {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.mm-exercise,
+.mm-appointment,
+.mm-gym {
+  padding-block: 18px;
+  border-top: 1px solid var(--separator);
+}
+.mm-set {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+  padding: 14px 0;
+}
+.mm-set > span {
+  grid-column: 1/-1;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.mm-tutorial {
+  margin-top: 14px;
+}
+.momentum
+  .mm-tutorial
+  :is(
+    .exercise-media,
+    .exercise-media-shell,
+    .video-shell,
+    .media-shell,
+    .media-visual
+  ) {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.momentum .mm-tutorial :is(iframe, .video-poster) {
+  width: 100%;
+  aspect-ratio: 16/9;
+  min-width: 0;
+}
+.momentum .mm-tutorial iframe {
+  height: auto;
+  border: 0;
+}
+.mm-recorded {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  color: var(--done-ink, #196c3e);
+}
+.mm-calendar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.momentum .mm-calendar button {
+  display: grid;
+  align-content: start;
+  justify-content: start;
+  gap: 6px;
+  text-align: left;
+  border-top: 3px solid var(--mm-walk);
+}
+.momentum .mm-calendar button.boxing {
+  border-top-color: var(--mm-boxing);
+}
+.momentum .mm-calendar button:is(.strength-a, .strength-b) {
+  border-top-color: var(--mm-strength);
+}
+.momentum .mm-calendar button.planned,
+.momentum .mm-week button.planned {
+  border-color: var(--done-ink, #196c3e);
+  box-shadow: inset 0 -3px var(--done-ink, #196c3e);
+}
+.mm-calendar small {
+  font-size: 11px;
+}
+.mm-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+}
+.momentum .mm-week button {
+  display: grid;
+  padding: 8px 3px;
+  border-radius: 5px;
+  min-height: 86px;
+}
+.mm-week :is(span, small) {
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.mm-food-preview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.momentum .mm-food-preview button {
+  text-align: left;
+  justify-content: start;
+  font-size: 12px;
+  background: transparent;
+  padding: 6px;
+}
+.mm-food-preview img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  flex: 0 0 48px;
+  border-radius: 5px;
+}
+.mm-food-preview small {
+  display: block;
+  text-transform: capitalize;
+  color: var(--text-secondary);
+}
+.mm-meal {
+  padding-block: 22px;
+  border-bottom: 1px solid var(--separator);
+}
+.mm-meal header {
+  display: flex;
+  gap: 14px;
+  align-items: start;
+}
+.mm-meal header img {
+  width: 76px;
+  height: 76px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex: 0 0 76px;
+}
+.mm-meal header > div {
+  flex: 1;
+}
+.mm-meal header small {
+  display: block;
+  font-size: 11px;
+  text-transform: capitalize;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+}
+.mm-meal > p {
+  margin-top: 12px;
+  font-size: 13px;
+}
+.mm-meal.done {
+  border-left: 3px solid var(--done-ink);
+  padding-left: 12px;
+}
+.mm-swap-label {
+  display: block;
+  color: var(--mm-boxing);
+  font-size: 12px;
+}
+.mm-recipe-details {
+  padding-top: 10px;
+}
+.mm-swap-options {
+  display: grid;
+  gap: 6px;
+  padding-top: 10px;
+}
+.momentum .mm-swap-options button {
+  justify-content: space-between;
+  text-align: left;
+}
+.momentum .session-section-tabs {
+  margin-top: 0;
+}
+.mm-coach {
+  display: flex;
+  gap: 12px;
+  align-items: start;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--separator);
+  color: var(--text-secondary);
+}
+.mm-coach svg {
+  flex: 0 0 auto;
+  color: var(--training-ink);
+  margin-top: 4px;
+}
+.mm-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.mm-stats strong {
+  font-size: 28px;
+  display: block;
+  line-height: 1.3;
+  color: var(--training-ink);
+}
+.mm-stats span {
+  font-size: 12px;
+}
+.mm-skill {
+  padding: 10px 0;
+  border-top: 1px solid var(--separator);
+}
+.mm-muted,
+.mm-footer {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.momentum details > summary {
+  cursor: pointer;
+  padding-block: 12px;
+  min-height: 44px;
+  font-weight: 650;
+}
+.momentum details p {
+  margin-top: 10px;
+}
+.momentum li {
+  margin-bottom: 8px;
+}
+.mm-evidence > div {
+  padding-top: 18px;
+}
+.mm-footer {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  padding-top: 24px;
+}
+@media (min-width: 900px) {
+  .momentum {
+    padding-inline: 40px;
+  }
+  .mm-meals {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 28px;
+    align-items: start;
+  }
+  .mm-gym-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 28px;
+  }
+}
+@media (max-width: 500px) {
+  .momentum h1 {
+    font-size: 30px;
+  }
+  .mm-fields {
+    grid-template-columns: 1fr;
+  }
+  .mm-calendar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mm-calendar button {
+    padding: 10px;
+    font-size: 12px;
+  }
+  .mm-day-options {
+    gap: 4px;
+  }
+  .momentum .mm-day-options button {
+    flex: 1 0 38px;
+    padding: 5px;
+    font-size: 11px;
+  }
+  .mm-outcomes {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .mm-food-preview {
+    grid-template-columns: 1fr;
+  }
+  .mm-notice {
+    flex-direction: column;
+  }
+  .mm-row {
+    flex-wrap: wrap;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  .momentum {
+    --mm-boxing: #f29b8c;
+    --mm-walk: #b1cc7e;
+    --mm-strength: #80d1c0;
+    --mm-warning: #e9c66d;
+  }
+  .momentum [aria-pressed="true"],
+  .momentum [role="tab"][aria-selected="true"],
+  .momentum [aria-current="step"] {
+    background: #16443e;
+    color: #dcfff4;
+    border-color: #80d1c0;
+  }
+  .momentum button.mm-primary {
+    background: #90d9c8;
+    color: #072e28;
+    border-color: #90d9c8;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .momentum *,
+  .momentum *::before,
+  .momentum *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -10,13 +10,14 @@ teach the project, not decorate every obvious line with a comment.
 
 ## Big Picture
 
-Workout Tracker is a React + TypeScript Progressive Web App. It has three product areas:
+Workout Tracker is a React + TypeScript Progressive Web App. Its original three product areas remain intact:
 
 | Area | Purpose |
 | --- | --- |
 | Coach Hub | Account sign-in, sync status, daily kg weigh-ins, weight chart, and weekly averages. |
 | Workout | Today, Gym Mode, weekly planner, progress dashboard, and exercise library. |
 | Diet | Daily meal cards, recipe steps, meal swaps, pre-workout fueling, and weekly to-buy list. |
+| Momentum (optional/private) | A separately authorized 30-day consistency journey. It never advances the original earned-week counter. |
 
 The app saves progress in two layers:
 
@@ -26,11 +27,19 @@ The app saves progress in two layers:
 That design lets the app work in a gym with weak reception while still giving account-based syncing
 when the network is available.
 
+Momentum uses a different boundary: live single-account authorization before entry, an independent
+revisioned cloud document, and encrypted session-key device drafts. Its offline tradeoffs are
+intentional; do not copy original plaintext persistence into this private feature. See
+[Momentum setup and architecture](momentum.md#privacy-and-sync-architecture).
+
 ## File-By-File Guide
 
 | File | What It Is For |
 | --- | --- |
 | `src/App.tsx` | Main application logic, data, helpers, and UI. This is the product brain. |
+| `src/features/momentum/` | Scoped private feature; pure plan/safety/coaching modules, independent sync hook and lazy UI. |
+| `supabase/migrations/20261023_momentum.sql` | Administrator-installed singleton authorization, separate RLS table and revisioned write RPC. |
+| `tests/momentum.test.mjs` | Pure feature tests plus actual PostgreSQL authorization, activation and conflict checks. |
 | `src/styles.css` | Stable feature styles and the original mobile/PWA layout contract. |
 | `src/premium.css` | Semantic premium presentation layer loaded last: surfaces, typography, navigation, responsive composition, dark appearance, and motion. |
 | `src/components/PremiumUI.tsx` | Stateless product navigation and accessible progress-ring components. |
@@ -79,7 +88,7 @@ only known values are used.
 Example:
 
 ```ts
-type AppMode = "hub" | "workout" | "diet";
+type AppMode = "hub" | "workout" | "diet" | "momentum";
 ```
 
 That means a typo such as `"workouts"` would fail during development instead of becoming a broken
@@ -108,8 +117,7 @@ button in production.
 The schedule stores exercise IDs instead of copying whole exercise objects. That way one update to
 an exercise's cues, video, or swap list appears everywhere.
 
-Lower-body exercise choices are intentionally knee/hip friendly by default. The user reported that
-deep squatting and sitting into squat positions feel mechanically blocked, so `strengthWarmupIds`
+The knee/hip friendly lower-body defaults prioritize supported, comfortable ranges. `strengthWarmupIds`
 starts with seated knee extension and supported hip abduction rather than bodyweight squats, and
 Wednesday's Strength B uses leg press plus glute bridge instead of goblet squat. Keep bodyweight
 squat and goblet squat as optional library/swap items unless the user later confirms that squatting

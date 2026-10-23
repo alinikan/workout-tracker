@@ -8,11 +8,12 @@ import { mkdir } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { createServer } from "vite";
 import { chromium, webkit, expect } from "playwright/test";
+import { runMomentumChecks } from "./momentum-ui-check.mjs";
 
 const storageKey = "body-recomp-gym-tracker-v1";
 const fixtureHost = "tracker-fixture.supabase.co";
 const diagnosticContexts = new Set();
-const { values } = parseArgs({ options: { repeat: { type: "string", default: "1" } } });
+const { values } = parseArgs({ options: { repeat: { type: "string", default: "1" }, "momentum-only": { type: "boolean", default: false } } });
 const repeatCount = Number(values.repeat);
 assert.ok(Number.isInteger(repeatCount) && repeatCount >= 1 && repeatCount <= 5, "--repeat must be an integer from 1 to 5");
 const server = await createServer({
@@ -30,15 +31,20 @@ const baseURL = `http://127.0.0.1:${server.httpServer.address().port}`;
 const model = await server.ssrLoadModule("/src/App.tsx");
 await mkdir("outputs/ui-check", { recursive: true });
 
-function fixtureBackend(initial) {
+function fixtureBackend(initial, options = {}) {
   let data = structuredClone(initial);
+  let privateData = options.momentum ? structuredClone(options.momentum) : null;
+  let privateRevision = 0;
+  let privateAccess = Boolean(options.privateAccess);
   let revision = 1;
   const updatedAt = () => new Date(Date.UTC(2026, 9, 5, 12, 0, revision)).toISOString();
-  const user = { id: "00000000-0000-4000-8000-000000000001", aud: "authenticated", role: "authenticated", email: "fixture@example.test" };
+  const user = { id: options.userId ?? "00000000-0000-4000-8000-000000000001", aud: "authenticated", role: "authenticated", email: "fixture@example.test" };
   const payload = Buffer.from(JSON.stringify({ sub: user.id, aud: "authenticated", role: "authenticated", exp: 2100000000 })).toString("base64url");
   const authSession = { access_token: `e30.${payload}.test`, refresh_token: "fixture-refresh-token", expires_in: 3600, expires_at: 2100000000, token_type: "bearer", user };
   return {
     snapshot: () => structuredClone(data),
+    privateSnapshot: () => structuredClone(privateData),
+    revokePrivate: () => { privateAccess = false; },
     route: async (route) => {
       const request = route.request();
       const url = new URL(request.url());
@@ -47,6 +53,15 @@ function fixtureBackend(initial) {
       if (url.pathname.endsWith("/token")) return send(authSession);
       if (url.pathname.endsWith("/user")) return send(user);
       if (url.pathname.endsWith("/logout")) return send({});
+      if (url.pathname === "/rest/v1/rpc/momentum_access") return send(privateAccess);
+      if (url.pathname === "/rest/v1/momentum_progress") return send(privateAccess && privateData ? [{ data: privateData, revision: privateRevision }] : []);
+      if (url.pathname === "/rest/v1/rpc/momentum_save") {
+        if (!privateAccess) return send({code:"42501",message:"Momentum access denied"},403);
+        const body = request.postDataJSON();
+        if (body.p_expected_revision !== privateRevision) return send({conflict:true,data:privateData,revision:privateRevision});
+        privateData = body.p_data; privateRevision += 1;
+        return send({conflict:false,data:privateData,revision:privateRevision});
+      }
       if (url.pathname === "/rest/v1/workout_progress") {
         if (request.method() === "GET") return send([{ data, updated_at: updatedAt() }]);
         if (url.searchParams.has("updated_at") && url.searchParams.get("updated_at") !== `eq.${updatedAt()}`) return send([]);
@@ -100,7 +115,7 @@ async function assertLayout(page, label) {
   const widths = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
   assert.ok(widths.scroll <= widths.client + 1, `${label}: horizontal overflow ${JSON.stringify(widths)}`);
   const dock = page.locator(".primary-app-dock");
-  const bounds = await dock.boundingBox();
+  const bounds = await dock.count() ? await dock.boundingBox() : null;
   const viewport = page.viewportSize();
   if (bounds && viewport.width <= 720) assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= viewport.width + 1, `${label}: dock outside viewport`);
 }
@@ -344,6 +359,7 @@ const browserCases = [
 const runs = Array.from({ length: repeatCount }, (_, index) => index + 1)
   .flatMap((iteration) => browserCases.map((entry) => [iteration, ...entry]));
 try {
+  if (!values["momentum-only"]) {
   for (const [iteration, engineName, engine, viewport] of runs) {
     const browser = await engine.launch();
     browsers.push(browser);
@@ -553,6 +569,8 @@ try {
   await expect(pages[0].locator(".training-journey h2")).toHaveText("Training Week 1 of 26");
   await Promise.all(contexts.map((context) => context.close()));
   console.log("PASS two-device auth/reset/same-browser tab/offline stale-save/reconnect/reload integration (fixture only)");
+  }
+  await runMomentumChecks({ server, model, browsers, prepare, fixtureBackend, assertLayout, assertSelectionContrast, settlePresentation });
 } catch (error) {
   // Preserve the failing screen itself, not only earlier milestone screenshots.
   // Do not let diagnostic I/O hide the original assertion or delay cleanup.

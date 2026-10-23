@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
   Activity,
@@ -32,6 +32,9 @@ import { DeviceSaveStatus, SectionTabs, UndoNotice } from "./components/SessionU
 import { WeightTrendChart } from "./components/WeightTrendChart";
 import { savePresentation, undoUnchangedFields } from "./lib/presentationState";
 import { initialProgram, isCalendarDate, normalizeProgram, restartedProgram, resolveResetConflict, type ProgramState } from "./lib/programLifecycle";
+import { useMomentum } from "./features/momentum/useMomentum";
+import type { Resources as MomentumResources } from "./features/momentum/types";
+const MomentumPage = lazy(() => import("./features/momentum/MomentumPage"));
 
 /**
  * App.tsx is intentionally the main "product brain" for this personal tracker.
@@ -52,7 +55,7 @@ import { initialProgram, isCalendarDate, normalizeProgram, restartedProgram, res
 // When TypeScript sees a value like "strength" or "diet", it can verify that the UI and helpers
 // only use the values this app actually understands.
 type SessionType = "strength" | "cardio" | "movement" | "recovery";
-type AppMode = "hub" | "workout" | "diet";
+type AppMode = "hub" | "workout" | "diet" | "momentum";
 type AppSection = "today" | "gym" | "week" | "progress" | "library";
 type PrimaryDestination = "today" | "gym" | "diet" | "progress" | "coach";
 type PlanWeekday = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday";
@@ -4088,8 +4091,8 @@ function dietCoachNoteForDay(planDay: PlanDay) {
   return "Keep protein stable, use slightly lower starch portions, and let this be an easier nutrition day.";
 }
 
-// This note exists because the user reported nearly fainting during a workout. It turns the snack
-// slot into practical pre-workout fueling guidance without adding a separate complicated feature.
+// Fueling advice supports ordinary meal planning; it cannot diagnose exercise-related dizziness.
+// The existing snack slot supplies practical guidance without a separate tracking feature.
 function afterWorkGymFuelForDay(planDay: PlanDay, snackRecipe: DietRecipe) {
   if (planDay.session.type === "strength") {
     return {
@@ -6340,6 +6343,7 @@ export {
   moveStatusForExercise, withAutomaticDayCompletion, isPlanDayComplete,
   activeExerciseFor, locationGuideForExercise, swapOptionsFor, ExerciseMedia, exerciseMap, exerciseHistoryFor,
   resetProgress, trainingProgressFor, trainingWeekForEdit, coachedDaysForStore, monthlyCheckInForDay, chooseInitialSyncedStore,
+  dietRecipes, weeklyDietMealMap,
 };
 
 export default function Home() {
@@ -6360,6 +6364,7 @@ export default function Home() {
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
   const [syncRevision, setSyncRevision] = useState(0);
   const [session, setSession] = useState<Session | null>(null);
+  const momentum = useMomentum(session?.user.id ?? null);
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authMessage, setAuthMessage] = useState("");
@@ -8205,6 +8210,27 @@ export default function Home() {
   const nextMealSlot = dietMealSlots.find((slot) => !todayMealLog.meals[slot.id]);
   const nextMealRecipe = nextMealSlot ? activeDietRecipeFor(gymDay, todayMealLog, nextMealSlot.id) : null;
 
+  // A deliberately narrow bridge: resources are read-only and weight edits use
+  // the ORIGINAL metric handler. Momentum never calls Recomp's day completion,
+  // reset or earned-week handlers and never embeds private data in its bundle.
+  const momentumResources: MomentumResources = {
+    exercises: exerciseMap, recipes: dietRecipes, meals: weeklyDietMealMap,
+    howTo: (recipe) => detailedRecipeHowTo(dietRecipeMap[recipe.id]),
+    media: (id) => <ExerciseMedia exercise={exerciseMap[id]} variant="gym" />,
+    groceries: (recipes) => shoppingItemsForRecipes(recipes.map(r=>dietRecipeMap[r.id])).flatMap(group=>group.items),
+  };
+  if (appMode === "momentum") {
+    if (momentum.access !== "allowed" || !momentum.data) return <main className="app-shell"><h1>Private section</h1><p>{momentum.access === "checking" ? "Checking account access…" : "This section is unavailable for this account or connection."}</p><button type="button" onClick={()=>setAppMode("hub")}>Back to Coach Hub</button><button type="button" onClick={momentum.retry}>Retry private access</button></main>;
+    const sharedWeightsReady = Boolean(session && cloudReadyForUser === session.user.id);
+    return <Suspense fallback={<main className="app-shell"><p>Opening private journey…</p></main>}><MomentumPage key={session?.user.id}
+      data={momentum.data} edit={momentum.edit} today={calendarDate} resources={momentumResources}
+      status={momentum.status} error={momentum.error} retry={momentum.retry} onExit={()=>setAppMode("hub")}
+      weights={sharedWeightsReady ? weightEntries : []} weightsReady={sharedWeightsReady}
+      weightChart={sharedWeightsReady ? <WeightTrendChart entries={weightEntries} weeks={weightWeekSummaries} today={calendarDate}/> : <p>Loading the shared account weight records.</p>}
+      logWeight={(date,kg)=>{if(sharedWeightsReady)updateMetric(date,metric=>({...metric,weightKg:kg,weightForgotten:false}));}}/>
+    </Suspense>;
+  }
+
   if (appMode === "hub") {
     return (
       <MotionConfig reducedMotion="user">
@@ -8267,6 +8293,7 @@ export default function Home() {
             </button>
           </div>
         </section>
+        {momentum.access === "allowed" && <button className="momentum-entry" type="button" onClick={()=>setAppMode("momentum")}><span><strong>Momentum</strong><small>My Personal Fitness Journey · Private</small></span><Icon name="chevronRight" size={22}/></button>}
         {localSaveError && <p className="save-alert" role="alert">{localSaveError}</p>}
 
         <section className="hub-dashboard-grid" aria-label="Daily coach overview">

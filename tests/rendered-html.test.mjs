@@ -677,8 +677,8 @@ test("day skip controls share date-scoped handlers and Gym shows a terminal summ
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v43/);
-  assert.match(serviceWorker, /stable-recipe-tabs-v43/);
+  assert.match(serviceWorker, /recomp-gym-console-v44/);
+  assert.match(serviceWorker, /private-momentum-v44/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);

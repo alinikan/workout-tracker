@@ -27,6 +27,7 @@
 - [Features](#features)
 - [Session Experience](#session-experience)
 - [App Sections](#app-sections)
+- [Private Momentum Journey](#private-momentum-journey)
 - [How The Program Works](#how-the-program-works)
 - [Knee And Hip Friendly Lower Body](#knee-and-hip-friendly-lower-body)
 - [Tech Stack](#tech-stack)
@@ -61,6 +62,7 @@ The app ships with:
 - A Coach Hub for sign-in, morning weigh-ins, and weight trend review.
 - A Gym Mode that shows the current exercise, current set, target, video, GIF option, and completion controls.
 - Cloud sync through Supabase so the same account can be used on iPhone, MacBook, and any other device.
+- An optional **Momentum** journey: a separately authorized, private 30-day consistency-first experience with gentle strength, adapted non-contact boxing, meals and reflection.
 
 > [!NOTE]
 > The original training and nutrition ideas were converted into app data. A new user does not need any external file to understand or use the project. The program, meals, recipes, cues, videos, swaps, and progression rules are already inside the app.
@@ -81,6 +83,35 @@ That means the interface favors:
 - **Honesty:** skipped movements are tracked separately from completed days.
 - **Low friction:** progress saves automatically.
 - **Mobile-first use:** the app works as an iPhone Home Screen app and as a desktop web app.
+
+---
+
+## Private Momentum Journey
+
+**Start small. Show up. Get stronger.** Momentum is an optional experience reached from Coach Hub,
+not a replacement for Recomp's 26-week training program. It has its own onboarding, chosen Monday,
+30-day calendar, actual attendance, simple strength templates, class planning, meals and reviews.
+Its seven views keep each day focused on one achievable action and a legitimate smaller version.
+
+| Boundary | How It Works |
+| --- | --- |
+| Private account | An administrator grants exactly one Supabase authentication UID. RLS and restricted server functions enforce access; hiding a button is not the security boundary. |
+| Assessment first | Exercise stays inactive until professional guidance for the proposed activities is recorded. Checkboxes are not clinical clearance; symptoms create a non-expiring medical pause. |
+| Earned options | No calendar-based load jump. Optional extra practice needs actual comfortable attendance, recovery, review, permission and an explicit choice. |
+| Honest records | Planned, smaller, missed and medically paused are distinct. Finishing one set never completes the others. No catch-up workout is owed. |
+| Original data intact | Workout and meal logs stay separate. Coach's dated kg weigh-ins are the single shared source, not duplicated metrics. A new Momentum month archives only Momentum history. |
+| Affordable planning | Dated official local-gym references, manual booking and safe rescheduling. No paid API, automated membership purchase or invented live timetable. |
+
+> [!IMPORTANT]
+> **GitHub/Vercel deployment alone does not enable Momentum.** Install
+> [`supabase/migrations/20261023_momentum.sql`](supabase/migrations/20261023_momentum.sql),
+> then grant your existing authentication UID privately in the dashboard. No new environment
+> variable or service-role key belongs in the browser. Other accounts see no entry.
+
+Read the [complete Momentum setup and user guide](docs/momentum.md) for step-by-step SQL Editor
+instructions, authorization/revocation, safety boundaries, all 30 days, reminders, sync and testing.
+Private device drafts are encrypted with a session-scoped key: sync before closing an offline
+session. Background push notifications and progress-photo storage are not configured.
 
 ---
 
@@ -408,7 +439,7 @@ Workout and diet swaps are intentionally loud. When a movement or meal is using 
 
 ## Knee And Hip Friendly Lower Body
 
-The lower-body plan is designed for a user who reports that deep squatting or sitting into a squat-like position feels blocked because of knee or hip shape. The app does not diagnose that shape. It changes the training defaults so progress can continue without forcing a movement that currently feels impossible.
+The lower-body defaults prioritize supported, comfortable ranges when deep squatting is unsuitable. The app does not diagnose knee or hip shape or prescribe a medical substitute. Clinical restrictions always take priority over a template.
 
 What changed:
 
@@ -909,6 +940,11 @@ workout-tracker/
 | `src/lib/presentationState.ts` | Pure conditional Undo and honest save-presentation helpers. |
 | `src/experience.css` | Coordinated session layouts, semantic colors, measured mobile controls, and keyboard/motion fallbacks. |
 | `docs/session-experience.md` | Detailed guide to the 12 interface improvements and their testing boundaries. |
+| `src/features/momentum/` | Independently authorized private journey, safety, calendar, coaching and revisioned sync. |
+| `docs/momentum.md` | Administrator setup, user guide, privacy model, evidence and maintenance. |
+| `supabase/migrations/20261023_momentum.sql` | Additive Momentum allowlist, RLS and restricted read/write functions. Does not change the original table. |
+| `tests/momentum.test.mjs` | Starter-plan behavior, clinical gates, real PostgreSQL RLS/CAS checks and private-cache tests. |
+| `scripts/momentum-ui-check.mjs` | Private-feature onboarding, phone/desktop layout, meals, safety, offline and multi-device checks. |
 | `tests/coach-behavior.test.mjs` | Runs actual calendar, coaching, completion, weight, and merge functions using synthetic data. |
 | `tests/service-worker.test.mjs` | Exercises offline recovery, failed responses, and cache cleanup using controlled fixtures. |
 | `.github/workflows/quality.yml` | Runs checks on pushes to main and pull requests without production credentials. |
@@ -988,6 +1024,8 @@ npx playwright install chromium webkit
 npm run test:ui
 # Run all six configurations twice, as GitHub Actions does:
 npm run test:ui -- --repeat=2
+# Focused Momentum checks while developing this optional feature:
+npm run test:ui -- --momentum-only
 ```
 
 This starts its own local Vite server with `.env` loading disabled, uses synthetic data and a mocked Supabase API, and closes the server afterward. It checks WebKit at 402 px and 375 px plus Chromium at MacBook dimensions, in light and dark appearance with both normal and reduced motion. It exercises Today logging, swap/revert, selected-control and caption contrast (4.5:1 minimum), Gym, Diet, the earned journey map, reset confirmation/cancellation, cross-tab resets, and two-device reset/reconnection through the actual sync client. External media requests are blocked for deterministic fixtures; these screenshots do not validate the remote videos or food photos. Screenshots go to the Git-ignored `outputs/ui-check/` folder. WebKit emulation is useful regression coverage, not a substitute for checking a real iPhone Home Screen app after deployment.
@@ -1023,6 +1061,13 @@ The existing source smoke tests additionally verify:
 - The code walkthrough and tutorial comments remain present.
 
 `npm run build` now fails on TypeScript errors, including in Vercel. GitHub's **Quality checks** workflow runs the regression suite, browser UI checks, and dependency audit on main/pull requests. Failed runs attach UI screenshots and Playwright interaction traces as a downloadable `ui-check-screenshots` artifact. See the [diagnostic guide](docs/session-experience.md#verification) for trace-viewing instructions. This does not replace checking sign-in on a real device: automated tests do not use a live Supabase account, real iOS Safari, or assert pixel-perfect browser layout.
+
+Momentum's database tests execute its actual SQL migration in test-only PGlite (PostgreSQL), rather
+than inferring security from mocked API responses. They check anonymous and other-account denial,
+guessed IDs, direct-write bypasses, the singleton grant, revocation, revision conflicts, activation
+guards and preservation of the original table. Its browser fixtures cover the separate access UI,
+honest partial sets, meal swaps, shared weight, encrypted offline drafts, account changes and
+independent-device merging. No production credentials or personal measurements are used.
 
 <details>
 <summary><strong>What changed in the reliability and usability update?</strong></summary>

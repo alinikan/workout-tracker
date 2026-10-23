@@ -110,6 +110,9 @@
 /* Fade content without translating buttons while a user is about to tap. */
 @keyframes log-reveal { from { opacity: .75; } to { opacity: 1; } }
 /* Animate content, never the ancestor of a fixed-position Gym action bar. */
+.momentum-entry { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 20px; margin: 0 0 22px; border: 1px solid var(--separator-strong); border-left: 4px solid #087469; border-radius: 7px; background: var(--surface-secondary); color: var(--text-primary); text-align: left; }
+.momentum-entry span { display: grid; gap: 4px; }
+.momentum-entry small { color: var(--text-secondary); }
 .gym-main { animation: log-reveal 160ms ease-out; }
 
 /* Sheets contain one active section at a time, including video teardown when
