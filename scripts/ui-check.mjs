@@ -375,6 +375,17 @@ try {
       const label = `${engineName}-${colorScheme}${repeatCount > 1 ? `-repeat-${iteration}` : ""}`;
       console.log(`CHECK ${label}`);
       await expect(page.locator(".training-journey h2")).toHaveText("Training Week 1 of 26");
+      // The circular counts are the only progress display on these cards.
+      // Native progress tracks used to draw white lines across their action text.
+      await expect(page.locator(".hub-choice-card > progress")).toHaveCount(0);
+      await expect(page.locator(".hub-choice-card .premium-progress-ring")).toHaveCount(2);
+      const ringsFit = await page.locator(".hub-choice-card .premium-progress-ring").evaluateAll((rings) => rings.every((ring) => {
+        const a = ring.getBoundingClientRect(), b = ring.parentElement.getBoundingClientRect();
+        return a.x >= b.x && a.right <= b.right + 1 && a.y >= b.y && a.bottom <= b.bottom + 1;
+      }));
+      assert.ok(ringsFit, `${label}: Coach progress counters must fit their cards`);
+      await settlePresentation(page);
+      await page.screenshot({ path: `outputs/ui-check/${label}-coach-cards.png` });
       const chart = page.locator(".weight-story-chart");
       await chart.getByRole("button", { name: "7 days", exact: true }).click();
       await expect(chart.locator(".story-daily")).toHaveCount(1);

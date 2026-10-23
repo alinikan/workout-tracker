@@ -2,18 +2,13 @@
 // never belong here. Dates are review dates, not claims of live availability.
 export const evidence = [
   {
-    title: "Check symptoms before increasing activity",
-    text: "CSEP screening asks about exercise dizziness and fainting. An app cannot establish the cause or replace professional assessment.",
-    url: "https://csep.ca/2021/01/20/pre-screening-for-physical-activity/",
-  },
-  {
     title: "Begin with manageable movement",
     text: "WHO supports starting small and building gradually. Population targets are a longer-term destination, not a first-week quota.",
     url: "https://www.who.int/news-room/fact-sheets/detail/physical-activity/",
   },
   {
     title: "Simple resistance practice",
-    text: "ACSM's 2026 healthy-adult guidance emphasizes regular participation and individualization. It does not validate this exact clinical starter schedule.",
+    text: "ACSM's 2026 healthy-adult guidance emphasizes regular participation and individualization. This starter schedule is a product design, not a tested training protocol.",
     url: "https://acsm.org/resistance-training-guidelines-update-2026/",
   },
   {
@@ -33,7 +28,7 @@ export const evidence = [
   },
   {
     title: "Keep some resistance practice",
-    text: "A 2025 review found resistance exercise helped preserve fat-free mass during dietary weight loss on average. That does not justify a demanding program or strict deficit before assessment.",
+    text: "A 2025 review found resistance exercise helped preserve fat-free mass during dietary weight loss on average. Keep practice manageable rather than chasing a demanding program or strict deficit.",
     url: "https://pubmed.ncbi.nlm.nih.gov/40909191/",
   },
   {

@@ -12,7 +12,7 @@ import {
   concerning,
   exerciseGate,
   hasRecentSymptoms,
-  wasMedicalHold,
+  wasPaused,
 } from "./safety.ts";
 import { isCalendarDate } from "../../lib/programLifecycle.ts";
 import type {
@@ -50,7 +50,6 @@ export function progressionEligible(data: MomentumData, before: string) {
   if (
     !j ||
     exerciseGate(data, before) ||
-    !data.clearance.progression ||
     hasRecentSymptoms(data, before)
   )
     return false;
@@ -73,7 +72,6 @@ export function progressionEligible(data: MomentumData, before: string) {
       isStrength(activity) &&
       j.logs[s.id]?.outcome === "planned" &&
       strengthTemplates[activity]
-        .filter((e) => !data.clearance.avoidExercises?.includes(e.id))
         .every((e) => j.logs[s.id]?.sets[e.id]?.done) &&
       comfortable(j.logs[s.id])
     );
@@ -112,7 +110,7 @@ export function resolveDay(data: MomentumData, slot: Slot, today: string) {
     activity = "recovery";
     minutes = "0";
     reason =
-      "Recovery replaces the optional second strength day. Enable it only after comfortable attendance, recovery, review and clinician permission.";
+      "Recovery replaces the optional second strength day. Enable it only after comfortable attendance, recovery and a weekly review.";
   }
   if (adaptation?.mode === "lighter" && isStrength(activity)) {
     reason =
@@ -165,15 +163,6 @@ export function resolveDay(data: MomentumData, slot: Slot, today: string) {
     reason =
       "Your latest comparable attempt was demanding or recovery was poor. Repeat a shorter comfortable option or rest; do not increase duration.";
   }
-  const cap = Number(data.clearance.maxMinutes);
-  if (isStrength(activity) && cap > 0 && cap < 15 && !history?.outcome) {
-    activity = "recovery";
-    minutes = "0";
-    reason =
-      "Your recorded clinical time limit is shorter than this strength template. Recover and ask for a suitable adapted plan; no substitute is chosen automatically.";
-  }
-  if (cap > 0 && !["recovery", "review"].includes(activity))
-    minutes = `${Math.min(Number.parseInt(minutes) || cap, cap)} max (clinician limit)`;
   const extraId =
     eligible && adaptation?.mode === "extra-set" && isStrength(activity)
       ? adaptation.exerciseId
@@ -182,22 +171,9 @@ export function resolveDay(data: MomentumData, slot: Slot, today: string) {
     activity = history.plannedActivity;
     minutes = history.plannedMinutes ?? minutes;
   }
-  if (
-    !history?.outcome &&
-    isStrength(activity) &&
-    strengthTemplates[activity].every((e) =>
-      data.clearance.avoidExercises?.includes(e.id),
-    )
-  ) {
-    activity = "recovery";
-    minutes = "0";
-    reason =
-      "All movements in this template were excluded by your recorded clinical guidance. Recover and ask for a suitable supervised plan; no medical substitute is chosen.";
-  }
   const replaced = activity === "recovery" && isStrength(base.activity);
   const available: string[] = isStrength(activity)
     ? strengthTemplates[activity]
-        .filter((e) => !data.clearance.avoidExercises?.includes(e.id))
         .map((e) => e.id)
     : [];
   const exerciseIds =
@@ -212,7 +188,7 @@ export function resolveDay(data: MomentumData, slot: Slot, today: string) {
     title: replaced
       ? base.activity === "strength-b"
         ? "Recovery instead of extra strength"
-        : "Recovery under your guidance"
+        : "Recovery"
       : base.title,
     exerciseIds,
     steps: replaced
@@ -221,7 +197,7 @@ export function resolveDay(data: MomentumData, slot: Slot, today: string) {
         ]
       : adaptation?.mode === "lighter" && isStrength(activity)
         ? [
-            "Gentle warm-up, then only the one permitted easy movement shown below. Rest or stop whenever needed. Nothing else is owed.",
+            "Gentle warm-up, then only the one easy movement shown below. Rest or stop whenever needed. Nothing else is owed.",
           ]
         : base.steps,
     enough: replaced
@@ -245,7 +221,7 @@ export function completionError(
   today: string,
 ) {
   const plan = resolveDay(data, slot, today);
-  if (outcome === "medical" || outcome === "missed") return null;
+  if (outcome === "stopped" || outcome === "missed") return null;
   if (plan.gate) return plan.gate;
   const performed = log.performedOn ?? slot.date;
   const start = currentJourney(data)?.startedOn;
@@ -267,7 +243,7 @@ export function completionError(
     ];
     const done = validSets.filter((id) => log.sets[id]?.done).length;
     if (!done)
-      return "Record at least one actual set, or choose Did not do it / Medical pause. Nothing is completed automatically.";
+      return "Record at least one actual set, or choose Did not do it / Stop session. Nothing is completed automatically.";
     if (
       validSets
         .map((id) => log.sets[id])
@@ -303,16 +279,16 @@ export function outcomeLabel(data: MomentumData, slot: Slot, today: string) {
       planned: "Completed as planned",
       modified: "Smaller version",
       missed: "Did not do it",
-      medical: "Medical pause",
+      stopped: "Session stopped",
     }[l.outcome];
-  if (wasMedicalHold(data, slot.date)) return "Medical pause";
+  if (wasPaused(data, slot.date)) return "Paused";
   if (slot.date < today && !exerciseGate(data, today))
     return "No entry - next opportunity ahead";
   return "Not recorded";
 }
 export function coachNote(data: MomentumData, today: string) {
-  if (activePause(data)?.reason === "medical" || !data.clearance.assessed)
-    return "Preparation is progress. Arrange professional guidance; the exercise calendar can wait.";
+  if (activePause(data))
+    return "Your journey is paused. Resume in Settings when the next appointment feels achievable.";
   const j = currentJourney(data);
   if (!j)
     return "Choose a realistic start Monday. Nothing starts automatically.";
@@ -332,11 +308,11 @@ export function coachNote(data: MomentumData, today: string) {
   return "Repeat what feels manageable. A smaller version is useful attendance, not a failed full workout.";
 }
 export function monthTwo(data: MomentumData, today: string) {
-  if (hasRecentSymptoms(data, today) || activePause(data)?.reason === "medical")
-    return "Clinical review comes first. Do not increase workload; discuss safe activities and restrictions before another exercise block.";
+  if (hasRecentSymptoms(data, today))
+    return "Keep the next block familiar or lighter. Recent stopped sessions are not a reason to add more work.";
   const j = currentJourney(data);
   if (!j)
-    return "Prepare a small, medically permitted first month before considering the next one.";
+    return "Build a manageable first month before considering the next one.";
   const entries = attendance(j, today);
   const classes = entries.filter((s) => loggedActivity(j, s) === "boxing");
   const lifts = entries.filter((s) => isStrength(loggedActivity(j, s)));
@@ -349,7 +325,7 @@ export function monthTwo(data: MomentumData, today: string) {
     Object.values(j.logs).some((l) => l.recovery === "poor")
   )
     return "Repeat a simpler month: one manageable class and one short strength practice, with optional walks. Reduce the barriers before adding work.";
-  return "Continue one adapted class and one comfortable strength session. Up to two short strength sessions is an option only after good recovery and permission, never a requirement. No automatic sparring.";
+  return "Continue one adapted class and one comfortable strength session. Up to two short strength sessions is an option only after good recovery and an explicit choice, never a requirement. No automatic sparring.";
 }
 export function adaptationAllowed(
   data: MomentumData,

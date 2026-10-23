@@ -17,15 +17,8 @@ export const weekday = (date: string) =>
   new Date(`${date}T12:00:00Z`).getUTCDay();
 export const firstMondayAfter = (date: string) =>
   addDays(date, (8 - weekday(date)) % 7 || 7);
-export function suggestedStart(assessedOn: string, today: string) {
-  const first = firstMondayAfter(
-    isCalendarDate(assessedOn) ? assessedOn : today,
-  );
-  return first >= today
-    ? first
-    : weekday(today) === 1
-      ? today
-      : firstMondayAfter(today);
+export function suggestedStart(today: string) {
+  return weekday(today) === 1 ? today : firstMondayAfter(today);
 }
 export const phase = (day: number) =>
   day <= 7
@@ -58,8 +51,8 @@ export const starterPlan: DayPlan[] = [
       "Walk comfortably, slowly enough to speak normally. No speed, incline or calorie target.",
     ],
     "Plan Wednesday's home practice and contact Friday's beginner class. Optional starting measurements.",
-    "A short permitted walk and a realistic schedule.",
-    "A few comfortable minutes, or preparation only if exercise is not permitted.",
+    "A short comfortable walk and a realistic schedule.",
+    "A few comfortable minutes, or preparation only.",
   ),
   p(
     2,
@@ -68,8 +61,8 @@ export const starterPlan: DayPlan[] = [
     "8",
     ["One relaxed walk. Keep the pace conversational."],
     "Prepare tomorrow's food. Confirm the gym address, transport and trial terms.",
-    "Eight comfortable minutes or a medically appropriate alternative.",
-    "A few easy minutes if permitted.",
+    "Eight comfortable minutes, or a shorter walk.",
+    "A few easy minutes.",
   ),
   p(
     3,
@@ -82,7 +75,7 @@ export const starterPlan: DayPlan[] = [
     ],
     "Log only what you actually did, effort and any symptoms.",
     "One to three comfortable exercises is a successful attempt, recorded as modified.",
-    "Warm-up and one permitted easy exercise.",
+    "Warm-up and one easy exercise.",
   ),
   p(
     4,
@@ -90,7 +83,7 @@ export const starterPlan: DayPlan[] = [
     "Recovery and preparation",
     "0",
     [
-      "No required workout. Optional 5-8-minute comfortable walk only if permitted.",
+      "No required workout. Optional 5-8-minute comfortable walk.",
     ],
     "Set out clothes and water. Ask the instructor for a light, non-contact introduction with breaks.",
     "Rest and class preparation.",
@@ -114,7 +107,7 @@ export const starterPlan: DayPlan[] = [
     "recovery",
     "Recovery",
     "0",
-    ["Rest. Optional 5-10-minute easy walk only if recovered and permitted."],
+    ["Rest. Optional 5-10-minute easy walk if recovered."],
     "Check fatigue and soreness. No compensation for missed activity.",
     "Appropriate recovery.",
     "Rest.",
@@ -168,9 +161,9 @@ export const starterPlan: DayPlan[] = [
     "walk",
     "Easy movement",
     "10-12",
-    ["Walk only if recovered and permitted. No hills or intervals."],
+    ["Walk if recovered. No hills or intervals."],
     "Confirm tomorrow's class and transport.",
-    "Comfortable movement or medically advised rest.",
+    "Comfortable movement or rest.",
     "A few easy minutes or rest.",
   ),
   p(
@@ -215,7 +208,7 @@ export const starterPlan: DayPlan[] = [
     "15-25",
     [
       "3-5-minute warm-up; one easy set per exercise. Keep loads steady.",
-      "A second set of ONE movement is optional only after the review and permission checks.",
+      "A second set of ONE movement is optional only after comfortable attendance and a weekly review.",
     ],
     "Log actual work; never increase load and volume together.",
     "Controlled, comfortable practice.",
@@ -244,7 +237,7 @@ export const starterPlan: DayPlan[] = [
     ],
     "Choose recovery if the second day is not yet sustainable.",
     "Two or three comfortable exercises can be enough, logged as modified.",
-    "Recovery, or one permitted movement if this session was enabled.",
+    "Recovery, or one easy movement if this session was enabled.",
   ),
   p(
     18,
@@ -327,7 +320,7 @@ export const starterPlan: DayPlan[] = [
     ],
     "Use recovery instead if adding a session is not appropriate.",
     "Controlled practice or appropriate recovery.",
-    "Recovery or one permitted easy exercise.",
+    "Recovery or one easy exercise.",
   ),
   p(
     25,
@@ -378,11 +371,11 @@ export const starterPlan: DayPlan[] = [
     "Easy Strength A",
     "15-25",
     [
-      "Repeat easy, familiar Strength A only if recovered and permitted. No maximum testing.",
+      "Repeat easy, familiar Strength A if recovered. No maximum testing.",
     ],
     "Keep regular meals and familiar loads.",
     "A comfortable repeat.",
-    "One permitted movement or recovery.",
+    "One comfortable movement or recovery.",
   ),
   p(
     30,

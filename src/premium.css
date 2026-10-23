@@ -516,16 +516,6 @@ h3 {
   font-weight: 520;
 }
 
-.hub-choice-card > progress {
-  position: absolute;
-  right: var(--space-5);
-  bottom: var(--space-5);
-  left: var(--space-5);
-  width: auto;
-  height: 4px;
-  margin: 0;
-}
-
 .premium-progress-ring {
   --ring-color: var(--choice-ink, var(--accent));
   position: relative;
@@ -2851,12 +2841,6 @@ h3 {
 
   .premium-progress-ring strong {
     font-size: 19px;
-  }
-
-  .hub-choice-card > progress {
-    right: var(--space-4);
-    bottom: var(--space-4);
-    left: var(--space-4);
   }
 
   .hub-dashboard-grid {

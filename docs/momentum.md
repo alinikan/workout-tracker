@@ -6,12 +6,11 @@ Start small. Show up. Get stronger.
 
 Momentum is an optional, single-owner, private 30-day experience inside Recomp. It emphasizes an
 achievable appointment, adapted non-contact boxing, very light strength practice, regular meals,
-and recovery. It is **not** a replacement for the original 26-week program or medical assessment.
+and recovery. It is **not** a replacement for the original 26-week program or its earned-week progression.
 
 > [!IMPORTANT]
 > The feature is disabled until an administrator installs the additive migration and authorizes
 > one Supabase authentication user. There is no owner email/UUID in the public application.
-> Nothing in the installation process means that exercise has been medically cleared.
 
 ## One-Time Supabase Setup
 
@@ -57,6 +56,14 @@ cannot learn about a server revocation until it reconnects. Sign it out or close
 device-level access removal is required. Do not delete the authentication user or original
 `workout_progress` table merely to remove Momentum access.
 
+### Updating an Existing Installation
+
+If Momentum is already installed and your private account is authorized, run
+`supabase/migrations/20261023_momentum_setup.sql` in the same project's SQL Editor **before**
+deploying the updated app. It replaces only the save function; it does not change rows, RLS,
+owner authorization, or the original Workout/Diet tables. Re-running it is safe. No new keys
+or account setup are needed.
+
 ## Run Locally
 
 From the project folder:
@@ -78,40 +85,18 @@ dashboard setup above separately. There is no automatic production database migr
 
 ## The First Visit
 
-Onboarding has three short steps:
+Onboarding has two short steps:
 
 1. **Your routine:** review goals, current activity, discipline, environment, realistic days and budget.
    Age, height and a longer-term weight milestone are optional and initially blank.
-2. **Safety and guidance:** record assessment, activity permissions, restrictions and any time limit.
-   Specific clinician-excluded template movements can be omitted without the app choosing a medical
-   substitute. The full starter calendar needs advice permitting all three proposed activity types.
-3. **First Monday:** explicitly activate a Monday after assessment, or stay in preparation. Opening
-   or installing the app does not start the calendar. A later Monday is allowed; a retroactive start
-   is not. Momentum's date is independent of the original Recomp start date.
+2. **First Monday:** activate today if it is Monday, or a future Monday. Opening or installing the app
+   does not start the calendar. The date is independent of the original Recomp start date.
 
-Preparation includes meals, contacting instructors, comparing small commitments, choosing appointments
-and setting out equipment. It has no missed-workout penalty while assessment is pending.
-
-### Medical Boundaries
-
-Exercise-related near-fainting must not be attributed to food, hydration, smoking or conditioning by
-the app. Seek prompt professional assessment before strenuous activity. The app cannot diagnose the
-cause, evaluate cardiovascular safety, verify a clinician's advice or issue clearance.
-
-The controls record advice the user reports actually receiving. They are not clinical authorization.
-Permissions and structured time/movement exclusions affect the plan. Free-text restrictions remain
-visible during training and must be followed; software cannot interpret every clinical instruction.
-
-Reporting dizziness/near-fainting or concerning pain removes training controls and creates a medical
-pause. A weekly review reporting concerning symptoms does the same. Good energy or sleep never
-overrides this state. Medical pauses do not expire automatically or become ordinary missed days.
-Recording appropriate follow-up guidance is required before resuming.
-An unresolved medical pause also blocks starting another private month, including one created on a
-different device. Follow-up assessment cannot be dated before that pause.
-
-For fainting during exertion, chest pain, severe breathlessness or other alarming symptoms, stop and
-seek emergency help (911 in B.C.). For recurrent symptoms without emergency signs, stop and obtain
-prompt medical advice before resuming; HealthLink BC 811 offers non-emergency advice.
+You may stay in preparation instead. Meals, contacting instructors, choosing appointments and
+setting out equipment remain available, without missed-workout penalties before your chosen start.
+Settings lets you pause and resume the current journey yourself. A stopped session is recorded for
+that day only, not a permanent account lock. Ordinary stop guidance remains available if symptoms
+occur during activity; the app does not treat those sessions as completed or reward them with an increase.
 
 ## What the 30 Days Contain
 
@@ -136,8 +121,8 @@ practice, not compulsory minimums. Continuous breathing and comfortable joint ra
 - Dates alone do not increase weight, sets or the number of strength sessions.
 - The second weekly strength session defaults to recovery, not an extra obligation.
 - Offering it requires two comfortable full strength practices, two comfortable technique visits,
-  good recorded recovery, a comfortable/manageable review, explicit permission for progression,
-  sufficiently recent practice, and an explicit user choice.
+  good recorded recovery, a comfortable/manageable review, sufficiently recent practice,
+  and an explicit user choice.
 - Missing effort/recovery data, recent demanding attempts, poor recovery, repeated misses or symptoms
   prevent an increase. Observation does not earn physical-intensity progression.
 - An eligible user may choose a second short practice **or** one extra easy set of a single movement,
@@ -148,7 +133,7 @@ practice, not compulsory minimums. Continuous breathing and comfortable joint ra
   make-up session, doubled workout, harsh streak reset or penalty for rest.
 
 Three outcome buttons distinguish planned completion, a smaller version, and not doing the activity.
-Medical pause is separate. Completing a movement never fills other sets. The full-session button
+A separate Stop session action records a stopped attempt. Completing a movement never fills other sets. The full-session button
 rejects unfinished sets; a modified strength record still needs at least one actual set and repetitions.
 Planned and actual attendance dates are stored separately.
 
@@ -211,7 +196,7 @@ historical dates retain IANA-based handling. See the [B.C. announcement](https:/
 
 Month 2 recommendations are deterministic: maintain manageable attendance, keep boxing as an anchor
 when it fits, try a different environment when it does not, simplify after poor attendance/recovery,
-and prioritize clinical review after symptoms. There is no automatic Month 2 escalation or sparring.
+and keep the next block familiar or lighter after recent stopped sessions. There is no automatic Month 2 escalation or sparring.
 Starting another private month archives the old one after an explicit `START` confirmation. Recomp
 records are untouched. Repeating a week creates distinct session IDs and preserves earlier logs;
 future booked/recorded appointments block automatic date shifting.
@@ -224,8 +209,8 @@ future booked/recorded appointments block automatic date shifting.
 | Access discovery | `momentum_access()` returns whether the current signed-in user is authorized; no email comparisons. |
 | Reads | RLS requires both matching `auth.uid()` and allowlist membership. Guessing another UID returns no record. |
 | Writes | Direct browser table writes are denied. `momentum_save()` derives ownership from `auth.uid()` and uses compare-and-swap revisions under a row lock. |
-| Activation | The save RPC also validates recorded permissions and a non-retroactive Monday when a new journey is activated. It cannot verify real clinical assessment. |
-| Concurrent devices | Existing three-way merge preserves independent edits and new journey IDs retain history. A medical pause wins over stale permission fields. |
+| Activation | The save RPC validates the active journey, a real date, and a non-retroactive Monday when a new journey is activated. |
+| Concurrent devices | Three-way merge preserves independent edits and new journey IDs retain history. Old version-1 documents upgrade to version 2 without losing attendance, notes or meals. Pauses remain manually resumable. |
 | Device cache | Private drafts are AES-GCM ciphertext with an account-bound authentication tag. The key is held in tab session storage, not in source or the database. |
 | Account changes | Render-time owner checks, request epochs, memory clearing and cache removal prevent another signed-in account receiving the previous account's private view. |
 | Initial offline access | A fresh visit/reload cannot decrypt/display private data until a connected authorization check succeeds. |
@@ -237,7 +222,7 @@ future booked/recorded appointments block automatic date shifting.
 > against a compromised device, malicious same-origin script, copied browser session or administrator.
 
 Use a trusted device and sign out on shared computers. Save/sync errors are visible. No private API
-response is cached by the service worker, no medical text is exported to reminders, and no health
+response is cached by the service worker, no private notes are exported to reminders, and no health
 profile or owner identifier is embedded in static source. The public feature code and generic
 program information are inspectable; only authorized records are private.
 
@@ -260,11 +245,11 @@ revocation, server-side activation checks and preservation of the original table
 
 Browser checks use synthetic accounts and mock network services, not the production database.
 They exercise iPhone-width WebKit and desktop Chromium in both themes, no-activation onboarding,
-real set logging, tutorials, meal swap/revert, shared weigh-ins, offline sync, medical pauses and
+real set logging, tutorials, meal swap/revert, shared weigh-ins, offline sync, stopped sessions and
 revocation, sign-out/account changes and independent-device offline merging. Remote media requests are blocked in fixtures; video availability and physical-device
 iOS behavior still need a real-device smoke check after deployment.
 
-No test uses the owner's actual medical history, measurements, email, UID or credentials.
+No test uses the owner's actual private history, measurements, email, UID or credentials.
 
 ### File Map
 
@@ -272,7 +257,7 @@ No test uses the owner's actual medical history, measurements, email, UID or cre
 | --- | --- |
 | `src/features/momentum/types.ts` | Generic types and blank defaults; private values are collected at runtime. |
 | `plan.ts` | Exact starter schedule, templates, date-only arithmetic, repeats and class rescheduling. |
-| `safety.ts` | Assessment/start gate, pause logic and urgent-care messages. |
+| `safety.ts` | Start-date checks, manual pauses and ordinary session stop guidance. |
 | `coaching.ts` | Explainable recommendations, honest completion checks and earned optional changes. |
 | `research.ts` | Concise evidence summaries, source links and dated official gym information. |
 | `calendar.ts` | Non-sensitive calendar export and correct Vancouver appointment conversion. |
@@ -280,6 +265,7 @@ No test uses the owner's actual medical history, measurements, email, UID or cre
 | `useMomentum.ts` | Authorization, stale-response guards, revisioned sync and visible errors. |
 | `MomentumPage.tsx` / `momentum.css` | Onboarding and seven scoped, responsive working views. |
 | `supabase/migrations/20261023_momentum.sql` | Additive allowlist, RLS, grants and write RPC; administrator-run only. |
+| `supabase/migrations/20261023_momentum_setup.sql` | Incremental save-function update for existing installations; no table, policy or data changes. |
 | `scripts/momentum-ui-check.mjs` | Feature-specific checks using the existing isolated browser harness. |
 
 To change meals, edit the existing shared recipe library or select a swap; do not copy the recipes
@@ -288,16 +274,15 @@ rather than redirecting Momentum into the original earned-week engine.
 
 ## Evidence and Its Limits
 
-The exact starter dose is a deliberately conservative product choice, conditional on clinical advice,
-not a proven treatment for fatigue or presyncope. Long-term public-health activity targets should
+The exact starter dose is a deliberately conservative product choice, not a proven treatment
+or a promise of a specific fitness result. Long-term public-health activity targets should
 not be imposed on the first sedentary week.
 
-- [CSEP screening](https://csep.ca/2021/01/20/pre-screening-for-physical-activity/): symptoms and activity restrictions warrant appropriate advice.
 - [WHO activity guidance](https://www.who.int/news-room/fact-sheets/detail/physical-activity/): some movement is better than none; build gradually.
-- [ACSM 2026 guidance](https://acsm.org/resistance-training-guidelines-update-2026/): consistent, individualized resistance practice for healthy adults; not clinical clearance.
+- [ACSM 2026 guidance](https://acsm.org/resistance-training-guidelines-update-2026/): consistent, individualized resistance practice for healthy adults.
 - [Planning meta-analysis](https://pubmed.ncbi.nlm.nih.gov/35742582/): planning interventions improved activity on average, with heterogeneous results.
 - [Group-class review](https://pubmed.ncbi.nlm.nih.gov/42352717/): perceived capability and social/instructor context relate to adherence; much evidence is observational.
 - [Resistance exercise during weight loss](https://pubmed.ncbi.nlm.nih.gov/40909191/): preservation of fat-free mass on average does not justify an aggressive deficit or inappropriate training dose.
 - [CDC weight-management guidance](https://www.cdc.gov/healthy-weight-growth/losing-weight/): realistic goals, support, regular healthy habits and gradual change.
 - [HealthLink BC](https://www.healthlinkbc.ca/healthwise/fainting): multiple possible causes of fainting and the role of professional evaluation.
-- [QuitNow BC](https://quitnow.ca/): optional free tobacco-reduction/cessation support; not a prerequisite for medically permitted activity.
+- [QuitNow BC](https://quitnow.ca/): optional free tobacco-reduction/cessation support; not a prerequisite for participation.

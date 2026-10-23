@@ -4,6 +4,9 @@ import { runInNewContext } from "node:vm";
 import test from "node:test";
 
 const source = await readFile(new URL("../public/sw.js", import.meta.url), "utf8");
+const cacheName = source.match(/const CACHE_NAME = "([^"]+)"/)[1];
+const cacheVersion = Number(cacheName.split("-v").at(-1));
+const previousCache = `recomp-gym-console-v${cacheVersion - 1}`;
 
 // The cache and network are controlled fixtures. These tests exercise the worker's
 // registered handlers, including responses that previously produced blank PWAs.
@@ -51,7 +54,7 @@ function worker(fetchResponse) {
 
 test("an HTTP error cannot replace the last working offline page", async () => {
   const app = worker(async () => new Response("Server error", { status: 500 }));
-  const cache = await app.caches.open("recomp-gym-console-v44");
+  const cache = await app.caches.open(cacheName);
   await cache.put("/", new Response("Working tracker"));
   assert.equal(await (await app.request("/", "document", "navigate")).text(), "Working tracker");
   assert.equal(await (await app.caches.match("/")).text(), "Working tracker");
@@ -66,16 +69,16 @@ test("HTML returned for an old script falls back to the cached JavaScript", asyn
 
 test("offline navigation uses the cached page", async () => {
   const app = worker(async () => { throw new TypeError("Offline"); });
-  const cache = await app.caches.open("recomp-gym-console-v44");
+  const cache = await app.caches.open(cacheName);
   await cache.put("/", new Response("Saved shell"));
   assert.equal(await (await app.request("/", "document", "navigate")).text(), "Saved shell");
 });
 
 test("activation retains one prior app version and leaves unrelated caches alone", async () => {
   const app = worker(async () => new Response("OK"));
-  for (const name of ["other-app", "recomp-gym-console-v37", "recomp-gym-console-v38", "recomp-gym-console-v39", "recomp-gym-console-v40", "recomp-gym-console-v41", "recomp-gym-console-v42", "recomp-gym-console-v43", "recomp-gym-console-v44"]) await app.caches.open(name);
+  for (const name of ["other-app", ...Array.from({ length: 8 }, (_, i) => `recomp-gym-console-v${cacheVersion - 7 + i}`)]) await app.caches.open(name);
   await app.activate();
-  assert.deepEqual([...app.stores.keys()].sort(), ["other-app", "recomp-gym-console-v43", "recomp-gym-console-v44"]);
+  assert.deepEqual([...app.stores.keys()].sort(), ["other-app", previousCache, cacheName].sort());
 });
 
 test("no-store responses are not added to the offline cache", async () => {

@@ -34,11 +34,8 @@ import {
 } from "./plan";
 import {
   activePause,
-  clearanceValid,
   concerning,
   exerciseGate,
-  pauseForSymptoms,
-  safetyMessage,
   startJourneyAllowed,
   urgentMessage,
 } from "./safety";
@@ -156,181 +153,6 @@ function LinkOut({ href, children }: { href: string; children: ReactNode }) {
     <a href={href} target="_blank" rel="noopener noreferrer">
       {children} <ArrowRight size={14} aria-hidden="true" />
     </a>
-  );
-}
-
-/** Deliberately a record of reported advice, never a diagnostic questionnaire.
- * Changing advice invalidates the previous confirmation until explicitly saved. */
-function Assessment({
-  data,
-  edit,
-  today,
-  notice,
-}: {
-  data: MomentumData;
-  edit: Props["edit"];
-  today: string;
-  notice: (s: string) => void;
-}) {
-  const c = data.clearance;
-  const change = (patch: Partial<typeof c>) =>
-    edit((d) => ({
-      ...d,
-      clearance: { ...d.clearance, ...patch, recordedAt: "" },
-    }));
-  return (
-    <section className="mm-safety" aria-labelledby="mm-assessment">
-      <div className="mm-section-title">
-        <ShieldAlert size={22} />
-        <h2 id="mm-assessment">Professional guidance first</h2>
-      </div>
-      <p>{safetyMessage}</p>
-      <p>
-        A checkbox is not medical clearance. Record advice actually given for
-        the proposed activities; do not include diagnoses or clinician names.
-      </p>
-      <Toggle
-        label="A clinician has assessed the exercise-related symptoms"
-        value={c.assessed}
-        onChange={(assessed) => change({ assessed })}
-      />
-      <div className="mm-fields">
-        <Field label="Assessment date">
-          <input
-            type="date"
-            max={today}
-            value={c.assessedOn}
-            onChange={(e) => change({ assessedOn: e.target.value })}
-          />
-        </Field>
-        <Field label="Activity time limit, if advised (minutes)">
-          <input
-            inputMode="numeric"
-            value={c.maxMinutes}
-            onChange={(e) => change({ maxMinutes: e.target.value })}
-            placeholder="Only if advised"
-          />
-        </Field>
-      </div>
-      <fieldset>
-        <legend>
-          Activities your clinician permits, with modifications below
-        </legend>
-        <Toggle
-          label="Comfortable walking"
-          value={c.walk}
-          onChange={(walk) => change({ walk })}
-        />
-        <Toggle
-          label="Very light home strength"
-          value={c.strength}
-          onChange={(strength) => change({ strength })}
-        />
-        <Toggle
-          label="Adapted, non-contact instructor-led technique"
-          value={c.boxing}
-          onChange={(boxing) => change({ boxing })}
-        />
-        <Toggle
-          label="Small, optional progression is permitted if tolerated"
-          value={c.progression}
-          onChange={(progression) => change({ progression })}
-        />
-      </fieldset>
-      <Field label="Activity restrictions or modifications (optional, private)">
-        <textarea
-          maxLength={1200}
-          value={c.restrictions}
-          onChange={(e) => change({ restrictions: e.target.value })}
-          placeholder="Only exercise-relevant advice"
-        />
-      </Field>
-      <details>
-        <summary>Specific movements your clinician told you to avoid</summary>
-        <p>
-          These are exclusions, not app-selected medical substitutes. Follow all
-          other advice in your note too.
-        </p>
-        {Array.from(
-          new Set(
-            Object.values(strengthTemplates)
-              .flat()
-              .map((e) => e.id),
-          ),
-        ).map((id) => (
-          <Toggle
-            key={id}
-            label={`Omit ${id.replaceAll("-", " ")}`}
-            value={Boolean(c.avoidExercises?.includes(id))}
-            onChange={(checked) =>
-              change({
-                avoidExercises: checked
-                  ? [...(c.avoidExercises ?? []), id]
-                  : (c.avoidExercises ?? []).filter((e) => e !== id),
-              })
-            }
-          />
-        ))}
-      </details>
-      <Toggle
-        label="I understand these are my records of professional advice, not clearance issued by this app"
-        value={c.understood}
-        onChange={(understood) => change({ understood })}
-      />
-      <button
-        type="button"
-        onClick={() => {
-          const candidate = { ...c, recordedAt: new Date().toISOString() };
-          if (!clearanceValid(candidate, today)) {
-            notice(
-              "The full starter calendar stays inactive until assessment and permission for all three activities are recorded. Preparation remains available.",
-            );
-            return;
-          }
-          const pause = activePause(data);
-          if (pause?.reason === "medical" && c.assessedOn < pause.from) {
-            notice(
-              "Record follow-up assessment on or after the medical pause, not the older advice.",
-            );
-            return;
-          }
-          edit((d) => {
-            return {
-              ...d,
-              clearance: candidate,
-              // Follow-up review closes medical holds in archived months too.
-              // A concurrent device may have opened a hold before a new start.
-              journeys: Object.fromEntries(
-                Object.entries(d.journeys).map(([id, j]) => [
-                  id,
-                  {
-                    ...j,
-                    pauses: Object.fromEntries(
-                      Object.entries(j.pauses).map(([key, p]) => [
-                        key,
-                        p.to ? p : { ...p, to: today },
-                      ]),
-                    ),
-                  },
-                ]),
-              ),
-            };
-          });
-          notice(
-            "Guidance recorded. Restrictions still override every activity; this app has not assessed your safety.",
-          );
-        }}
-      >
-        Record professional guidance
-      </button>
-      <details>
-        <summary>When to stop and seek care</summary>
-        <p>{urgentMessage}</p>
-        <LinkOut href="https://www.healthlinkbc.ca/healthwise/fainting">
-          HealthLink BC guidance
-        </LinkOut>
-      </details>
-    </section>
   );
 }
 
@@ -485,7 +307,7 @@ function StartControl({
   notice: (s: string) => void;
 }) {
   const [start, setStart] = useState(() =>
-    suggestedStart(data.clearance.assessedOn, today),
+    suggestedStart(today),
   );
   const [confirmation, setConfirmation] = useState("");
   const j = currentJourney(data);
@@ -497,7 +319,7 @@ function StartControl({
       <p>
         {j
           ? "Creates a new private journey. The current month is archived, not erased. Recomp workouts, meals and weigh-ins stay unchanged."
-          : "The calendar starts only when you explicitly activate it after assessment. Until then, meals and preparation are enough."}
+          : "Choose a Monday that fits your routine. The calendar starts only when you activate it; until then, meals and preparation are available."}
       </p>
       <Field label="Start Monday">
         <input
@@ -543,8 +365,7 @@ function StartControl({
       </button>
       {!startJourneyAllowed(data, start, today) && (
         <p className="mm-muted">
-          Requires recorded guidance for all proposed activities and a Monday
-          after assessment, not a retroactive start.
+          Choose today or a future Monday, not a date in the past.
         </p>
       )}
     </section>
@@ -718,14 +539,14 @@ export default function MomentumPage(props: Props) {
         },
       }));
   };
-  const record = (outcome: "planned" | "modified" | "missed" | "medical") => {
+  const record = (outcome: "planned" | "modified" | "missed" | "stopped") => {
     if (!selected) return;
     if (
-      outcome === "medical" ||
+      outcome === "stopped" ||
       (outcome === "missed" && log.reason === "Pain or symptoms")
     ) {
       edit((d) => {
-        const next = pauseForSymptoms(d, today, uid()),
+        const next = d,
           current = currentJourney(next);
         return current
           ? {
@@ -738,7 +559,7 @@ export default function MomentumPage(props: Props) {
                     ...current.logs,
                     [selected.id]: {
                       ...log,
-                      outcome: "medical",
+                      outcome: "stopped",
                       recordedAt: new Date().toISOString(),
                       performedOn: undefined,
                       scheduledFor: selected.date,
@@ -793,7 +614,7 @@ export default function MomentumPage(props: Props) {
     const readiness = { ...log.readiness, ...patch };
     if (concerning(readiness)) {
       edit((d) => {
-        const next = pauseForSymptoms(d, today, uid()),
+        const next = d,
           current = currentJourney(next);
         return current && selected
           ? {
@@ -807,7 +628,7 @@ export default function MomentumPage(props: Props) {
                     [selected.id]: {
                       ...log,
                       readiness,
-                      outcome: "medical",
+                      outcome: "stopped",
                       performedOn: undefined,
                       recordedAt: new Date().toISOString(),
                     },
@@ -918,7 +739,7 @@ export default function MomentumPage(props: Props) {
     >
       <h2>{activity === "strength-a" ? "Strength A" : "Strength B"}</h2>
       <p>
-        3-5 minutes of gentle permitted movement first. One very light set per
+        3-5 minutes of gentle movement first. One very light set per
         movement. Rest 90-180 seconds or longer; breathe continuously. Finish
         with two gentle minutes.
       </p>
@@ -929,23 +750,13 @@ export default function MomentumPage(props: Props) {
       </p>
       {data.profile.jointModification && (
         <p className="mm-callout">
-          Use only a comfortable knee/hip range. Skip and ask your clinician or
-          qualified coach if a movement is unsuitable; the app does not choose a
-          medical substitute.
+          Use only a comfortable knee/hip range. Skip a movement that feels
+          unsuitable and ask a qualified coach for help with your setup.
         </p>
       )}
       {strengthTemplates[activity]
-        .filter((e) => data.clearance.avoidExercises?.includes(e.id))
-        .map((e) => (
-          <p className="mm-callout" key={e.id}>
-            {resources.exercises[e.id].name} is omitted under your recorded
-            clinical guidance. No substitute is chosen by the app.
-          </p>
-        ))}
-      {strengthTemplates[activity]
         .filter(
           (e) =>
-            !data.clearance.avoidExercises?.includes(e.id) &&
             (!interactive || resolved?.exerciseIds.includes(e.id)),
         )
         .map((e) => (
@@ -976,7 +787,7 @@ export default function MomentumPage(props: Props) {
                 <p>{resources.exercises[e.id].avoid.slice(0, 2).join(" ")}</p>
                 <p>
                   Ignore any higher-volume targets in external demonstrations.
-                  Follow the one-easy-set Momentum plan and clinician guidance.
+                  Follow the one-easy-set Momentum plan shown here.
                 </p>
               </div>
             )}
@@ -1087,10 +898,7 @@ export default function MomentumPage(props: Props) {
         today={today}
         onSave={(review) => {
           edit((d) => {
-            const next =
-              review.body === "symptoms"
-                ? pauseForSymptoms(d, today, uid())
-                : d;
+            const next = d;
             const c = currentJourney(next)!;
             return {
               ...next,
@@ -1116,7 +924,7 @@ export default function MomentumPage(props: Props) {
           const nextWeek = Math.min(4, weekOf(selected.day) + 1);
           if (!adaptationAllowed(data, adaptation.mode, today)) {
             setNotice(
-              "Keep the familiar level: progression needs two comfortable strength practices, two light technique visits, a comfortable review and explicit clinician permission.",
+              "Keep the familiar level: progression needs two comfortable strength practices, two light technique visits, a comfortable weekly review.",
             );
             return;
           }
@@ -1171,7 +979,7 @@ export default function MomentumPage(props: Props) {
       {!data.onboarded ? (
         <>
           <nav className="mm-onboarding" aria-label="Setup progress">
-            {["Your routine", "Safety & guidance", "First Monday"].map(
+            {["Your routine", "First Monday"].map(
               (label, i) => (
                 <button
                   type="button"
@@ -1186,13 +994,6 @@ export default function MomentumPage(props: Props) {
           </nav>
           {onboardingStep === 0 ? (
             <Preferences data={data} edit={edit} />
-          ) : onboardingStep === 1 ? (
-            <Assessment
-              data={data}
-              edit={edit}
-              today={today}
-              notice={setNotice}
-            />
           ) : (
             <StartControl
               data={data}
@@ -1210,7 +1011,7 @@ export default function MomentumPage(props: Props) {
                 Back
               </button>
             )}
-            {onboardingStep < 2 ? (
+            {onboardingStep < 1 ? (
               <button
                 className="mm-primary"
                 type="button"
@@ -1417,12 +1218,6 @@ export default function MomentumPage(props: Props) {
                 )}
                 {!gate && selected && resolved && !resolved.gate && (
                   <>
-                    {data.clearance.restrictions && (
-                      <p className="mm-callout">
-                        <strong>Your clinician's restrictions:</strong>{" "}
-                        {data.clearance.restrictions}
-                      </p>
-                    )}
                     {!data.profile.availableDays.includes(
                       weekday(selected.date),
                     ) &&
@@ -1474,8 +1269,8 @@ export default function MomentumPage(props: Props) {
                           log.readiness.soreness === "significant" ||
                           log.readiness.pain === "mild") && (
                           <p>
-                            Choose the smaller version or recovery. Good sleep
-                            or energy never overrides medical guidance.
+                            Choose the smaller version or recovery. Feeling
+                            energetic is not a reason to push through pain.
                           </p>
                         )}
                       </details>
@@ -1642,11 +1437,11 @@ export default function MomentumPage(props: Props) {
                           Did not do it
                         </button>
                         <button
-                          className="mm-medical-button"
+                          className="mm-stop-button"
                           type="button"
-                          onClick={() => record("medical")}
+                          onClick={() => record("stopped")}
                         >
-                          <ShieldAlert size={18} /> Medical pause
+                          <ShieldAlert size={18} /> Stop session
                         </button>
                       </div>
                       {log.outcome && (
@@ -1716,7 +1511,7 @@ export default function MomentumPage(props: Props) {
                                     planned: "Done",
                                     modified: "Small",
                                     missed: "Missed",
-                                    medical: "Paused",
+                                    stopped: "Stopped",
                                   }[j.logs[s.id].outcome!]
                                 : {
                                     walk: "Walk",
@@ -1761,7 +1556,7 @@ export default function MomentumPage(props: Props) {
                 <h2>My 30 days</h2>
                 <p>
                   {gate ??
-                    "Tap any day to see its actual plan and record. Smaller participation and medical pauses stay distinct."}
+                    "Tap any day to see its actual plan and record. Smaller participation and stopped sessions stay distinct."}
                 </p>
                 {!j ? (
                   <p>
@@ -1816,7 +1611,7 @@ export default function MomentumPage(props: Props) {
                 <section className="mm-band">
                   <h2>Learn the sport. Keep the commitment small.</h2>
                   <p>
-                    One adapted class a week after appropriate clearance. No
+                    One adapted class a week. No
                     sparring, hard conditioning or pressure to finish the full
                     class. A trial or observation is enough to explore the fit.
                   </p>
@@ -2189,8 +1984,7 @@ export default function MomentumPage(props: Props) {
                     target.
                   </p>
                   <p>
-                    {pause?.reason === "medical" ||
-                    (slots.at(-1)?.date ?? "9999-12-31") <= today
+                    {(slots.at(-1)?.date ?? "9999-12-31") <= today
                       ? monthTwo(data, today)
                       : "Your Month 2 recommendation appears at the end of this journey. For now, make the next appointment achievable."}
                   </p>
@@ -2345,7 +2139,7 @@ export default function MomentumPage(props: Props) {
                                       planned: "Completed as planned",
                                       modified: "Smaller version",
                                       missed: "Did not do it",
-                                      medical: "Medical pause",
+                                      stopped: "Session stopped",
                                     }[x.logs[s.id].outcome!]
                                   }
                                   {x.logs[s.id].performedOn &&
@@ -2368,12 +2162,6 @@ export default function MomentumPage(props: Props) {
             {view === "settings" && (
               <>
                 <Preferences data={data} edit={edit} />
-                <Assessment
-                  data={data}
-                  edit={edit}
-                  today={today}
-                  notice={setNotice}
-                />
                 <StartControl
                   data={data}
                   edit={edit}
@@ -2384,14 +2172,12 @@ export default function MomentumPage(props: Props) {
                   <section className="mm-band">
                     <h2>Pause or repeat without erasing history</h2>
                     <p>
-                      Medical pauses require follow-up guidance above. A
-                      personal pause can resume at the next opportunity; no
-                      catch-up work is added.
+                      Pause whenever you need a break and resume at the next
+                      opportunity. No catch-up work is added.
                     </p>
                     {pause ? (
                       <button
                         type="button"
-                        disabled={pause.reason === "medical"}
                         onClick={() =>
                           editJourney((c) => ({
                             ...c,
@@ -2500,7 +2286,7 @@ export default function MomentumPage(props: Props) {
                     <>
                       <p>
                         Quitting or reducing tobacco can support long-term
-                        health. It is not a prerequisite for permitted exercise,
+                        health. It is not a prerequisite for exercise,
                         and smoking is not assumed to explain exercise symptoms.
                       </p>
                       <Field label="One optional personal support goal">
@@ -2541,7 +2327,7 @@ export default function MomentumPage(props: Props) {
         <summary>Why this plan works</summary>
         <p>
           The exact one-class/one-strength-session starter is a conservative
-          coaching design, not a validated medical protocol. The first month is
+          coaching design. The first month is
           a habit foundation, not the full long-term activity target.
         </p>
         {evidence.map((e) => (
@@ -2697,7 +2483,7 @@ function WeeklyReview({
                 onAdapt({
                   mode: "second-session",
                   reason:
-                    "Optional second light practice after comfortable attendance, review and recorded permission.",
+                    "Optional second light practice after comfortable attendance and a weekly review.",
                 })
               }
             >
@@ -2760,7 +2546,7 @@ function ClassAppointment({
                 planned: "Completed as planned",
                 modified: "Smaller version",
                 missed: "Did not do it",
-                medical: "Medical pause",
+                stopped: "Session stopped",
               }[log.outcome]
             : log.booked
               ? "Booked by you"

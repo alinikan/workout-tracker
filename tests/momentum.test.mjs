@@ -15,10 +15,8 @@ import {
   suggestedStart,
 } from "../src/features/momentum/plan.ts";
 import {
-  clearanceValid,
   exerciseGate,
   startJourneyAllowed,
-  pauseForSymptoms,
 } from "../src/features/momentum/safety.ts";
 import {
   resolveDay,
@@ -31,6 +29,7 @@ import {
 } from "../src/features/momentum/coaching.ts";
 import {
   mergeMomentum,
+  normalizeMomentum,
   cachePrivate,
   readPrivate,
   clearPrivateCache,
@@ -40,22 +39,10 @@ import {
   calendarText,
 } from "../src/features/momentum/calendar.ts";
 
-const assessed = () => ({
-  assessed: true,
-  assessedOn: "2026-10-23",
-  understood: true,
-  walk: true,
-  strength: true,
-  boxing: true,
-  progression: true,
-  maxMinutes: "",
-  restrictions: "",
-  recordedAt: "2026-10-23T17:00:00Z",
-});
+
 function fixture() {
   const d = emptyMomentum(),
     j = makeJourney("2026-10-26", "synthetic-journey");
-  d.clearance = assessed();
   d.activeJourneyId = j.id;
   d.journeys[j.id] = j;
   d.onboarded = true;
@@ -134,22 +121,20 @@ test("Momentum has precisely the requested 30 initial activities and one-set tem
     for (const key of ["steps", "task", "enough", "minimum", "minutes"])
       assert.ok(p[key].length);
 });
-test("Medical gate cannot be bypassed by energy, opening the app, a date change or a partial checkbox", () => {
+test("Setup needs only an explicit start, with no additional approval fields", () => {
   const d = emptyMomentum();
   assert.equal(d.activeJourneyId, null);
-  assert.ok(exerciseGate(d, "2026-10-26"));
-  d.clearance = assessed();
-  d.clearance.boxing = false;
-  assert.equal(clearanceValid(d.clearance, "2026-10-26"), false);
-  assert.equal(startJourneyAllowed(d, "2026-10-26", "2026-10-23"), false);
-  assert.ok(exerciseGate(d, "2028-10-26"));
+  assert.equal("clearance" in d, false);
+  assert.match(exerciseGate(d, "2026-10-26"), /start Monday/);
+  assert.equal(startJourneyAllowed(d, "2026-10-26", "2026-10-23"), true);
+  assert.equal(exerciseGate(fixture(), "2026-10-26"), null);
 });
-test("Start must be an explicitly chosen Monday after assessment; date arithmetic survives DST", () => {
+test("Start must be an explicitly chosen Monday; date arithmetic survives DST", () => {
   const d = fixture();
   assert.equal(firstMondayAfter("2026-10-23"), "2026-10-26");
   assert.equal(firstMondayAfter("2026-10-26"), "2026-11-02");
-  assert.equal(suggestedStart("2026-10-01", "2026-10-26"), "2026-10-26");
-  assert.equal(suggestedStart("2026-10-26", "2026-10-26"), "2026-11-02");
+  assert.equal(suggestedStart("2026-10-26"), "2026-10-26");
+  assert.equal(suggestedStart("2026-10-23"), "2026-10-26");
   assert.equal(startJourneyAllowed(d, "2026-10-26", "2026-10-23"), true);
   assert.equal(startJourneyAllowed(d, "2026-10-27", "2026-10-23"), false);
   assert.equal(startJourneyAllowed(d, "2026-10-19", "2026-10-23"), false);
@@ -171,7 +156,7 @@ test("Calendar passage alone never enables B, extra sets, load jumps or longer b
     undefined,
   );
 });
-test("Progression needs real comfortable strength/class records, review, permission and explicit choice", () => {
+test("Progression needs real comfortable strength/class records, review and explicit choice", () => {
   const d = fixture(),
     j = journey(d);
   for (const id of ["day-3", "day-5", "day-8", "day-12"]) recordGood(d, id);
@@ -186,7 +171,7 @@ test("Progression needs real comfortable strength/class records, review, permiss
     resolveDay(d, j.slots["day-17"], "2026-11-11").activity,
     "strength-b",
   );
-  d.clearance.progression = false;
+  j.reviews["2"].body = "difficult";
   assert.equal(
     resolveDay(d, j.slots["day-17"], "2026-11-11").activity,
     "recovery",
@@ -228,19 +213,24 @@ test("Actual attendance dates are validated and a rest checkmark does not manufa
   };
   assert.equal(attendance(j, "2026-11-15").length, 0);
 });
-test("Clinical movement exclusions take precedence without substituting a medical exercise", () => {
-  const d = fixture(),
-    j = journey(d),
-    s = j.slots["day-3"],
-    l = newLog();
-  d.clearance.avoidExercises = ["leg-press"];
-  l.sets["leg-press"] = { weight: "5", reps: "5", done: true };
-  assert.ok(completionError(d, s, l, "modified", s.date));
-  for (const id of ["incline-db-press", "lat-pulldown", "dead-bug"])
-    l.sets[id] = { weight: "", reps: "5", done: true };
-  assert.equal(completionError(d, s, l, "planned", s.date), null);
-  d.clearance.avoidExercises = strengthTemplates["strength-a"].map((e) => e.id);
-  assert.equal(resolveDay(d, s, s.date).activity, "recovery");
+test("Legacy records upgrade without losing history or retaining removed setup fields", () => {
+  const old = structuredClone(fixture());
+  old.schemaVersion = 1;
+  old.clearance = { assessed: false, restrictions: "Old private setup" };
+  old.meals["2026-10-28"] = { swaps: { lunch: "original" }, eaten: { lunch: true } };
+  journey(old).logs["day-3"] = { ...newLog(), outcome: "medical", note: "Retain actual note" };
+  journey(old).pauses.old = { from: "2026-10-28", reason: "medical" };
+  const upgraded = normalizeMomentum(old);
+  assert.equal(upgraded.schemaVersion, 2);
+  assert.equal("clearance" in upgraded, false);
+  assert.equal(journey(upgraded).logs["day-3"].outcome, "stopped");
+  assert.equal(journey(upgraded).logs["day-3"].note, "Retain actual note");
+  assert.deepEqual(upgraded.meals, old.meals);
+  assert.equal(journey(upgraded).pauses.old.reason, "personal");
+  journey(upgraded).pauses.old.to = "2026-10-29";
+  assert.equal(exerciseGate(upgraded, "2026-10-30"), null);
+  assert.equal("clearance" in normalizeMomentum(upgraded), false);
+  assert.throws(() => normalizeMomentum({ ...upgraded, schemaVersion: 99 }), /Unsupported/);
 });
 test("A newer poor recovery outweighs older comfortable walks and classes", () => {
   const d = fixture(),
@@ -256,7 +246,7 @@ test("A newer poor recovery outweighs older comfortable walks and classes", () =
     /latest comparable/,
   );
 });
-test("A lighter week shows just one movement and the clinical time limit overrides the template", () => {
+test("A lighter week shows just one movement without completing other sets", () => {
   const d = fixture(),
     j = journey(d),
     s = j.slots["day-3"];
@@ -264,29 +254,23 @@ test("A lighter week shows just one movement and the clinical time limit overrid
   assert.deepEqual(resolveDay(d, s, s.date).exerciseIds, ["leg-press"]);
   assert.match(
     resolveDay(d, s, s.date).steps.join(" "),
-    /one permitted easy movement/,
+    /one easy movement/,
   );
   const l = {
     ...newLog(),
     sets: { "leg-press": { weight: "5", reps: "5", done: true } },
   };
   assert.equal(completionError(d, s, l, "planned", s.date), null);
-  d.clearance.maxMinutes = "5";
-  assert.equal(resolveDay(d, s, s.date).activity, "recovery");
-  assert.equal(resolveDay(d, s, s.date).minutes, "0");
-  assert.match(resolveDay(d, s, s.date).modifiedReason, /clinical time limit/);
 });
-test("A medical hold from another journey survives a concurrent new-month merge", () => {
-  const base = fixture(),
-    remote = pauseForSymptoms(base, "2026-10-28", "medical-from-phone"),
-    local = structuredClone(base);
+test("An archived pause does not lock a new journey on another device", () => {
+  const base = fixture(), remote = structuredClone(base), local = structuredClone(base);
+  journey(remote).pauses.old = { from: "2026-10-28", reason: "personal" };
   local.journeys.next = makeJourney("2026-11-30", "next");
   local.activeJourneyId = "next";
   const merged = mergeMomentum(base, local, remote);
-  assert.equal(merged.clearance.assessed, false);
-  merged.clearance = assessed();
-  assert.equal(startJourneyAllowed(merged, "2026-11-30", "2026-10-29"), false);
-  assert.ok(exerciseGate(merged, "2026-11-30"));
+  assert.ok(merged.journeys["synthetic-journey"].pauses.old);
+  assert.equal(exerciseGate(merged, "2026-11-30"), null);
+  assert.equal(startJourneyAllowed(merged, "2026-11-30", "2026-10-29"), true);
 });
 test("Observation is an honest modified boxing visit and missing minutes do not fabricate exercise", () => {
   const d = fixture(),
@@ -297,32 +281,19 @@ test("Observation is an honest modified boxing visit and missing minutes do not 
   assert.equal(completionError(d, s, l, "modified", s.date), null);
   assert.match(completionError(d, s, l, "planned", s.date), /Observation/);
 });
-test("Medical pause blocks all progression, survives merging and does not become a missed day", () => {
-  const d = fixture(),
-    paused = pauseForSymptoms(d, "2026-10-28", "pause-test");
+test("Personal pauses can resume, while stopped sessions stay distinct from missed days", () => {
+  const d = fixture(), paused = structuredClone(d);
+  journey(paused).pauses.test = { from: "2026-10-28", reason: "personal" };
   assert.ok(exerciseGate(paused, "2026-11-01"));
-  assert.equal(progressionEligible(paused, "2028-11-01"), false);
-  assert.equal(
-    outcomeLabel(paused, journey(paused).slots["day-4"], "2026-11-01"),
-    "Medical pause",
-  );
-  assert.equal(mergeMomentum(d, d, paused).clearance.assessed, false);
-  assert.match(
-    monthTwo(
-      {
-        ...paused,
-        journeys: {
-          ...paused.journeys,
-          [paused.activeJourneyId]: {
-            ...journey(paused),
-            logs: { "day-3": { ...newLog(), outcome: "medical" } },
-          },
-        },
-      },
-      "2026-11-01",
-    ),
-    /Clinical review/,
-  );
+  assert.equal(outcomeLabel(paused, journey(paused).slots["day-4"], "2026-11-01"), "Paused");
+  assert.ok(journey(mergeMomentum(d, d, paused)).pauses.test);
+  journey(paused).pauses.test.to = "2026-11-01";
+  journey(paused).logs["day-3"] = { ...newLog(), outcome: "stopped" };
+  assert.equal(exerciseGate(paused, "2026-11-02"), null);
+  assert.equal(outcomeLabel(paused, journey(paused).slots["day-3"], "2026-11-02"), "Session stopped");
+  assert.equal(attendance(journey(paused), "2026-11-02").length, 0);
+  assert.match(monthTwo(paused, "2026-11-02"), /familiar or lighter/);
+  assert.equal(progressionEligible(paused, "2026-11-02"), false);
 });
 test("Missed sessions never add compulsory make-up work and restart archives rather than erases", () => {
   const d = fixture(),
@@ -457,16 +428,16 @@ test("Private device cache contains ciphertext and cannot be read under another 
   globalThis.sessionStorage = new MemoryStorage();
   try {
     const d = fixture();
-    d.clearance.restrictions = "Synthetic private advice";
+    d.profile.wellbeingGoal = "Synthetic private goal";
     await cachePrivate("account-a", { base: d, local: d, revision: 2 });
     assert.doesNotMatch(
       JSON.stringify(localStorage),
-      /Synthetic private advice/,
+      /Synthetic private goal/,
     );
     assert.equal(await readPrivate("account-b"), null);
     assert.equal(
-      (await readPrivate("account-a")).local.clearance.restrictions,
-      "Synthetic private advice",
+      (await readPrivate("account-a")).local.profile.wellbeingGoal,
+      "Synthetic private goal",
     );
     clearPrivateCache();
     assert.equal(await readPrivate("account-a"), null);
@@ -503,7 +474,6 @@ test("Actual PostgreSQL: singleton allowlist, RLS, RPC ownership and compare-and
     const dbFixture = () => {
       const d = fixture(),
         j = makeJourney(firstMondayAfter(dbToday), "synthetic-journey");
-      d.clearance.assessedOn = dbToday;
       d.journeys[j.id] = j;
       return d;
     };
@@ -577,16 +547,16 @@ test("Actual PostgreSQL: singleton allowlist, RLS, RPC ownership and compare-and
       },
     );
     await t.test(
-      "activation is also gated on the server, not only a client checkbox",
+      "server rejects invalid start dates and malformed document versions",
       async () => {
         await as(owner);
         const invalid = dbFixture();
-        invalid.clearance.assessed = false;
+        invalid.journeys[invalid.activeJourneyId].startedOn = addDays(firstMondayAfter(dbToday), 1);
         await assert.rejects(
           db.query("select public.momentum_save(0,$1::jsonb)", [
             JSON.stringify(invalid),
           ]),
-          /professional guidance/,
+          /future Monday/,
         );
       },
     );
@@ -637,35 +607,22 @@ test("Actual PostgreSQL: singleton allowlist, RLS, RPC ownership and compare-and
         assert.equal(r.revision, 1);
       },
     );
-    await t.test(
-      "a fresh month cannot drop an unresolved medical hold from the stored document",
-      async () => {
-        await as(owner);
-        await db.exec("begin;");
-        try {
-          const paused = pauseForSymptoms(
-            dbFixture(),
-            dbToday,
-            "synthetic-hold",
-          );
-          await db.query("select public.momentum_save(1,$1::jsonb)", [
-            JSON.stringify(paused),
-          ]);
-          const candidate = dbFixture(),
-            next = makeJourney(firstMondayAfter(dbToday), "another");
-          candidate.journeys = { another: next };
-          candidate.activeJourneyId = "another";
-          await assert.rejects(
-            db.query("select public.momentum_save(2,$1::jsonb)", [
-              JSON.stringify(candidate),
-            ]),
-            /medical pause/,
-          );
-        } finally {
-          await db.exec("rollback;");
-        }
-      },
-    );
+    await t.test("incremental setup migration preserves grants, data and CAS while accepting both document versions", async () => {
+      await db.exec("reset role;");
+      const update = await readFile(new URL("../supabase/migrations/20261023_momentum_setup.sql", import.meta.url), "utf8");
+      await db.exec(update);
+      await db.exec(update);
+      await as(owner);
+      const saved = (await db.query("select public.momentum_save(1,$1::jsonb) as saved", [JSON.stringify(dbFixture())])).rows[0].saved;
+      assert.equal(saved.revision, 2);
+      assert.equal(saved.data.schemaVersion, 2);
+      assert.equal("clearance" in saved.data, false);
+      const legacy = { ...dbFixture(), schemaVersion: 1 };
+      const compatible = (await db.query("select public.momentum_save(2,$1::jsonb) as saved", [JSON.stringify(legacy)])).rows[0].saved;
+      assert.equal(compatible.revision, 3);
+      await assert.rejects(db.query("select public.momentum_save(3,$1::jsonb)", [JSON.stringify({ ...legacy, schemaVersion: 99 })]), /Invalid Momentum document/);
+      await assert.rejects(db.query("select public.momentum_save(3,$1::jsonb)", [JSON.stringify({ ...legacy, schemaVersion: undefined })]), /Invalid Momentum document/);
+    });
     await t.test(
       "grant cannot be self-assigned, broadened to two owners, or retained after revocation",
       async () => {
@@ -720,7 +677,7 @@ test("Actual PostgreSQL: singleton allowlist, RLS, RPC ownership and compare-and
         assert.equal(
           (await db.query("select revision from public.momentum_progress"))
             .rows[0].revision,
-          1,
+          3,
         );
       },
     );

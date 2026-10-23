@@ -1,6 +1,5 @@
 import { mergeProgressChanges, sameData } from "../../lib/syncMerge.ts";
 import { emptyMomentum, newLog, type MomentumData } from "./types.ts";
-import { activePause } from "./safety.ts";
 
 const prefix = "momentum-private-v1:";
 type Envelope = { owner: string; iv: number[]; ciphertext: number[] };
@@ -9,16 +8,38 @@ export function normalizeMomentum(value: unknown): MomentumData {
   const empty = emptyMomentum();
   if (!value || typeof value !== "object" || !Object.keys(value).length)
     return empty;
-  const v = value as Partial<MomentumData>;
-  if (v.schemaVersion !== 1 || !v.profile || !v.clearance || !v.journeys)
+  const { clearance: _removed, ...v } = value as Partial<MomentumData> & {
+    clearance?: unknown;
+  };
+  if (![1, 2].includes(Number(v.schemaVersion)) || !v.profile || !v.journeys)
     throw new Error(
       "Unsupported private record. Do not overwrite it; update the app or contact the administrator.",
     );
   return {
     ...empty,
     ...v,
+    schemaVersion: 2,
     profile: { ...empty.profile, ...v.profile },
-    clearance: { ...empty.clearance, ...v.clearance },
+    // Upgrade old records without erasing attendance, notes, meals or history.
+    // Removed setup fields never return through a cache or a conflict response.
+    journeys: Object.fromEntries(
+      Object.entries(v.journeys).map(([id, j]) => [id, {
+        ...j,
+        logs: Object.fromEntries(
+          Object.entries(j.logs).map(([key, log]) => [key, {
+            ...log,
+            ...(String(log.outcome) === "medical"
+              ? { outcome: "stopped" as const }
+              : {}),
+          }]),
+        ),
+        pauses: Object.fromEntries(
+          Object.entries(j.pauses).map(([key, p]) => [key, {
+            ...p, reason: "personal" as const,
+          }]),
+        ),
+      }]),
+    ),
   };
 }
 export { sameData };
@@ -95,15 +116,6 @@ export function mergeMomentum(
         )
       )
         meal.eaten[slot] = false;
-  // An independently reported medical pause wins over another device's older
-  // permission checkboxes. Only explicitly closing that pause after review can
-  // restore exercise access; ordinary field merges cannot do so accidentally.
-  if (activePause(merged)?.reason === "medical")
-    merged.clearance = {
-      ...merged.clearance,
-      assessed: false,
-      understood: false,
-    };
   return merged;
 }
 

@@ -172,7 +172,6 @@
 }
 .mm-band,
 .mm-one-thing,
-.mm-safety,
 .mm-evidence {
   padding-block: 24px;
   border-bottom: 1px solid var(--separator, #d5dfdc);
@@ -191,8 +190,7 @@
 .mm-one-thing:is(.strength-a, .strength-b) {
   border-left-color: var(--mm-strength);
 }
-.mm-one-thing.preparation,
-.mm-safety {
+.mm-one-thing.preparation {
   border-left: 4px solid var(--mm-warning);
   padding-left: 16px;
 }

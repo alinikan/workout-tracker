@@ -8271,7 +8271,6 @@ export default function Home() {
                 max={gymMoveRows.length}
                 label="Today's workout progress"
               />
-              <progress aria-label="Today's workout progress" value={gymMoveRows.filter((move) => move.isComplete).length} max={gymMoveRows.length || 1} />
             </button>
             <button
               className="hub-choice-card diet"
@@ -8289,7 +8288,6 @@ export default function Home() {
                 max={4}
                 label="Today's meal progress"
               />
-              <progress aria-label="Today's meal progress" value={Object.values(normalizeDietDayLog(store.dietDays[currentProgramDate]).meals).filter(Boolean).length} max={4} />
             </button>
           </div>
         </section>

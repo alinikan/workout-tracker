@@ -96,9 +96,9 @@ Its seven views keep each day focused on one achievable action and a legitimate 
 | Boundary | How It Works |
 | --- | --- |
 | Private account | An administrator grants exactly one Supabase authentication UID. RLS and restricted server functions enforce access; hiding a button is not the security boundary. |
-| Assessment first | Exercise stays inactive until professional guidance for the proposed activities is recorded. Checkboxes are not clinical clearance; symptoms create a non-expiring medical pause. |
-| Earned options | No calendar-based load jump. Optional extra practice needs actual comfortable attendance, recovery, review, permission and an explicit choice. |
-| Honest records | Planned, smaller, missed and medically paused are distinct. Finishing one set never completes the others. No catch-up workout is owed. |
+| Simple start | Two setup steps: your routine and your start Monday. Start today if it is Monday, choose a future Monday, or stay in preparation. Nothing starts automatically. |
+| Earned options | No calendar-based load jump. Optional extra practice needs actual comfortable attendance, recovery, review and an explicit choice. |
+| Honest records | Planned, smaller, missed and stopped sessions are distinct. Finishing one set never completes the others. No catch-up workout is owed. Pauses can be resumed in Settings. |
 | Original data intact | Workout and meal logs stay separate. Coach's dated kg weigh-ins are the single shared source, not duplicated metrics. A new Momentum month archives only Momentum history. |
 | Affordable planning | Dated official local-gym references, manual booking and safe rescheduling. No paid API, automated membership purchase or invented live timetable. |
 
@@ -109,9 +109,13 @@ Its seven views keep each day focused on one achievable action and a legitimate 
 > variable or service-role key belongs in the browser. Other accounts see no entry.
 
 Read the [complete Momentum setup and user guide](docs/momentum.md) for step-by-step SQL Editor
-instructions, authorization/revocation, safety boundaries, all 30 days, reminders, sync and testing.
+instructions, authorization/revocation, start and pause controls, all 30 days, reminders, sync and testing.
 Private device drafts are encrypted with a session-scoped key: sync before closing an offline
 session. Background push notifications and progress-photo storage are not configured.
+
+Already installed Momentum? Apply [`20261023_momentum_setup.sql`](supabase/migrations/20261023_momentum_setup.sql)
+before deploying this update. It changes only the save function, not your records, account grant,
+or row-level security. Older synced documents upgrade without losing attendance or meals.
 
 ---
 

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 // history. Profile values live only in the separately authorized private record.
 export type Activity =
   "walk" | "strength-a" | "strength-b" | "boxing" | "recovery" | "review";
-export type Outcome = "planned" | "modified" | "missed" | "medical";
+export type Outcome = "planned" | "modified" | "missed" | "stopped";
 export type MealSlot = "breakfast" | "lunch" | "snack" | "dinner";
 export type DayPlan = {
   day: number;
@@ -68,19 +68,6 @@ export type Adaptation = {
   exerciseId?: string;
   reason: string;
 };
-export type Clearance = {
-  assessed: boolean;
-  assessedOn: string;
-  understood: boolean;
-  walk: boolean;
-  strength: boolean;
-  boxing: boolean;
-  progression: boolean;
-  maxMinutes: string;
-  restrictions: string;
-  avoidExercises?: string[];
-  recordedAt: string;
-};
 export type Profile = {
   goals: string[];
   activity: "sedentary" | "some";
@@ -111,14 +98,13 @@ export type Journey = {
   adaptations: Record<string, Adaptation>;
   pauses: Record<
     string,
-    { from: string; to?: string; reason: "medical" | "personal" }
+    { from: string; to?: string; reason: "personal" }
   >;
 };
 export type MomentumData = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   onboarded: boolean;
   profile: Profile;
-  clearance: Clearance;
   activeJourneyId: string | null;
   journeys: Record<string, Journey>;
   meals: Record<
@@ -173,22 +159,9 @@ export const newLog = (): ActivityLog => ({
   readiness: {},
   sets: {},
 });
-export const emptyClearance = (): Clearance => ({
-  assessed: false,
-  assessedOn: "",
-  understood: false,
-  walk: false,
-  strength: false,
-  boxing: false,
-  progression: false,
-  maxMinutes: "",
-  restrictions: "",
-  avoidExercises: [],
-  recordedAt: "",
-});
 export function emptyMomentum(): MomentumData {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     onboarded: false,
     profile: {
       goals: ["Consistency", "Fitness", "Boxing skills"],
@@ -210,7 +183,6 @@ export function emptyMomentum(): MomentumData {
       age: "",
       height: "",
     },
-    clearance: emptyClearance(),
     activeJourneyId: null,
     journeys: {},
     meals: {},

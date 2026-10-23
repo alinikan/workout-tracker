@@ -19,18 +19,6 @@ export async function runMomentumChecks({
   const active = () => {
     const d = mm.emptyMomentum(),
       j = plan.makeJourney("2026-10-05", "synthetic-private-journey");
-    d.clearance = {
-      assessed: true,
-      assessedOn: "2026-10-01",
-      understood: true,
-      walk: true,
-      strength: true,
-      boxing: true,
-      progression: false,
-      maxMinutes: "",
-      restrictions: "Synthetic fixture advice",
-      recordedAt: "2026-10-01T18:00:00Z",
-    };
     d.activeJourneyId = j.id;
     d.journeys[j.id] = j;
     d.onboarded = true;
@@ -95,6 +83,7 @@ export async function runMomentumChecks({
       await expect(page.locator(".momentum-entry")).toHaveCount(0);
       await signIn(page);
       await openPrivate(page);
+      await expect(page.locator(".momentum")).not.toContainText(/assessment|clearance|professional guidance/i);
       await expect(page.locator(".mm-one-thing")).toContainText(
         "First home Strength A",
       );
@@ -293,7 +282,7 @@ export async function runMomentumChecks({
       assert.ok(ciphertext.length);
       assert.doesNotMatch(
         JSON.stringify(ciphertext),
-        /Synthetic offline coaching note|Synthetic fixture advice/,
+        /Synthetic offline coaching note/,
       );
       await context.setOffline(false);
       await page
@@ -310,28 +299,18 @@ export async function runMomentumChecks({
         exact: true,
       });
       await stable(page, readiness);
-      // Reporting symptoms intentionally unmounts the training controls. Assert
-      // the resulting safety state, not a checkbox that must disappear.
-      await stable(
-        page,
-        page.getByRole("checkbox", {
-          name: "Dizziness or near-fainting symptoms",
-          exact: true,
-        }),
-      );
-      await expect(page.locator(".mm-one-thing")).toContainText(
-        "Prepare, without a workout deadline",
-      );
-      await expect(
-        page.getByRole("button", { name: "Completed as planned", exact: true }),
-      ).toHaveCount(0);
-      await expect
-        .poll(() => backend.privateSnapshot()?.clearance.assessed)
-        .toBe(false);
+      // Stop only this session. No setup form or account-wide lock is added.
+      await stable(page, page.getByRole("checkbox", {
+        name: "Dizziness or near-fainting symptoms", exact: true,
+      }));
+      await expect(page.locator(".mm-notice")).toContainText("Stop this session");
+      await expect.poll(() => backend.privateSnapshot()?.journeys["synthetic-private-journey"]?.logs["day-3"]?.outcome).toBe("stopped");
+      assert.equal("clearance" in backend.privateSnapshot(), false);
+      await tab(page, "Settings");
+      await expect(page.locator(".momentum")).not.toContainText(/assessment|clearance|professional guidance/i);
+      await expect(page.getByRole("button", { name: "Pause my journey", exact: true })).toBeEnabled();
       await tab(page, "Progress");
-      await expect(page.locator("#mm-page-progress")).toContainText(
-        "Clinical review comes first",
-      );
+      await expect(page.locator(".momentum")).not.toContainText(/assessment|clearance|professional guidance/i);
       await assertLayout(page, `momentum-${name}-${colorScheme}-pause`);
       await page.screenshot({
         path: `outputs/ui-check/momentum-${name}-${colorScheme}-pause.png`,
@@ -365,11 +344,11 @@ export async function runMomentumChecks({
       );
       await context.close();
       console.log(
-        `PASS Momentum ${name}-${colorScheme}: private entry, real sets, media, meals/swaps, reschedule, shared weight, encrypted offline sync, medical pause, revocation`,
+        `PASS Momentum ${name}-${colorScheme}: private entry, real sets, media, meals/swaps, reschedule, shared weight, encrypted offline sync, stopped session, simplified settings, revocation`,
       );
     }
   }
-  // First launch without assessment must remain useful but cannot start training.
+  // First launch offers a real start immediately; opening the app alone does not activate it.
   const browser = await webkit.launch();
   browsers.push(browser);
   const context = await browser.newContext({
@@ -387,13 +366,9 @@ export async function runMomentumChecks({
   await signIn(page);
   await openPrivate(page);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(
-    page.getByText("A checkbox is not medical clearance.", { exact: false }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: "Activate my 30 days", exact: true }),
-  ).toBeDisabled();
+  await expect(page.getByRole("navigation", { name: "Setup progress" }).getByRole("button")).toHaveCount(2);
+  await expect(page.locator(".momentum")).not.toContainText(/assessment|clearance|professional guidance/i);
+  await expect(page.getByRole("button", { name: "Activate my 30 days", exact: true })).toBeEnabled();
   await page
     .getByRole("button", { name: "Stay in preparation for now", exact: true })
     .click();
@@ -407,6 +382,13 @@ export async function runMomentumChecks({
     .poll(() => backend.privateSnapshot()?.preparation["Plan regular meals"])
     .toBe(true);
   assert.equal(backend.privateSnapshot().activeJourneyId, null);
+  await tab(page, "Settings");
+  await page.getByRole("button", { name: "Activate my 30 days", exact: true }).click();
+  await expect.poll(() => Boolean(backend.privateSnapshot()?.activeJourneyId)).toBe(true);
+  assert.equal(backend.privateSnapshot().schemaVersion, 2);
+  assert.equal("clearance" in backend.privateSnapshot(), false);
+  await tab(page, "Today");
+  await expect(page.locator(".mm-one-thing")).toContainText("Start the habit");
   await page
     .getByRole("button", { name: "Coach Hub", exact: true })
     .click();
@@ -452,7 +434,7 @@ export async function runMomentumChecks({
   await expect(page.locator(".momentum")).toHaveCount(0);
   await context.close();
   console.log(
-    "PASS Momentum first launch: no automatic start, assessment gate, preparation, sign-out cache clearing and account-B denial",
+    "PASS Momentum first launch: explicit activation, two-step setup, optional preparation, sign-out cache clearing and account-B denial",
   );
 
   // Two independent browser stores go offline, edit separate fields, then
