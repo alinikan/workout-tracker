@@ -5,6 +5,12 @@ import { PGlite } from "@electric-sql/pglite";
 import { createServer } from "vite";
 import { emptyMomentum, newLog } from "../src/features/momentum/types.ts";
 import {
+  firstUnfinishedMovement,
+  initialSessionStep,
+  sessionSets,
+  suggestedOutcome,
+} from "../src/features/momentum/flow.ts";
+import {
   starterPlan,
   makeJourney,
   firstMondayAfter,
@@ -39,7 +45,6 @@ import {
   calendarText,
 } from "../src/features/momentum/calendar.ts";
 
-
 function fixture() {
   const d = emptyMomentum(),
     j = makeJourney("2026-10-26", "synthetic-journey");
@@ -73,6 +78,36 @@ function recordGood(d, id) {
       : {},
   };
 }
+
+test("Linear flow resumes actual work without inventing attendance or skipping unfinished sets", () => {
+  const ids = ["press", "row", "core"],
+    log = newLog();
+  assert.equal(initialSessionStep(log, ids), "plan");
+  log.sets.press = { done: true, weight: "10", reps: "6" };
+  log.sets.row = { done: false, skipped: true, weight: "", reps: "" };
+  assert.equal(initialSessionStep(log, ids), "practice");
+  assert.equal(firstUnfinishedMovement(log, ids), 2);
+  assert.equal(suggestedOutcome(log, ids), "modified");
+  assert.equal(log.outcome, undefined);
+  log.sets.row = { done: true, weight: "10", reps: "6" };
+  log.sets.core = { done: true, weight: "", reps: "6" };
+  assert.equal(initialSessionStep(log, ids), "finish");
+  assert.equal(initialSessionStep(log, ids, "press"), "practice");
+  assert.equal(firstUnfinishedMovement(log, ids, "press"), 0);
+  assert.deepEqual(sessionSets(ids, "press"), [
+    "press",
+    "press-2",
+    "row",
+    "core",
+  ]);
+  log.outcome = "modified";
+  assert.equal(initialSessionStep(log, ids), "saved");
+  assert.equal(initialSessionStep({ ...newLog(), minutes: "5" }, []), "finish");
+  assert.equal(
+    initialSessionStep({ ...newLog(), outcome: "missed" }, []),
+    "saved",
+  );
+});
 
 test("Momentum has precisely the requested 30 initial activities and one-set templates", () => {
   assert.equal(starterPlan.length, 30);
@@ -217,8 +252,15 @@ test("Legacy records upgrade without losing history or retaining removed setup f
   const old = structuredClone(fixture());
   old.schemaVersion = 1;
   old.clearance = { assessed: false, restrictions: "Old private setup" };
-  old.meals["2026-10-28"] = { swaps: { lunch: "original" }, eaten: { lunch: true } };
-  journey(old).logs["day-3"] = { ...newLog(), outcome: "medical", note: "Retain actual note" };
+  old.meals["2026-10-28"] = {
+    swaps: { lunch: "original" },
+    eaten: { lunch: true },
+  };
+  journey(old).logs["day-3"] = {
+    ...newLog(),
+    outcome: "medical",
+    note: "Retain actual note",
+  };
   journey(old).pauses.old = { from: "2026-10-28", reason: "medical" };
   const upgraded = normalizeMomentum(old);
   assert.equal(upgraded.schemaVersion, 2);
@@ -230,7 +272,10 @@ test("Legacy records upgrade without losing history or retaining removed setup f
   journey(upgraded).pauses.old.to = "2026-10-29";
   assert.equal(exerciseGate(upgraded, "2026-10-30"), null);
   assert.equal("clearance" in normalizeMomentum(upgraded), false);
-  assert.throws(() => normalizeMomentum({ ...upgraded, schemaVersion: 99 }), /Unsupported/);
+  assert.throws(
+    () => normalizeMomentum({ ...upgraded, schemaVersion: 99 }),
+    /Unsupported/,
+  );
 });
 test("A newer poor recovery outweighs older comfortable walks and classes", () => {
   const d = fixture(),
@@ -252,10 +297,7 @@ test("A lighter week shows just one movement without completing other sets", () 
     s = j.slots["day-3"];
   j.adaptations["1"] = { mode: "lighter", reason: "Fewer demands" };
   assert.deepEqual(resolveDay(d, s, s.date).exerciseIds, ["leg-press"]);
-  assert.match(
-    resolveDay(d, s, s.date).steps.join(" "),
-    /one easy movement/,
-  );
+  assert.match(resolveDay(d, s, s.date).steps.join(" "), /one easy movement/);
   const l = {
     ...newLog(),
     sets: { "leg-press": { weight: "5", reps: "5", done: true } },
@@ -263,7 +305,9 @@ test("A lighter week shows just one movement without completing other sets", () 
   assert.equal(completionError(d, s, l, "planned", s.date), null);
 });
 test("An archived pause does not lock a new journey on another device", () => {
-  const base = fixture(), remote = structuredClone(base), local = structuredClone(base);
+  const base = fixture(),
+    remote = structuredClone(base),
+    local = structuredClone(base);
   journey(remote).pauses.old = { from: "2026-10-28", reason: "personal" };
   local.journeys.next = makeJourney("2026-11-30", "next");
   local.activeJourneyId = "next";
@@ -282,15 +326,22 @@ test("Observation is an honest modified boxing visit and missing minutes do not 
   assert.match(completionError(d, s, l, "planned", s.date), /Observation/);
 });
 test("Personal pauses can resume, while stopped sessions stay distinct from missed days", () => {
-  const d = fixture(), paused = structuredClone(d);
+  const d = fixture(),
+    paused = structuredClone(d);
   journey(paused).pauses.test = { from: "2026-10-28", reason: "personal" };
   assert.ok(exerciseGate(paused, "2026-11-01"));
-  assert.equal(outcomeLabel(paused, journey(paused).slots["day-4"], "2026-11-01"), "Paused");
+  assert.equal(
+    outcomeLabel(paused, journey(paused).slots["day-4"], "2026-11-01"),
+    "Paused",
+  );
   assert.ok(journey(mergeMomentum(d, d, paused)).pauses.test);
   journey(paused).pauses.test.to = "2026-11-01";
   journey(paused).logs["day-3"] = { ...newLog(), outcome: "stopped" };
   assert.equal(exerciseGate(paused, "2026-11-02"), null);
-  assert.equal(outcomeLabel(paused, journey(paused).slots["day-3"], "2026-11-02"), "Session stopped");
+  assert.equal(
+    outcomeLabel(paused, journey(paused).slots["day-3"], "2026-11-02"),
+    "Session stopped",
+  );
   assert.equal(attendance(journey(paused), "2026-11-02").length, 0);
   assert.match(monthTwo(paused, "2026-11-02"), /familiar or lighter/);
   assert.equal(progressionEligible(paused, "2026-11-02"), false);
@@ -430,10 +481,7 @@ test("Private device cache contains ciphertext and cannot be read under another 
     const d = fixture();
     d.profile.wellbeingGoal = "Synthetic private goal";
     await cachePrivate("account-a", { base: d, local: d, revision: 2 });
-    assert.doesNotMatch(
-      JSON.stringify(localStorage),
-      /Synthetic private goal/,
-    );
+    assert.doesNotMatch(JSON.stringify(localStorage), /Synthetic private goal/);
     assert.equal(await readPrivate("account-b"), null);
     assert.equal(
       (await readPrivate("account-a")).local.profile.wellbeingGoal,
@@ -551,7 +599,10 @@ test("Actual PostgreSQL: singleton allowlist, RLS, RPC ownership and compare-and
       async () => {
         await as(owner);
         const invalid = dbFixture();
-        invalid.journeys[invalid.activeJourneyId].startedOn = addDays(firstMondayAfter(dbToday), 1);
+        invalid.journeys[invalid.activeJourneyId].startedOn = addDays(
+          firstMondayAfter(dbToday),
+          1,
+        );
         await assert.rejects(
           db.query("select public.momentum_save(0,$1::jsonb)", [
             JSON.stringify(invalid),
@@ -607,22 +658,49 @@ test("Actual PostgreSQL: singleton allowlist, RLS, RPC ownership and compare-and
         assert.equal(r.revision, 1);
       },
     );
-    await t.test("incremental setup migration preserves grants, data and CAS while accepting both document versions", async () => {
-      await db.exec("reset role;");
-      const update = await readFile(new URL("../supabase/migrations/20261023_momentum_setup.sql", import.meta.url), "utf8");
-      await db.exec(update);
-      await db.exec(update);
-      await as(owner);
-      const saved = (await db.query("select public.momentum_save(1,$1::jsonb) as saved", [JSON.stringify(dbFixture())])).rows[0].saved;
-      assert.equal(saved.revision, 2);
-      assert.equal(saved.data.schemaVersion, 2);
-      assert.equal("clearance" in saved.data, false);
-      const legacy = { ...dbFixture(), schemaVersion: 1 };
-      const compatible = (await db.query("select public.momentum_save(2,$1::jsonb) as saved", [JSON.stringify(legacy)])).rows[0].saved;
-      assert.equal(compatible.revision, 3);
-      await assert.rejects(db.query("select public.momentum_save(3,$1::jsonb)", [JSON.stringify({ ...legacy, schemaVersion: 99 })]), /Invalid Momentum document/);
-      await assert.rejects(db.query("select public.momentum_save(3,$1::jsonb)", [JSON.stringify({ ...legacy, schemaVersion: undefined })]), /Invalid Momentum document/);
-    });
+    await t.test(
+      "incremental setup migration preserves grants, data and CAS while accepting both document versions",
+      async () => {
+        await db.exec("reset role;");
+        const update = await readFile(
+          new URL(
+            "../supabase/migrations/20261023_momentum_setup.sql",
+            import.meta.url,
+          ),
+          "utf8",
+        );
+        await db.exec(update);
+        await db.exec(update);
+        await as(owner);
+        const saved = (
+          await db.query("select public.momentum_save(1,$1::jsonb) as saved", [
+            JSON.stringify(dbFixture()),
+          ])
+        ).rows[0].saved;
+        assert.equal(saved.revision, 2);
+        assert.equal(saved.data.schemaVersion, 2);
+        assert.equal("clearance" in saved.data, false);
+        const legacy = { ...dbFixture(), schemaVersion: 1 };
+        const compatible = (
+          await db.query("select public.momentum_save(2,$1::jsonb) as saved", [
+            JSON.stringify(legacy),
+          ])
+        ).rows[0].saved;
+        assert.equal(compatible.revision, 3);
+        await assert.rejects(
+          db.query("select public.momentum_save(3,$1::jsonb)", [
+            JSON.stringify({ ...legacy, schemaVersion: 99 }),
+          ]),
+          /Invalid Momentum document/,
+        );
+        await assert.rejects(
+          db.query("select public.momentum_save(3,$1::jsonb)", [
+            JSON.stringify({ ...legacy, schemaVersion: undefined }),
+          ]),
+          /Invalid Momentum document/,
+        );
+      },
+    );
     await t.test(
       "grant cannot be self-assigned, broadened to two owners, or retained after revocation",
       async () => {

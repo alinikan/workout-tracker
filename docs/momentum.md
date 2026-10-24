@@ -85,18 +85,35 @@ dashboard setup above separately. There is no automatic production database migr
 
 ## The First Visit
 
-Onboarding has two short steps:
-
-1. **Your routine:** review goals, current activity, discipline, environment, realistic days and budget.
-   Age, height and a longer-term weight milestone are optional and initially blank.
-2. **First Monday:** activate today if it is Monday, or a future Monday. Opening or installing the app
-   does not start the calendar. The date is independent of the original Recomp start date.
+The first screen shows the start date, not a questionnaire. Activate today if it is Monday, or
+choose a future Monday. **Personalize my routine** is optional and collapsed. Goals, days, budget,
+age, height and a weight milestone can be changed later in Settings. Opening the app does not
+start the calendar. The date is independent of the original Recomp start date.
 
 You may stay in preparation instead. Meals, contacting instructors, choosing appointments and
 setting out equipment remain available, without missed-workout penalties before your chosen start.
 Settings lets you pause and resume the current journey yourself. A stopped session is recorded for
 that day only, not a permanent account lock. Ordinary stop guidance remains available if symptoms
 occur during activity; the app does not treat those sessions as completed or reward them with an increase.
+
+### The Daily Flow
+
+1. **Plan:** read today's short instructions and begin. Smaller options and preparation are expandable.
+2. **Session:** follow one movement at a time. Open its technique video, enter actual reps/load, and
+   check only sets performed. Previous/Next changes the view, never attendance. You can finish early.
+3. **Finish:** save a planned, smaller or missed result. Walks and participating classes need actual
+   minutes; observing a class selects a smaller visit. A missed reason is optional. Unfinished sets
+   cannot be saved as a fully completed workout.
+
+The saved-result screen clearly distinguishes full completion, smaller sessions, stopped sessions
+and skips. **Edit result** reopens the entry without erasing its sets. Optional feedback is collapsed;
+effort, recovery and comfort still provide the evidence needed for earned progression. Missing answers
+are never invented or treated as positive feedback. Reloading derives the next step from actual logs.
+
+Navigation has five destinations: **Today, Plan, Food, Progress, Settings**. Plan groups Calendar,
+Classes and Exercises. Class preferences, gym comparisons and booking forms open only when needed.
+Routine changes, restarts, pause controls and reminders are grouped in Settings. The original Recomp
+app and Supabase permissions are unchanged by this presentation update.
 
 ## What the 30 Days Contain
 
@@ -132,7 +149,7 @@ practice, not compulsory minimums. Continuous breathing and comfortable joint ra
 - A lighter option, repeated week or smaller participation is legitimate. There is no mandatory
   make-up session, doubled workout, harsh streak reset or penalty for rest.
 
-Three outcome buttons distinguish planned completion, a smaller version, and not doing the activity.
+Three result choices distinguish planned completion, a smaller version, and not doing the activity.
 A separate Stop session action records a stopped attempt. Completing a movement never fills other sets. The full-session button
 rejects unfinished sets; a modified strength record still needs at least one actual set and repetitions.
 Planned and actual attendance dates are stored separately.
@@ -263,7 +280,9 @@ No test uses the owner's actual private history, measurements, email, UID or cre
 | `calendar.ts` | Non-sensitive calendar export and correct Vancouver appointment conversion. |
 | `storage.ts` | Private document normalization, merge and account-bound encrypted device drafts. |
 | `useMomentum.ts` | Authorization, stale-response guards, revisioned sync and visible errors. |
-| `MomentumPage.tsx` / `momentum.css` | Onboarding and seven scoped, responsive working views. |
+| `MomentumPage.tsx` / `momentum.css` | Start-date-first setup, five main destinations and scoped responsive presentation. |
+| `MomentumSession.tsx` | Linear daily session, movement navigation, minimal result form and optional feedback. |
+| `flow.ts` | Pure helpers for resuming real work and suggesting an honest session result; no writes or prescription changes. |
 | `supabase/migrations/20261023_momentum.sql` | Additive allowlist, RLS, grants and write RPC; administrator-run only. |
 | `supabase/migrations/20261023_momentum_setup.sql` | Incremental save-function update for existing installations; no table, policy or data changes. |
 | `scripts/momentum-ui-check.mjs` | Feature-specific checks using the existing isolated browser harness. |

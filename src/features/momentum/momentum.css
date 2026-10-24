@@ -26,16 +26,16 @@
   letter-spacing: 0;
 }
 .momentum h1 {
-  font-size: 32px;
+  font-size: 28px;
   line-height: 1.2;
-  margin-top: 20px;
+  margin-top: 8px;
 }
 .momentum h1 span {
   display: block;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
-  margin-top: 8px;
+  margin-top: 4px;
 }
 .momentum h2 {
   font-size: 21px;
@@ -99,7 +99,7 @@
 .momentum .mm-header {
   display: grid;
   grid-template-columns: 1fr auto;
-  padding-bottom: 18px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--separator);
 }
 .momentum .mm-header :is(h1, p) {
@@ -145,8 +145,8 @@
   position: sticky;
   top: env(safe-area-inset-top, 0px);
   z-index: 5;
-  display: flex;
-  overflow-x: auto;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   padding: 8px 0;
   background: var(--surface-primary, #fff);
@@ -158,7 +158,8 @@
   background: transparent;
   border: 0;
   border-radius: 0;
-  font-size: 13px;
+  padding-inline: 4px;
+  font-size: 12px;
   border-bottom: 3px solid transparent;
 }
 .momentum .mm-tabs button[aria-selected="true"] {
@@ -278,22 +279,244 @@
   font-weight: 650;
 }
 .mm-actions,
-.mm-outcomes,
 .mm-day-options {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-block: 12px;
 }
-.mm-onboarding {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding-block: 16px;
+
+/* Daily flow: only one stage and one movement occupies the working surface.
+   Optional details take no reserved space, including on a small iPhone. */
+.mm-session {
+  scroll-margin-top: calc(72px + env(safe-area-inset-top, 0px));
 }
-.mm-onboarding button {
-  flex: 1 0 100px;
+.mm-session:focus {
+  outline: none;
+}
+.momentum .mm-session-heading {
+  margin-block: 12px 0;
+  padding: 16px 0;
+  border-left: 0;
+}
+.mm-session-heading .mm-row {
+  align-items: center;
+  margin-bottom: 12px;
+}
+.mm-session-heading small,
+.mm-session-meta {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.momentum .mm-session-heading h2 {
+  font-size: 24px;
+}
+.momentum .mm-session-heading p {
+  margin-bottom: 0;
+}
+.momentum .mm-stepper {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-block: 16px 24px;
+}
+.momentum .mm-stepper button {
+  transition: none;
+  border: 0;
+  border-bottom: 3px solid var(--separator-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  padding-inline: 4px;
+  font-size: 13px;
+}
+.momentum .mm-stepper button[aria-current="step"] {
+  border-color: var(--mm-strength);
+  color: var(--training-ink);
+  background: var(--surface-secondary);
+  font-weight: 700;
+}
+.mm-step-index {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.mm-step-content {
+  animation: mm-stage-in 140ms ease-out;
+}
+@keyframes mm-stage-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.mm-plan-steps {
+  padding-left: 22px;
+  margin-block: 16px;
+}
+.mm-plan-steps li {
+  padding-left: 4px;
+  margin-bottom: 12px;
+}
+.mm-session-goal {
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.45;
+  border-left: 3px solid var(--mm-strength);
+  background: var(--surface-secondary);
+}
+.mm-session-goal strong {
+  display: block;
+  color: var(--training-ink);
+  margin-bottom: 4px;
   font-size: 12px;
+}
+.mm-flow-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-block: 20px 12px;
+}
+.mm-flow-actions > .mm-primary {
+  flex: 1;
+}
+.momentum button.mm-text-button {
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary);
+}
+.momentum button.mm-stop-button {
+  color: var(--mm-warning);
+}
+.mm-movement-position {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--training-ink);
+  font-weight: 650;
+  margin-bottom: 12px;
+}
+.mm-session #mm-session-exercises {
+  padding-block: 4px;
+  border: 0;
+}
+.mm-session .mm-exercise {
+  border: 0;
+  padding-block: 12px;
+}
+.mm-session .mm-exercise h3 {
+  font-size: 21px;
+}
+.mm-disclosure {
+  border-bottom: 1px solid var(--separator);
+  padding-block: 6px;
+}
+.momentum .mm-disclosure > summary {
+  display: list-item;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.mm-disclosure[open] > summary {
+  color: var(--training-ink);
+}
+.momentum fieldset.mm-result-options {
+  display: grid;
+  gap: 8px;
+  margin-block: 18px;
+}
+.mm-result-options legend {
+  padding-bottom: 8px;
+}
+.mm-result-options label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 48px;
+  padding: 12px;
+  border: 1px solid var(--separator-strong);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.momentum .mm-result-options label.selected {
+  background: #d5eee8;
+  color: #074a42;
+  border-color: #0b776b;
+}
+.mm-result-options input {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: #086e64;
+}
+.mm-session-result {
+  border-left: 3px solid var(--mm-strength);
+  padding: 16px;
+  background: var(--surface-secondary);
+}
+.mm-session-result svg {
+  color: var(--mm-strength);
+  margin-bottom: 12px;
+}
+.mm-session-result:is(.missed, .stopped) {
+  border-color: var(--mm-warning);
+}
+.mm-session-result:is(.missed, .stopped) svg {
+  color: var(--mm-warning);
+}
+.mm-day-shortcuts {
+  display: grid;
+  margin-top: 24px;
+  border-top: 1px solid var(--separator);
+}
+.momentum .mm-day-shortcuts button {
+  justify-content: start;
+  border: 0;
+  border-bottom: 1px solid var(--separator);
+  border-radius: 0;
+  padding: 16px 0;
+  background: transparent;
+  text-align: left;
+  gap: 12px;
+}
+.mm-day-shortcuts button > span {
+  flex: 1;
+}
+.mm-day-shortcuts strong {
+  font-size: 14px;
+  display: block;
+}
+.mm-day-shortcuts small {
+  font-size: 12px;
+  display: block;
+  color: var(--text-secondary);
+}
+.mm-day-shortcuts svg {
+  color: var(--training-ink);
+}
+.mm-plan-nav {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding-block: 12px;
+}
+.momentum .mm-plan-nav button {
+  font-size: 13px;
+  padding-inline: 6px;
+}
+.momentum .mm-page-title {
+  margin-top: 24px;
+}
+@media (prefers-color-scheme: dark) {
+  .momentum .mm-result-options label.selected {
+    background: #16443e;
+    color: #dcfff4;
+    border-color: #80d1c0;
+  }
 }
 .mm-row {
   display: flex;
@@ -344,13 +567,6 @@
   height: auto;
   border: 0;
 }
-.mm-recorded {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  color: var(--done-ink, #196c3e);
-}
 .mm-calendar {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -370,52 +586,12 @@
 .momentum .mm-calendar button:is(.strength-a, .strength-b) {
   border-top-color: var(--mm-strength);
 }
-.momentum .mm-calendar button.planned,
-.momentum .mm-week button.planned {
+.momentum .mm-calendar button.planned {
   border-color: var(--done-ink, #196c3e);
   box-shadow: inset 0 -3px var(--done-ink, #196c3e);
 }
 .mm-calendar small {
   font-size: 11px;
-}
-.mm-week {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 5px;
-}
-.momentum .mm-week button {
-  display: grid;
-  padding: 8px 3px;
-  border-radius: 5px;
-  min-height: 86px;
-}
-.mm-week :is(span, small) {
-  font-size: 10px;
-  overflow-wrap: anywhere;
-}
-.mm-food-preview {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-.momentum .mm-food-preview button {
-  text-align: left;
-  justify-content: start;
-  font-size: 12px;
-  background: transparent;
-  padding: 6px;
-}
-.mm-food-preview img {
-  width: 48px;
-  height: 48px;
-  object-fit: cover;
-  flex: 0 0 48px;
-  border-radius: 5px;
-}
-.mm-food-preview small {
-  display: block;
-  text-transform: capitalize;
-  color: var(--text-secondary);
 }
 .mm-meal {
   padding-block: 22px;
@@ -547,7 +723,7 @@
 }
 @media (max-width: 500px) {
   .momentum h1 {
-    font-size: 30px;
+    font-size: 28px;
   }
   .mm-fields {
     grid-template-columns: 1fr;
@@ -566,13 +742,6 @@
     flex: 1 0 38px;
     padding: 5px;
     font-size: 11px;
-  }
-  .mm-outcomes {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-  .mm-food-preview {
-    grid-template-columns: 1fr;
   }
   .mm-notice {
     flex-direction: column;

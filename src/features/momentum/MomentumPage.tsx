@@ -5,12 +5,8 @@ import {
   CalendarPlus,
   Check,
   ChevronRight,
-  Dumbbell,
-  Footprints,
-  HeartHandshake,
   LockKeyhole,
   MapPin,
-  NotebookPen,
   RefreshCw,
   ShieldAlert,
   Utensils,
@@ -23,7 +19,6 @@ import {
   suggestedStart,
   isStrength,
   makeJourney,
-  phase,
   repeatWeek,
   rescheduleClass,
   sortedSlots,
@@ -65,6 +60,7 @@ import {
   type Review,
   type Slot,
 } from "./types";
+import MomentumSession from "./MomentumSession";
 import "./momentum.css";
 
 type Props = {
@@ -91,9 +87,7 @@ type View =
   | "settings";
 const views: Array<{ id: View; label: string }> = [
   { id: "today", label: "Today" },
-  { id: "journey", label: "My 30 days" },
-  { id: "boxing", label: "Boxing" },
-  { id: "strength", label: "Strength" },
+  { id: "journey", label: "Plan" },
   { id: "nutrition", label: "Food" },
   { id: "progress", label: "Progress" },
   { id: "settings", label: "Settings" },
@@ -306,9 +300,7 @@ function StartControl({
   today: string;
   notice: (s: string) => void;
 }) {
-  const [start, setStart] = useState(() =>
-    suggestedStart(today),
-  );
+  const [start, setStart] = useState(() => suggestedStart(today));
   const [confirmation, setConfirmation] = useState("");
   const j = currentJourney(data);
   return (
@@ -507,11 +499,16 @@ export default function MomentumPage(props: Props) {
   const [view, setView] = useState<View>("today"),
     [date, setDate] = useState(today),
     [notice, setNotice] = useState("");
-  const [onboardingStep, setOnboardingStep] = useState(0),
-    [tutorial, setTutorial] = useState<string | null>(null);
+  const [tutorial, setTutorial] = useState<string | null>(null);
+  const primaryView =
+    view === "boxing" || view === "strength" ? "journey" : view;
   const [weight, setWeight] = useState(""),
     [waist, setWaist] = useState("");
   useEffect(() => setDate(today), [today]);
+  useEffect(() => {
+    setNotice("");
+    setTutorial(null);
+  }, [date]);
   const j = currentJourney(data),
     slots = j ? sortedSlots(j) : [];
   const selected = slots.find((s) => s.date === date),
@@ -540,7 +537,7 @@ export default function MomentumPage(props: Props) {
       }));
   };
   const record = (outcome: "planned" | "modified" | "missed" | "stopped") => {
-    if (!selected) return;
+    if (!selected) return false;
     if (
       outcome === "stopped" ||
       (outcome === "missed" && log.reason === "Pain or symptoms")
@@ -571,24 +568,18 @@ export default function MomentumPage(props: Props) {
           : next;
       });
       setNotice(urgentMessage);
-      return;
+      return true;
     }
     if (gate || selected.date > today) {
       setNotice(
         "Preparation only. No missed exercise is recorded before the calendar is active or during a pause.",
       );
-      return;
-    }
-    if (outcome === "missed" && !log.reason) {
-      setNotice(
-        "Choose one practical reason so the next opportunity can be easier.",
-      );
-      return;
+      return false;
     }
     const error = completionError(data, selected, log, outcome, today);
     if (error) {
       setNotice(error);
-      return;
+      return false;
     }
     editLog({
       outcome,
@@ -604,11 +595,8 @@ export default function MomentumPage(props: Props) {
       className: log.className ?? data.profile.className,
       gymId: log.gymId ?? data.profile.gymId,
     });
-    setNotice(
-      outcome === "missed"
-        ? "Recorded. No make-up session or extra volume has been added."
-        : "Actual participation recorded. Nothing else was marked complete.",
-    );
+    setNotice("");
+    return true;
   };
   const changeReadiness = (patch: Partial<Readiness>) => {
     const readiness = { ...log.readiness, ...patch };
@@ -643,10 +631,11 @@ export default function MomentumPage(props: Props) {
   };
   const mealMap = resources.meals[weekdays[weekday(date)]];
   const mealLog = data.meals[date] ?? { swaps: {}, eaten: {} };
-  const dayRecipes = mealSlots.map((slot) =>
-    resources.recipes.find(
-      (r) => r.id === (mealLog.swaps[slot] ?? mealMap[slot]),
-    )!,
+  const dayRecipes = mealSlots.map(
+    (slot) =>
+      resources.recipes.find(
+        (r) => r.id === (mealLog.swaps[slot] ?? mealMap[slot]),
+      )!,
   );
   const updateMeal = (slot: MealSlot, recipeId?: string) =>
     edit((d) => {
@@ -732,22 +721,27 @@ export default function MomentumPage(props: Props) {
   const strength = (
     activity: "strength-a" | "strength-b",
     interactive: boolean,
+    exerciseId?: string,
   ) => (
     <section
       className="mm-band"
       id={interactive ? "mm-session-exercises" : undefined}
     >
-      <h2>{activity === "strength-a" ? "Strength A" : "Strength B"}</h2>
-      <p>
-        3-5 minutes of gentle movement first. One very light set per
-        movement. Rest 90-180 seconds or longer; breathe continuously. Finish
-        with two gentle minutes.
-      </p>
-      <p>
-        Easy effort (2-4/10), with at least 4-5 clean repetitions left. Reps are
-        guidance, not minimums. Keep loads familiar. No failure, breath-holding
-        or forced joint range.
-      </p>
+      {!interactive && (
+        <>
+          <h2>{activity === "strength-a" ? "Strength A" : "Strength B"}</h2>
+          <p>
+            3-5 minutes of gentle movement first. One very light set per
+            movement. Rest 90-180 seconds or longer; breathe continuously.
+            Finish with two gentle minutes.
+          </p>
+          <p>
+            Easy effort (2-4/10), with at least 4-5 clean repetitions left. Reps
+            are guidance, not minimums. Keep loads familiar. No failure,
+            breath-holding or forced joint range.
+          </p>
+        </>
+      )}
       {data.profile.jointModification && (
         <p className="mm-callout">
           Use only a comfortable knee/hip range. Skip a movement that feels
@@ -757,7 +751,8 @@ export default function MomentumPage(props: Props) {
       {strengthTemplates[activity]
         .filter(
           (e) =>
-            (!interactive || resolved?.exerciseIds.includes(e.id)),
+            (!interactive || resolved?.exerciseIds.includes(e.id)) &&
+            (!exerciseId || exerciseId === e.id),
         )
         .map((e) => (
           <article className="mm-exercise" key={e.id}>
@@ -949,9 +944,8 @@ export default function MomentumPage(props: Props) {
           <LockKeyhole size={14} /> Private
         </span>
         <h1>
-          Momentum<span>My Personal Fitness Journey</span>
+          Momentum<span>Your daily training & meals</span>
         </h1>
-        <p>Start small. Show up. Get stronger.</p>
       </header>
       <div className="mm-save" role="status">
         <span>{props.status}</span>
@@ -969,7 +963,7 @@ export default function MomentumPage(props: Props) {
         </p>
       )}
       {notice && (
-        <div className="mm-notice" role="status">
+        <div className="mm-notice" role="status" tabIndex={-1}>
           <p>{notice}</p>
           <button type="button" onClick={() => setNotice("")}>
             Dismiss
@@ -978,56 +972,23 @@ export default function MomentumPage(props: Props) {
       )}
       {!data.onboarded ? (
         <>
-          <nav className="mm-onboarding" aria-label="Setup progress">
-            {["Your routine", "First Monday"].map(
-              (label, i) => (
-                <button
-                  type="button"
-                  key={label}
-                  aria-current={onboardingStep === i ? "step" : undefined}
-                  onClick={() => setOnboardingStep(i)}
-                >
-                  {i + 1}. {label}
-                </button>
-              ),
-            )}
-          </nav>
-          {onboardingStep === 0 ? (
+          <StartControl
+            data={data}
+            edit={edit}
+            today={today}
+            notice={setNotice}
+          />
+          <button
+            type="button"
+            className="mm-text-button"
+            onClick={() => edit((d) => ({ ...d, onboarded: true }))}
+          >
+            Decide later
+          </button>
+          <details className="mm-disclosure">
+            <summary>Personalize my routine (optional)</summary>
             <Preferences data={data} edit={edit} />
-          ) : (
-            <StartControl
-              data={data}
-              edit={edit}
-              today={today}
-              notice={setNotice}
-            />
-          )}
-          <div className="mm-actions">
-            {onboardingStep > 0 && (
-              <button
-                type="button"
-                onClick={() => setOnboardingStep((s) => s - 1)}
-              >
-                Back
-              </button>
-            )}
-            {onboardingStep < 1 ? (
-              <button
-                className="mm-primary"
-                type="button"
-                onClick={() => setOnboardingStep((s) => s + 1)}
-              >
-                Continue <ArrowRight size={18} />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => edit((d) => ({ ...d, onboarded: true }))}
-              >
-                Stay in preparation for now
-              </button>
-            )}
-          </div>
+          </details>
         </>
       ) : (
         <>
@@ -1041,8 +1002,8 @@ export default function MomentumPage(props: Props) {
                 key={v.id}
                 type="button"
                 role="tab"
-                aria-selected={view === v.id}
-                tabIndex={view === v.id ? 0 : -1}
+                aria-selected={primaryView === v.id}
+                tabIndex={primaryView === v.id ? 0 : -1}
                 id={`mm-view-${v.id}`}
                 aria-controls={`mm-page-${v.id}`}
                 onClick={() => section(v.id)}
@@ -1070,485 +1031,121 @@ export default function MomentumPage(props: Props) {
               </button>
             ))}
           </nav>
+          {primaryView === "journey" && (
+            <nav className="mm-plan-nav" aria-label="Plan sections">
+              {(
+                [
+                  ["journey", "Calendar"],
+                  ["boxing", "Classes"],
+                  ["strength", "Exercises"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  aria-pressed={view === id}
+                  onClick={() => section(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </nav>
+          )}
           <div
             role="tabpanel"
-            id={`mm-page-${view}`}
-            aria-labelledby={`mm-view-${view}`}
+            id={`mm-page-${primaryView}`}
+            aria-labelledby={`mm-view-${primaryView}`}
           >
             {view === "today" && (
               <>
-                <section
-                  className={`mm-one-thing ${resolved?.activity ?? "preparation"}`}
-                >
-                  <small>
-                    {selected
-                      ? `Day ${selected.day} · ${phase(selected.day)} · ${shortDate(date)}`
-                      : "Preparation · Your pace"}
-                  </small>
-                  <div className="mm-section-title">
-                    {gate ? (
-                      <ShieldAlert />
-                    ) : resolved?.activity === "boxing" ? (
-                      <HeartHandshake />
-                    ) : resolved && isStrength(resolved.activity) ? (
-                      <Dumbbell />
-                    ) : (
-                      <Footprints />
-                    )}
+                {selected && resolved && j ? (
+                  <MomentumSession
+                    key={j.id + ":" + selected.id + ":" + date}
+                    plan={resolved}
+                    slot={selected}
+                    log={log}
+                    today={today}
+                    start={j.startedOn}
+                    label={"Day " + selected.day + " / " + shortDate(date)}
+                    onToday={() => setDate(today)}
+                    onEdit={editLog}
+                    onReadiness={changeReadiness}
+                    onRecord={record}
+                    skills={focusedSkills}
+                    review={reviewForm}
+                    exercise={(id) =>
+                      isStrength(resolved.activity)
+                        ? strength(resolved.activity, true, id)
+                        : null
+                    }
+                  />
+                ) : (
+                  <section className="mm-one-thing preparation">
                     <h2>
-                      {gate
-                        ? "Prepare, without a workout deadline"
-                        : (resolved?.title ?? "Your starter month is complete")}
+                      {j && today > (slots.at(-1)?.date ?? today)
+                        ? "Your month is complete"
+                        : "Your next step"}
                     </h2>
-                  </div>
-                  {date !== today && (
-                    <button type="button" onClick={() => setDate(today)}>
-                      Back to today
+                    <p>{gate ?? monthTwo(data, today)}</p>
+                    <button
+                      type="button"
+                      className="mm-primary"
+                      onClick={() => section("settings")}
+                    >
+                      {j ? "View journey settings" : "Choose my start date"}{" "}
+                      <ArrowRight size={18} />
                     </button>
-                  )}
-                  {gate ? (
-                    <>
-                      <p>{gate}</p>
-                      <div className="mm-actions">
-                        <button
-                          type="button"
-                          onClick={() => section("settings")}
-                        >
-                          Review guidance & start date
-                        </button>
-                        <button type="button" onClick={() => section("boxing")}>
-                          Research a beginner class
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => section("nutrition")}
-                        >
-                          Prepare food
-                        </button>
-                      </div>
-                    </>
-                  ) : resolved ? (
-                    <>
-                      <p>
-                        {resolved.minutes}{" "}
-                        {resolved.minutes.includes("planning") ? "" : "minutes"}{" "}
-                        ·{" "}
-                        {resolved.activity === "recovery" ||
-                        resolved.activity === "review"
-                          ? "No workout required"
-                          : "Easy, conversational effort"}
-                      </p>
-                      <p className="mm-enough">
-                        <strong>Enough today:</strong> {resolved.enough}
-                      </p>
-                      {!resolved.gate && (
-                        <button
-                          className="mm-primary"
-                          type="button"
-                          onClick={() =>
-                            document
-                              .getElementById(
-                                isStrength(resolved.activity)
-                                  ? "mm-session-exercises"
-                                  : "mm-session-record",
-                              )
-                              ?.scrollIntoView({
-                                block: "start",
-                                behavior: "instant",
-                              })
+                    <details className="mm-disclosure">
+                      <summary>Preparation checklist (optional)</summary>
+                      {[
+                        "Plan regular meals",
+                        "Contact a suitable beginner coach",
+                        "Choose an achievable appointment",
+                        "Set out clothes and water",
+                      ].map((task) => (
+                        <Toggle
+                          key={task}
+                          label={task}
+                          value={Boolean(data.preparation[task])}
+                          onChange={(value) =>
+                            edit((d) => ({
+                              ...d,
+                              preparation: { ...d.preparation, [task]: value },
+                            }))
                           }
-                        >
-                          {isStrength(resolved.activity)
-                            ? "Start easy practice"
-                            : resolved.activity === "boxing"
-                              ? "Record this visit"
-                              : resolved.activity === "walk"
-                                ? "Log an easy walk"
-                                : "Record recovery"}
-                          <ArrowRight size={18} />
-                        </button>
-                      )}
-                      {resolved.gate && (
-                        <p className="mm-callout">{resolved.gate}</p>
-                      )}
-                      <p>
-                        <strong>Smaller version:</strong> {resolved.minimum}
-                      </p>
-                      {resolved.modifiedReason && (
-                        <p className="mm-callout">
-                          <strong>Plan adjusted:</strong>{" "}
-                          {resolved.modifiedReason}
-                        </p>
-                      )}
-                      <ul>
-                        {resolved.steps.map((s) => (
-                          <li key={s}>{s}</li>
-                        ))}
-                      </ul>
-                      <p>
-                        <strong>One preparation task:</strong> {resolved.task}
-                      </p>
-                    </>
-                  ) : (
-                    <p>{monthTwo(data, today)}</p>
-                  )}
-                </section>
-                {gate && (
-                  <section className="mm-band">
-                    <h2>Preparation counts</h2>
-                    {[
-                      "Plan regular meals",
-                      "Contact a suitable beginner coach",
-                      "Choose an achievable appointment",
-                      "Set out clothes and water",
-                    ].map((task) => (
-                      <Toggle
-                        key={task}
-                        label={task}
-                        value={Boolean(data.preparation[task])}
-                        onChange={(value) =>
-                          edit((d) => ({
-                            ...d,
-                            preparation: { ...d.preparation, [task]: value },
-                          }))
-                        }
-                      />
-                    ))}
+                        />
+                      ))}
+                    </details>
                   </section>
                 )}
-                {!gate && selected && resolved && !resolved.gate && (
-                  <>
-                    {!data.profile.availableDays.includes(
-                      weekday(selected.date),
-                    ) &&
-                      (isStrength(resolved.activity) ||
-                        resolved.activity === "boxing") && (
-                        <p className="mm-callout">
-                          This appointment is outside your preferred days.
-                          Choose a suitable class date or keep a smaller
-                          version; do not add make-up sessions.
-                        </p>
-                      )}
-                    {(isStrength(resolved.activity) ||
-                      resolved.activity === "boxing") && (
-                      <details className="mm-band">
-                        <summary>Quick readiness check (optional)</summary>
-                        <div className="mm-fields">
-                          {(
-                            [
-                              ["energy", ["low", "normal", "good"]],
-                              ["sleep", ["poor", "okay", "good"]],
-                              ["soreness", ["none", "mild", "significant"]],
-                              ["pain", ["none", "mild", "concerning"]],
-                            ] as const
-                          ).map(([key, options]) => (
-                            <Field key={key} label={key}>
-                              <select
-                                value={log.readiness[key] ?? ""}
-                                onChange={(e) =>
-                                  changeReadiness({ [key]: e.target.value })
-                                }
-                              >
-                                <option value="">Not recorded</option>
-                                {options.map((o) => (
-                                  <option key={o} value={o}>
-                                    {o}
-                                  </option>
-                                ))}
-                              </select>
-                            </Field>
-                          ))}
-                        </div>
-                        <Toggle
-                          label="Dizziness or near-fainting symptoms"
-                          value={log.readiness.dizzy ?? false}
-                          onChange={(dizzy) => changeReadiness({ dizzy })}
-                        />
-                        {(log.readiness.energy === "low" ||
-                          log.readiness.sleep === "poor" ||
-                          log.readiness.soreness === "significant" ||
-                          log.readiness.pain === "mild") && (
-                          <p>
-                            Choose the smaller version or recovery. Feeling
-                            energetic is not a reason to push through pain.
-                          </p>
-                        )}
-                      </details>
-                    )}
-                    {isStrength(resolved.activity) &&
-                      strength(resolved.activity, true)}
-                    {resolved.activity === "boxing" && (
-                      <section className="mm-band">
-                        <h2>A learning visit, not a fitness test</h2>
-                        <p>
-                          Tell the instructor you need light non-contact
-                          technique, frequent rests and permission to observe.
-                          Omit conditioning circuits. Stop if the class cannot
-                          be adapted.
-                        </p>
-                        <ul>
-                          {focusedSkills.map((s) => (
-                            <li key={s}>{s}</li>
-                          ))}
-                        </ul>
-                        <p>
-                          Suggested learning focus only. Your instructor chooses
-                          the lesson; no skill must be mastered in one visit.
-                        </p>
-                        <Toggle
-                          label="I attended and observed instead of participating"
-                          value={log.observed}
-                          onChange={(observed) => editLog({ observed })}
-                        />
-                        <Toggle
-                          label="The environment and coaching felt comfortable"
-                          value={log.comfortable}
-                          onChange={(comfortable) => editLog({ comfortable })}
-                        />
-                      </section>
-                    )}
-                    <section className="mm-band">
-                      <h2 id="mm-session-record">
-                        Record what actually happened
-                      </h2>
-                      <div className="mm-fields">
-                        <Field label="Date actually attended / done">
-                          <input
-                            type="date"
-                            min={j?.startedOn}
-                            max={today}
-                            value={log.performedOn ?? selected.date}
-                            onChange={(e) =>
-                              editLog({ performedOn: e.target.value })
-                            }
-                          />
-                        </Field>
-                        <Field label="Actual movement / technique minutes (optional on rest days)">
-                          <input
-                            inputMode="numeric"
-                            value={log.minutes}
-                            onChange={(e) =>
-                              editLog({ minutes: e.target.value })
-                            }
-                          />
-                        </Field>
-                        <Field label="Effort">
-                          <select
-                            value={log.effort}
-                            onChange={(e) =>
-                              editLog({
-                                effort: e.target.value as ActivityLog["effort"],
-                              })
-                            }
-                          >
-                            <option value="">Not recorded</option>
-                            <option value="easy">Easy</option>
-                            <option value="manageable">Manageable</option>
-                            <option value="hard">Too demanding</option>
-                          </select>
-                        </Field>
-                        <Field label="Recovery after the session (update later)">
-                          <select
-                            value={log.recovery}
-                            onChange={(e) =>
-                              editLog({
-                                recovery: e.target
-                                  .value as ActivityLog["recovery"],
-                              })
-                            }
-                          >
-                            <option value="">Not known yet</option>
-                            <option value="good">Recovered comfortably</option>
-                            <option value="poor">
-                              Lingering fatigue / poor recovery
-                            </option>
-                          </select>
-                        </Field>
-                        <Field label="Enjoyable / would return?">
-                          <select
-                            value={log.enjoyment}
-                            onChange={(e) =>
-                              editLog({
-                                enjoyment: e.target
-                                  .value as ActivityLog["enjoyment"],
-                              })
-                            }
-                          >
-                            <option value="">Not recorded</option>
-                            <option value="yes">Yes</option>
-                            <option value="no">No</option>
-                          </select>
-                        </Field>
-                      </div>
-                      {resolved.activity !== "boxing" && (
-                        <Toggle
-                          label="Comfortable and symptom-free practice"
-                          value={log.comfortable}
-                          onChange={(comfortable) => editLog({ comfortable })}
-                        />
-                      )}
-                      <Toggle
-                        label="I prepared clothes / equipment beforehand"
-                        value={log.prepared}
-                        onChange={(prepared) => editLog({ prepared })}
-                      />
-                      <Field label="One coach note / what I learned (optional)">
-                        <textarea
-                          maxLength={600}
-                          value={log.note}
-                          onChange={(e) => editLog({ note: e.target.value })}
-                        />
-                      </Field>
-                      <Field label="If not done, what got in the way?">
-                        <select
-                          value={log.reason}
-                          onChange={(e) => editLog({ reason: e.target.value })}
-                        >
-                          <option value="">Choose if needed</option>
-                          {[
-                            "Too tired",
-                            "No time",
-                            "Forgot",
-                            "Work",
-                            "Transportation",
-                            "Class unavailable",
-                            "Pain or symptoms",
-                            "Other",
-                          ].map((s) => (
-                            <option key={s}>{s}</option>
-                          ))}
-                        </select>
-                      </Field>
-                      <div className="mm-outcomes">
-                        <button
-                          className="mm-primary"
-                          type="button"
-                          onClick={() => record("planned")}
-                        >
-                          <Check size={18} /> Completed as planned
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => record("modified")}
-                        >
-                          Smaller / modified version
-                        </button>
-                        <button type="button" onClick={() => record("missed")}>
-                          Did not do it
-                        </button>
-                        <button
-                          className="mm-stop-button"
-                          type="button"
-                          onClick={() => record("stopped")}
-                        >
-                          <ShieldAlert size={18} /> Stop session
-                        </button>
-                      </div>
-                      {log.outcome && (
-                        <p className="mm-recorded">
-                          <Check size={18} />
-                          {outcomeLabel(data, selected, today)}
-                          {(log.outcome === "planned" ||
-                            log.outcome === "modified") && (
-                            <>
-                              {" "}
-                              · Actual date {log.performedOn ?? selected.date}
-                            </>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => editLog({ outcome: undefined })}
-                          >
-                            Correct this entry
-                          </button>
-                        </p>
-                      )}
-                    </section>
-                    {reviewForm}
-                  </>
-                )}
-                <section className="mm-band">
-                  <h2>Next boxing appointment</h2>
-                  <p>
-                    {upcoming
-                      ? `${shortDate(upcoming.date)}${data.profile.classTime ? ` · ${data.profile.classTime}` : " · Time to confirm"}`
-                      : "Choose your next beginner class"}
-                  </p>
-                  <p>
-                    {gym?.name ?? "No gym selected"} ·{" "}
-                    {data.profile.className || "Adapted beginner technique"}
-                  </p>
-                  <button type="button" onClick={() => section("boxing")}>
-                    Class & preparation <ArrowRight size={16} />
+                <nav
+                  className="mm-day-shortcuts"
+                  aria-label="After your session"
+                >
+                  <button type="button" onClick={() => section("nutrition")}>
+                    <Utensils size={20} />
+                    <span>
+                      <strong>Meals for this day</strong>
+                      <small>
+                        {mealSlots.filter((slot) => mealLog.eaten[slot]).length}{" "}
+                        of 4 recorded
+                      </small>
+                    </span>
+                    <ChevronRight size={18} />
                   </button>
-                </section>
-                {j && (
-                  <section className="mm-band">
-                    <h2>This week</h2>
-                    <div className="mm-week">
-                      {slots
-                        .filter(
-                          (s) =>
-                            s.date >=
-                              addDays(today, -((weekday(today) + 6) % 7)) &&
-                            s.date <=
-                              addDays(today, 6 - ((weekday(today) + 6) % 7)),
-                        )
-                        .map((s) => (
-                          <button
-                            key={s.id}
-                            type="button"
-                            className={`${resolveDay(data, s, today).activity} ${j.logs[s.id]?.outcome ?? ""}`}
-                            aria-label={`${shortDate(s.date)} ${resolveDay(data, s, today).title} · ${outcomeLabel(data, s, today)}`}
-                            aria-pressed={s.date === date}
-                            onClick={() => setDate(s.date)}
-                          >
-                            <span>{weekdays[weekday(s.date)].slice(0, 3)}</span>
-                            <strong>{s.day}</strong>
-                            <small>
-                              {j.logs[s.id]?.outcome
-                                ? {
-                                    planned: "Done",
-                                    modified: "Small",
-                                    missed: "Missed",
-                                    stopped: "Stopped",
-                                  }[j.logs[s.id].outcome!]
-                                : {
-                                    walk: "Walk",
-                                    boxing: "Box",
-                                    recovery: "Rest",
-                                    review: "Plan",
-                                    "strength-a": "A",
-                                    "strength-b": "B",
-                                  }[resolveDay(data, s, today).activity]}
-                            </small>
-                          </button>
-                        ))}
-                    </div>
-                  </section>
-                )}
-                <section className="mm-band">
-                  <h2>Food today</h2>
-                  <div className="mm-food-preview">
-                    {dayRecipes.map((r, i) => (
-                      <button
-                        key={mealSlots[i]}
-                        type="button"
-                        onClick={() => section("nutrition")}
-                      >
-                        <img src={r.photo} alt="" loading="lazy" />
-                        <span>
-                          <small>{mealSlots[i]}</small>
-                          {r.title}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-                <aside className="mm-coach">
-                  <NotebookPen size={20} />
-                  <p>{coachNote(data, today)}</p>
-                </aside>
+                  <button type="button" onClick={() => section("journey")}>
+                    <CalendarPlus size={20} />
+                    <span>
+                      <strong>Calendar & classes</strong>
+                      <small>
+                        {upcoming
+                          ? "Next class: " + shortDate(upcoming.date)
+                          : "Your 30-day plan"}
+                      </small>
+                    </span>
+                    <ChevronRight size={18} />
+                  </button>
+                </nav>
               </>
             )}
             {view === "journey" && (
@@ -1611,9 +1208,9 @@ export default function MomentumPage(props: Props) {
                 <section className="mm-band">
                   <h2>Learn the sport. Keep the commitment small.</h2>
                   <p>
-                    One adapted class a week. No
-                    sparring, hard conditioning or pressure to finish the full
-                    class. A trial or observation is enough to explore the fit.
+                    One adapted class a week. No sparring, hard conditioning or
+                    pressure to finish the full class. A trial or observation is
+                    enough to explore the fit.
                   </p>
                   <p>
                     {data.profile.discipline} · Budget{" "}
@@ -1621,109 +1218,112 @@ export default function MomentumPage(props: Props) {
                       ? `CAD $${data.profile.budget}/month`
                       : "not set"}
                   </p>
-                  <div className="mm-fields">
-                    <Field label="Class name (confirm with gym)">
-                      <input
-                        value={data.profile.className}
-                        onChange={(e) =>
-                          updateClassProfile({ className: e.target.value })
-                        }
-                      />
-                    </Field>
-                    <Field label="Preferred weekly class day">
-                      <select
-                        value={data.profile.classWeekday}
-                        onChange={(e) =>
-                          edit((d) => ({
-                            ...d,
-                            profile: {
-                              ...d.profile,
-                              classWeekday: Number(e.target.value),
-                            },
-                          }))
-                        }
-                      >
-                        {weekdays.map((s, i) => (
-                          <option key={s} value={i}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="Confirmed class time (Vancouver)">
-                      <input
-                        type="time"
-                        value={data.profile.classTime}
-                        onChange={(e) =>
-                          updateClassProfile({ classTime: e.target.value })
-                        }
-                      />
-                    </Field>
-                    <Field label="Next appointment date">
-                      <input
-                        type="date"
-                        min={today}
-                        value={data.profile.nextClassDate}
-                        onChange={(e) =>
-                          edit((d) => ({
-                            ...d,
-                            profile: {
-                              ...d.profile,
-                              nextClassDate: e.target.value,
-                            },
-                          }))
-                        }
-                      />
-                    </Field>
-                  </div>
-                  <p>
-                    Preferred times are your entries, not live availability.
-                    Update individual appointments below; changes must preserve
-                    48-hour spacing.
-                  </p>
-                  {j && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        try {
-                          let next = j;
-                          for (const slot of slots.filter(
-                            (s) =>
-                              starterPlan[s.day - 1].activity === "boxing" &&
-                              s.date >= today &&
-                              !j.logs[s.id]?.outcome,
-                          )) {
-                            const monday = addDays(
-                              slot.date,
-                              -((weekday(slot.date) + 6) % 7),
-                            );
-                            const target = addDays(
-                              monday,
-                              (data.profile.classWeekday + 6) % 7,
-                            );
-                            if (target !== slot.date)
-                              next = rescheduleClass(
-                                next,
-                                slot.id,
-                                target,
-                                today,
-                              );
+                  <details className="mm-disclosure">
+                    <summary>Class preferences</summary>
+                    <div className="mm-fields">
+                      <Field label="Class name (confirm with gym)">
+                        <input
+                          value={data.profile.className}
+                          onChange={(e) =>
+                            updateClassProfile({ className: e.target.value })
                           }
-                          editJourney(() => next);
-                          setNotice(
-                            "Future class dates updated. Existing attendance was not changed.",
-                          );
-                        } catch (e) {
-                          setNotice((e as Error).message);
-                        }
-                      }}
-                    >
-                      Apply preferred day to future classes
-                    </button>
-                  )}
+                        />
+                      </Field>
+                      <Field label="Preferred weekly class day">
+                        <select
+                          value={data.profile.classWeekday}
+                          onChange={(e) =>
+                            edit((d) => ({
+                              ...d,
+                              profile: {
+                                ...d.profile,
+                                classWeekday: Number(e.target.value),
+                              },
+                            }))
+                          }
+                        >
+                          {weekdays.map((s, i) => (
+                            <option key={s} value={i}>
+                              {s}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="Confirmed class time (Vancouver)">
+                        <input
+                          type="time"
+                          value={data.profile.classTime}
+                          onChange={(e) =>
+                            updateClassProfile({ classTime: e.target.value })
+                          }
+                        />
+                      </Field>
+                      <Field label="Next appointment date">
+                        <input
+                          type="date"
+                          min={today}
+                          value={data.profile.nextClassDate}
+                          onChange={(e) =>
+                            edit((d) => ({
+                              ...d,
+                              profile: {
+                                ...d.profile,
+                                nextClassDate: e.target.value,
+                              },
+                            }))
+                          }
+                        />
+                      </Field>
+                    </div>
+                    <p>
+                      Preferred times are your entries, not live availability.
+                      Update individual appointments below; changes must
+                      preserve 48-hour spacing.
+                    </p>
+                    {j && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          try {
+                            let next = j;
+                            for (const slot of slots.filter(
+                              (s) =>
+                                starterPlan[s.day - 1].activity === "boxing" &&
+                                s.date >= today &&
+                                !j.logs[s.id]?.outcome,
+                            )) {
+                              const monday = addDays(
+                                slot.date,
+                                -((weekday(slot.date) + 6) % 7),
+                              );
+                              const target = addDays(
+                                monday,
+                                (data.profile.classWeekday + 6) % 7,
+                              );
+                              if (target !== slot.date)
+                                next = rescheduleClass(
+                                  next,
+                                  slot.id,
+                                  target,
+                                  today,
+                                );
+                            }
+                            editJourney(() => next);
+                            setNotice(
+                              "Future class dates updated. Existing attendance was not changed.",
+                            );
+                          } catch (e) {
+                            setNotice((e as Error).message);
+                          }
+                        }}
+                      >
+                        Apply preferred day to future classes
+                      </button>
+                    )}
+                  </details>
                 </section>
-                <section className="mm-band">
-                  <h2>Compare a small commitment</h2>
+                <details className="mm-disclosure">
+                  <summary>Compare gyms</summary>
                   <p>
                     Official sources checked October 23, 2026. Published
                     information is not a live booking guarantee. Confirm price,
@@ -1766,7 +1366,7 @@ export default function MomentumPage(props: Props) {
                       </article>
                     ))}
                   </div>
-                </section>
+                </details>
                 {j && (
                   <section className="mm-band">
                     <h2>Appointments & visits</h2>
@@ -1923,13 +1523,16 @@ export default function MomentumPage(props: Props) {
                             date,
                             -((weekday(date) + 6) % 7) + i,
                           );
-                          return mealSlots.map((slot) =>
-                            resources.recipes.find(
-                              (r) =>
-                                r.id ===
-                                (data.meals[d]?.swaps[slot] ??
-                                  resources.meals[weekdays[weekday(d)]][slot]),
-                            )!,
+                          return mealSlots.map(
+                            (slot) =>
+                              resources.recipes.find(
+                                (r) =>
+                                  r.id ===
+                                  (data.meals[d]?.swaps[slot] ??
+                                    resources.meals[weekdays[weekday(d)]][
+                                      slot
+                                    ]),
+                              )!,
                           );
                         }).flat(),
                       )
@@ -2161,16 +1764,23 @@ export default function MomentumPage(props: Props) {
             )}
             {view === "settings" && (
               <>
-                <Preferences data={data} edit={edit} />
-                <StartControl
-                  data={data}
-                  edit={edit}
-                  today={today}
-                  notice={setNotice}
-                />
+                <h2 className="mm-page-title">Settings</h2>
+                <details className="mm-disclosure">
+                  <summary>Routine & goals</summary>
+                  <Preferences data={data} edit={edit} />
+                </details>
+                <details className="mm-disclosure" open={!j}>
+                  <summary>{j ? "Start a new month" : "Start date"}</summary>
+                  <StartControl
+                    data={data}
+                    edit={edit}
+                    today={today}
+                    notice={setNotice}
+                  />
+                </details>
                 {j && (
-                  <section className="mm-band">
-                    <h2>Pause or repeat without erasing history</h2>
+                  <details className="mm-disclosure">
+                    <summary>Pause, repeat or lighten this month</summary>
                     <p>
                       Pause whenever you need a break and resume at the next
                       opportunity. No catch-up work is added.
@@ -2250,10 +1860,10 @@ export default function MomentumPage(props: Props) {
                     >
                       Use a lighter week
                     </button>
-                  </section>
+                  </details>
                 )}
-                <section className="mm-band">
-                  <h2>Reminders you control</h2>
+                <details className="mm-disclosure">
+                  <summary>Reminders</summary>
                   <Toggle
                     label="Show in-app preparation reminders and calendar-export controls"
                     value={data.profile.reminders}
@@ -2269,9 +1879,9 @@ export default function MomentumPage(props: Props) {
                     Calendar files create appointments only when you choose to
                     import them; they contain no health details.
                   </p>
-                </section>
-                <section className="mm-band">
-                  <h2>Optional wellbeing support</h2>
+                </details>
+                <details className="mm-disclosure">
+                  <summary>Optional wellbeing support</summary>
                   <Toggle
                     label="Show smoking-reduction or quitting support"
                     value={data.profile.wellbeing}
@@ -2286,8 +1896,8 @@ export default function MomentumPage(props: Props) {
                     <>
                       <p>
                         Quitting or reducing tobacco can support long-term
-                        health. It is not a prerequisite for exercise,
-                        and smoking is not assumed to explain exercise symptoms.
+                        health. It is not a prerequisite for exercise, and
+                        smoking is not assumed to explain exercise symptoms.
                       </p>
                       <Field label="One optional personal support goal">
                         <input
@@ -2308,7 +1918,7 @@ export default function MomentumPage(props: Props) {
                       </LinkOut>
                     </>
                   )}
-                </section>
+                </details>
               </>
             )}
           </div>
@@ -2327,8 +1937,8 @@ export default function MomentumPage(props: Props) {
         <summary>Why this plan works</summary>
         <p>
           The exact one-class/one-strength-session starter is a conservative
-          coaching design. The first month is
-          a habit foundation, not the full long-term activity target.
+          coaching design. The first month is a habit foundation, not the full
+          long-term activity target.
         </p>
         {evidence.map((e) => (
           <div key={e.url}>
@@ -2403,12 +2013,29 @@ function WeeklyReview({
           full session.
         </p>
       )}
-      <Field label="What made attendance difficult?">
-        <input
-          value={r.barrier}
-          onChange={(e) => setR({ ...r, barrier: e.target.value })}
-        />
-      </Field>
+      <details className="mm-disclosure">
+        <summary>Planning notes (optional)</summary>
+        <Field label="What made attendance difficult?">
+          <input
+            value={r.barrier}
+            onChange={(e) => setR({ ...r, barrier: e.target.value })}
+          />
+        </Field>
+        <Field label="What should be easier next week?">
+          <input
+            value={r.easier}
+            onChange={(e) => setR({ ...r, easier: e.target.value })}
+          />
+        </Field>
+        <Field label="Next class date">
+          <input
+            type="date"
+            min={today}
+            value={r.nextClass}
+            onChange={(e) => setR({ ...r, nextClass: e.target.value })}
+          />
+        </Field>
+      </details>
       <Field label="How did your body respond?">
         <select
           value={r.body}
@@ -2422,20 +2049,6 @@ function WeeklyReview({
           <option value="symptoms">Concerning symptoms</option>
         </select>
       </Field>
-      <Field label="What should be easier next week?">
-        <input
-          value={r.easier}
-          onChange={(e) => setR({ ...r, easier: e.target.value })}
-        />
-      </Field>
-      <Field label="Next class date">
-        <input
-          type="date"
-          min={today}
-          value={r.nextClass}
-          onChange={(e) => setR({ ...r, nextClass: e.target.value })}
-        />
-      </Field>
       <Toggle
         label="This schedule felt manageable"
         value={r.manageable}
@@ -2448,67 +2061,66 @@ function WeeklyReview({
       >
         Save reflection
       </button>
-      <p>
-        Choose the next week's level explicitly. Missing records never unlock
-        more work.
-      </p>
-      <div className="mm-actions">
-        <button
-          type="button"
-          onClick={() =>
-            onAdapt({ mode: "steady", reason: "Repeat the familiar level." })
-          }
-        >
-          Repeat the same level
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            onAdapt({
-              mode: "lighter",
-              reason: "Fewer demands after your review.",
-            })
-          }
-        >
-          Make it lighter
-        </button>
-        {week >= 2 && week <= 3 && (
-          <>
-            <button
-              type="button"
-              disabled={
-                !progressionEligible(data, today) || r.body !== "comfortable"
-              }
-              onClick={() =>
-                onAdapt({
-                  mode: "second-session",
-                  reason:
-                    "Optional second light practice after comfortable attendance and a weekly review.",
-                })
-              }
-            >
-              Offer second strength day
-            </button>
-            <button
-              type="button"
-              disabled={
-                !progressionEligible(data, today) || r.body !== "comfortable"
-              }
-              onClick={() =>
-                onAdapt({
-                  mode: "extra-set",
-                  exerciseId: "incline-db-press",
-                  reason:
-                    "Optional second easy press set, keeping load and frequency unchanged.",
-                })
-              }
-            >
-              Offer one extra easy set
-            </button>
-          </>
-        )}
-      </div>
-      <p>{coachNote(data, today)}</p>
+      <details className="mm-disclosure">
+        <summary>Next week's level (optional)</summary>
+        <div className="mm-actions">
+          <button
+            type="button"
+            onClick={() =>
+              onAdapt({ mode: "steady", reason: "Repeat the familiar level." })
+            }
+          >
+            Repeat the same level
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onAdapt({
+                mode: "lighter",
+                reason: "Fewer demands after your review.",
+              })
+            }
+          >
+            Make it lighter
+          </button>
+          {week >= 2 && week <= 3 && (
+            <>
+              <button
+                type="button"
+                disabled={
+                  !progressionEligible(data, today) || r.body !== "comfortable"
+                }
+                onClick={() =>
+                  onAdapt({
+                    mode: "second-session",
+                    reason:
+                      "Optional second light practice after comfortable attendance and a weekly review.",
+                  })
+                }
+              >
+                Offer second strength day
+              </button>
+              <button
+                type="button"
+                disabled={
+                  !progressionEligible(data, today) || r.body !== "comfortable"
+                }
+                onClick={() =>
+                  onAdapt({
+                    mode: "extra-set",
+                    exerciseId: "incline-db-press",
+                    reason:
+                      "Optional second easy press set, keeping load and frequency unchanged.",
+                  })
+                }
+              >
+                Offer one extra easy set
+              </button>
+            </>
+          )}
+        </div>
+        <p>{coachNote(data, today)}</p>
+      </details>
     </section>
   );
 }
@@ -2570,7 +2182,8 @@ function ClassAppointment({
         </p>
       )}
       {!log.outcome && slot.date >= today && (
-        <>
+        <details className="mm-disclosure">
+          <summary>Booking & reschedule</summary>
           <Toggle
             label="I confirmed and booked this appointment myself"
             value={log.booked}
@@ -2593,7 +2206,7 @@ function ClassAppointment({
             Prepare clothes, water, a familiar snack and transport. Confirm
             breaks and non-contact technique with the coach.
           </p>
-        </>
+        </details>
       )}
       <div className="mm-actions">
         <button type="button" onClick={onOpen}>

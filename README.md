@@ -91,12 +91,15 @@ That means the interface favors:
 **Start small. Show up. Get stronger.** Momentum is an optional experience reached from Coach Hub,
 not a replacement for Recomp's 26-week training program. It has its own onboarding, chosen Monday,
 30-day calendar, actual attendance, simple strength templates, class planning, meals and reviews.
-Its seven views keep each day focused on one achievable action and a legitimate smaller version.
+Its guided Today flow follows **Plan → Session → Finish**. One movement appears at a time,
+with real set logging, a smaller-session option and a clear saved result. Five navigation items
+keep daily tasks separate from planning: Today, Plan, Food, Progress and Settings.
 
 | Boundary | How It Works |
 | --- | --- |
 | Private account | An administrator grants exactly one Supabase authentication UID. RLS and restricted server functions enforce access; hiding a button is not the security boundary. |
-| Simple start | Two setup steps: your routine and your start Monday. Start today if it is Monday, choose a future Monday, or stay in preparation. Nothing starts automatically. |
+| Simple start | Choose a start Monday directly, or decide later. Routine preferences are optional and collapsed. Nothing starts automatically. |
+| Guided session | Plan, follow one movement at a time, then save the actual result. Next never marks a set complete. Partial work resumes without a questionnaire; feedback is optional. |
 | Earned options | No calendar-based load jump. Optional extra practice needs actual comfortable attendance, recovery, review and an explicit choice. |
 | Honest records | Planned, smaller, missed and stopped sessions are distinct. Finishing one set never completes the others. No catch-up workout is owed. Pauses can be resumed in Settings. |
 | Original data intact | Workout and meal logs stay separate. Coach's dated kg weigh-ins are the single shared source, not duplicated metrics. A new Momentum month archives only Momentum history. |
