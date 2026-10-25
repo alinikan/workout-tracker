@@ -72,6 +72,6 @@ export function WeightTrendChart({ entries, weeks, today }: { entries: Entry[]; 
         ? <p className="chart-comparison">Weekly average: {number(first.average!)} kg ({first.loggedDays}/7 readings) to {number(last.average!)} kg ({last.loggedDays}/7 readings).</p>
         : <p className="chart-comparison">Comparisons unlock with 4+ readings in each of two consecutive finished weeks.</p>}
       <p className="chart-coverage">Weight change is not a measurement of fat or muscle.</p>
-    </> : <div className="empty-weight-chart"><strong>Your trend starts with one reading</strong><p>Log a morning weight above. Daily readings and weekly averages will appear here.</p></div>}
+    </> : <div className="empty-weight-chart"><strong>Your trend starts with one reading</strong><p>Add a morning weigh-in in Coach Hub. Daily readings and weekly averages will appear here.</p></div>}
   </section>;
 }

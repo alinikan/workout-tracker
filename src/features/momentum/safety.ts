@@ -59,5 +59,5 @@ export function hasRecentSymptoms(data: MomentumData, before: string) {
   );
 }
 export function planIsGeneric() {
-  return starterPlan.length === 30;
+  return starterPlan.length === 90;
 }

@@ -4,16 +4,19 @@ export type SessionStep = "plan" | "practice" | "finish" | "saved";
 
 /** Derive resume position from real work, never from a calendar day or a visit.
  * These helpers do not write attendance or change the training prescription. */
-export function sessionSets(ids: string[], extraId?: string) {
-  return ids.flatMap((id) => (id === extraId ? [id, `${id}-2`] : [id]));
+export function sessionSets(ids: string[], extraId?: string, count: 1 | 2 = 1) {
+  return ids.flatMap((id) =>
+    count === 2 || id === extraId ? [id, `${id}-2`] : [id],
+  );
 }
 export function initialSessionStep(
   log: ActivityLog,
   ids: string[],
   extraId?: string,
+  count: 1 | 2 = 1,
 ): SessionStep {
   if (log.outcome) return "saved";
-  const sets = sessionSets(ids, extraId);
+  const sets = sessionSets(ids, extraId, count);
   if (
     (sets.length > 0 && sets.every((id) => log.sets[id]?.done)) ||
     Number(log.minutes) > 0
@@ -29,9 +32,10 @@ export function firstUnfinishedMovement(
   log: ActivityLog,
   ids: string[],
   extraId?: string,
+  count: 1 | 2 = 1,
 ) {
   const index = ids.findIndex((id) =>
-    sessionSets([id], extraId).some((key) => {
+    sessionSets([id], extraId, count).some((key) => {
       const set = log.sets[key];
       return !set?.done && !set?.skipped;
     }),
@@ -42,9 +46,10 @@ export function suggestedOutcome(
   log: ActivityLog,
   ids: string[],
   extraId?: string,
+  count: 1 | 2 = 1,
 ): Exclude<Outcome, "stopped"> {
   if (log.outcome && log.outcome !== "stopped") return log.outcome;
-  const sets = sessionSets(ids, extraId);
+  const sets = sessionSets(ids, extraId, count);
   return sets.some((id) => log.sets[id]?.done) &&
     !sets.every((id) => log.sets[id]?.done)
     ? "modified"

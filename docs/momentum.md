@@ -1,307 +1,235 @@
 # Momentum
 
-**My Personal Fitness Journey**
+**One clear next step. A repeatable 90-day routine.**
 
-Start small. Show up. Get stronger.
+Momentum is the optional, single-owner private coaching space inside Recomp. It combines
+Muay Thai at **Titan Training Centre**, manageable home strength, regular meals and recovery.
+It does not replace or advance the original Workout/Diet program.
 
-Momentum is an optional, single-owner, private 30-day experience inside Recomp. It emphasizes an
-achievable appointment, adapted non-contact boxing, very light strength practice, regular meals,
-and recovery. It is **not** a replacement for the original 26-week program or its earned-week progression.
+## The App In Three Places
 
-> [!IMPORTANT]
-> The feature is disabled until an administrator installs the additive migration and authorizes
-> one Supabase authentication user. There is no owner email/UUID in the public application.
+| Destination | What happens here |
+| --- | --- |
+| **Today** | One activity, one primary action. Start or resume a focused session; record only actual work. A compact Titan row opens class details and membership research. |
+| **Meals** | Four meals in order. Expand one for portions, a cooking tutorial, same-slot swaps and an eaten checkmark. Swaps are labeled and reversible. |
+| **Journey** | Seven days at a time, thirteen initial weeks, actual attendance, earned workload options and the shared kg weight trend. |
 
-## One-Time Supabase Setup
+The settings icon opens pause, resume, repeat-week and fresh-journey controls. Settings is not
+another questionnaire. In a session, the navigation dock disappears so it cannot cover sets.
+The interface uses distinct strength, class and recovery colors, explicit completion states,
+44px-or-larger actions, safe-area spacing and reduced-motion support. Screens are tested in
+phone-width WebKit and desktop Chromium, in both light and dark themes.
 
-Use your existing Supabase project, publishable key, authentication and Vercel environment variables.
-Do not create a second account, put a service-role key in Vite, or change `workout_progress`.
+### First Visit
 
-1. In your project folder, open `supabase/migrations/20261023_momentum.sql`.
-2. In the Supabase dashboard for the **same project used by Recomp**, choose **SQL Editor**,
-   then **New query**. Paste the full migration and run it as the project administrator.
-3. The migration creates a private singleton allowlist, a separate RLS-protected progress table,
-   and two restricted RPC functions. It does not delete, migrate or rewrite Recomp progress.
-   Re-running it is supported. Its `drop policy` replaces only its own named Momentum read policy.
-4. Go to **Authentication → Users**, open your existing sign-in account, and copy its **User UID**.
-   Use the authentication UID, not a project reference, email address or API key.
-5. Open another SQL query and replace the placeholder **privately in the dashboard**:
+Choose an upcoming **Monday**, then **Start my 90 days**. Opening the app does not start it.
+The first planned Titan introduction is that week's Wednesday at **6:15 pm**. These are planned
+appointments, not bookings; confirm with Titan, especially around holidays. A fresh journey
+archives previous journeys instead of deleting them. Shared weigh-ins and meals stay intact.
+
+An existing 30-day journey offers **Use my 90-day plan**. The extension preserves its ID, logs,
+meals, reviews and dates with recorded, booked or partly worked sessions. Those slots retain
+their original prescription. Untouched upcoming slots adopt the new routine; initial days extend
+to 90. The upgrade is idempotent. Old saved 30-day records remain interpretable through the legacy
+template; a stale device's independent notes can still merge with the extended record.
+
+## Your Weekly Rhythm
+
+| Day | Appointment | Starting workload |
+| --- | --- | --- |
+| Monday | Home Strength A | Gentle warm-up, lighter practice sets of the first two movements, then one easy working set per movement. |
+| Tuesday | Easy walk | Ten comfortable conversational minutes, shorter if useful. Prepare for class. |
+| Wednesday | Titan introduction | One-hour appointment; an initial 10-20 minutes of active technique with rests or observation is a smaller starting option. Ask the instructor to adapt it. |
+| Thursday | Recovery | No required workout. Check recovery from class when you know how it feels. |
+| Friday | Easy walk | Comfortable movement, regular meals and weekend preparation. |
+| Saturday | Recovery initially | Strength B is an earned, explicitly accepted option, not an automatic additional session. |
+| Sunday | Weekly reset | Five minutes to plan food and the next realistic week. No training test. |
+
+The 90 days span **Arrive & repeat** (days 1-28), **Build your base** (29-56), and
+**Own the routine** (57-90). These names describe the journey, not an automatic dose increase.
+Repeating a week can extend the calendar. Missing activity never adds a catch-up workout.
+
+Strength A uses leg press, incline dumbbell press, lat pulldown and dead bug. Strength B uses
+leg press, supported single-arm row, glute bridge and high-incline push-up. Existing movement
+videos, GIFs, setup guidance and comfortable-range instructions are reused, not duplicated.
+Weights are in **lbs**; actual repetitions are logged per performed set. Keep breathing and
+leave several repetitions in reserve; there is no maximum test or requirement to train to failure.
+
+### Earned Progression
+
+The workload engine reads actual performed dates, completion, effort, comfort and recovery.
+It does not equate clicking Next, viewing a lesson or reaching week 8 with successful training.
+
+1. **Base:** one strength session and one class weekly. Walks start short.
+2. **Second strength day:** four comfortable, fully completed strength sessions and three comfortable
+   participating classes can unlock Saturday Strength B. Recent practice and recovery must support it.
+   Choose the option explicitly in Journey; unlocking alone changes nothing.
+3. **Two sets:** eight comfortable full lifts, including two B sessions, plus six comfortable
+   participating classes can unlock two working sets per movement across the two strength days.
+   Accept it explicitly; keep familiar loads when increasing volume.
+
+Recent poor recovery, overly demanding attempts, stopped sessions, stale practice or missing positive
+feedback prevent progression. Observation is useful attendance but not physical-intensity evidence.
+Walks can extend after four and eight comfortable recorded walks; class active-time guidance can
+extend after three and six comfortable visits. Neither obliges you to fill the whole class hour.
+These counts are conservative **product guardrails**, not experimentally validated personal thresholds.
+
+The app never automatically changes your load, books a class, promotes you to another class,
+unlocks sparring or promises a body transformation. Two weekly resistance sessions are a useful
+longer-term direction; one repeatable session is a manageable start, not an optimal lifelong ceiling.
+
+### A Session, Start To Finish
+
+1. Read the short Today plan, then **Start session**. Strength opens one movement at a time.
+2. Enter actual reps and an optional load. Check only performed sets. Previous/Next changes the view,
+   not attendance. Return later and the first unfinished movement is selected.
+3. **Review session**, or **Finish with what I did**. Save a full, smaller or skipped result.
+   Every required actual set is needed for full strength completion. A smaller lift needs at least one
+   actual set. Participating walks/classes need actual minutes; observation is a smaller class visit.
+4. Effort and comfort are short, optional feedback. Recovery can be updated later through the next-day
+   prompt or Notes & corrections. Unknown recovery is never silently marked good.
+5. A clear saved result confirms the outcome. **Edit result** reopens it without erasing performed sets.
+
+Stop guidance remains available during exercise. A stopped session is not ordinary full completion
+and does not permanently lock the account. No extra onboarding approval step is required.
+
+## Titan, Not A Gym Finder
+
+Titan is the chosen venue. There are no comparisons or alternate-gym setup screens.
+Wednesday's **Introduction to Muay Thai / Kickboxing** is at **6:15 pm, Room #2 (Front Entrance)**.
+When you and the instructor think the next class fits, open the Titan sheet and choose the first
+Wednesday for **Muay Thai Kickboxing (Beginners / Intermediate)**. It is also **6:15 pm**, but in
+**Room #1 (Main Room)**. Stay in the introduction for as many weeks as useful. Revert future classes
+to Introduction when needed. Recorded class names remain snapshots of what you actually attended.
+
+Saturday's published class requires four months' experience; the app does not unlock it after 90 days.
+Schedule information is a dated research snapshot, not live availability. Private calendar export uses
+a generic title. Moving an unrecorded appointment requires a suitable confirmed alternative, the same
+week and recovery spacing; this never books or cancels with the gym.
+
+Read [Titan membership research](titan-membership.md) for prices, break-even calculations and the
+conditional recommendation. No purchase or binding membership action is performed by the app.
+
+## Meals And Weight
+
+Momentum reuses the existing Monday-Sunday recipe rotation, photos, portions and beginner tutorials.
+It does not run the original app's automatic calorie-tightening engine or assume recipe calories
+are your measured personal energy needs. Protein foods, produce, regular meals and carbohydrates
+supporting activity take priority. A familiar meal 2-3 hours before class, or a tolerable small snack
+30-60 minutes before when needed, is flexible guidance, not a guarantee against feeling faint.
+
+Momentum meal swaps/checkmarks are private and separate from Diet history. Weigh-ins are different:
+**Coach Hub is the single place to enter kg weights**. Journey displays the existing shared chart,
+with real measurements and honest missing-day coverage. No separate measurements are requested.
+
+## Supabase: Existing Installations
+
+**This 90-day update requires no new SQL migration, key, account or permission change.** It retains
+document schema version 2, the same owner allowlist, row-level security and revisioned save RPC.
+The optional plan-version, set-count and class-track fields live inside the existing private JSON.
+Vercel builds the app; it does not run database SQL or book classes.
+
+### First-Time Private Feature Setup
+
+Use the same Supabase project and authentication as Recomp. Never put a service-role key or owner UID
+in a `VITE_` variable or the public repository.
+
+1. Run `supabase/migrations/20261023_momentum.sql` as an administrator in **SQL Editor → New query**.
+   It adds Momentum's isolated tables/functions, without altering original Workout/Diet records.
+2. Find the intended account's **Authentication → Users → User UID**.
+3. Run this privately in the dashboard, replacing the placeholder, not committing the finished query:
 
 ```sql
--- Exactly ONE authorized account. Do not commit the completed query to GitHub.
 insert into momentum_private.momentum_owner (singleton, user_id)
 values (true, 'REPLACE_WITH_YOUR_AUTH_USER_UUID'::uuid)
 on conflict (singleton) do update set user_id = excluded.user_id;
 ```
 
-6. Run that query. Changing its UUID replaces the authorized account; it does not grant a second
-   account access. Do not do that accidentally. Existing records remain owned by their original UID.
-7. Run the updated app, sign in to that account, and open **Coach Hub → Momentum**. Other accounts
-   and signed-out visitors see no Momentum entry. An SQL Editor call to `momentum_access()` is not
-   an equivalent browser test: the editor's administrator session normally has no `auth.uid()`.
+4. Sign in to that account in the app, then open **Coach Hub → Momentum**.
+   The singleton allowlist permits only one owner. Other users and signed-out visitors see no entry.
+5. Older installations that have not applied the setup-function revision should run
+   `supabase/migrations/20261023_momentum_setup.sql` once. It leaves records and security unchanged.
 
-> [!NOTE]
-> No new environment variable is required. `VITE_SUPABASE_URL` and the existing publishable key stay
-> as they are. Never add an owner UUID or a service-role credential to a `VITE_` variable.
+To revoke, an administrator can delete the matching allowlist row. Do not delete the auth user or
+original progress table. Already-open offline devices discover revocation only on reconnection.
 
-To revoke private access without deleting records, run as the administrator:
+### Privacy Boundaries
 
-```sql
-delete from momentum_private.momentum_owner
-where user_id = 'REPLACE_WITH_THE_CURRENT_OWNER_UUID'::uuid;
-```
+| Boundary | Protection |
+| --- | --- |
+| Discovery and reads | `momentum_access()` plus owner/allowlist RLS; no email checks in public code. |
+| Writes | `momentum_save()` derives the owner from `auth.uid()`, locks the row and uses compare-and-swap revisions. Direct browser table writes are denied. |
+| Multiple devices | Three-way merge preserves independent edits. Wrong-recipe checkmarks cannot be applied to another device's swap. |
+| Device drafts | AES-GCM ciphertext with account-bound authentication data; the key is in tab session storage. |
+| Account changes | Owner checks, epochs, memory clearing and cache removal prevent another account seeing the private view. |
+| Service worker | Caches shell assets, not private API responses. |
 
-The next connected access check removes the view and device cache. An already-open offline device
-cannot learn about a server revocation until it reconnects. Sign it out or close it if immediate
-device-level access removal is required. Do not delete the authentication user or original
-`workout_progress` table merely to remove Momentum access.
+> [!WARNING]
+> Sync before closing the browser session. Closing a session can discard the encryption key and
+> make an unsynced offline draft unrecoverable. Saved server records remain available after sign-in.
+> Encryption does not protect a compromised device or malicious same-origin script.
 
-### Updating an Existing Installation
-
-If Momentum is already installed and your private account is authorized, run
-`supabase/migrations/20261023_momentum_setup.sql` in the same project's SQL Editor **before**
-deploying the updated app. It replaces only the save function; it does not change rows, RLS,
-owner authorization, or the original Workout/Diet tables. Re-running it is safe. No new keys
-or account setup are needed.
-
-## Run Locally
-
-From the project folder:
+## Run, Test And Deploy
 
 ```bash
 npm install
 npm test
+npm run test:ui -- --momentum-only
 npm run dev -- --host 0.0.0.0 --port 3000
 ```
 
-If port 3000 is already occupied, choose another port. Open the URL printed by Vite on your Mac.
-For an iPhone production/Home Screen experience, use the HTTPS Vercel deployment. Private offline
-draft encryption needs HTTPS or localhost; a plain LAN HTTP URL is not a secure context on iPhone.
-After setup, the same authorized account sees its private record on each device.
+Use another port if occupied. Localhost supports private encryption; an iPhone's plain LAN HTTP
+URL does not provide the secure context that private drafts need. Use the HTTPS Vercel site for
+the Home Screen app. Sign into the same authorized account on every device.
 
-For GitHub/Vercel deployment, commit the source and migration file, then push your normal branch.
-Vercel builds the code but **does not execute the SQL migration or authorize an account**. Do the
-dashboard setup above separately. There is no automatic production database migration in CI.
-
-## The First Visit
-
-The first screen shows the start date, not a questionnaire. Activate today if it is Monday, or
-choose a future Monday. **Personalize my routine** is optional and collapsed. Goals, days, budget,
-age, height and a weight milestone can be changed later in Settings. Opening the app does not
-start the calendar. The date is independent of the original Recomp start date.
-
-You may stay in preparation instead. Meals, contacting instructors, choosing appointments and
-setting out equipment remain available, without missed-workout penalties before your chosen start.
-Settings lets you pause and resume the current journey yourself. A stopped session is recorded for
-that day only, not a permanent account lock. Ordinary stop guidance remains available if symptoms
-occur during activity; the app does not treat those sessions as completed or reward them with an increase.
-
-### The Daily Flow
-
-1. **Plan:** read today's short instructions and begin. Smaller options and preparation are expandable.
-2. **Session:** follow one movement at a time. Open its technique video, enter actual reps/load, and
-   check only sets performed. Previous/Next changes the view, never attendance. You can finish early.
-3. **Finish:** save a planned, smaller or missed result. Walks and participating classes need actual
-   minutes; observing a class selects a smaller visit. A missed reason is optional. Unfinished sets
-   cannot be saved as a fully completed workout.
-
-The saved-result screen clearly distinguishes full completion, smaller sessions, stopped sessions
-and skips. **Edit result** reopens the entry without erasing its sets. Optional feedback is collapsed;
-effort, recovery and comfort still provide the evidence needed for earned progression. Missing answers
-are never invented or treated as positive feedback. Reloading derives the next step from actual logs.
-
-Navigation has five destinations: **Today, Plan, Food, Progress, Settings**. Plan groups Calendar,
-Classes and Exercises. Class preferences, gym comparisons and booking forms open only when needed.
-Routine changes, restarts, pause controls and reminders are grouped in Settings. The original Recomp
-app and Supabase permissions are unchanged by this presentation update.
-
-## What the 30 Days Contain
-
-| Days | Baseline plan |
-| --- | --- |
-| 1–7 | 5–8-minute walk; 8-minute walk; first Strength A; recovery/preparation; short boxing introduction; recovery; planning. |
-| 8–14 | Strength A; easy walk; rest/skill-note review; easy walk; beginner boxing; recovery; two-week checkpoint. |
-| 15–21 | Strength A; comfortable walk; **optional** Strength B or recovery; rest; boxing; optional walk/recovery; weekly review. |
-| 22–28 | Strength A; easy walk; **optional** Strength B or recovery; rest; boxing; optional walk/recovery; monthly reflection. |
-| 29–30 | Easy familiar Strength A; reflection and an optional walk. No maximum testing. |
-
-Every day has instructions, duration, a preparation task, an achievable success condition and a
-smaller alternative. The initial data is in `plan.ts`; adaptations do not rewrite these defaults.
-
-Strength A: one very easy set of leg press, light incline dumbbell press, lat pulldown and dead bug.
-Strength B: one very easy set of leg press, supported single-arm row, glute bridge and high-incline
-push-up. Both use a gentle 3–5-minute warm-up, generous rests and a gentle cool-down. Targets guide
-practice, not compulsory minimums. Continuous breathing and comfortable joint ranges take priority.
-
-### Adaptation Rules
-
-- Dates alone do not increase weight, sets or the number of strength sessions.
-- The second weekly strength session defaults to recovery, not an extra obligation.
-- Offering it requires two comfortable full strength practices, two comfortable technique visits,
-  good recorded recovery, a comfortable/manageable review, sufficiently recent practice,
-  and an explicit user choice.
-- Missing effort/recovery data, recent demanding attempts, poor recovery, repeated misses or symptoms
-  prevent an increase. Observation does not earn physical-intensity progression.
-- An eligible user may choose a second short practice **or** one extra easy set of a single movement,
-  not a simultaneous load/frequency/volume increase. The app never proposes a heavier weight in Month 1.
-- Later boxing durations depend on actual comfortable visits, not the numbered week. Breaks,
-  observation and an instructor's adaptation always remain available.
-- A lighter option, repeated week or smaller participation is legitimate. There is no mandatory
-  make-up session, doubled workout, harsh streak reset or penalty for rest.
-
-Three result choices distinguish planned completion, a smaller version, and not doing the activity.
-A separate Stop session action records a stopped attempt. Completing a movement never fills other sets. The full-session button
-rejects unfinished sets; a modified strength record still needs at least one actual set and repetitions.
-Planned and actual attendance dates are stored separately.
-
-## Boxing and Appointments
-
-The class finder links to official information checked **October 23, 2026**. It is a dated research
-snapshot, not a live price feed. Confirm tax, suitability, availability, trial eligibility and terms
-with the gym. No purchases or bookings are submitted by the app.
-
-- **Titan:** official Free Trial link; contact for current price and conditions. Ask about an adapted
-  technique introduction, not conditioning-oriented cardio kickboxing.
-- **Rebels:** official contact page mentions a free trial and Fundamentals; prices need confirmation.
-- **Quinit:** official intro page advertises CAD $59 for two weeks, no trial auto-renewal/contract,
-  and glove rental. Adult membership starting prices are not the trial price or a complete contract quote.
-- **Engineered Bodies:** Foundational Strength page lists $150 and a three-month commitment, but the
-  billing interval and any onboarding charges should be confirmed. It is not a boxing program.
-- **Port Moody Recreation:** published adult drop-in/one-month access is a lower-commitment alternative
-  for gym access; a suitable boxing class was not verified.
-
-Choose a budget, gym, preferred day, confirmed time and next appointment. Individual class moves swap
-with an unrecorded walking/recovery day in the same week and require at least 48-hour spacing from
-structured strength/boxing appointments by date. The date check rejects gaps under two calendar days;
-strength start times are not collected, so confirm a real 48-hour gap and suitable recovery yourself
-with your instructor. A conflicting date is rejected with a reason, not silently squeezed in.
-Moving a booked appointment or changing its provider/time clears its booking confirmation: re-confirm with the gym.
-Recorded attendance cannot be rescheduled after the fact.
-
-Skills progress as educational prompts: stance/guard, jab/footwork, cross if appropriate, technique
-review. They are not mastery requirements or a replacement for an instructor. Sparring never unlocks
-automatically, including in Month 2.
-
-## Food and Measurements
-
-Momentum reuses the existing Monday–Sunday recipe rotation and the original tutorials/media.
-It offers breakfast, lunch, one snack and dinner, detailed cooking sections, portion examples,
-same-slot swaps with visible Revert, and a weekly ingredient list including swaps.
-
-It deliberately does not run Recomp's automatic calorie/portion-tightening engine. Existing calorie
-estimates are not assumed to be individualized needs. Regular meals, protein foods, produce and
-carbohydrates supporting activity take priority. Supplements are optional; food is not earned through
-exercise. Pre-class snack timing is a flexible tolerance-based reminder, not a cure or guarantee
-against dizziness. Seek individualized nutritional advice where needed.
-
-Meal checkmarks and swaps belong only to Momentum. Original Diet history is not modified or counted
-again. **Weight is different:** the Coach Hub's existing kg metric is the single source of truth.
-Saving a weight from Momentum updates that same dated metric, with the existing protected sync.
-The shared chart uses actual readings and reports missing coverage rather than treating it as zero.
-A Recomp reset that intentionally clears shared weights also clears those displayed weights here.
-
-Waist checks are optional, private to Momentum and not required daily. No body-fat percentage is
-estimated. Progress photos are intentionally not collected because no secure private photo-storage
-bucket is configured. There is no promised appearance, spot-fat reduction or fixed monthly loss.
-
-## Reminders and Month 2
-
-Reminders are opt-in and in-app only. Calendar export is an explicit user action, with a generic
-appointment title and no clinical notes. There are **no background push notifications**. Vancouver
-exports use the verified 2026 permanent UTC-7 rule rather than an obsolete November clock change;
-historical dates retain IANA-based handling. See the [B.C. announcement](https://news.gov.bc.ca/releases/2026AG0013-000209).
-
-Month 2 recommendations are deterministic: maintain manageable attendance, keep boxing as an anchor
-when it fits, try a different environment when it does not, simplify after poor attendance/recovery,
-and keep the next block familiar or lighter after recent stopped sessions. There is no automatic Month 2 escalation or sparring.
-Starting another private month archives the old one after an explicit `START` confirmation. Recomp
-records are untouched. Repeating a week creates distinct session IDs and preserves earlier logs;
-future booked/recorded appointments block automatic date shifting.
-
-## Privacy and Sync Architecture
-
-| Layer | Boundary |
-| --- | --- |
-| Administrator allowlist | `momentum_private.momentum_owner` contains one authorized authentication UID. Browser roles have no schema/table privileges, and RLS has no browser policies as an additional safeguard. Only administrator-owned security-definer functions check membership. Existing unrelated private-schema grants are untouched. |
-| Access discovery | `momentum_access()` returns whether the current signed-in user is authorized; no email comparisons. |
-| Reads | RLS requires both matching `auth.uid()` and allowlist membership. Guessing another UID returns no record. |
-| Writes | Direct browser table writes are denied. `momentum_save()` derives ownership from `auth.uid()` and uses compare-and-swap revisions under a row lock. |
-| Activation | The save RPC validates the active journey, a real date, and a non-retroactive Monday when a new journey is activated. |
-| Concurrent devices | Three-way merge preserves independent edits and new journey IDs retain history. Old version-1 documents upgrade to version 2 without losing attendance, notes or meals. Pauses remain manually resumable. |
-| Device cache | Private drafts are AES-GCM ciphertext with an account-bound authentication tag. The key is held in tab session storage, not in source or the database. |
-| Account changes | Render-time owner checks, request epochs, memory clearing and cache removal prevent another signed-in account receiving the previous account's private view. |
-| Initial offline access | A fresh visit/reload cannot decrypt/display private data until a connected authorization check succeeds. |
-
-> [!WARNING]
-> An already authorized open session can keep a private draft while offline. **Sync before closing
-> the browser session.** Closing it can discard the encryption key and make an unsynced draft
-> unrecoverable. Saved server records remain available after sign-in. Encryption is not a guarantee
-> against a compromised device, malicious same-origin script, copied browser session or administrator.
-
-Use a trusted device and sign out on shared computers. Save/sync errors are visible. No private API
-response is cached by the service worker, no private notes are exported to reminders, and no health
-profile or owner identifier is embedded in static source. The public feature code and generic
-program information are inspectable; only authorized records are private.
-
-## Tests and Maintenance
+Before publishing:
 
 ```bash
-npm test
-npm run typecheck
-npm run test:ui -- --momentum-only
 npm run test:ui -- --repeat=2
 npm audit --audit-level=high
 git diff --check
+git add src/features/momentum scripts/momentum-ui-check.mjs tests docs README.md public/sw.js
+git commit -m "Build Titan 90-day Momentum routine"
+git push
 ```
 
-`tests/momentum.test.mjs` covers the 30-day schedule, safety, conservative progression, actual
-participation, repeats, class moves, encrypted cache, independent merge and shared-resource references.
-It executes the actual migration in test-only PGlite (PostgreSQL), including disallowed users,
-guessed IDs, direct-write bypasses, singleton authorization, CAS conflicts, anonymous access,
-revocation, server-side activation checks and preservation of the original table.
+The connected GitHub workflow tests a clean Linux install; Vercel deploys the production branch.
+Confirm both checks succeeded. Reopen the Home Screen app after the new version becomes available.
+Do not reset browser data to update it.
 
-Browser checks use synthetic accounts and mock network services, not the production database.
-They exercise iPhone-width WebKit and desktop Chromium in both themes, no-activation onboarding,
-real set logging, tutorials, meal swap/revert, shared weigh-ins, offline sync, stopped sessions and
-revocation, sign-out/account changes and independent-device offline merging. Remote media requests are blocked in fixtures; video availability and physical-device
-iOS behavior still need a real-device smoke check after deployment.
-
-No test uses the owner's actual private history, measurements, email, UID or credentials.
-
-### File Map
+### Developer Map
 
 | File | Responsibility |
 | --- | --- |
-| `src/features/momentum/types.ts` | Generic types and blank defaults; private values are collected at runtime. |
-| `plan.ts` | Exact starter schedule, templates, date-only arithmetic, repeats and class rescheduling. |
-| `safety.ts` | Start-date checks, manual pauses and ordinary session stop guidance. |
-| `coaching.ts` | Explainable recommendations, honest completion checks and earned optional changes. |
-| `research.ts` | Concise evidence summaries, source links and dated official gym information. |
-| `calendar.ts` | Non-sensitive calendar export and correct Vancouver appointment conversion. |
-| `storage.ts` | Private document normalization, merge and account-bound encrypted device drafts. |
-| `useMomentum.ts` | Authorization, stale-response guards, revisioned sync and visible errors. |
-| `MomentumPage.tsx` / `momentum.css` | Start-date-first setup, five main destinations and scoped responsive presentation. |
-| `MomentumSession.tsx` | Linear daily session, movement navigation, minimal result form and optional feedback. |
-| `flow.ts` | Pure helpers for resuming real work and suggesting an honest session result; no writes or prescription changes. |
-| `supabase/migrations/20261023_momentum.sql` | Additive allowlist, RLS, grants and write RPC; administrator-run only. |
-| `supabase/migrations/20261023_momentum_setup.sql` | Incremental save-function update for existing installations; no table, policy or data changes. |
-| `scripts/momentum-ui-check.mjs` | Feature-specific checks using the existing isolated browser harness. |
+| `types.ts` | Generic JSON contract, backwards-compatible optional fields and blank defaults. |
+| `plan.ts` | Ninety-day appointments, preserved legacy schedule, date arithmetic, repeats and rescheduling. |
+| `titan.ts` | Public sources/prices, class-track resolution, cash calculations and idempotent extension. |
+| `coaching.ts` | Actual-attendance progression gates, historical prescriptions and honest completion checks. |
+| `flow.ts` | Required set keys, first-unfinished resume and outcome suggestions. |
+| `MomentumPage.tsx` | Three destinations, session entry, meal expansion and settings/dialog routes. |
+| `MomentumSession.tsx` | One movement at a time, actual-set logging and a short result form. |
+| `TitanPanel.tsx` | Dated price comparison, terms caveats and first-class preparation. |
+| `momentum.css` | Scoped palette, full-width activity bands, responsive layouts and safe areas. |
+| `storage.ts` / `useMomentum.ts` | Normalization, private encryption, authorization, merge and revisioned autosave. |
+| `calendar.ts` | Generic reminder export with Vancouver date/time conversion. |
+| `research.ts` | Concise primary-source evidence and limitations. |
 
-To change meals, edit the existing shared recipe library or select a swap; do not copy the recipes
-into a second static dataset. To extend a future month, add an explicit new template and safety/tests
-rather than redirecting Momentum into the original earned-week engine.
+`tests/momentum.test.mjs` keeps legacy, encryption, merge and real PostgreSQL security coverage.
+`tests/momentum-titan.test.mjs` tests all 90 days, earned changes, migration preservation, class-track
+boundaries and membership math. `scripts/momentum-ui-check.mjs` exercises real UI/client flows using
+synthetic accounts and a CAS fixture, including independent offline devices. Tests do not access the
+owner's production health history. External media is blocked in fixtures, so actual video availability
+and physical-iPhone playback still deserve a device smoke test.
 
-## Evidence and Its Limits
+## Evidence And Limits
 
-The exact starter dose is a deliberately conservative product choice, not a proven treatment
-or a promise of a specific fitness result. Long-term public-health activity targets should
-not be imposed on the first sedentary week.
+The routine is a conservative adherence-focused product design, not a validated personal prescription.
+It supports fitness and gradual body-composition goals without promising a particular loss or appearance.
 
-- [WHO activity guidance](https://www.who.int/news-room/fact-sheets/detail/physical-activity/): some movement is better than none; build gradually.
-- [ACSM 2026 guidance](https://acsm.org/resistance-training-guidelines-update-2026/): consistent, individualized resistance practice for healthy adults.
-- [Planning meta-analysis](https://pubmed.ncbi.nlm.nih.gov/35742582/): planning interventions improved activity on average, with heterogeneous results.
-- [Group-class review](https://pubmed.ncbi.nlm.nih.gov/42352717/): perceived capability and social/instructor context relate to adherence; much evidence is observational.
-- [Resistance exercise during weight loss](https://pubmed.ncbi.nlm.nih.gov/40909191/): preservation of fat-free mass on average does not justify an aggressive deficit or inappropriate training dose.
-- [CDC weight-management guidance](https://www.cdc.gov/healthy-weight-growth/losing-weight/): realistic goals, support, regular healthy habits and gradual change.
-- [HealthLink BC](https://www.healthlinkbc.ca/healthwise/fainting): multiple possible causes of fainting and the role of professional evaluation.
-- [QuitNow BC](https://quitnow.ca/): optional free tobacco-reduction/cessation support; not a prerequisite for participation.
+- [ACSM 2026](https://acsm.org/resistance-training-guidelines-update-2026/): individualized, consistent resistance practice before unnecessary complexity.
+- [NIDDK](https://www.niddk.nih.gov/health-information/weight-management/tips-get-active/tips-starting-physical-activity): manageable beginnings and gradual increases.
+- [WHO](https://www.who.int/news-room/fact-sheets/detail/physical-activity/): some activity is better than none; population targets are longer-term directions.
+- [CDC](https://www.cdc.gov/healthy-weight-growth/losing-weight/): realistic goals and sustainable habits rather than crash dieting.
+
+Dates alone do not earn intensity. Enjoying the introduction and repeating an achievable week is
+more useful than reaching day 90 with a harder plan that was never practiced.

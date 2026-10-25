@@ -17,7 +17,7 @@ Workout Tracker is a React + TypeScript Progressive Web App. Its original three 
 | Coach Hub | Account sign-in, sync status, daily kg weigh-ins, weight chart, and weekly averages. |
 | Workout | Today, Gym Mode, weekly planner, progress dashboard, and exercise library. |
 | Diet | Daily meal cards, recipe steps, meal swaps, pre-workout fueling, and weekly to-buy list. |
-| Momentum (optional/private) | A separately authorized 30-day consistency journey. It never advances the original earned-week counter. |
+| Momentum (optional/private) | A separately authorized 90-day Titan/home-strength journey, with Today, Meals and Journey screens. It never advances the original earned-week counter. |
 
 The app saves progress in two layers:
 

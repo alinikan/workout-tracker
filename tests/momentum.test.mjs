@@ -11,8 +11,8 @@ import {
   suggestedOutcome,
 } from "../src/features/momentum/flow.ts";
 import {
-  starterPlan,
-  makeJourney,
+  legacyPlan as starterPlan,
+  makeJourney as makePlanJourney,
   firstMondayAfter,
   addDays,
   rescheduleClass,
@@ -44,6 +44,9 @@ import {
   appointmentUtc,
   calendarText,
 } from "../src/features/momentum/calendar.ts";
+
+// Regression fixtures intentionally keep the original saved 30-day layout.
+const makeJourney = (start, id, now) => makePlanJourney(start, id, now, "legacy-30");
 
 function fixture() {
   const d = emptyMomentum(),

@@ -21,16 +21,12 @@ export function suggestedStart(today: string) {
   return weekday(today) === 1 ? today : firstMondayAfter(today);
 }
 export const phase = (day: number) =>
-  day <= 7
-    ? "Just begin"
-    : day <= 14
-      ? "Repeat"
-      : day <= 21
-        ? "Build carefully"
-        : day <= 28
-          ? "Make it a routine"
-          : "Reflect and continue";
-export const weekOf = (day: number) => Math.min(5, Math.ceil(day / 7));
+  day <= 28
+    ? "Arrive & repeat"
+    : day <= 56
+      ? "Build your base"
+      : "Own the routine";
+export const weekOf = (day: number) => Math.ceil(day / 7);
 const p = (
   day: number,
   activity: Activity,
@@ -41,7 +37,7 @@ const p = (
   enough: string,
   minimum: string,
 ): DayPlan => ({ day, activity, title, minutes, steps, task, enough, minimum });
-export const starterPlan: DayPlan[] = [
+export const legacyPlan: DayPlan[] = [
   p(
     1,
     "walk",
@@ -82,9 +78,7 @@ export const starterPlan: DayPlan[] = [
     "recovery",
     "Recovery and preparation",
     "0",
-    [
-      "No required workout. Optional 5-8-minute comfortable walk.",
-    ],
+    ["No required workout. Optional 5-8-minute comfortable walk."],
     "Set out clothes and water. Ask the instructor for a light, non-contact introduction with breaks.",
     "Rest and class preparation.",
     "Rest.",
@@ -370,9 +364,7 @@ export const starterPlan: DayPlan[] = [
     "strength-a",
     "Easy Strength A",
     "15-25",
-    [
-      "Repeat easy, familiar Strength A if recovered. No maximum testing.",
-    ],
+    ["Repeat easy, familiar Strength A if recovered. No maximum testing."],
     "Keep regular meals and familiar loads.",
     "A comfortable repeat.",
     "One comfortable movement or recovery.",
@@ -384,13 +376,116 @@ export const starterPlan: DayPlan[] = [
     "10 planning",
     [
       "Optional 15-minute comfortable walk. No strenuous test.",
-      "Review averages, not a single weigh-in. An optional waist update is enough for the month.",
+      "Review weight averages, not a single weigh-in.",
     ],
     "Book the next class and review your Month 2 recommendation.",
     "A realistic continuation plan, whatever the scale says.",
     "Plan one next appointment.",
   ),
 ];
+/** The calendar supplies appointments, NOT earned volume. resolveDay applies
+ * attendance/recovery gates each time, so a missed month never unlocks harder work. */
+export const starterPlan: DayPlan[] = Array.from({ length: 90 }, (_, i) => {
+  const day = i + 1,
+    position = i % 7;
+  const weekly: Array<Omit<DayPlan, "day">> = [
+    {
+      activity: "strength-a",
+      title: "Home Strength A",
+      minutes: "20-30",
+      steps: [
+        "Warm up for 3-5 easy minutes, then a clearly lighter practice set of the first two movements.",
+        "Work through the movements in order. Use a comfortable range, leave several repetitions in reserve and rest 90-180 seconds.",
+      ],
+      task: "Keep familiar loads. Log actual sets, not intended sets.",
+      enough: "One controlled set of each movement. More is earned, not owed.",
+      minimum:
+        "Warm up and do one comfortable movement; record a smaller session.",
+    },
+    {
+      activity: "walk",
+      title: "An easy walk",
+      minutes: "10",
+      steps: [
+        "Walk at a pace that lets you speak in full sentences. Split it into shorter walks if useful.",
+      ],
+      task: "Prepare clothes, water and a familiar snack for tomorrow's class.",
+      enough: "Ten comfortable minutes, or less if needed.",
+      minimum: "A few easy minutes or rest.",
+    },
+    {
+      activity: "boxing",
+      title: "Titan Muay Thai",
+      minutes: "10-20",
+      steps: [
+        "Your class appointment is one hour; active technique time can be shorter. Tell the instructor you are building up and take breaks.",
+        "Follow the instructor's introduction: stance, guard, balance and controlled technique. No automatic sparring or hard conditioning.",
+      ],
+      task: "Eat a normal meal 2-3 hours before class, or a familiar small carbohydrate snack 30-60 minutes before if needed. Bring water; avoid a large meal just before class.",
+      enough: "Show up, learn one thing and finish at a manageable effort.",
+      minimum:
+        "Ask to observe or do a shorter technique practice. Record what actually happened.",
+    },
+    {
+      activity: "recovery",
+      title: "Make room for recovery",
+      minutes: "0",
+      steps: [
+        "No scheduled training. Everyday movement is fine if comfortable.",
+      ],
+      task: "Notice how yesterday felt. Record recovery when you know, not in advance.",
+      enough: "Rest. No compensating for food or missed sessions.",
+      minimum: "Rest.",
+    },
+    {
+      activity: "walk",
+      title: "Walk & reset",
+      minutes: "10",
+      steps: [
+        "Choose an easy route and a conversational pace. Duration only increases after comfortable recorded walks.",
+      ],
+      task: "Keep regular meals. Prepare the weekend's groceries.",
+      enough: "An easy walk that you could repeat.",
+      minimum: "A shorter walk or recovery.",
+    },
+    {
+      activity: "strength-b",
+      title: "Home Strength B",
+      minutes: "20-30",
+      steps: [
+        "Only add this second strength day after it is earned and you choose it.",
+        "Use the same gentle warm-up and an easy set of each movement. Do not increase load and sets together.",
+      ],
+      task: "Recovery is the default until a second session fits comfortably.",
+      enough:
+        "Controlled practice, or recovery if the extra session is not enabled.",
+      minimum: "Rest, or warm up and do one easy movement.",
+    },
+    {
+      activity: "review",
+      title: "Reset for the week",
+      minutes: "5 planning",
+      steps: [
+        "Look at actual attendance and recovery. Keep, simplify or repeat the routine; no catch-up sessions.",
+      ],
+      task: "Confirm Wednesday's class with Titan, prepare a few meals and choose the next realistic appointment.",
+      enough: "One realistic next week, not a perfect one.",
+      minimum: "Choose the next appointment.",
+    },
+  ];
+  return day === 90
+    ? {
+        day,
+        ...weekly[6],
+        title: "Your 90-day reflection",
+        task: "Review actual attendance, recovery, enjoyment and weight averages. Choose a repeatable next block; no maximum test or promised scale result.",
+      }
+    : { day, ...weekly[position] };
+});
+export const dayPlan = (journey: Journey | undefined, slot: Slot): DayPlan =>
+  (journey?.planVersion === "titan-90" && !slot.legacy
+    ? starterPlan
+    : legacyPlan)[slot.day - 1] ?? starterPlan[Math.min(89, slot.day - 1)];
 export const strengthTemplates = {
   "strength-a": [
     { id: "leg-press", reps: "8" },
@@ -407,17 +502,19 @@ export const strengthTemplates = {
 } as const;
 export function makeJourney(
   start: string,
-  id = crypto.randomUUID(),
+  id: string = crypto.randomUUID(),
   now = new Date().toISOString(),
+  version: "legacy-30" | "titan-90" = "titan-90",
 ): Journey {
   if (!isCalendarDate(start) || weekday(start) !== 1)
     throw new Error("Choose a Monday.");
   return {
+    planVersion: version,
     id,
     createdAt: now,
     startedOn: start,
     slots: Object.fromEntries(
-      starterPlan.map((p) => [
+      (version === "legacy-30" ? legacyPlan : starterPlan).map((p) => [
         `day-${p.day}`,
         { id: `day-${p.day}`, day: p.day, date: addDays(start, p.day - 1) },
       ]),
@@ -434,6 +531,17 @@ export const sortedSlots = (journey: Journey) =>
   );
 export const currentJourney = (data: MomentumData) =>
   data.activeJourneyId ? data.journeys[data.activeJourneyId] : undefined;
+// Repeated weeks keep their original prescription day, but their navigation
+// belongs to a new calendar week. Do not group fourteen rows under one week.
+export const calendarWeekOf = (journey: Journey, slot: Slot) =>
+  Math.max(
+    1,
+    Math.floor(
+      (Date.parse(`${slot.date}T12:00:00Z`) -
+        Date.parse(`${journey.startedOn}T12:00:00Z`)) /
+        (7 * 86400000),
+    ) + 1,
+  );
 export const isStrength = (
   activity: Activity,
 ): activity is keyof typeof strengthTemplates =>
@@ -452,12 +560,20 @@ export function rescheduleClass(
   const slot = journey.slots[id];
   if (
     !slot ||
-    starterPlan[slot.day - 1].activity !== "boxing" ||
+    dayPlan(journey, slot).activity !== "boxing" ||
     journey.logs[id]?.outcome
   )
     throw new Error("Only an unrecorded boxing appointment can move.");
   if (target < today || !isCalendarDate(target))
     throw new Error("Choose a future or current date.");
+  if (
+    journey.planVersion === "titan-90" &&
+    !slot.legacy &&
+    ![1, 3].includes(weekday(target))
+  )
+    throw new Error(
+      "Titan publishes these Introduction/Beginner classes on Monday and Wednesday at 6:15 pm. Confirm another suitable appointment with Titan; do not assume a different day's class is equivalent.",
+    );
   const sameWeek = (d: string) => addDays(d, -((weekday(d) + 6) % 7));
   if (sameWeek(target) !== sameWeek(slot.date))
     throw new Error(
@@ -468,7 +584,7 @@ export function rescheduleClass(
   );
   if (
     other &&
-    (structured(starterPlan[other.day - 1].activity) ||
+    (structured(dayPlan(journey, other).activity) ||
       journey.logs[other.id]?.outcome)
   )
     throw new Error(
@@ -478,7 +594,7 @@ export function rescheduleClass(
     Object.values(journey.slots).some(
       (s) =>
         s.id !== id &&
-        structured(starterPlan[s.day - 1].activity) &&
+        structured(dayPlan(journey, s).activity) &&
         Math.abs(
           Date.parse(`${s.date}T12:00Z`) - Date.parse(`${target}T12:00Z`),
         ) <

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { webkit, chromium, expect } from "playwright/test";
 
-// Uses the existing isolated Vite/auth fixture. The PostgreSQL tests separately
-// verify real RLS; this suite exercises the actual React UI and Supabase client.
+// Isolated real React/Supabase-client flows, with synthetic users and a CAS
+// fixture. PostgreSQL tests separately execute the actual production RLS/RPC.
 export async function runMomentumChecks({
   server,
   model,
@@ -34,42 +34,35 @@ export async function runMomentumChecks({
       "fixture@example.test",
     );
   };
-  const openPrivate = async (page) => {
-    await expect(page.locator(".momentum-entry")).toBeVisible();
+  const open = async (page) => {
     await page.locator(".momentum-entry").click();
-    await expect(page.locator(".momentum")).toBeVisible();
+    await expect(page.locator("main.momentum")).toBeVisible();
+    await settlePresentation(page);
   };
-  const tab = async (page, name) => {
-    const nested = {
-      Boxing: "Classes",
-      "My 30 days": "Calendar",
-      Strength: "Exercises",
-    }[name];
-    await page
-      .getByRole("tablist", { name: "Momentum sections" })
-      .getByRole("tab", { name: nested ? "Plan" : name, exact: true })
-      .click();
-    if (nested)
-      await page
-        .getByRole("navigation", { name: "Plan sections" })
-        .getByRole("button", { name: nested, exact: true })
-        .click();
-  };
-  const step = (page, name) =>
+  const tab = (page, name) =>
     page
-      .getByRole("navigation", { name: "Session steps" })
+      .getByRole("navigation", { name: "Momentum sections" })
       .getByRole("button", { name, exact: true })
       .click();
-  const feedback = (page) =>
-    page.getByText("Optional feedback", { exact: true }).click();
-  const stable = async (page, locator) => {
-    await locator.evaluate((e) =>
-      e.scrollIntoView({ block: "center", behavior: "instant" }),
-    );
+  const click = async (page, name) => {
+    const button = page.getByRole("button", { name, exact: true });
+    await button.scrollIntoViewIfNeeded();
     await settlePresentation(page);
-    if (page.viewportSize().width < 720) await locator.tap();
-    else await locator.click();
+    await button.click();
   };
+  const privateLog = (backend) =>
+    backend.privateSnapshot()?.journeys["synthetic-private-journey"]?.logs[
+      "day-1"
+    ];
+  const contextOptions = (viewport, colorScheme = "light") => ({
+    viewport,
+    colorScheme,
+    isMobile: viewport.width < 720,
+    hasTouch: viewport.width < 720,
+    timezoneId: "America/Vancouver",
+    reducedMotion: colorScheme === "light" ? "reduce" : "no-preference",
+  });
+
   for (const [name, engine, viewport] of [
     ["iphone", webkit, { width: 402, height: 874 }],
     ["compact", webkit, { width: 375, height: 812 }],
@@ -78,488 +71,239 @@ export async function runMomentumChecks({
     const browser = await engine.launch();
     browsers.push(browser);
     for (const colorScheme of ["light", "dark"]) {
-      const context = await browser.newContext({
-        viewport,
-        colorScheme,
-        isMobile: viewport.width < 720,
-        hasTouch: viewport.width < 720,
-        timezoneId: "America/Vancouver",
-        reducedMotion: colorScheme === "light" ? "reduce" : "no-preference",
-      });
-      const seed = original();
+      const context = await browser.newContext(
+          contextOptions(viewport, colorScheme),
+        ),
+        seed = original();
       const backend = fixtureBackend(seed, {
         privateAccess: true,
         momentum: active(),
       });
-      const { page, errors } = await prepare(
-        context,
-        backend,
-        seed,
-        "2026-10-07T18:00:00Z",
-      );
+      const { page, errors } = await prepare(context, backend, seed);
       await expect(page.locator(".momentum-entry")).toHaveCount(0);
       await signIn(page);
-      await openPrivate(page);
-      await expect(page.locator(".momentum")).not.toContainText(
-        /assessment|clearance|professional guidance/i,
+      await open(page);
+      const originalDays = structuredClone(backend.snapshot().days);
+      await expect(page.locator("main.momentum")).not.toContainText(
+        /assessment|clearance|Quinit|Rebels/i,
       );
-      await expect(page.locator(".mm-one-thing")).toContainText(
-        "First home Strength A",
-      );
-      await expect(page.locator(".mm-session")).toContainText(
-        "One to three comfortable exercises",
-      );
-      await assertSelectionContrast(page, '.mm-tabs [aria-selected="true"]');
-      const beginBounds = await page
-        .getByRole("button", { name: "Begin session", exact: true })
-        .boundingBox();
-      assert.ok(
-        beginBounds.y >= 0 &&
-          beginBounds.y + beginBounds.height <= viewport.height + 1,
-        "Begin session should be fully visible before scrolling",
+      await expect(page.locator(".mm-today-focus")).toContainText(
+        "Home Strength A",
       );
       await expect(
-        page.locator(
-          ".mm-session input:visible, .mm-session select:visible, .mm-session textarea:visible",
-        ),
-      ).toHaveCount(0);
-      const fits = await page
-        .locator(".mm-tabs")
-        .evaluate((e) => e.scrollWidth <= e.clientWidth + 1);
+        page
+          .getByRole("navigation", { name: "Momentum sections" })
+          .getByRole("button"),
+      ).toHaveCount(3);
+      await assertSelectionContrast(
+        page,
+        '.mm-bottom-nav [aria-current="page"]',
+      );
+      await assertSelectionContrast(page, ".mm-today-focus .mm-primary");
+      await assertLayout(page, `momentum-${name}-${colorScheme}-today`);
+      const startBounds = await page
+        .getByRole("button", { name: "Start session", exact: true })
+        .boundingBox();
       assert.ok(
-        fits,
-        "Momentum's five destinations must fit without horizontal scrolling",
+        startBounds.y >= 0 &&
+          startBounds.y + startBounds.height <= viewport.height,
+        "Primary daily action must be visible without scrolling",
       );
       await page.screenshot({
         path: `outputs/ui-check/momentum-${name}-${colorScheme}-today.png`,
         fullPage: true,
       });
-      await stable(
-        page,
-        page.getByRole("button", { name: "Begin session", exact: true }),
-      );
-      await expect(page.locator("#mm-session-exercises")).toBeInViewport();
-      await expect(
-        page
-          .getByRole("navigation", { name: "Session steps" })
-          .getByRole("button", { name: "Session", exact: true }),
-      ).toHaveAttribute("aria-current", "step");
-      await settlePresentation(page);
-      await assertSelectionContrast(page, '.mm-stepper [aria-current="step"]');
-      await assertLayout(page, `momentum-${name}-${colorScheme}-practice`);
-      await page.screenshot({
-        path: `outputs/ui-check/momentum-${name}-${colorScheme}-practice.png`,
-      });
-      // Wait for Recomp's existing overnight housekeeping to reach the fixture
-      // before taking a baseline. Momentum must not change THAT settled record.
-      await expect
-        .poll(() => backend.snapshot().days["2026-10-06"]?.daySkipReason)
-        .toBe("forgotten");
-      const originalDays = structuredClone(backend.snapshot().days);
-      await expect(
-        page
-          .getByRole("tablist", { name: "Momentum sections" })
-          .getByRole("tab"),
-      ).toHaveCount(5);
+      await click(page, "Start session");
       await expect(page.locator(".mm-exercise")).toHaveCount(1);
-      await expect(page.getByLabel("Effort", { exact: true })).toHaveCount(0);
-      await step(page, "Finish");
-      await expect(
-        page.getByLabel("Effort", { exact: true }),
-      ).not.toBeVisible();
-      await stable(
-        page,
-        page.getByRole("button", { name: "Save result", exact: true }),
-      );
+      await expect(page.locator(".mm-bottom-nav")).toHaveCount(0);
+      await click(page, "Finish with what I did");
+      await click(page, "Save result");
       await expect(page.locator(".mm-notice")).toContainText(
         "Record at least one actual set",
       );
+      await click(page, "Back to session");
       await page
-        .locator(".mm-notice")
-        .getByRole("button", { name: "Dismiss" })
-        .click();
-      await step(page, "Session");
-      await stable(
-        page,
-        page.getByRole("button", { name: "Technique: Leg Press", exact: true }),
-      );
-      await expect(page.locator(".mm-tutorial .video-poster")).toBeVisible();
-      await page.locator(".mm-tutorial .video-poster").click();
-      await expect(page.locator(".mm-tutorial iframe")).toBeVisible();
+        .getByLabel("Leg Press set 1 actual reps", { exact: true })
+        .fill("6");
       await page
-        .getByRole("button", { name: "Technique: Leg Press", exact: true })
-        .click();
-      await expect(page.locator(".mm-tutorial iframe")).toHaveCount(0);
-      await page
-        .getByRole("textbox", { name: "leg-press actual reps", exact: true })
-        .fill("5");
-      await page
-        .getByRole("textbox", { name: "leg-press weight pounds", exact: true })
+        .getByLabel("Leg Press set 1 weight in pounds", { exact: true })
         .fill("10");
-      await page
-        .locator(".mm-exercise")
-        .first()
-        .getByRole("checkbox", { name: "Done", exact: true })
-        .check();
-      await stable(
-        page,
-        page.getByRole("button", { name: "Next movement", exact: true }),
-      );
-      await expect(page.locator(".mm-exercise")).toHaveCount(1);
+      await click(page, "Complete Leg Press set 1");
       await expect(
-        page.getByRole("textbox", {
-          name: "leg-press actual reps",
-          exact: true,
-        }),
-      ).toHaveCount(0);
-      await page
-        .getByRole("button", { name: "Previous movement", exact: true })
-        .click();
+        page.getByRole("button", { name: "Undo Leg Press set 1" }),
+      ).toHaveAttribute("aria-pressed", "true");
+      await assertSelectionContrast(page, ".mm-set-grid.is-done .mm-icon");
+      await page.locator(".mm-exercise .video-poster").click();
+      await expect(page.locator(".mm-exercise iframe")).toBeVisible();
+      await click(page, "Next movement");
+      await click(page, "Previous movement");
       await expect(
-        page.getByRole("textbox", {
-          name: "leg-press actual reps",
-          exact: true,
-        }),
-      ).toHaveValue("5");
-      await stable(
-        page,
-        page.getByRole("button", {
-          name: "Finish with what I did",
-          exact: true,
-        }),
-      );
-      await expect(
-        page.getByRole("radio", { name: "Smaller version", exact: true }),
-      ).toBeChecked();
-      await assertSelectionContrast(page, ".mm-result-options label.selected");
-      await assertLayout(page, `momentum-${name}-${colorScheme}-finish`);
+        page.getByLabel("Leg Press set 1 actual reps", { exact: true }),
+      ).toHaveValue("6");
+      await assertLayout(page, `momentum-${name}-${colorScheme}-practice`);
       await page.screenshot({
-        path: `outputs/ui-check/momentum-${name}-${colorScheme}-finish.png`,
+        path: `outputs/ui-check/momentum-${name}-${colorScheme}-practice.png`,
+        fullPage: true,
       });
-      await stable(
-        page,
-        page.getByRole("button", { name: "Save result", exact: true }),
-      );
+      await click(page, "Finish with what I did");
+      await expect(
+        page.getByRole("combobox", { name: "Session result", exact: true }),
+      ).toHaveValue("modified");
+      await page
+        .getByRole("combobox", { name: "Effort (optional)", exact: true })
+        .selectOption("easy");
+      await page
+        .getByLabel("The movements felt comfortable", { exact: true })
+        .check();
+      await click(page, "Save result");
       await expect(page.locator(".mm-session-result")).toContainText(
-        "Smaller session recorded",
+        "Your effort counts.",
       );
-      await expect
-        .poll(
-          () =>
-            backend.privateSnapshot()?.journeys["synthetic-private-journey"]
-              ?.logs["day-3"]?.outcome,
-        )
-        .toBe("modified");
+      await expect.poll(() => privateLog(backend)?.outcome).toBe("modified");
       assert.equal(
-        Object.values(
-          backend.privateSnapshot().journeys["synthetic-private-journey"].logs[
-            "day-3"
-          ].sets,
-        ).filter((s) => s.done).length,
+        Object.values(privateLog(backend).sets).filter((s) => s.done).length,
         1,
+      );
+      assert.equal(
+        privateLog(backend).recovery,
+        "",
+        "Do not invent next-day recovery",
       );
       assert.deepEqual(
         backend.snapshot().days,
         originalDays,
-        "Momentum must not complete or change Recomp workout logs",
+        "Momentum never completes or edits original Workout days",
       );
-      await assertLayout(page, `momentum-${name}-${colorScheme}-strength`);
-      await page.screenshot({
-        path: `outputs/ui-check/momentum-${name}-${colorScheme}-strength.png`,
-      });
-      await tab(page, "Food");
+      await click(page, "Back to today");
+      await tab(page, "Meals");
       const meal = page.locator(".mm-meal").first();
-      await stable(
-        page,
-        meal.getByRole("button", { name: "Make it", exact: true }),
-      );
-      for (const section of [
-        "Ingredients",
-        "Portion",
-        "Cook",
-        "Ingredients",
-        "Portion",
-      ]) {
-        await stable(
-          page,
-          meal.getByRole("tab", { name: section, exact: true }),
+      await meal.locator(".mm-meal-summary").click();
+      await meal.getByText("Make it · step by step", { exact: true }).click();
+      await expect(meal.locator("ol li").first()).toBeVisible();
+      const selector = meal.getByRole("combobox", {
+        name: "Swap breakfast",
+        exact: true,
+      });
+      const old = await selector.inputValue();
+      const swap = await selector
+        .locator("option")
+        .evaluateAll(
+          (options, old) => options.find((o) => o.value !== old)?.value,
+          old,
         );
-        await expect(
-          meal.getByRole("tabpanel", { name: section, exact: true }),
-        ).toBeVisible();
-      }
-      await stable(
-        page,
-        meal.getByRole("button", { name: "Swap", exact: true }),
-      );
-      await stable(page, meal.locator(".mm-swap-options button").first());
-      await expect(meal.locator(".mm-swap-label")).toHaveText("Swap version");
+      assert.ok(swap);
+      await selector.selectOption(swap);
+      await expect(meal).toContainText("Swap version");
       await meal
         .getByRole("button", { name: "Revert to original", exact: true })
         .click();
-      await expect(meal.locator(".mm-swap-label")).toHaveCount(0);
-      await stable(
-        page,
-        meal.getByRole("button", { name: "Mark eaten", exact: true }),
-      );
-      await expect
-        .poll(
-          () =>
-            backend.privateSnapshot()?.meals["2026-10-07"]?.eaten?.breakfast,
-        )
-        .toBe(true);
-      assert.deepEqual(
-        backend.snapshot().dietDays,
-        {},
-        "Momentum meals do not mutate original Diet history",
-      );
-      await assertLayout(page, `momentum-${name}-${colorScheme}-food`);
+      await expect(selector).toHaveValue(old);
+      await meal
+        .getByRole("button", { name: "Mark eaten", exact: true })
+        .click();
+      await expect(
+        meal.getByRole("button", { name: "Eaten · undo", exact: true }),
+      ).toHaveAttribute("aria-pressed", "true");
+      await assertLayout(page, `momentum-${name}-${colorScheme}-meals`);
       await page.screenshot({
-        path: `outputs/ui-check/momentum-${name}-${colorScheme}-food.png`,
+        path: `outputs/ui-check/momentum-${name}-${colorScheme}-meals.png`,
+        fullPage: true,
       });
-      await tab(page, "Boxing");
-      await page.getByText("Compare gyms", { exact: true }).click();
+      await tab(page, "Journey");
+      await expect(page.locator(".mm-calendar > button")).toHaveCount(7);
+      for (let i = 1; i < 13; i++) await click(page, "Next week");
+      await expect(page.locator(".mm-week-heading")).toContainText("Week 13");
+      await expect(page.locator(".mm-calendar > button")).toHaveCount(6);
       await expect(
-        page.getByRole("heading", { name: "Quinit Boxing", exact: true }),
-      ).toBeVisible();
-      await expect(page.locator(".mm-gym-list")).toContainText("$59");
-      const appointment = page.locator(".mm-appointment").first();
-      await appointment
-        .getByText("Booking & reschedule", { exact: true })
-        .click();
-      await stable(page, appointment.getByRole("checkbox"));
-      await appointment.locator("input[type=date]").fill("2026-10-08");
-      await appointment
-        .getByRole("button", { name: "Move appointment", exact: true })
-        .click();
-      await expect(page.locator(".mm-notice")).toContainText("48 hours");
-      await appointment.locator("input[type=date]").fill("2026-10-10");
-      await appointment
-        .getByRole("button", { name: "Move appointment", exact: true })
-        .click();
-      await expect
-        .poll(
-          () =>
-            backend.privateSnapshot()?.journeys["synthetic-private-journey"]
-              ?.slots["day-5"]?.date,
-        )
-        .toBe("2026-10-10");
-      assert.equal(
-        backend.privateSnapshot().journeys["synthetic-private-journey"].logs[
-          "day-5"
-        ].booked,
-        false,
-      );
-      await tab(page, "My 30 days");
-      await expect(page.locator(".mm-calendar button")).toHaveCount(30);
-      await expect(
-        page.locator(".mm-calendar button").filter({ hasText: "Day 17" }),
-      ).toContainText("Recovery instead of extra strength");
-      await assertLayout(page, `momentum-${name}-${colorScheme}-calendar`);
+        page.getByRole("button", { name: "Next week", exact: true }),
+      ).toBeDisabled();
+      await assertLayout(page, `momentum-${name}-${colorScheme}-journey`);
       await page.screenshot({
-        path: `outputs/ui-check/momentum-${name}-${colorScheme}-calendar.png`,
+        path: `outputs/ui-check/momentum-${name}-${colorScheme}-journey.png`,
+        fullPage: true,
       });
-      await page
-        .locator(".mm-calendar button")
-        .filter({ hasText: "Day 30" })
-        .click();
-      await expect(
-        page.getByRole("button", { name: "Begin session", exact: true }),
-      ).toHaveCount(0);
-      await expect(
-        page.getByRole("button", { name: "Save result", exact: true }),
-      ).toHaveCount(0);
-      await page
-        .getByRole("button", { name: "Back to today", exact: true })
-        .click();
-      await expect(page.locator(".mm-session-result")).toContainText(
-        "Smaller session recorded",
-      );
-      await tab(page, "Progress");
-      await expect(page.locator(".mm-stats")).toContainText("1");
-      await page.getByLabel("Morning weight today (kg)").fill("79.5");
-      await page
-        .getByRole("button", { name: "Save shared weigh-in", exact: true })
-        .click();
-      await expect
-        .poll(() => backend.snapshot().metrics["2026-10-07"]?.weightKg)
-        .toBe("79.5");
-      assert.equal("metrics" in backend.privateSnapshot(), false);
       await tab(page, "Today");
-      await expect(page.locator(".mm-session-result")).toContainText(
-        "Smaller session recorded",
-      );
-      await feedback(page);
-      await context.setOffline(true);
+      await page.locator(".mm-titan-row").click();
+      await expect(page.getByRole("dialog")).toContainText("Wed, Oct 7");
+      await expect(page.getByRole("dialog")).toContainText("Room #2");
+      await expect(page.getByRole("dialog")).toContainText("$300");
       await page
-        .getByLabel("One coach note / what I learned (optional)")
-        .fill("Synthetic offline coaching note");
-      await expect(page.locator(".mm-save")).toContainText(/Offline/);
-      const ciphertext = await page.evaluate(() =>
-        Object.entries(localStorage).filter(([k]) =>
-          k.startsWith("momentum-private-v1:"),
-        ),
-      );
-      assert.ok(ciphertext.length);
-      assert.doesNotMatch(
-        JSON.stringify(ciphertext),
-        /Synthetic offline coaching note/,
-      );
-      await context.setOffline(false);
-      await page
-        .getByRole("button", { name: "Retry Momentum sync", exact: true })
-        .click();
-      await expect
-        .poll(
-          () =>
-            backend.privateSnapshot()?.journeys["synthetic-private-journey"]
-              ?.logs["day-3"]?.note,
-        )
-        .toBe("Synthetic offline coaching note");
-      const readiness = page.getByText("More feedback", {
-        exact: true,
-      });
-      await stable(page, readiness);
-      // Stop only this session. No setup form or account-wide lock is added.
-      await stable(
-        page,
-        page.getByRole("checkbox", {
-          name: "Dizziness or near-fainting symptoms",
-          exact: true,
-        }),
-      );
-      await expect(page.locator(".mm-notice")).toContainText(
-        "Stop this session",
-      );
-      await expect
-        .poll(
-          () =>
-            backend.privateSnapshot()?.journeys["synthetic-private-journey"]
-              ?.logs["day-3"]?.outcome,
-        )
-        .toBe("stopped");
-      assert.equal("clearance" in backend.privateSnapshot(), false);
-      await tab(page, "Settings");
-      await expect(page.locator(".momentum")).not.toContainText(
-        /assessment|clearance|professional guidance/i,
-      );
-      await page
-        .getByText("Pause, repeat or lighten this month", { exact: true })
-        .click();
-      await expect(
-        page.getByRole("button", { name: "Pause my journey", exact: true }),
-      ).toBeEnabled();
-      await tab(page, "Progress");
-      await expect(page.locator(".momentum")).not.toContainText(
-        /assessment|clearance|professional guidance/i,
-      );
-      await assertLayout(page, `momentum-${name}-${colorScheme}-pause`);
+        .getByLabel("Expected visits per billing month", { exact: true })
+        .fill("8");
+      await expect(page.getByRole("dialog")).toContainText("eight or more");
+      const panelFit = await page
+        .getByRole("dialog")
+        .evaluate((e) => e.scrollWidth <= e.clientWidth + 1);
+      assert.ok(panelFit, "Titan sheet must fit a phone width");
       await page.screenshot({
-        path: `outputs/ui-check/momentum-${name}-${colorScheme}-pause.png`,
+        path: `outputs/ui-check/momentum-${name}-${colorScheme}-titan.png`,
       });
-      // A server-side revocation removes the private view AND cached ciphertext.
-      backend.revokePrivate();
-      await page
-        .getByRole("button", { name: "Retry Momentum sync", exact: true })
-        .click();
-      await expect(page.locator(".momentum")).toHaveCount(0);
-      await expect(
-        page.getByRole("heading", { name: "Private section" }),
-      ).toBeVisible();
-      assert.equal(
-        await page.evaluate(
-          () =>
-            Object.keys(localStorage).filter((k) =>
-              k.startsWith("momentum-private-v1:"),
-            ).length,
+      await click(page, "Close panel");
+      // Observe real hook encryption, rather than asserting a mock helper alone.
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () =>
+              Object.keys(localStorage).filter((k) =>
+                k.startsWith("momentum-private-v1:data:"),
+              ).length,
+          ),
+        )
+        .toBe(1);
+      const cache = await page.evaluate(() =>
+        Object.entries(localStorage).filter(([key]) =>
+          key.startsWith("momentum-private-v1:data:"),
         ),
-        0,
       );
-      await page
-        .getByRole("button", { name: "Back to Coach Hub", exact: true })
-        .click();
+      assert.ok(
+        cache.every(
+          ([, value]) => !value.includes("synthetic-private-journey"),
+        ),
+        "Private draft is ciphertext",
+      );
+      backend.revokePrivate();
+      await click(page, "Sync Momentum now");
+      await expect(page.locator("main.momentum")).toHaveCount(0);
       await expect(page.locator(".momentum-entry")).toHaveCount(0);
-      assert.deepEqual(
-        errors,
-        [],
-        `Momentum ${name}/${colorScheme}: browser exceptions`,
-      );
+      assert.deepEqual(errors, []);
       await context.close();
       console.log(
-        `PASS Momentum ${name}-${colorScheme}: private entry, real sets, media, meals/swaps, reschedule, shared weight, encrypted offline sync, stopped session, simplified settings, revocation`,
+        `PASS Momentum ${name}/${colorScheme}: focused sets, meals, 90 days, pricing, contrast, encrypted cache, revocation`,
       );
     }
   }
-  // First launch offers a real start immediately; opening the app alone does not activate it.
+
   const browser = await webkit.launch();
   browsers.push(browser);
-  const context = await browser.newContext({
-    viewport: { width: 402, height: 874 },
-    isMobile: true,
-    hasTouch: true,
-    timezoneId: "America/Vancouver",
-  });
-  const seed = original(),
-    backend = fixtureBackend(seed, {
-      privateAccess: true,
-      momentum: mm.emptyMomentum(),
-    });
-  const { page } = await prepare(context, backend, seed);
-  await signIn(page);
-  await openPrivate(page);
-  await expect(page.getByLabel("Start Monday", { exact: true })).toBeVisible();
-  await expect(
-    page.getByLabel("Current activity", { exact: true }),
-  ).not.toBeVisible();
-  await expect(page.locator(".mm-onboarding")).toHaveCount(0);
-  await expect(page.locator(".momentum")).not.toContainText(
-    /assessment|clearance|professional guidance/i,
+  // First launch remains one date and one action, never a survey.
+  const first = await browser.newContext(
+    contextOptions({ width: 375, height: 812 }),
   );
-  await expect(
-    page.getByRole("button", { name: "Activate my 30 days", exact: true }),
-  ).toBeEnabled();
-  await page.getByRole("button", { name: "Decide later", exact: true }).click();
-  await expect(page.locator(".mm-one-thing")).toContainText("Your next step");
-  await page
-    .getByText("Preparation checklist (optional)", { exact: true })
-    .click();
-  await page
-    .getByRole("checkbox", { name: "Plan regular meals", exact: true })
-    .check();
-  await expect
-    .poll(() => backend.privateSnapshot()?.preparation["Plan regular meals"])
-    .toBe(true);
-  assert.equal(backend.privateSnapshot().activeJourneyId, null);
-  await tab(page, "Settings");
-  await page
-    .getByRole("button", { name: "Activate my 30 days", exact: true })
-    .click();
-  await expect
-    .poll(() => Boolean(backend.privateSnapshot()?.activeJourneyId))
-    .toBe(true);
-  assert.equal(backend.privateSnapshot().schemaVersion, 2);
-  assert.equal("clearance" in backend.privateSnapshot(), false);
-  await tab(page, "Today");
-  await expect(page.locator(".mm-one-thing")).toContainText("Start the habit");
-  await page
-    .getByRole("button", { name: "Begin session", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Record session", exact: true })
-    .click();
-  await page.getByRole("button", { name: "Save result", exact: true }).click();
-  await expect(page.locator(".mm-notice")).toContainText("walking minutes");
-  await page.getByLabel("Minutes completed", { exact: true }).fill("5");
-  await page.getByRole("button", { name: "Save result", exact: true }).click();
-  await expect(page.locator(".mm-session-result")).toContainText(
-    "Session completed",
+  const firstBackend = fixtureBackend(original(), { privateAccess: true });
+  const { page: fresh } = await prepare(first, firstBackend, original());
+  await signIn(fresh);
+  await open(fresh);
+  await expect(fresh.locator(".mm-start input")).toHaveCount(1);
+  await click(fresh, "Start my 90 days");
+  await expect(fresh.locator(".mm-today-focus")).toContainText(
+    "Home Strength A",
   );
-  await page.getByRole("button", { name: "Coach Hub", exact: true }).click();
-  await page.getByRole("button", { name: "Sign out", exact: true }).click();
-  await expect(page.locator(".momentum-entry")).toHaveCount(0);
+  await expect
+    .poll(
+      () => Object.keys(firstBackend.privateSnapshot()?.journeys ?? {}).length,
+    )
+    .toBe(1);
+  assert.equal(
+    Object.keys(Object.values(firstBackend.privateSnapshot().journeys)[0].slots)
+      .length,
+    90,
+  );
+  await click(fresh, "Back to Coach Hub");
+  await click(fresh, "Sign out");
+  await expect(fresh.locator(".momentum-entry")).toHaveCount(0);
   await expect
     .poll(() =>
-      page.evaluate(
+      fresh.evaluate(
         () =>
           Object.keys(sessionStorage).filter((k) =>
             k.startsWith("momentum-private-v1:"),
@@ -567,296 +311,193 @@ export async function runMomentumChecks({
       ),
     )
     .toBe(0);
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          Object.keys(localStorage).filter((k) =>
-            k.startsWith("momentum-private-v1:"),
-          ).length,
-      ),
-    )
-    .toBe(0);
-  const otherAccount = fixtureBackend(original(), {
-    userId: "00000000-0000-4000-8000-000000000002",
-    privateAccess: false,
-  });
-  await context.unroute(
-    "https://tracker-fixture.supabase.co/**",
-    backend.route,
-  );
-  await context.route(
-    "https://tracker-fixture.supabase.co/**",
-    otherAccount.route,
-  );
-  await signIn(page);
-  await expect(page.locator(".account-row")).toContainText(
-    "fixture@example.test",
-  );
-  await expect(page.locator(".momentum-entry")).toHaveCount(0);
-  await expect(page.locator(".momentum")).toHaveCount(0);
-  await context.close();
+  await first.close();
   console.log(
-    "PASS Momentum first launch: start-date-first setup, linear walk, optional preparation, sign-out cache clearing and account-B denial",
+    "PASS Momentum single-date onboarding and sign-out cache clearing",
   );
 
-  // Recovery, a review day, observing a class and skipping all keep the same
-  // three-stage route. None should demand a questionnaire or invent minutes.
+  // Recovery, observed class, weekly planning and a skip need no invented sets.
   for (const [kind, day] of [
+    ["boxing", "07"],
     ["recovery", "08"],
-    ["boxing", "09"],
     ["review", "11"],
     ["skip", "12"],
   ]) {
-    const c = await browser.newContext({
-      viewport: { width: 375, height: 812 },
-      isMobile: true,
-      hasTouch: true,
-      colorScheme: "dark",
-      reducedMotion: "reduce",
-      timezoneId: "America/Vancouver",
-    });
+    const c = await browser.newContext(
+      contextOptions({ width: 375, height: 812 }, "dark"),
+    );
     const backend = fixtureBackend(original(), {
       privateAccess: true,
       momentum: active(),
     });
-    const { page: p, errors } = await prepare(
+    const { page, errors } = await prepare(
       c,
       backend,
       original(),
       `2026-10-${day}T18:00:00Z`,
     );
-    await signIn(p);
-    await openPrivate(p);
-    if (kind === "skip") {
-      await p
-        .getByRole("button", { name: "Skip session", exact: true })
-        .click();
-      await expect(
-        p.getByRole("radio", { name: "Did not do it", exact: true }),
-      ).toBeChecked();
-    } else {
-      await p
-        .getByRole("button", { name: "Begin session", exact: true })
-        .click();
-      await p
-        .getByRole("button", { name: "Record session", exact: true })
-        .click();
-    }
+    await signIn(page);
+    await open(page);
+    await click(
+      page,
+      kind === "recovery" || kind === "review"
+        ? "Review my day"
+        : "Start session",
+    );
+    await click(
+      page,
+      kind === "recovery" || kind === "review"
+        ? "Record my day"
+        : kind === "skip"
+          ? "Finish with what I did"
+          : "Record session",
+    );
+    if (kind === "boxing")
+      await page.getByLabel("I attended and observed", { exact: true }).check();
+    if (kind === "skip")
+      await page
+        .getByRole("combobox", { name: "Session result", exact: true })
+        .selectOption("missed");
+    await click(page, "Save result");
+    await expect(page.locator(".mm-session-result")).toContainText(
+      kind === "boxing"
+        ? "Your effort counts."
+        : kind === "skip"
+          ? "Recorded. Keep going."
+          : "You showed up.",
+    );
+    await assertLayout(page, `momentum-${kind}`);
     if (kind === "boxing") {
-      await p
-        .getByRole("checkbox", {
-          name: "I attended and observed instead of participating",
+      await click(page, "Back to today");
+      await page.locator(".mm-titan-row").click();
+      await page
+        .getByText("When I am ready for Beginners / Intermediate", {
           exact: true,
         })
-        .check();
-      await expect(
-        p.getByRole("radio", { name: "Smaller version", exact: true }),
-      ).toBeChecked();
-    }
-    await expect(
-      p.getByLabel("Minutes completed", { exact: true }),
-    ).toHaveCount(0);
-    await p.getByRole("button", { name: "Save result", exact: true }).click();
-    await expect(p.locator(".mm-session-result")).toContainText(
-      kind === "skip"
-        ? "Day recorded as skipped"
-        : kind === "boxing"
-          ? "Smaller session recorded"
-          : "Session completed",
-    );
-    if (kind === "review") {
-      await expect(
-        p.getByRole("combobox", {
-          name: "How did your body respond?",
+        .click();
+      await page
+        .getByLabel("First Wednesday in the new class", { exact: true })
+        .fill("2026-10-14");
+      await click(page, "Use Beginners / Intermediate from this date");
+      await expect
+        .poll(() => backend.privateSnapshot()?.profile.classSwitchDate)
+        .toBe("2026-10-14");
+      assert.equal(
+        backend.privateSnapshot().journeys["synthetic-private-journey"].logs[
+          "day-3"
+        ].className,
+        "Introduction to Muay Thai / Kickboxing",
+      );
+      await tab(page, "Journey");
+      await click(page, "Next week");
+      await expect(page.locator(".mm-calendar")).toContainText(
+        "Muay Thai Kickboxing (Beginners / Intermediate)",
+      );
+      await tab(page, "Today");
+      await page.locator(".mm-titan-row").click();
+      await page
+        .getByText("When I am ready for Beginners / Intermediate", {
           exact: true,
-        }),
-      ).not.toBeVisible();
-      await p.getByText("Weekly check-in", { exact: true }).click();
-      await expect(
-        p.getByRole("combobox", {
-          name: "How did your body respond?",
-          exact: true,
-        }),
-      ).toBeVisible();
-      await expect(
-        p.getByLabel("What made attendance difficult?", { exact: true }),
-      ).not.toBeVisible();
+        })
+        .click();
+      await click(page, "Return future classes to Introduction");
+      await expect
+        .poll(() => backend.privateSnapshot()?.profile.classStage)
+        .toBe("introduction");
+      await click(page, "Close panel");
     }
-    await assertLayout(p, `momentum-linear-${kind}`);
     assert.deepEqual(errors, []);
     await c.close();
   }
-  console.log(
-    "PASS Momentum linear recovery, optional review, observed class and no-reason skip",
-  );
+  console.log("PASS Momentum observed class, recovery, review and honest skip");
 
-  // A complete workout still requires every real set. Revisiting the app resumes
-  // at the saved result; correcting one set retains the other performed work.
-  const fullContext = await browser.newContext({
-    viewport: { width: 402, height: 874 },
-    isMobile: true,
-    hasTouch: true,
-    reducedMotion: "reduce",
-    timezoneId: "America/Vancouver",
-  });
-  const fullBackend = fixtureBackend(original(), {
+  // Actual full session + re-entry + correcting one set + unfinished resume.
+  const c = await browser.newContext(
+    contextOptions({ width: 402, height: 874 }),
+  );
+  const backend = fixtureBackend(original(), {
     privateAccess: true,
     momentum: active(),
   });
-  const { page: full } = await prepare(
-    fullContext,
-    fullBackend,
-    original(),
-    "2026-10-07T18:00:00Z",
-  );
-  await signIn(full);
-  await openPrivate(full);
-  await full
-    .getByRole("button", { name: "Begin session", exact: true })
-    .click();
-  const exerciseIds = plan.strengthTemplates["strength-a"].map((e) => e.id);
-  for (const id of exerciseIds) {
-    await expect(full.locator(".mm-exercise")).toHaveCount(1);
-    await full
-      .getByRole("textbox", { name: `${id} actual reps`, exact: true })
-      .fill("6");
-    await full.getByRole("checkbox", { name: "Done", exact: true }).check();
-    await full
-      .getByRole("button", {
-        name: id === exerciseIds.at(-1) ? "Review session" : "Next movement",
-        exact: true,
-      })
-      .click();
+  const { page } = await prepare(c, backend, original());
+  await signIn(page);
+  await open(page);
+  await click(page, "Start session");
+  for (const [i] of plan.strengthTemplates["strength-a"].entries()) {
+    await page
+      .locator('.mm-set-grid input[aria-label$="actual reps"]')
+      .fill("8");
+    await page.locator('.mm-set-grid button[aria-pressed="false"]').click();
+    await click(page, i === 3 ? "Review session" : "Next movement");
   }
   await expect(
-    full.getByRole("radio", { name: "Completed as planned", exact: true }),
-  ).toBeChecked();
-  await full.getByRole("button", { name: "Save result", exact: true }).click();
-  await expect(full.locator(".mm-session-result")).toContainText(
-    "Session completed",
+    page.getByRole("combobox", { name: "Session result", exact: true }),
+  ).toHaveValue("planned");
+  await click(page, "Save result");
+  await expect.poll(() => privateLog(backend)?.outcome).toBe("planned");
+  await click(page, "Back to today");
+  await click(page, "View recorded session");
+  await click(page, "Edit result");
+  await click(page, "Back to session");
+  await page.locator('.mm-set-grid button[aria-pressed="true"]').click();
+  await click(page, "Back to overview");
+  await click(page, "Continue session");
+  await expect(page.locator(".mm-movement-position")).toContainText(
+    "Movement 1 of 4",
   );
   await expect
     .poll(
       () =>
-        fullBackend.privateSnapshot()?.journeys["synthetic-private-journey"]
-          .logs["day-3"]?.outcome,
-    )
-    .toBe("planned");
-  await tab(full, "Food");
-  await tab(full, "Today");
-  await expect(full.locator(".mm-session-result")).toContainText(
-    "Session completed",
-  );
-  await full.getByRole("button", { name: "Edit result", exact: true }).click();
-  await step(full, "Session");
-  for (let i = 1; i < exerciseIds.length; i++)
-    await full
-      .getByRole("button", { name: "Next movement", exact: true })
-      .click();
-  await full.getByRole("checkbox", { name: "Done", exact: true }).uncheck();
-  await tab(full, "Food");
-  await tab(full, "Today");
-  await expect(
-    full.getByRole("textbox", { name: "dead-bug actual reps", exact: true }),
-  ).toHaveValue("6");
-  await expect(full.locator(".mm-movement-position")).toContainText(
-    "Movement 4 of 4",
-  );
-  // The working UI updates immediately; wait for the debounced server write
-  // before asserting persisted history, rather than racing that boundary.
-  await expect
-    .poll(
-      () =>
-        Object.values(
-          fullBackend.privateSnapshot()?.journeys["synthetic-private-journey"]
-            .logs["day-3"]?.sets ?? {},
-        ).filter((s) => s.done).length,
+        Object.values(privateLog(backend)?.sets ?? {}).filter((s) => s.done)
+          .length,
     )
     .toBe(3);
-  await fullContext.close();
+  await c.close();
   console.log(
-    "PASS Momentum full linear workout, saved result, correction and first-unfinished resume",
+    "PASS Momentum full completion, correction, first-unfinished resume",
   );
 
-  // Two independent browser stores go offline, edit separate fields, then
-  // reconnect. The real hook must merge against its own last acknowledged base.
-  const sharedBackend = fixtureBackend(original(), {
+  // Two devices change independent fields while offline, then CAS/three-way merge.
+  const shared = fixtureBackend(original(), {
     privateAccess: true,
     momentum: active(),
   });
   const devices = [],
     pages = [];
   for (let i = 0; i < 2; i++) {
-    const device = await browser.newContext({
-      viewport: { width: 402, height: 874 },
-      isMobile: true,
-      hasTouch: true,
-      timezoneId: "America/Vancouver",
-      reducedMotion: "reduce",
-    });
-    devices.push(device);
-    const { page: p } = await prepare(
-      device,
-      sharedBackend,
-      original(),
-      "2026-10-07T18:00:00Z",
+    const d = await browser.newContext(
+      contextOptions({ width: 402, height: 874 }),
     );
-    await signIn(p);
-    await openPrivate(p);
-    pages.push(p);
-    await expect(p.locator(".mm-save")).toContainText("Private data synced");
-    await p.getByRole("button", { name: "Begin session", exact: true }).click();
-    await device.setOffline(true);
+    devices.push(d);
+    const { page } = await prepare(d, shared, original());
+    await signIn(page);
+    await open(page);
+    await expect(page.locator(".mm-sync")).toContainText("Private data synced");
+    await click(page, "Start session");
+    pages.push(page);
+    await d.setOffline(true);
   }
   await pages[0]
-    .getByRole("textbox", { name: "leg-press actual reps", exact: true })
+    .getByLabel("Leg Press set 1 actual reps", { exact: true })
     .fill("6");
-  await step(pages[1], "Finish");
-  await feedback(pages[1]);
+  await click(pages[1], "Finish with what I did");
+  await pages[1].getByText("Notes & corrections", { exact: true }).click();
   await pages[1]
-    .getByLabel("One coach note / what I learned (optional)")
+    .getByLabel("One coach note (optional)", { exact: true })
     .fill("Synthetic device B note");
   await devices[1].setOffline(false);
-  await pages[1]
-    .getByRole("button", { name: "Retry Momentum sync", exact: true })
-    .click();
+  await click(pages[1], "Sync Momentum now");
   await expect
-    .poll(
-      () =>
-        sharedBackend.privateSnapshot()?.journeys["synthetic-private-journey"]
-          .logs["day-3"]?.note,
-    )
+    .poll(() => privateLog(shared)?.note)
     .toBe("Synthetic device B note");
   await devices[0].setOffline(false);
-  await pages[0]
-    .getByRole("button", { name: "Retry Momentum sync", exact: true })
-    .click();
+  await click(pages[0], "Sync Momentum now");
   await expect
-    .poll(
-      () =>
-        sharedBackend.privateSnapshot()?.journeys["synthetic-private-journey"]
-          .logs["day-3"]?.sets["leg-press"]?.reps,
-    )
+    .poll(() => privateLog(shared)?.sets["leg-press"]?.reps)
     .toBe("6");
-  assert.equal(
-    sharedBackend.privateSnapshot().journeys["synthetic-private-journey"].logs[
-      "day-3"
-    ].note,
-    "Synthetic device B note",
-  );
-  await pages[1]
-    .getByRole("button", { name: "Retry Momentum sync", exact: true })
-    .click();
-  await step(pages[1], "Session");
-  await expect(
-    pages[1].getByRole("textbox", {
-      name: "leg-press actual reps",
-      exact: true,
-    }),
-  ).toHaveValue("6");
-  for (const device of devices) await device.close();
+  assert.equal(privateLog(shared).note, "Synthetic device B note");
+  for (const d of devices) await d.close();
   console.log(
-    "PASS Momentum two-device offline edits merge without overwriting the other device's notes or actual sets",
+    "PASS Momentum offline two-device merge keeps sets and independent notes",
   );
 }

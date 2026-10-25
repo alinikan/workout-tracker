@@ -62,7 +62,7 @@ The app ships with:
 - A Coach Hub for sign-in, morning weigh-ins, and weight trend review.
 - A Gym Mode that shows the current exercise, current set, target, video, GIF option, and completion controls.
 - Cloud sync through Supabase so the same account can be used on iPhone, MacBook, and any other device.
-- An optional **Momentum** journey: a separately authorized, private 30-day consistency-first experience with gentle strength, adapted non-contact boxing, meals and reflection.
+- An optional **Momentum** journey: a separately authorized, private **90-day** routine with Titan Muay Thai, home strength, meals and attendance-earned progression. Three destinations: **Today, Meals, Journey**.
 
 > [!NOTE]
 > The original training and nutrition ideas were converted into app data. A new user does not need any external file to understand or use the project. The program, meals, recipes, cues, videos, swaps, and progression rules are already inside the app.
@@ -90,7 +90,7 @@ That means the interface favors:
 
 **Start small. Show up. Get stronger.** Momentum is an optional experience reached from Coach Hub,
 not a replacement for Recomp's 26-week training program. It has its own onboarding, chosen Monday,
-30-day calendar, actual attendance, simple strength templates, class planning, meals and reviews.
+90-day calendar, actual attendance, simple strength templates, Titan class planning, meals and recovery. Class-stage changes are deliberate; calendar passage alone never increases workload.
 Its guided Today flow follows **Plan → Session → Finish**. One movement appears at a time,
 with real set logging, a smaller-session option and a clear saved result. Five navigation items
 keep daily tasks separate from planning: Today, Plan, Food, Progress and Settings.
@@ -112,7 +112,7 @@ keep daily tasks separate from planning: Today, Plan, Food, Progress and Setting
 > variable or service-role key belongs in the browser. Other accounts see no entry.
 
 Read the [complete Momentum setup and user guide](docs/momentum.md) for step-by-step SQL Editor
-instructions, authorization/revocation, start and pause controls, all 30 days, reminders, sync and testing.
+instructions, authorization/revocation, start and pause controls, all 90 days, calendar reminders, sync and testing. See the [Titan membership research](docs/titan-membership.md) for dated prices, honest cash-versus-credit comparisons and unresolved terms.
 Private device drafts are encrypted with a session-scoped key: sync before closing an offline
 session. Background push notifications and progress-photo storage are not configured.
 

@@ -1,9 +1,9 @@
 import {
   addDays,
   currentJourney,
+  dayPlan,
   isStrength,
   sortedSlots,
-  starterPlan,
   strengthTemplates,
   weekOf,
 } from "./plan.ts";
@@ -15,6 +15,8 @@ import {
   wasPaused,
 } from "./safety.ts";
 import { isCalendarDate } from "../../lib/programLifecycle.ts";
+import { sessionSets } from "./flow.ts";
+import { classFor } from "./titan.ts";
 import type {
   ActivityLog,
   Adaptation,
@@ -28,12 +30,12 @@ const participated = (l?: ActivityLog) =>
 const comfortable = (l: ActivityLog) =>
   participated(l) &&
   !l.observed &&
-  l.effort === "easy" &&
+  (l.effort === "easy" || l.effort === "manageable") &&
   l.recovery === "good" &&
   l.comfortable &&
   !concerning(l.readiness);
 export const loggedActivity = (j: Journey, slot: Slot) =>
-  j.logs[slot.id]?.plannedActivity ?? starterPlan[slot.day - 1].activity;
+  j.logs[slot.id]?.plannedActivity ?? dayPlan(j, slot).activity;
 export function attendance(j: Journey, before: string) {
   return sortedSlots(j).filter((s) => {
     const log = j.logs[s.id],
@@ -47,12 +49,9 @@ export function attendance(j: Journey, before: string) {
 }
 export function progressionEligible(data: MomentumData, before: string) {
   const j = currentJourney(data);
-  if (
-    !j ||
-    exerciseGate(data, before) ||
-    hasRecentSymptoms(data, before)
-  )
+  if (!j || exerciseGate(data, before) || hasRecentSymptoms(data, before))
     return false;
+  if (j.planVersion === "titan-90") return earnedLevel(data, before) >= 1;
   const recent = sortedSlots(j).filter(
     (s) =>
       (j.logs[s.id]?.performedOn ?? s.date) < before &&
@@ -71,8 +70,9 @@ export function progressionEligible(data: MomentumData, before: string) {
     return (
       isStrength(activity) &&
       j.logs[s.id]?.outcome === "planned" &&
-      strengthTemplates[activity]
-        .every((e) => j.logs[s.id]?.sets[e.id]?.done) &&
+      strengthTemplates[activity].every(
+        (e) => j.logs[s.id]?.sets[e.id]?.done,
+      ) &&
       comfortable(j.logs[s.id])
     );
   });
@@ -94,8 +94,8 @@ export function progressionEligible(data: MomentumData, before: string) {
   );
 }
 export function resolveDay(data: MomentumData, slot: Slot, today: string) {
-  const base = starterPlan[slot.day - 1];
   const j = currentJourney(data);
+  const base = dayPlan(j, slot);
   const adaptation = j?.adaptations[String(weekOf(slot.day))];
   const history = j?.logs[slot.id];
   let activity = base.activity;
@@ -103,16 +103,27 @@ export function resolveDay(data: MomentumData, slot: Slot, today: string) {
   let reason = slot.note ?? "";
   // B is an opt-in extra session, not an automatic calendar progression.
   const eligible = progressionEligible(data, slot.date);
+  const titanPlan = j?.planVersion === "titan-90" && !slot.legacy;
+  const level = titanPlan ? earnedLevel(data, slot.date) : 0;
+  const choices = j
+    ? Object.entries(j.adaptations)
+        .filter(([w]) => Number(w) <= weekOf(slot.day))
+        .sort(([a], [b]) => Number(b) - Number(a))
+    : [];
+  const choice = titanPlan ? choices[0]?.[1] : adaptation;
   if (
     activity === "strength-b" &&
-    !(eligible && adaptation?.mode === "second-session")
+    !(
+      eligible &&
+      (choice?.mode === "second-session" || choice?.mode === "two-sets")
+    )
   ) {
     activity = "recovery";
     minutes = "0";
     reason =
       "Recovery replaces the optional second strength day. Enable it only after comfortable attendance, recovery and a weekly review.";
   }
-  if (adaptation?.mode === "lighter" && isStrength(activity)) {
+  if (choice?.mode === "lighter" && isStrength(activity)) {
     reason =
       "Lighter week: warm-up plus one easy movement, or recovery. No catch-up sessions.";
   }
@@ -124,7 +135,20 @@ export function resolveDay(data: MomentumData, slot: Slot, today: string) {
           comfortable(j.logs[s.id] ?? ({} as ActivityLog)),
       )
     : [];
+  if (titanPlan) {
+    if (activity === "walk")
+      minutes =
+        previous.length >= 8 ? "20-30" : previous.length >= 4 ? "15-20" : "10";
+    if (activity === "boxing")
+      minutes =
+        previous.length >= 6
+          ? "30-45"
+          : previous.length >= 3
+            ? "20-30"
+            : "10-20";
+  }
   if (
+    !titanPlan &&
     activity === "boxing" &&
     previous.length < Math.min(3, weekOf(slot.day) - 1)
   ) {
@@ -132,7 +156,12 @@ export function resolveDay(data: MomentumData, slot: Slot, today: string) {
     reason =
       "Repeat the short introduction: later class duration is not earned by the calendar alone.";
   }
-  if (activity === "walk" && previous.length < 2 && slot.day > 2) {
+  if (
+    !titanPlan &&
+    activity === "walk" &&
+    previous.length < 2 &&
+    slot.day > 2
+  ) {
     minutes = "5-8";
     reason =
       "Keep walks short until at least two previous walks were comfortable and recovered.";
@@ -167,19 +196,23 @@ export function resolveDay(data: MomentumData, slot: Slot, today: string) {
     eligible && adaptation?.mode === "extra-set" && isStrength(activity)
       ? adaptation.exerciseId
       : undefined;
+  const setsPerExercise: 1 | 2 =
+    history?.plannedSets ??
+    (titanPlan && level >= 2 && choice?.mode === "two-sets" ? 2 : 1);
+  if (titanPlan && isStrength(activity) && setsPerExercise === 2)
+    minutes = "30-40";
   if (history?.outcome && history.plannedActivity) {
     activity = history.plannedActivity;
     minutes = history.plannedMinutes ?? minutes;
   }
   const replaced = activity === "recovery" && isStrength(base.activity);
   const available: string[] = isStrength(activity)
-    ? strengthTemplates[activity]
-        .map((e) => e.id)
+    ? strengthTemplates[activity].map((e) => e.id)
     : [];
   const exerciseIds =
     history?.outcome && history.plannedExerciseIds
       ? history.plannedExerciseIds.filter((id) => available.includes(id))
-      : adaptation?.mode === "lighter"
+      : choice?.mode === "lighter"
         ? available.slice(0, 1)
         : available;
   return {
@@ -189,27 +222,38 @@ export function resolveDay(data: MomentumData, slot: Slot, today: string) {
       ? base.activity === "strength-b"
         ? "Recovery instead of extra strength"
         : "Recovery"
-      : base.title,
+      : titanPlan && activity === "boxing"
+        ? (history?.className ?? classFor(data, slot.date).name)
+        : base.title,
     exerciseIds,
     steps: replaced
       ? [
           "No additional strength session today. Rest and prepare the next suitable appointment. Do not make up skipped work.",
         ]
-      : adaptation?.mode === "lighter" && isStrength(activity)
+      : choice?.mode === "lighter" && isStrength(activity)
         ? [
             "Gentle warm-up, then only the one easy movement shown below. Rest or stop whenever needed. Nothing else is owed.",
           ]
-        : base.steps,
+        : titanPlan && isStrength(activity) && setsPerExercise === 2
+          ? [
+              "Warm up gently, then do clearly lighter practice sets for the first two movements.",
+              "Do two controlled working sets per movement, using familiar loads and resting 90-180 seconds. Do not increase the weight at the same time.",
+            ]
+          : base.steps,
     enough: replaced
       ? "Recovery. No strength quota is required today."
-      : adaptation?.mode === "lighter" && isStrength(activity)
+      : choice?.mode === "lighter" && isStrength(activity)
         ? "A warm-up and one comfortable movement, or recovery."
-        : base.enough,
+        : titanPlan && isStrength(activity) && setsPerExercise === 2
+          ? "Two controlled sets of each movement at familiar loads. A smaller version is still an option."
+          : base.enough,
     minimum: replaced ? "Rest." : base.minimum,
     minutes,
     modifiedReason: reason,
     extraId: history?.outcome ? history.extraExercise : extraId,
-    lighter: adaptation?.mode === "lighter",
+    setsPerExercise,
+    level,
+    lighter: choice?.mode === "lighter",
     gate: exerciseGate(data, today, activity, slot.date),
   };
 }
@@ -235,12 +279,7 @@ export function completionError(
     return "Stop and seek care; this is not an ordinary training completion.";
   if (isStrength(plan.activity)) {
     const ids: string[] = plan.exerciseIds;
-    const validSets = [
-      ...ids,
-      ...(plan.extraId && ids.includes(plan.extraId)
-        ? [`${plan.extraId}-2`]
-        : []),
-    ];
+    const validSets = sessionSets(ids, plan.extraId, plan.setsPerExercise);
     const done = validSets.filter((id) => log.sets[id]?.done).length;
     if (!done)
       return "Record at least one actual set, or choose Did not do it / Stop session. Nothing is completed automatically.";
@@ -254,14 +293,7 @@ export function completionError(
         )
     )
       return "Record actual repetitions for the sets you checked. Do not invent missing work.";
-    if (
-      outcome === "planned" &&
-      !ids.every(
-        (id) =>
-          log.sets[id]?.done &&
-          (!plan.extraId || plan.extraId !== id || log.sets[`${id}-2`]?.done),
-      )
-    )
+    if (outcome === "planned" && !validSets.every((id) => log.sets[id]?.done))
       return "Some sets are unfinished. Record a smaller version, or finish only if comfortable.";
   }
   if (plan.activity === "walk" && !(Number(log.minutes) > 0))
@@ -333,6 +365,73 @@ export function adaptationAllowed(
   before: string,
 ) {
   return (
-    mode === "steady" || mode === "lighter" || progressionEligible(data, before)
+    mode === "steady" ||
+    mode === "lighter" ||
+    (mode === "two-sets"
+      ? earnedLevel(data, before) >= 2
+      : progressionEligible(data, before))
   );
+}
+
+/** Workload unlocks use actual successful work, recent recovery and repeatable
+ * attendance. Unknown feedback is not treated as good recovery. Counts here
+ * are conservative product guardrails, not a validated medical protocol. */
+export function earnedLevel(data: MomentumData, before: string): 0 | 1 | 2 {
+  const j = currentJourney(data);
+  if (!j || exerciseGate(data, before) || hasRecentSymptoms(data, before))
+    return 0;
+  const attempts = sortedSlots(j).filter(
+    (s) =>
+      (j.logs[s.id]?.performedOn ?? s.date) < before &&
+      participated(j.logs[s.id]),
+  );
+  const recent = sortedSlots(j).filter(
+    (s) =>
+      (j.logs[s.id]?.performedOn ?? s.date) < before &&
+      (j.logs[s.id]?.performedOn ?? s.date) >= addDays(before, -21) &&
+      (isStrength(loggedActivity(j, s)) || loggedActivity(j, s) === "boxing") &&
+      Boolean(j.logs[s.id]?.outcome),
+  );
+  if (
+    !recent.length ||
+    recent.filter((s) => j.logs[s.id]?.outcome === "missed").length >= 2 ||
+    recent.some(
+      (s) => j.logs[s.id].effort === "hard" || j.logs[s.id].recovery === "poor",
+    )
+  )
+    return 0;
+  const good = attempts.filter((s) => comfortable(j.logs[s.id]));
+  const lifts = good.filter((s) => {
+    const activity = loggedActivity(j, s),
+      log = j.logs[s.id];
+    if (!isStrength(activity) || log.outcome !== "planned") return false;
+    // A deliberately lighter one-movement day is useful, but is not evidence
+    // that all four movements were tolerated. Require actual repetitions too.
+    return sessionSets(
+      strengthTemplates[activity].map((e) => e.id),
+      log.extraExercise,
+      log.plannedSets ?? 1,
+    ).every(
+      (id) =>
+        log.sets[id]?.done &&
+        Number.isInteger(Number(log.sets[id].reps)) &&
+        Number(log.sets[id].reps) > 0,
+    );
+  });
+  const classes = good.filter(
+    (s) =>
+      loggedActivity(j, s) === "boxing" && Number(j.logs[s.id].minutes) > 0,
+  );
+  const latest = [...lifts, ...classes]
+    .map((s) => j.logs[s.id].performedOn ?? s.date)
+    .sort()
+    .at(-1)!;
+  if (!latest || latest < addDays(before, -10)) return 0;
+  if (
+    lifts.length >= 8 &&
+    classes.length >= 6 &&
+    lifts.filter((s) => loggedActivity(j, s) === "strength-b").length >= 2
+  )
+    return 2;
+  return lifts.length >= 4 && classes.length >= 3 ? 1 : 0;
 }

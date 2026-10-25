@@ -16,7 +16,13 @@ export type DayPlan = {
   enough: string;
   minimum: string;
 };
-export type Slot = { id: string; day: number; date: string; note?: string };
+export type Slot = {
+  id: string;
+  day: number;
+  date: string;
+  note?: string;
+  legacy?: boolean;
+};
 export type Readiness = {
   energy?: "low" | "normal" | "good";
   sleep?: "poor" | "okay" | "good";
@@ -39,6 +45,7 @@ export type ActivityLog = {
   plannedMinutes?: string;
   extraExercise?: string;
   plannedExerciseIds?: string[];
+  plannedSets?: 1 | 2;
   classTime?: string;
   className?: string;
   gymId?: string;
@@ -64,7 +71,7 @@ export type Review = {
   savedAt: string;
 };
 export type Adaptation = {
-  mode: "steady" | "lighter" | "second-session" | "extra-set";
+  mode: "steady" | "lighter" | "second-session" | "extra-set" | "two-sets";
   exerciseId?: string;
   reason: string;
 };
@@ -81,6 +88,8 @@ export type Profile = {
   classWeekday: number;
   classTime: string;
   nextClassDate: string;
+  classStage?: "introduction" | "beginner";
+  classSwitchDate?: string;
   reminders: boolean;
   wellbeing: boolean;
   wellbeingGoal: string;
@@ -89,6 +98,7 @@ export type Profile = {
   height: string;
 };
 export type Journey = {
+  planVersion?: "legacy-30" | "titan-90";
   id: string;
   createdAt: string;
   startedOn: string;
@@ -96,10 +106,7 @@ export type Journey = {
   logs: Record<string, ActivityLog>;
   reviews: Record<string, Review>;
   adaptations: Record<string, Adaptation>;
-  pauses: Record<
-    string,
-    { from: string; to?: string; reason: "personal" }
-  >;
+  pauses: Record<string, { from: string; to?: string; reason: "personal" }>;
 };
 export type MomentumData = {
   schemaVersion: 2;
@@ -164,18 +171,20 @@ export function emptyMomentum(): MomentumData {
     schemaVersion: 2,
     onboarded: false,
     profile: {
-      goals: ["Consistency", "Fitness", "Boxing skills"],
+      goals: ["Consistency", "Gradual fat loss", "Fitness", "Muay Thai skills"],
       activity: "sedentary",
-      discipline: "boxing",
+      discipline: "muay-thai",
       environment: "both",
       jointModification: false,
-      availableDays: [1, 3, 5],
+      availableDays: [1, 3, 6],
       budget: "",
-      gymId: "",
-      className: "",
-      classWeekday: 5,
-      classTime: "",
+      gymId: "titan",
+      className: "Introduction to Muay Thai / Kickboxing",
+      classWeekday: 3,
+      classTime: "18:15",
       nextClassDate: "",
+      classStage: "introduction",
+      classSwitchDate: "",
       reminders: false,
       wellbeing: false,
       wellbeingGoal: "",
