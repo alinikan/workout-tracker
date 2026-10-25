@@ -1033,9 +1033,13 @@ npm run test:ui
 npm run test:ui -- --repeat=2
 # Focused Momentum checks while developing this optional feature:
 npm run test:ui -- --momentum-only
+# Run only the full-view color contrast audits (including sign-in and Momentum).
+npm run test:ui -- --contrast-only
 ```
 
 This starts its own local Vite server with `.env` loading disabled, uses synthetic data and a mocked Supabase API, and closes the server afterward. It checks WebKit at 402 px and 375 px plus Chromium at MacBook dimensions, in light and dark appearance with both normal and reduced motion. It exercises Today logging, swap/revert, selected-control and caption contrast (4.5:1 minimum), Gym, Diet, the earned journey map, reset confirmation/cancellation, cross-tab resets, and two-device reset/reconnection through the actual sync client. External media requests are blocked for deterministic fixtures; these screenshots do not validate the remote videos or food photos. Screenshots go to the Git-ignored `outputs/ui-check/` folder. WebKit emulation is useful regression coverage, not a substitute for checking a real iPhone Home Screen app after deployment.
+
+The test-only `@axe-core/playwright` engine additionally audits WCAG text contrast across authentication, filled inputs, live theme changes, expanded weight history, Today, Gym, Week, Library, Nutrition, shopping, completed meals, dialogs and Momentum. Normal text needs at least **4.5:1** and qualifying large text **3:1**. The default UI command runs these audits in CI; `--contrast-only` is the faster focused command. `outputs/ui-check/contrast-report.json` records detected failures and cases needing manual review. Automated checks supplement visual inspection; they are not a claim of complete accessibility certification. Native iPhone password autofill still merits a device check.
 
 The behavioral tests execute the actual app functions and a server-rendered Coach Hub, using synthetic data with environment loading disabled. They verify:
 

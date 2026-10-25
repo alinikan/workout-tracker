@@ -23,7 +23,7 @@
   /* Semantic content */
   --text-primary: #1d1d1f;
   --text-secondary: #5f6065;
-  --text-tertiary: #7e8086;
+  --text-tertiary: #686b72;
   --separator: rgba(29, 29, 31, 0.1);
   --separator-strong: rgba(29, 29, 31, 0.18);
 
@@ -33,7 +33,7 @@
   --accent-soft: #e3f2ed;
   --success: #18845b;
   --success-soft: #e3f4eb;
-  --warning: #ad6b00;
+  --warning: #865200;
   --warning-soft: #fff2d7;
   --danger: #c33a32;
   --danger-soft: #fdebea;
@@ -44,19 +44,19 @@
   --selection-ink: #ffffff;
 
   /* Meaningful training identities */
-  --strength-a: #087e8b;
+  --strength-a: #086c75;
   --strength-b: #6554c0;
-  --strength-c: #238653;
-  --cardio: #d05a48;
-  --cardio-long: #a76c0b;
-  --movement: #2d7f9d;
-  --recovery: #687b35;
-  --focus-teal: #087e8b;
-  --focus-coral: #d05a48;
+  --strength-c: #1c7044;
+  --cardio: #b5402f;
+  --cardio-long: #865600;
+  --movement: #21657f;
+  --recovery: #56682b;
+  --focus-teal: #086c75;
+  --focus-coral: #b5402f;
   --focus-violet: #6554c0;
-  --focus-green: #238653;
-  --focus-amber: #a76c0b;
-  --focus-sky: #2d7f9d;
+  --focus-green: #1c7044;
+  --focus-amber: #865600;
+  --focus-sky: #21657f;
 
   /* 8pt rhythm, restrained depth, and stable mobile controls */
   --space-1: 4px;
@@ -2076,7 +2076,9 @@ h3 {
 
 .diet-meal-card.complete {
   border-color: var(--success);
-  opacity: 0.78;
+  background: var(--surface-primary);
+  /* Completion uses its border/checkmark, not fading the entire recipe text. */
+  opacity: 1;
 }
 
 .diet-meal-header {
@@ -3860,8 +3862,9 @@ h3 {
 }
 
 .today-continue-button {
-  background: var(--accent) !important;
-  color: #fff !important;
+  background: var(--selection-fill) !important;
+  color: var(--selection-ink) !important;
+  transition-property: border-color, box-shadow, transform;
 }
 
 .today-actions .gym-launch-button {
@@ -4774,3 +4777,66 @@ body:has(.reset-dialog[open]) { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .journey-track > span { transition: none; }
 }
+
+/* Authentication must own both sides of its color pair. The legacy --ink
+   token becomes almost white in dark mode, so it cannot also be a button fill
+   while the label stays white. Keep these rules after both theme layers. */
+.auth-form .auth-button-row button {
+  background: var(--selection-fill);
+  color: var(--selection-ink);
+  border-color: var(--selection-fill);
+  transition-property: border-color, box-shadow, transform;
+}
+.auth-form .auth-button-row button.secondary {
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  border-color: var(--separator-strong);
+}
+.auth-form .auth-button-row button svg { color: inherit; }
+.sync-message { color: var(--text-secondary); }
+
+/* Safari's autofill can supply its own background independently of CSS color.
+   Pair the inset surface with explicit text/caret ink, including Home Screen. */
+.auth-form input {
+  border-color: var(--text-tertiary);
+  color: var(--text-primary);
+  -webkit-text-fill-color: var(--text-primary);
+  caret-color: var(--text-primary);
+}
+.auth-form input::placeholder {
+  color: var(--text-secondary);
+  -webkit-text-fill-color: var(--text-secondary);
+  opacity: 1;
+}
+.auth-form input:is(:autofill, :-webkit-autofill) {
+  -webkit-text-fill-color: var(--text-primary);
+  caret-color: var(--text-primary);
+  box-shadow: inset 0 0 0 1000px var(--surface-primary);
+}
+
+/* Small labels need 4.5:1, even when their hue is also used for a large icon or
+   decorative edge. Keep food/category identity without reusing pale ink. */
+.diet-meal-card.slot-breakfast { --meal-color: #8a5900; --meal-soft: #fff1d1; }
+.diet-meal-card.slot-dinner { --meal-color: #a13c2b; --meal-soft: #fde9e2; }
+.order-chip { color: var(--surface-primary); }
+.shopping-group {
+  background: var(--surface-secondary);
+  border-color: var(--separator);
+  border-left: 3px solid var(--shopping-color);
+}
+.shopping-group h3 { color: var(--text-primary); }
+.shopping-group > summary > span { color: var(--text-secondary); }
+.shopping-group .shopping-item { background: var(--surface-primary); color: var(--text-primary); }
+.shopping-group .shopping-item :is(small, span) { color: var(--text-secondary); }
+/* Library media stays deliberately dark in both themes. Its captions must
+   therefore not inherit the light theme's dark secondary-text token. */
+.library-media .gif-controls > span { color: #e3ebf0; }
+
+/* A one-letter training code is still text, although automated engines can
+   classify it as decoration. Selected days always pair the same fill and ink. */
+.diet-day-button.active {
+  background: var(--text-primary);
+  color: var(--surface-primary);
+}
+.diet-day-button.active :is(span, strong, small) { color: var(--surface-primary); }
+.app-shell :is(input, textarea)::placeholder { color: var(--text-secondary); opacity: 1; }
