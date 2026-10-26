@@ -188,6 +188,11 @@ export async function runContrastChecks({
       await audit(page, `${label}-coach`);
       await checkComputedPairs(
         page,
+        `${label}-coach-heading-ink-after-theme-switch`,
+        ".coach-hub-shell :is(h1, h2, h3, h4)",
+      );
+      await checkComputedPairs(
+        page,
         `${label}-ring-captions`,
         ".premium-progress-ring :is(strong, small)",
         "ring",

@@ -17,6 +17,9 @@
 .diet-shell { --accent: var(--nutrition-ink); --accent-strong: var(--nutrition-ink); --accent-soft: var(--nutrition-fill); }
 .coach-hub-shell { --accent: var(--weight-ink); --accent-strong: var(--weight-ink); --accent-soft: var(--weight-fill); }
 .app-shell :is(h1, h2, h3, h4, button, input) { letter-spacing: 0; }
+/* Resolve heading ink locally. WebKit can briefly retain inherited body ink
+   across a system-theme change while each panel has already repainted. */
+.coach-hub-shell :is(h1, h2, h3, h4) { color: var(--text-primary); }
 .app-shell :is(button, a, input, select, summary):focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .app-shell :is(input, textarea, select) { color: var(--text-primary); background: var(--surface-primary); border-color: var(--separator-strong); }
 .device-save-status { display: flex; gap: 8px; align-items: center; margin: 10px 0 16px; font-size: 12px; color: var(--text-secondary); }
