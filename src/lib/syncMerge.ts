@@ -50,6 +50,34 @@ export function mergeProgressChanges<T>(base: T, local: T, remote: T): T {
       // Missing fields represent deletions, such as "Revert to original".
       if (value !== undefined) result[key] = value;
     }
+    // A preparation record is a physical fact. A second device may still have
+    // the old uncooked menu and swap it while the first device cooks. Merging
+    // each field would attach chicken's timestamp/portions to a beef choice.
+    // Keep a newly recorded cooked block as one atomic choice. An intentional
+    // unprepare is still allowed when the baseline already contains that record.
+    if (local.version === 1 && remote.version === 1 &&
+      isObject(local.schedules) && isObject(remote.schedules) &&
+      isObject(local.blocks) && isObject(remote.blocks) && isObject(result.blocks)) {
+      const oldBlocks = isObject(before.blocks) ? before.blocks : {};
+      for (const key of new Set([...Object.keys(local.blocks), ...Object.keys(remote.blocks)])) {
+        const a = local.blocks[key], b = remote.blocks[key], old = oldBlocks[key];
+        const newlyCooked = (choice: unknown) => isObject(choice) &&
+          typeof choice.preparedSignature === "string" && choice.preparedSignature.length > 0 &&
+          typeof choice.preparedAt === "string" && Number.isFinite(Date.parse(choice.preparedAt)) &&
+          (!isObject(old) || choice.preparedAt !== old.preparedAt || choice.preparedSignature !== old.preparedSignature);
+        const aCooked = newlyCooked(a), bCooked = newlyCooked(b);
+        if (aCooked !== bCooked) result.blocks[key] = aCooked ? a : b;
+        else if (aCooked && bCooked && !sameData(a, b)) {
+          // Two explicitly recorded preparations resolve consistently on both
+          // devices. Keep the other physical record for review, never discard it.
+          const aKey = `${(a as Record<string, unknown>).preparedAt}:${(a as Record<string, unknown>).preparedSignature}`;
+          const bKey = `${(b as Record<string, unknown>).preparedAt}:${(b as Record<string, unknown>).preparedSignature}`;
+          const winner = aKey >= bKey ? a : b;
+          const other = aKey >= bKey ? b : a;
+          result.blocks[key] = { ...(winner as object), conflictingPreparation: other };
+        }
+      }
+    }
     return result as T;
   }
 

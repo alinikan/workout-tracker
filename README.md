@@ -27,6 +27,7 @@
 - [Features](#features)
 - [Session Experience](#session-experience)
 - [App Sections](#app-sections)
+- [Batch Cooking](#batch-cooking)
 - [Private Momentum Journey](#private-momentum-journey)
 - [How The Program Works](#how-the-program-works)
 - [Knee And Hip Friendly Lower Body](#knee-and-hip-friendly-lower-body)
@@ -58,7 +59,7 @@ Recomp is a personal coaching product for someone who wants a structured fitness
 The app ships with:
 
 - A 26-week progressive workout program.
-- A built-in fat-loss diet plan with daily recipes.
+- A built-in fat-loss diet plan with 2-3-day cooking batches, repeated meals and quantified groceries.
 - A Coach Hub for sign-in, morning weigh-ins, and weight trend review.
 - A Gym Mode that shows the current exercise, current set, target, video, GIF option, and completion controls.
 - Cloud sync through Supabase so the same account can be used on iPhone, MacBook, and any other device.
@@ -92,8 +93,8 @@ That means the interface favors:
 not a replacement for Recomp's 26-week training program. It has its own onboarding, chosen Monday,
 90-day calendar, actual attendance, simple strength templates, Titan class planning, meals and recovery. Class-stage changes are deliberate; calendar passage alone never increases workload.
 Its guided Today flow follows **Plan → Session → Finish**. One movement appears at a time,
-with real set logging, a smaller-session option and a clear saved result. Five navigation items
-keep daily tasks separate from planning: Today, Plan, Food, Progress and Settings.
+with real set logging, a smaller-session option and a clear saved result. Three navigation items
+keep daily tasks separate from planning: Today, Meals and Journey.
 
 | Boundary | How It Works |
 | --- | --- |
@@ -102,7 +103,7 @@ keep daily tasks separate from planning: Today, Plan, Food, Progress and Setting
 | Guided session | Plan, follow one movement at a time, then save the actual result. Next never marks a set complete. Partial work resumes without a questionnaire; feedback is optional. |
 | Earned options | No calendar-based load jump. Optional extra practice needs actual comfortable attendance, recovery, review and an explicit choice. |
 | Honest records | Planned, smaller, missed and stopped sessions are distinct. Finishing one set never completes the others. No catch-up workout is owed. Pauses can be resumed in Settings. |
-| Original data intact | Workout and meal logs stay separate. Coach's dated kg weigh-ins are the single shared source, not duplicated metrics. A new Momentum month archives only Momentum history. |
+| Original data intact | Workout attendance and meal checks stay separate. Nutrition and Momentum share cooking batches and groceries; Coach's kg weigh-ins are the shared weight source. |
 | Affordable planning | Dated official local-gym references, manual booking and safe rescheduling. No paid API, automated membership purchase or invented live timetable. |
 
 > [!IMPORTANT]
@@ -116,9 +117,10 @@ instructions, authorization/revocation, start and pause controls, all 90 days, c
 Private device drafts are encrypted with a session-scoped key: sync before closing an offline
 session. Background push notifications and progress-photo storage are not configured.
 
-Already installed Momentum? Apply [`20261023_momentum_setup.sql`](supabase/migrations/20261023_momentum_setup.sql)
-before deploying this update. It changes only the save function, not your records, account grant,
-or row-level security. Older synced documents upgrade without losing attendance or meals.
+Already using the current Momentum save function? **This batch-meal update needs no SQL.**
+Only installations still on the original, older save function need the existing
+[`20261023_momentum_setup.sql`](supabase/migrations/20261023_momentum_setup.sql) upgrade.
+It changes the function, not your records, account grant or row-level security.
 
 ---
 
@@ -136,7 +138,7 @@ collapse into readable checked rows. You do not have to switch to Gym to log set
 | Coordinated controls | The iPhone dock is measured, including Undo and safe-area padding. Gym's action bar sits above it. Fixed controls hide while a software keyboard occupies the screen. |
 | Meaningful color | Teal means training, coral means nutrition, violet means weight trends, green means completed, and amber means skipped/attention. Day accents remain secondary. |
 | Exercise sections | Open **Details / Swap** for **Log**, **Technique**, and **History**. Technique contains inline YouTube, optional GIF, setup, and cues; History shows the last 12 attempts for that exact exercise before the selected date. |
-| Recipe sections | **Make It** opens **Ingredients**, **Cook**, and **Portion**. Cook retains the detailed beginner instructions; Portion contains plated amounts and any existing portion advice. Swaps remain clearly labeled and reversible. |
+| Batch meal sections | **Eat today**, **Cook batch**, and **To buy** separate eating from cooking and shopping. Recipes expand only when needed; whole-batch swaps are clearly labeled and reversible before preparation. |
 | Readable depth | Content and inputs use solid surfaces. Restrained translucency is limited to navigation, with a reduced-transparency fallback. |
 | Purposeful motion | Check states, inline fades, and navigation transitions explain changes without moving live form targets. Reduced-motion preferences are respected. |
 | Weight story | Choose **7 days**, **28 days**, **90 days**, or **All**. Dots are actual daily readings; the prominent line shows weekly averages. Use **Inspect a reading** for exact values. Missing days never become zeros, missing weeks break the line, and current-week averages are provisional. |
@@ -149,8 +151,9 @@ collapse into readable checked rows. You do not have to switch to Gym to log set
 > the workout or meal date, changing accounts, or starting fresh clears the notification. It is not an
 > account-wide rollback or a substitute for the fresh-start confirmation.
 
-These improvements do **not** change the workout prescription, recipes, attendance-based
-progression, Supabase schema, units, or saved-data format. There is no new paid service or API key.
+The session improvements do not change workout prescriptions or attendance-based progression.
+The batch planner adds backward-compatible meal-prep fields to the existing synced JSON; it
+needs no new Supabase schema, paid service or API key. Earlier recipes remain readable in history.
 Read the [session experience implementation guide](docs/session-experience.md) for architecture,
 accessibility, browser limitations, design references, and the verification matrix.
 
@@ -163,7 +166,7 @@ accessibility, browser limitations, design references, and the verification matr
 | Coach Hub | Account, cloud sync, morning weight, and weekly weight averages, always one tap away. |
 | Workout Today | The primary workout surface for reviewing the ordered plan, opening details, logging sets, skipping, and completing the workout. |
 | Workout tools | Gym provides an immersive live-session view; Week and Library remain contextual planning and reference tools. |
-| Diet | Daily meals with recipe photos, meal swaps, timing labels, plate portions, and a weekly to-buy list. |
+| Diet | Repeat one main dish for lunch and dinner for 2-3 days; batch recipes, portioned containers and an added-up shopping list. |
 | Cloud Sync | Saves the same progress to Supabase for use across multiple devices. |
 | PWA | Can be installed on iPhone Home Screen and used like an app. |
 | Premium interface | One iPhone dock for Today, Gym, Diet, Progress, and Coach; Lucide icons; Motion transitions; distinct product colors; responsive Gym controls; automatic light/dark appearance; reduced-motion support; safe-area-aware layout; and progressive view transitions. |
@@ -202,18 +205,18 @@ accessibility, browser limitations, design references, and the verification matr
 
 | Feature | Details |
 | --- | --- |
-| Daily meal plan | Breakfast, Lunch, Snack, and Dinner for every program day. |
+| Daily meal plan | Breakfast, Lunch, Snack, and Dinner, with the same main dish throughout each 2-3-day batch. |
 | Color-coded meals | Breakfast, lunch, snack, and dinner each have their own visual identity. |
-| Day type targets | Strength, Cardio, and Recovery days use different calorie and macro targets. |
+| Training-day food | The same groceries with slightly more starch and toast on planned lifting/class days. Calories are food estimates, not measured energy requirements. |
 | Recipe photos | Each meal has a visual recipe card. |
-| Expandable Make It guide | Meal cards stay clean, but the Make It button opens actual step-by-step instructions for that exact food. |
+| Expandable cooking guide | Recipe-specific steps are available in Cook batch; the daily view focuses on eating a container, not cooking every meal. |
 | Plate portions | Shows what to actually put on the plate after cooking. |
 | Timing labels | Uses practical labels like Morning, Midday, Before workout, and After workout. |
 | After-work gym fuel | Strength days explain what to eat 60-120 minutes before a typical 5pm+ workout. |
-| Today's portion coach | Says plainly whether to use the recipe amounts or make one small change, using morning weight trends, protein needs, workout adherence, readiness, and day type. |
-| Meal swaps | Swap within the same meal category for variety while keeping the plan aligned. Swapped meals are clearly labeled and include a visible Revert to original button. |
-| Preference-aware defaults | Beans, chickpeas, turkey, rice cakes, and muesli stay available as swaps but are not default meals. |
-| To-buy list | Builds a store-neutral ingredient list from the selected week and active swaps. |
+| Weight-informed portions | Bounded protein portions use the existing weight reference. Prepared batches and checked meal portions are frozen, not recalculated after each weigh-in. |
+| Batch swaps | Change the whole upcoming main dish, breakfast or snack before cooking; no need to swap lunch and dinner separately. |
+| Preference-aware defaults | Chicken breast, skinless thighs, lean beef, rice, potatoes, oats and yogurt reuse familiar groceries. No default beans, chickpeas, turkey, rice cakes or muesli. |
+| To-buy list | Adds raw, dry and ready-to-use quantities for the current batch or complete batches covering the next seven days. Check off items you already have or bought. |
 | Completion tracking | Each meal can be marked eaten; full days show clearly when complete. |
 
 ### Progress Features
@@ -263,20 +266,85 @@ It includes:
 
 ### Diet
 
-The Diet section is a simple daily food tracker.
+The Diet section is a batch-first food tracker, not a different cooking assignment at every meal.
 
 It includes:
 
 - Four meals per day.
 - Recipe photos.
-- Exact plate portions.
-- Expandable recipe-specific cooking instructions behind each Make It button.
-- Macro targets.
+- Four or six lunch/dinner containers from one recipe, for two or three days.
+- Clear raw/dry shopping totals, with estimated cooked yields and per-date portions.
+- Expandable recipe-specific cooking instructions.
+- Estimated calories and protein from the actual planned food.
 - Meal timing chips.
 - After-work pre-workout fueling guidance.
-- Same-category swaps.
-- Weekly to-buy list.
+- Whole-batch swaps and visible original/revert states.
+- Current-batch or seven-day shopping with ingredient totals.
 - A notes field for hunger, digestion, swaps, or meal prep reminders.
+
+---
+
+## Batch Cooking
+
+**One main recipe. Two meals a day. A few days covered.** Nutrition and Momentum now share
+the same rolling batch calendar. The default is **2 days = 4 main portions**, with **3 days =
+6 main portions** as an option. Breakfast jars and simple snacks repeat within each batch, too.
+Variety comes between batches, not from buying ingredients for fourteen different main dishes.
+
+| Step | What To Do |
+| --- | --- |
+| **To buy** | Choose the current batch or **Next 7 days**. Quantities are added across meals; already-prepared batches are omitted. Raw meat, dry rice and ready-to-use yogurt are labeled separately. Check what you have/bought. |
+| **Cook batch** | Choose two or three days before starting, optionally swap the main dish, and expand the cooking steps. Use **Full batch ingredients**, then **Portion by day** to fill dated containers. |
+| **Batch prepared** | Record that you prepared it. Quantities freeze so tomorrow's weigh-in cannot change the food already in your fridge. This does not mark any meal eaten or certify freshness. |
+| **Eat today** | Follow breakfast, lunch, snack and dinner. Reheat a container for lunch/dinner; mark each actual meal eaten. Training-day starch/snack differences are already included in the quantities. |
+
+> [!TIP]
+> The same main dish covers both lunch and dinner. Change it with the next batch. Before cooking,
+> a swap changes the whole block and its shopping quantities; **Revert to original** restores the
+> default recipe. Once a batch has been cooked or eaten from, it is locked against silent changes.
+> If you need a new batch partway through, explicitly start one from the selected current day.
+
+<details>
+<summary><strong>How the quantities, shopping and saved history work</strong></summary>
+
+- Each planned date has its own portions. The batch adds these together; it does not multiply
+  today's training portion by every day and accidentally overbuy for rest days.
+- Raw meat assumes roughly **75% cooked yield**, and dry rice roughly **3x cooked weight**.
+  These are estimates, not promises. Weigh the actual cooked output and divide it in the dated
+  proportions. Potatoes/vegetables are bought by raw weight and divided by their planned shares.
+- Seven-day shopping buys **complete batches** that intersect that period. The displayed range
+  names any extra boundary days, rather than claiming that eight or nine days of groceries are seven.
+- A shopping check means **have/bought**, not eaten. New quantity/range keys prevent an old list
+  from appearing purchased when the next batch needs different amounts.
+- Prepared batches do not ask you to buy their ingredients again. Cook batch still shows their
+  full original ingredient/yield record, even when you deliberately start another batch early.
+  Freeze safely handled surplus; a new plan never marks leftover containers eaten automatically.
+- If one device records cooking while another swaps an older uncooked copy, the cooking record
+  wins as a whole. Two different cooking records are retained with a visible conflict warning.
+- Diet and Momentum share the batch calendar, choices, preparation record and groceries through
+  `workout_progress`. Their existing eaten checkmarks remain separate; new checks save recipe and
+  portion snapshots in their existing respective records. An old eaten meal is never relabeled as
+  a new recipe. Earlier individual-day meals and swaps remain available in history.
+- The first batch starts when an older installation opens this update. It is not tied to a fixed
+  month, a Monday, or the 26 earned workout weeks. No data reset or new SQL is needed.
+
+</details>
+
+> [!IMPORTANT]
+> Refrigerate promptly in shallow containers within **2 hours**, at **4 C or colder**. Health
+> Canada recommends eating refrigerated leftovers within **2-3 days** or freezing them. This app
+> conservatively directs you to freeze the third day's hot-food portions on prep day. Reheat
+> leftovers to **74 C**, including the centre. A prepared checkmark is not an expiry guarantee.
+> [Health Canada: leftovers](https://www.canada.ca/en/health-canada/services/general-food-safety-tips/food-safety-tips-leftovers.html)
+
+Read the [batch-planning implementation and nutrition guide](docs/meal-prep.md) for calculations,
+validation, recipe sources, storage assumptions and tests. The approach follows
+[Canada's Food Guide on batch cooking](https://www.canada.ca/en/health-canada/services/food-guide/explore/healthy-eating-recommendations/cook-more-often.html).
+
+Developers can verify the isolated two-device meal flow with `npm run test:ui -- --batch-only`.
+It covers offline meal/grocery edits, account reload, prepared quantities after a weight change,
+shared Momentum food, separate eaten records, legacy history and future-date guards. The default
+UI command includes this test alongside the workout, Momentum and contrast suites.
 
 ---
 
@@ -403,7 +471,25 @@ The app defines six-month success broadly: consistency, stronger lifts, better w
 
 ### Nutrition
 
-Nutrition uses calorie cycling by day type, but targets are configurable because different bodies need different amounts:
+The current nutrition system is [batch-first](#batch-cooking). It uses bounded weight-informed
+protein portions, a small planned training-day starch addition and a familiar pre-training snack.
+The same ingredients repeat across meals. It does **not** silently tighten calories for a missed
+workout, infer energy expenditure, or claim that a body-weight-only calculation determines your
+personal calorie needs. Prepared batches and eaten portions are snapshots.
+
+Protein uses the existing Coach weight reference: up to seven readings within the recent
+14-calendar-day window when at least three are available; otherwise the latest reading is used,
+with an old reading labeled. Missing weights never count as zero. Nutrition estimates use explicit
+ingredient assumptions and exclude optional extras; brands, cooking losses and chosen extras vary.
+The weekly weight chart remains a feedback tool, not an automatic restriction trigger.
+
+The following describes the **older single-day recipe system**, kept only so recorded history,
+older saved preferences and its safety tests remain understandable:
+
+<details>
+<summary><strong>Earlier meal-plan targets and portion advice (historical view only)</strong></summary>
+
+Earlier nutrition used calorie cycling by day type, with configurable targets:
 
 | Day Type | Target |
 | --- | --- |
@@ -435,6 +521,8 @@ The default grocery pattern favors easy repeat purchases: Greek yogurt, cottage 
 Each recipe has a compact card for quick gym-day scanning and an expandable Make It guide for cooking. The guide skips repeated generic setup text and explains the actual food steps for that recipe, such as mixing a yogurt bowl, toasting a pre-workout snack, warming chicken and grains, cooking eggs, or plating fish with potatoes and vegetables.
 
 Lean beef meals are portioned around extra-lean beef, measured rice or potatoes, and a large vegetable serving. Oils, marinara, salsa, and avocado-style add-ons are marked optional where skipping or measuring them better supports fat loss.
+
+</details>
 
 Coach Hub keeps weight tracking compact. The main view shows weekly averages, a recent weight trend graph, a motivating coach note, and only expands the daily log when the user wants to edit recent mornings. Weekly history separates logged, forgotten, and still-open mornings throughout the live calendar. Weight averages use seven-day calendar windows from the chosen start date, independently of earned training weeks.
 
@@ -948,6 +1036,11 @@ workout-tracker/
 | `src/experience.css` | Coordinated session layouts, semantic colors, measured mobile controls, and keyboard/motion fallbacks. |
 | `docs/session-experience.md` | Detailed guide to the 12 interface improvements and their testing boundaries. |
 | `src/features/momentum/` | Independently authorized private journey, safety, calendar, coaching and revisioned sync. |
+| `src/features/mealPrep/recipes.ts` | Structured batch recipes, shared grocery identities and explicit nutrition assumptions. |
+| `src/features/mealPrep/plan.ts` | Rolling 2/3-day calendar, per-date portions, prepared snapshots and exact grocery aggregation. |
+| `src/features/mealPrep/MealPrepPlanner.tsx` | Shared Eat today / Cook batch / To buy interface for both nutrition destinations. |
+| `docs/meal-prep.md` | Batch cooking workflow, arithmetic, food safety sources and migration details. |
+| `tests/meal-prep.test.mjs` | Deterministic date, quantity, recipe-selection, validation and prepared-batch tests. |
 | `docs/momentum.md` | Administrator setup, user guide, privacy model, evidence and maintenance. |
 | `supabase/migrations/20261023_momentum.sql` | Additive Momentum allowlist, RLS and restricted read/write functions. Does not change the original table. |
 | `tests/momentum.test.mjs` | Starter-plan behavior, clinical gates, real PostgreSQL RLS/CAS checks and private-cache tests. |
@@ -984,9 +1077,11 @@ Most program content currently lives in `src/App.tsx`.
 | Set progression | `recommendedSets()` |
 | Target progression | `targetForExercise()` |
 | Training blocks | `phaseForWeek()` |
-| Recipes | `dietRecipes` |
-| Recipe cooking guide | `detailedRecipeHowTo()` |
-| Weekly meal plan | `weeklyDietMealMap` |
+| Batch recipes and cooking steps | `src/features/mealPrep/recipes.ts` |
+| Batch rotation, weights and quantities | `src/features/mealPrep/plan.ts` |
+| Batch layout and meal/shopping controls | `src/features/mealPrep/MealPrepPlanner.tsx` and `meal-prep.css` |
+| Earlier recipes and tutorials (history) | `dietRecipes` and `detailedRecipeHowTo()` in `App.tsx` |
+| Earlier weekly menu (history) | `weeklyDietMealMap` |
 | Base diet targets | `dietTargets` |
 | Personalized calorie/protein display | `personalizedDietTarget()` |
 | Automatic protein body-weight basis | `proteinReferenceFromMetrics()` |

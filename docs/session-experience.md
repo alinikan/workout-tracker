@@ -35,10 +35,11 @@ Partial attempts remain visibly partial. The most recent twelve attempts are sho
 
 ## Meals and Weight
 
-Meal rows use stable, contained thumbnails and show a recipe-serving preview. Make It opens
-Ingredients, Cook, and Portion. Detailed cooking steps are preserved; optional ingredients and
-existing adaptive portion advice are not rewritten by this visual update. Swapped meals retain
-their original-recipe label and Revert action.
+Meal rows use stable, contained thumbnails. The current [batch planner](meal-prep.md) replaces
+daily cooking assignments with Eat today / Cook batch / To buy, keeping detailed steps collapsed.
+One main dish fills lunches and dinners for two or three days. Quantified raw/dry groceries,
+dated plate shares, prepared snapshots and whole-batch swaps are shared with Momentum. The
+previous Ingredients / Cook / Portion cards remain only for earlier saved meal history.
 
 The weight chart uses calendar-day ranges, not the last N entries. A gap in measurements stays a
 gap. Weekly means use only actual measurements from the existing weekly summary model; they are

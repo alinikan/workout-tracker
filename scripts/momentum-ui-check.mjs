@@ -176,34 +176,26 @@ export async function runMomentumChecks({
       );
       await click(page, "Back to today");
       await tab(page, "Meals");
-      const meal = page.locator(".mm-meal").first();
-      await meal.locator(".mm-meal-summary").click();
-      await meal.getByText("Make it · step by step", { exact: true }).click();
-      await expect(meal.locator("ol li").first()).toBeVisible();
-      const selector = meal.getByRole("combobox", {
-        name: "Swap breakfast",
-        exact: true,
-      });
-      const old = await selector.inputValue();
-      const swap = await selector
-        .locator("option")
-        .evaluateAll(
-          (options, old) => options.find((o) => o.value !== old)?.value,
-          old,
-        );
-      assert.ok(swap);
-      await selector.selectOption(swap);
-      await expect(meal).toContainText("Swap version");
-      await meal
-        .getByRole("button", { name: "Revert to original", exact: true })
-        .click();
-      await expect(selector).toHaveValue(old);
-      await meal
-        .getByRole("button", { name: "Mark eaten", exact: true })
-        .click();
-      await expect(
-        meal.getByRole("button", { name: "Eaten · undo", exact: true }),
-      ).toHaveAttribute("aria-pressed", "true");
+      const planner = page.locator(".meal-prep-planner");
+      await planner.getByRole("tab", { name: "Cook batch", exact: true }).click();
+      const restart = planner.getByRole("button", { name: "Start a new batch today", exact: true });
+      if (await restart.count()) await restart.click();
+      const breakfast = planner.getByRole("region", { name: "Breakfast", exact: true });
+      const old = await breakfast.locator("h3").innerText();
+      await breakfast.getByRole("button", { name: /^Swap/ }).click();
+      await breakfast.locator(".mp-swap-option[aria-pressed='false']").first().click();
+      await expect(breakfast).toContainText("Swap version");
+      await breakfast.getByRole("button", { name: /^Revert to original/ }).click();
+      await expect(breakfast.locator("h3")).toHaveText(old);
+      await breakfast.locator(".mp-instructions > summary").click();
+      await expect(breakfast.locator(".mp-steps li").first()).toBeVisible();
+      await planner.getByRole("tab", { name: "To buy", exact: true }).click();
+      await planner.locator(".mp-grocery input").first().check();
+      await planner.getByRole("tab", { name: "Eat today", exact: true }).click();
+      const meal = planner.getByRole("article", { name: "Breakfast", exact: true });
+      await meal.getByRole("button", { name: "Mark eaten: Breakfast", exact: true }).click();
+      await expect(meal.getByRole("button", { name: "Reopen Breakfast", exact: true })).toHaveAttribute("aria-pressed", "true");
+      await expect.poll(() => backend.privateSnapshot().meals["2026-10-05"]?.recipes?.breakfast).toBe("prep-overnight-oats");
       await assertLayout(page, `momentum-${name}-${colorScheme}-meals`);
       await page.screenshot({
         path: `outputs/ui-check/momentum-${name}-${colorScheme}-meals.png`,

@@ -125,7 +125,14 @@ feels comfortable and pain-free.
 
 ### Recipe Data
 
-`dietRecipes` works like the exercise library, but for meals. Each recipe has:
+The live meal system is now in **`src/features/mealPrep/`**. `recipes.ts` gives ingredients
+stable IDs, raw/dry/ready units, food-label estimates and actual recipe steps. `plan.ts` places
+those recipes into rolling two/three-day blocks, sums each date's servings, freezes prepared
+contexts and adds up shopping quantities. `MealPrepPlanner.tsx` renders the same three views in
+Nutrition and Momentum. Read [meal-prep.md](meal-prep.md) before changing its calculations.
+
+`dietRecipes` in `App.tsx` is retained for **earlier saved meal history**, not the live batch
+rotation. Each older recipe has:
 
 - A meal slot.
 - Recipe name.
@@ -149,12 +156,15 @@ chosen as swaps.
 The app builds a live calendar rather than a fixed 182-day deadline:
 
 - `weeklySchedule` defines Monday through Sunday training.
-- `weeklyDietMealMap` defines Monday through Sunday default meals.
+- `weeklyDietMealMap` resolves earlier Monday-Sunday meals without relabeling old checkmarks.
+- `store.mealPrep` defines the live batch schedule, choices, prepared records and groceries.
+  It is saved in the existing account-bound JSON, with no separate database table.
 - `store.program.startedOn` defines this user's first date; new users start today.
 - `LEGACY_START_DATE` only preserves the original dates of pre-upgrade saves.
 - `PROGRAM_DAYS` defines the initial preview, not an expiration date.
 - `buildPlanDays(startedOn, through)` generates enough full seven-day rows to include today plus four upcoming weeks, with a minimum six-month preview.
-- Actual weekdays select the training and meal templates, even when a restart is not on Monday.
+- Actual weekdays select training templates, even when a restart is not on Monday. New meal
+  batches follow their own two/three-day rhythm, not weekdays or workout progression levels.
 
 `coachedDaysForStore()` scans the dates once. It assigns a training level from the count of fully
 completed, non-red strength sessions before that day: `floor(credits / 3) + 1`, capped at 26. A
@@ -409,7 +419,8 @@ push to main. Tests do not sign in to a live account or claim to emulate a real 
 | Change upstairs/downstairs order | `workoutLocationOrder()` and exercise `trainingLocation` |
 | Add equipment-specific guidance | Exercise `equipment`, `loadNote`, cues, resources, and a unique swap ID when load history must stay separate |
 | Add a recipe | Add to `dietRecipes`, add optional `recipeHowToSteps`, then use it in meals or swaps |
-| Change default meals | `weeklyDietMealMap` |
+| Change batch meals / quantities | `features/mealPrep/recipes.ts` and `features/mealPrep/plan.ts` |
+| Change earlier meal history defaults | `weeklyDietMealMap` (avoid changing recorded identities) |
 | Change grocery grouping | `shoppingIngredientFor()` |
 | Change cloud table | `supabase/schema.sql` and sync helpers in `src/App.tsx` |
 | Change iPhone PWA behavior | `public/manifest.json`, `public/sw.js`, and standalone CSS media queries |

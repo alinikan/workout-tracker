@@ -34,6 +34,11 @@ import { savePresentation, undoUnchangedFields } from "./lib/presentationState";
 import { initialProgram, isCalendarDate, normalizeProgram, restartedProgram, resolveResetConflict, type ProgramState } from "./lib/programLifecycle";
 import { useMomentum } from "./features/momentum/useMomentum";
 import type { Resources as MomentumResources } from "./features/momentum/types";
+import { MealPrepPlanner } from "./features/mealPrep/MealPrepPlanner";
+import { createMealPrep, normalizeMealPrep, prepBatch, prepBlockFor, prepServing, recipeForPrepSlot, startPrepSchedule, type MealPrepState, type PrepContext } from "./features/mealPrep/plan";
+import { prepRecipeMap } from "./features/mealPrep/recipes";
+import { currentJourney as momentumJourney, sortedSlots as momentumSlots } from "./features/momentum/plan";
+import { resolveDay as momentumDay } from "./features/momentum/coaching";
 const MomentumPage = lazy(() => import("./features/momentum/MomentumPage"));
 
 /**
@@ -404,6 +409,9 @@ type DietDayLog = {
   meals: Record<DietMealSlot, boolean>;
   swaps: Partial<Record<DietMealSlot, string>>;
   notes: string;
+  // A checked meal is a historical fact, not a pointer to a changing menu.
+  recipes?: Partial<Record<DietMealSlot, string>>;
+  portions?: Partial<Record<DietMealSlot, { plate: string[]; calories: number; protein: number }>>;
 };
 
 type TrackerStore = {
@@ -412,6 +420,7 @@ type TrackerStore = {
   dietDays: Record<string, DietDayLog>;
   metrics: Record<string, MetricLog>;
   settings: UserSettings;
+  mealPrep: MealPrepState;
 };
 
 type StoreMeta = {
@@ -564,6 +573,7 @@ const emptyStore = (startedOn = isoFromDate(new Date())): TrackerStore => ({
   dietDays: {},
   metrics: {},
   settings: createEmptySettings(),
+  mealPrep: createMealPrep(startedOn),
 });
 
 // The to-buy list groups recipe ingredients into a small number of store sections. It is not tied
@@ -743,7 +753,23 @@ function normalizeDietDayLog(log: DietDayLog | undefined): DietDayLog {
     meals: normalizeDietMeals(log?.meals),
     swaps: normalizeDietSwaps(log?.swaps),
     notes: log?.notes ?? "",
+    recipes: normalizeDietSwaps(log?.recipes),
+    portions: normalizeMealPortions(log?.portions),
   };
+}
+
+// Only retain finite, displayable nutrition snapshots from local/cloud JSON.
+// This is additive: older records without snapshots still use their legacy menu.
+function normalizeMealPortions(value: unknown): NonNullable<DietDayLog["portions"]> {
+  if (!isRecord(value)) return {};
+  return Object.fromEntries(dietMealSlots.flatMap(({ id }) => {
+    const entry = value[id];
+    if (!isRecord(entry) || !Array.isArray(entry.plate) ||
+      !entry.plate.every((line) => typeof line === "string") ||
+      typeof entry.calories !== "number" || !Number.isFinite(entry.calories) || entry.calories < 0 ||
+      typeof entry.protein !== "number" || !Number.isFinite(entry.protein) || entry.protein < 0) return [];
+    return [[id, { plate: entry.plate, calories: entry.calories, protein: entry.protein }]];
+  }));
 }
 
 function isSkipReason(value: unknown): value is SkipReason {
@@ -4187,6 +4213,39 @@ function withAutomaticDietCompletion(log: DietDayLog) {
   };
 }
 
+/** Legacy meals keep their original identity after the batch planner is added.
+ * New checkmarks save an explicit recipe and portion, so changing tomorrow's
+ * batch can never turn yesterday's eaten chicken into a different meal. */
+function savedMealOverrides(
+  date: string,
+  state: MealPrepState,
+  log: { eaten: Partial<Record<DietMealSlot, boolean>>; swaps?: Partial<Record<DietMealSlot, string>>; recipes?: Partial<Record<DietMealSlot, string>> },
+  legacy: Record<DietMealSlot, string>,
+) {
+  return Object.fromEntries(dietMealSlots.flatMap(({ id }) => {
+    const saved = (log.eaten[id] || date < state.startedOn ? log.recipes?.[id] : undefined) ?? log.swaps?.[id];
+    const recipe = saved ?? (log.eaten[id] || date < state.startedOn ? legacy[id] : undefined);
+    return recipe ? [[id, recipe]] : [];
+  })) as Partial<Record<DietMealSlot, string>>;
+}
+
+function LegacyMeal({ recipe, slot, eaten, onToggle, disabled = false }: {
+  recipe: DietRecipe; slot: DietMealSlot; eaten: boolean; onToggle: () => void; disabled?: boolean;
+}) {
+  return <article className={`diet-meal-card prep-legacy-meal slot-${slot} ${eaten ? "complete" : ""}`}>
+    <div className="diet-meal-header"><img src={recipe.photo} alt="" loading="lazy" />
+      <div><p className="eyebrow">{dietSlotLabel(slot)} · Saved earlier meal</p><h3>{recipe.title}</h3></div>
+    </div>
+    <p>{recipe.plate.join(" · ")}</p>
+    <details><summary>Recipe details</summary><ul>{recipe.ingredients.map((line) => <li key={line}>{line}</li>)}</ul>
+      <ol>{detailedRecipeHowTo(recipe).map((line, index) => <li key={index}>{line}</li>)}</ol>
+    </details>
+    <button type="button" className="diet-complete-button" aria-pressed={eaten} disabled={disabled} onClick={onToggle}>
+      <Icon name={eaten ? "check" : "activity"} size={18} />{eaten ? "Done" : "Mark eaten"}
+    </button>
+  </article>;
+}
+
 // The app now uses kg for body weight, but this fallback preserves older saves that stored the
 // value in the legacy weight field.
 function weightKgFromMetric(metric: MetricLog) {
@@ -5168,6 +5227,9 @@ function normalizeStore(value: unknown): TrackerStore | null {
     dietDays,
     metrics,
     settings: normalizeSettings(value.settings),
+    // Old calendars stay historical. The first batch begins on the day the
+    // updated app is opened, without resetting any workout or diet record.
+    mealPrep: normalizeMealPrep(value.mealPrep, isoFromDate(new Date())),
   };
 }
 
@@ -5225,7 +5287,10 @@ function hasStoreData(store: TrackerStore) {
     Object.keys(store.days).length > 0 ||
     Object.keys(store.dietDays).length > 0 ||
     Object.keys(store.metrics).length > 0 ||
-    store.settings.calorieMode !== "calculated"
+    store.settings.calorieMode !== "calculated" ||
+    Object.keys(store.mealPrep.blocks).length > 0 ||
+    Object.keys(store.mealPrep.checked).length > 0 ||
+    Object.keys(store.mealPrep.schedules).length > 1
   );
 }
 
@@ -5338,6 +5403,8 @@ function mergeDietDayLog(cloudLog: DietDayLog | undefined, localLog: DietDayLog 
       ...normalizedLocalLog.swaps,
     },
     notes: preferFilled(normalizedLocalLog.notes, normalizedCloudLog.notes),
+    recipes: { ...normalizedCloudLog.recipes, ...normalizedLocalLog.recipes },
+    portions: { ...normalizedCloudLog.portions, ...normalizedLocalLog.portions },
   });
 }
 
@@ -5395,6 +5462,9 @@ function mergeStores(localStore: TrackerStore, cloudStore: TrackerStore) {
       ...cloudStore.settings,
       ...localStore.settings,
     },
+    mealPrep: hasStoreData(cloudStore)
+      ? mergeProgressChanges(createMealPrep(cloudStore.mealPrep.startedOn), localStore.mealPrep, cloudStore.mealPrep)
+      : localStore.mealPrep,
   };
 }
 
@@ -6344,6 +6414,7 @@ export {
   activeExerciseFor, locationGuideForExercise, swapOptionsFor, ExerciseMedia, exerciseMap, exerciseHistoryFor,
   resetProgress, trainingProgressFor, trainingWeekForEdit, coachedDaysForStore, monthlyCheckInForDay, chooseInitialSyncedStore,
   dietRecipes, weeklyDietMealMap,
+  savedMealOverrides, normalizeDietDayLog,
 };
 
 export default function Home() {
@@ -6894,6 +6965,33 @@ export default function Home() {
   const selectedDietType = dietDayTypeForPlanDay(selectedDietDay);
   const proteinReference = useMemo(() => proteinReferenceFromMetrics(planDays, store.metrics, gymDay.index),
     [planDays, store.metrics, gymDay.index]);
+  // One shared planning context prevents Nutrition and Momentum from suggesting
+  // different containers. An active Momentum journey uses its real scheduled
+  // classes/lifts; otherwise the original workout calendar supplies training days.
+  const prepJourney = momentum.data ? momentumJourney(momentum.data) : null;
+  const prepSlots = prepJourney ? momentumSlots(prepJourney) : [];
+  const prepContextForDate = (date: string): PrepContext => {
+    const slots = prepSlots.filter((slot) => slot.date === date && !slot.legacy);
+    const momentumTraining = Boolean(momentum.data && slots.some((slot) => {
+      const activity = momentumDay(momentum.data!, slot, calendarDate).activity;
+      return activity === "boxing" || activity.startsWith("strength");
+    }));
+    const workout = store.days[date];
+    const actualLift = Boolean(workout && Object.values(workout.exercises).some((sets) => sets.some((set) => set.done)));
+    return {
+      training: actualLift || (prepJourney ? momentumTraining : weeklySchedule[dayName(date)].type === "strength"),
+      weightKg: proteinReference.weight,
+    };
+  };
+  const prepOverridesForDiet = (date: string, log: DietDayLog) => savedMealOverrides(
+    date, store.mealPrep, { ...log, eaten: log.meals }, weeklyDietMealMap[dayName(date) as PlanWeekday],
+  );
+  const selectedPrepBatch = prepBatch(store.mealPrep, selectedDietDay.iso < store.mealPrep.startedOn ? store.mealPrep.startedOn : selectedDietDay.iso, prepContextForDate);
+  const plannedPrepServings = selectedPrepBatch.servings.filter((row) => row.date === selectedDietDay.iso);
+  const selectedPrepTotals = plannedPrepServings.reduce((total, row) => ({
+    calories: total.calories + row.serving.calories, protein: total.protein + row.serving.protein,
+  }), { calories: 0, protein: 0 });
+  const usesBatchMenu = selectedDietDay.iso >= store.mealPrep.startedOn;
   const selectedDietTarget = personalizedDietTarget(
     selectedDietType,
     store.settings,
@@ -7429,13 +7527,22 @@ export default function Home() {
   };
 
   const toggleDietMeal = (slot: DietMealSlot) => {
-    updateDietDay(selectedDietDay.iso, (log) => ({
-      ...log,
-      meals: {
-        ...log.meals,
-        [slot]: !log.meals[slot],
-      },
-    }), selectedDietLog.meals[slot] ? "Meal reopened" : "Meal marked eaten");
+    if (selectedDietDay.iso > calendarDate) return;
+    updateDietDay(selectedDietDay.iso, (log) => {
+      const block = prepBlockFor(store.mealPrep, selectedDietDay.iso < store.mealPrep.startedOn ? store.mealPrep.startedOn : selectedDietDay.iso);
+      const recipeId = prepOverridesForDiet(selectedDietDay.iso, log)[slot] ?? recipeForPrepSlot(block, slot).id;
+      const recipe = prepRecipeMap[recipeId];
+      const serving = recipe ? selectedPrepBatch.servings.find((row) => row.date === selectedDietDay.iso && row.slot === slot && row.serving.recipe.id === recipeId)?.serving
+        ?? prepServing(recipe, prepContextForDate(selectedDietDay.iso)) : null;
+      return {
+        ...log,
+        recipes: { ...log.recipes, [slot]: recipeId },
+        portions: serving ? { ...log.portions, [slot]: {
+          plate: serving.plate, calories: serving.calories, protein: serving.protein,
+        } } : log.portions,
+        meals: { ...log.meals, [slot]: !log.meals[slot] },
+      };
+    }, selectedDietLog.meals[slot] ? "Meal reopened" : "Meal marked eaten");
   };
 
   const setDietSwap = (slot: DietMealSlot, recipeId: string) => {
@@ -7451,6 +7558,7 @@ export default function Home() {
       return {
         ...log,
         swaps: nextSwaps,
+        recipes: { ...log.recipes, [slot]: recipeId },
         meals: {
           ...log.meals,
           [slot]: false,
@@ -8208,9 +8316,64 @@ export default function Home() {
   const coachRecentDays = planDays.filter((day) => day.iso <= calendarDate && diffDays(day.iso, calendarDate) < 7);
   const todayMealLog = normalizeDietDayLog(store.dietDays[currentProgramDate]);
   const nextMealSlot = dietMealSlots.find((slot) => !todayMealLog.meals[slot.id]);
-  const nextMealRecipe = nextMealSlot ? activeDietRecipeFor(gymDay, todayMealLog, nextMealSlot.id) : null;
+  const todayMealId = nextMealSlot ? prepOverridesForDiet(currentProgramDate, todayMealLog)[nextMealSlot.id]
+    ?? recipeForPrepSlot(prepBlockFor(store.mealPrep, currentProgramDate < store.mealPrep.startedOn ? store.mealPrep.startedOn : currentProgramDate), nextMealSlot.id).id : null;
+  const nextMealRecipe = todayMealId ? prepRecipeMap[todayMealId] ?? dietRecipeMap[todayMealId] : null;
 
-  // A deliberately narrow bridge: resources are read-only and weight edits use
+  const updateMealPrep = (next: MealPrepState) => setStore((current) => ({ ...current, mealPrep: next }));
+  const prepLockedKinds = (date: string) => {
+    const block = prepBlockFor(store.mealPrep, date < store.mealPrep.startedOn ? store.mealPrep.startedOn : date);
+    const locks: Partial<Record<"main" | "breakfast" | "snack", boolean>> = {};
+    for (let day = block.start; day <= block.end; day = addDays(day, 1)) {
+      const diet = normalizeDietDayLog(store.dietDays[day]);
+      const privateMeal = momentum.data?.meals[day];
+      for (const { id: slot } of dietMealSlots) {
+        // Existing legacy checkmarks do not lock a batch that was never cooked.
+        const prepEaten = (diet.meals[slot] && Boolean(prepRecipeMap[diet.recipes?.[slot] ?? ""])) ||
+          (privateMeal?.eaten[slot] && Boolean(prepRecipeMap[privateMeal.recipes?.[slot] ?? ""]));
+        if (prepEaten) locks[slot === "lunch" || slot === "dinner" ? "main" : slot] = true;
+      }
+    }
+    return locks;
+  };
+  const renderSharedPrep = (date: string, onDateChange: (date: string) => void, source: "diet" | "momentum") => {
+    const dietLog = normalizeDietDayLog(store.dietDays[date]);
+    const privateLog = momentum.data?.meals[date] ?? { swaps: {}, eaten: {} };
+    const log = source === "diet" ? { ...dietLog, eaten: dietLog.meals } : privateLog;
+    const overrides = savedMealOverrides(date, store.mealPrep, log, weeklyDietMealMap[dayName(date) as PlanWeekday]);
+    const batch = prepBatch(store.mealPrep, date < store.mealPrep.startedOn ? store.mealPrep.startedOn : date, prepContextForDate);
+    const toggle = (slot: DietMealSlot) => {
+      if (date > calendarDate) return;
+      if (source === "diet") { toggleDietMeal(slot); return; }
+      momentum.edit((data) => {
+        const previous = data.meals[date] ?? { swaps: {}, eaten: {} };
+        const id = overrides[slot] ?? recipeForPrepSlot(batch.block, slot).id;
+        const recipe = prepRecipeMap[id];
+        const serving = recipe ? batch.servings.find((row) => row.date === date && row.slot === slot && row.serving.recipe.id === id)?.serving
+          ?? prepServing(recipe, prepContextForDate(date)) : null;
+        return { ...data, meals: { ...data.meals, [date]: {
+          ...previous,
+          recipes: { ...previous.recipes, [slot]: id },
+          portions: serving ? { ...previous.portions, [slot]: {
+            plate: serving.plate, calories: serving.calories, protein: serving.protein,
+          } } : previous.portions,
+          eaten: { ...previous.eaten, [slot]: !previous.eaten[slot] },
+        } } };
+      });
+    };
+    return <MealPrepPlanner state={store.mealPrep} date={date} today={calendarDate}
+      contextForDate={prepContextForDate} onChange={updateMealPrep} onDateChange={source === "momentum" ? onDateChange : undefined}
+      mealLog={{ eaten: log.eaten, overrides, portions: log.portions }}
+      onToggleMeal={toggle} history={date < store.mealPrep.startedOn}
+      batchLocked={Object.values(prepLockedKinds(date)).some(Boolean)} lockedKinds={prepLockedKinds(date)}
+      onStartNewBatch={() => updateMealPrep(startPrepSchedule(store.mealPrep, date, batch.block.days))}
+      renderLegacyMeal={(slot) => {
+        const recipe = dietRecipeMap[overrides[slot] ?? ""];
+        return recipe ? <LegacyMeal recipe={recipe} slot={slot} eaten={Boolean(log.eaten[slot])} disabled={date > calendarDate} onToggle={() => toggle(slot)} /> : null;
+      }} />;
+  };
+
+  // A deliberately narrow bridge: media resources are read-only and weight edits use
   // the ORIGINAL metric handler. Momentum never calls Recomp's day completion,
   // reset or earned-week handlers and never embeds private data in its bundle.
   const momentumResources: MomentumResources = {
@@ -8218,6 +8381,9 @@ export default function Home() {
     howTo: (recipe) => detailedRecipeHowTo(dietRecipeMap[recipe.id]),
     media: (id) => <ExerciseMedia exercise={exerciseMap[id]} variant="gym" />,
     groceries: (recipes) => shoppingItemsForRecipes(recipes.map(r=>dietRecipeMap[r.id])).flatMap(group=>group.items),
+    mealPrep: (date, onDateChange) => session && cloudReadyForUser === session.user.id
+      ? renderSharedPrep(date, onDateChange, "momentum")
+      : <p role="status">Loading your shared meal plan. Your saved meals are unchanged.</p>,
   };
   if (appMode === "momentum") {
     if (momentum.access !== "allowed" || !momentum.data) return <main className="app-shell"><h1>Private section</h1><p>{momentum.access === "checking" ? "Checking account access…" : "This section is unavailable for this account or connection."}</p><button type="button" onClick={()=>setAppMode("hub")}>Back to Coach Hub</button><button type="button" onClick={momentum.retry}>Retry private access</button></main>;
@@ -8372,13 +8538,14 @@ export default function Home() {
         </section>
 
         <details className="diet-settings-card coach-disclosure">
-          <summary>Nutrition settings <span>{gymDietTarget.calories} · {gymDietTarget.protein}</span></summary>
+          <summary>Nutrition planning <span>{proteinReference.label}</span></summary>
           <div>
             <p className="eyebrow">Nutrition settings</p>
-            <h2 id="diet-settings-heading">Personalize diet targets</h2>
+            <h2 id="diet-settings-heading">Your meal portions</h2>
             <p>
-              Protein updates from your Coach Hub weigh-ins automatically. Calories can stay at the
-              base plan or move by a small 150 kcal step instead of reacting to one weigh-in.
+              Protein amounts use your logged weight, preferably a recent average. Training days
+              include a little more starch and a pre-workout snack. Cooked batches keep their saved
+              amounts; a new weigh-in changes future uncooked batches, not food already prepared.
             </p>
           </div>
           <div className="diet-settings-grid">
@@ -8387,7 +8554,9 @@ export default function Home() {
               <strong>{proteinReference.label}</strong>
               <small>{proteinReference.detail}</small>
             </div>
-            <div className="calorie-mode-control">
+            <details className="calorie-mode-control">
+              <summary>Earlier single-day plan settings</summary>
+              <p>These settings apply only to the earlier meal history, not the batch planner.</p>
               <strong>Calorie mode</strong>
               <div>
                 {[
@@ -8411,13 +8580,13 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-            </div>
+            </details>
             <div className="diet-target-preview">
-              <span>Today&apos;s target</span>
+              <span>Planning approach</span>
               <strong>
-                {gymDietTarget.calories} · {gymDietTarget.protein}
+                Regular meals. Practical portions.
               </strong>
-              <small>{gymDietTarget.modeLabel}</small>
+              <small>Food estimates are not measured energy needs. No automatic food cuts for a missed workout.</small>
             </div>
           </div>
         </details>
@@ -8640,7 +8809,7 @@ export default function Home() {
           <div className="brand-lockup">
             <span className="brand-mark diet-mark">N</span>
             <div>
-              <p className="eyebrow">Daily plan · {selectedDietTarget.label}</p>
+              <p className="eyebrow">{usesBatchMenu ? "Batch meals · Less daily cooking" : "Earlier meal history"}</p>
               <h1>Nutrition</h1>
             </div>
           </div>
@@ -8666,7 +8835,7 @@ export default function Home() {
           <div>
             <p className="eyebrow">Today&apos;s nutrition</p>
             <h2 id="diet-heading">
-              {selectedDietTarget.label}
+              {usesBatchMenu ? "Cook once. Lunch and dinner sorted." : selectedDietTarget.label}
             </h2>
             <p className="diet-summary-date">{formatDate(selectedDietDay.iso)}</p>
             <details className="diet-coach-note">
@@ -8674,7 +8843,12 @@ export default function Home() {
               <p>{selectedDietCoachNote}</p>
             </details>
           </div>
-          <div className="diet-target-grid">
+          {usesBatchMenu ? <div className="diet-target-grid">
+            <div><span>Lunch + dinner</span><strong>Same batch</strong></div>
+            <div><span>Cooking rhythm</span><strong>Every {selectedPrepBatch.block.days} days</strong></div>
+            <div><span>Planned food · estimate</span><strong>~{Math.round(selectedPrepTotals.calories).toLocaleString()} kcal</strong></div>
+            <div><span>Planned protein · estimate</span><strong>~{Math.round(selectedPrepTotals.protein)} g</strong></div>
+          </div> : <div className="diet-target-grid">
             <div>
               <span>Calorie target</span>
               <strong>{selectedDietTarget.calories}</strong>
@@ -8691,8 +8865,8 @@ export default function Home() {
               <span>Fat</span>
               <strong>{selectedDietTarget.fat}</strong>
             </div>
-          </div>
-          <details className={`adaptive-diet-panel ${adaptiveDietCoach.tone}`}>
+          </div>}
+          {!usesBatchMenu && <details className={`adaptive-diet-panel ${adaptiveDietCoach.tone}`}>
             <summary>
               <span className="eyebrow"><Icon name="spark" size={14} /> Today&apos;s portion coach · {adaptiveDietCoach.label}</span>
               <strong>{adaptiveDietCoach.headline}</strong>
@@ -8716,7 +8890,7 @@ export default function Home() {
                 Protein basis
               </span>
             </div>
-          </details>
+          </details>}
         </section>
 
         <section className="diet-control-panel" aria-label="Diet day controls">
@@ -8737,6 +8911,9 @@ export default function Home() {
           <nav className="diet-week-strip" aria-label="Choose diet day">
             {currentDietWeekDays.map((day) => {
               const log = normalizeDietDayLog(store.dietDays[day.iso]);
+              const batchDay = day.iso >= store.mealPrep.startedOn;
+              const foodCalories = batchDay ? prepBatch(store.mealPrep, day.iso, prepContextForDate).servings
+                .filter((row) => row.date === day.iso).reduce((sum, row) => sum + row.serving.calories, 0) : null;
               return (
                 <button
                   key={day.iso}
@@ -8747,9 +8924,9 @@ export default function Home() {
                   type="button"
                 >
                   <span>{day.dayName.slice(0, 3)}</span>
-                  <strong>{day.session.code}</strong>
+                  <strong>{dateFromIso(day.iso).getDate()}</strong>
                   <small>
-                    {log.completed ? "Completed" : personalizedDietTarget(
+                    {log.completed ? "Completed" : foodCalories !== null ? `~${foodCalories.toLocaleString()} kcal` : personalizedDietTarget(
                       dietDayTypeForPlanDay(day),
                       store.settings,
                       proteinReference.weight,
@@ -8789,7 +8966,19 @@ export default function Home() {
           </span>
         </section>
 
-        <div className="diet-layout">
+        {usesBatchMenu ? <>
+          {renderSharedPrep(selectedDietDay.iso, setSelectedDietDate, "diet")}
+          <details className="diet-coach-note prep-fuel-disclosure">
+            <summary>Training fuel & daily notes</summary>
+            <p>{prepContextForDate(selectedDietDay.iso).training
+              ? "Keep lunch complete. Eat your familiar yogurt-and-fruit snack 60-120 minutes before after-work lifting; for class, a normal meal 2-3 hours before is another option. Have dinner after training. No extra shake is required."
+              : "Keep regular meals and protein on easier days, too. No meals are removed to make up for missed training."}</p>
+            <p>Bring water. If you feel faint, stop and sit or lie down; food cannot guarantee this will not happen.</p>
+            <label className="notes-field">Today&apos;s note<textarea value={selectedDietLog.notes}
+              placeholder="Meal prep, appetite, or anything to remember..."
+              onChange={(event) => updateDietDay(selectedDietDay.iso, (log) => ({ ...log, notes: event.target.value }))} /></label>
+          </details>
+        </> : <div className="diet-layout">
           <section className="diet-meal-stack" aria-label="Meals for selected day">
             {dietMealRows.map((meal, mealIndex) => (
               <article
@@ -8849,6 +9038,7 @@ export default function Home() {
                   <button
                     className={`diet-complete-button ${meal.isComplete ? "complete" : ""}`}
                     type="button"
+                    disabled={selectedDietDay.iso > calendarDate}
                     onClick={() => toggleDietMeal(meal.slot)}
                   >
                     <Icon name={meal.isComplete ? "check" : "activity"} size={16} />
@@ -9025,7 +9215,7 @@ export default function Home() {
               </label>
             </section>
           </aside>
-        </div>
+        </div>}
 
         <AchievementMoment label={achievementMoment} />
         <PrimaryAppDock active={primaryDestination} onSelect={switchPrimaryDestination} notice={undoNotice} />

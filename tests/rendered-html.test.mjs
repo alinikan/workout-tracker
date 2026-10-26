@@ -439,15 +439,15 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
   assert.match(readme, /built-in fat-loss diet plan/);
   assert.match(readme, /Preference-aware defaults/);
   assert.match(readme, /After-Work Training Fuel/);
-  assert.match(readme, /Expandable Make It guide/);
+  assert.match(readme, /Expandable cooking guide/);
   assert.match(readme, /Today's portion coach/);
-  assert.match(readme, /protein needs, workout adherence, readiness, and day type/);
+  assert.match(readme, /Prepared batches and eaten portions are snapshots/);
   assert.match(readme, /Calorie tightening waits for completed weekly-average evidence/);
   assert.match(readme, /weight trend chart/);
   assert.match(readme, /Expandable history/);
   assert.match(readme, /Revert to original/);
   assert.match(readme, /Morning weight in kg/);
-  assert.match(readme, /store-neutral ingredient list/);
+  assert.match(readme, /ingredient totals/);
   assert.match(readme, /npm run dev -- --port 3001/);
   assert.doesNotMatch(app, /Body weight \(lbs\)/);
   assert.doesNotMatch(app, /Protein body weight \(kg\)/);
@@ -677,8 +677,8 @@ test("day skip controls share date-scoped handlers and Gym shows a terminal summ
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v48/);
-  assert.match(serviceWorker, /accessible-colors-v48/);
+  assert.match(serviceWorker, /recomp-gym-console-v49/);
+  assert.match(serviceWorker, /batch-meal-prep-v49/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
   assert.match(serviceWorker, /requestDestination === "script"/);
   assert.match(serviceWorker, /APP_UPDATED/);

@@ -464,6 +464,19 @@ test("A concurrent recipe swap cannot count an original meal checkmark as eating
   assert.equal(merged.meals["2026-10-26"].eaten.breakfast, false);
 });
 
+test("private meal snapshots preserve the actual checked batch recipe across independent sync", () => {
+  const base = fixture(), a = structuredClone(base), b = structuredClone(base);
+  a.meals["2026-10-26"] = { swaps: {}, eaten: { lunch: true },
+    recipes: { lunch: "prep-chicken-breast-rice" },
+    portions: { lunch: { plate: ["150 g cooked chicken"], calories: 650, protein: 47 } } };
+  b.meals["2026-10-26"] = { swaps: {}, eaten: { dinner: true }, recipes: { dinner: "prep-beef-rice" } };
+  const merged = mergeMomentum(base, a, b);
+  assert.equal(merged.meals["2026-10-26"].recipes.lunch, "prep-chicken-breast-rice");
+  assert.equal(merged.meals["2026-10-26"].eaten.lunch, true);
+  assert.equal(merged.meals["2026-10-26"].eaten.dinner, true);
+  assert.equal(merged.meals["2026-10-26"].portions.lunch.calories, 650);
+});
+
 test("Private device cache contains ciphertext and cannot be read under another account", async () => {
   class MemoryStorage {
     getItem(k) {

@@ -10,11 +10,12 @@ import { createServer } from "vite";
 import { chromium, webkit, expect } from "playwright/test";
 import { runMomentumChecks } from "./momentum-ui-check.mjs";
 import { runContrastChecks } from "./contrast-ui-check.mjs";
+import { runBatchChecks } from "./batch-ui-check.mjs";
 
 const storageKey = "body-recomp-gym-tracker-v1";
 const fixtureHost = "tracker-fixture.supabase.co";
 const diagnosticContexts = new Set();
-const { values } = parseArgs({ options: { repeat: { type: "string", default: "1" }, "momentum-only": { type: "boolean", default: false }, "contrast-only": { type: "boolean", default: false } } });
+const { values } = parseArgs({ options: { repeat: { type: "string", default: "1" }, "momentum-only": { type: "boolean", default: false }, "contrast-only": { type: "boolean", default: false }, "batch-only": { type: "boolean", default: false } } });
 const repeatCount = Number(values.repeat);
 assert.ok(Number.isInteger(repeatCount) && repeatCount >= 1 && repeatCount <= 5, "--repeat must be an integer from 1 to 5");
 const server = await createServer({
@@ -301,53 +302,67 @@ async function verifyInlineExperience(page, label, viewport) {
 }
 
 async function verifyRecipeExperience(page, label) {
-  const meal = page.locator(".diet-meal-card").first();
-  // These are live forms, not virtualized previews. A real height and an
-  // untransformed ancestor keep hit targets stable across short/long panels.
-  await expect(meal).toHaveCSS("content-visibility", "visible");
-  await expect(meal).toHaveCSS("transform", "none");
-  await expect(meal.locator(".meal-portion-preview p")).toContainText(/\d/);
-  await meal.getByRole("button", { name: /View portion/ }).click();
-  await expect(meal.getByRole("tab", { name: "Portion", exact: true })).toHaveAttribute("aria-selected", "true");
-  await meal.getByRole("button", { name: "Make It", exact: true }).click();
-  await expect(meal.locator(".diet-howto-panel")).toHaveCount(0);
-  await meal.getByRole("button", { name: "Make It", exact: true }).click();
-  const panel = meal.locator(".diet-howto-panel");
-  await expect(panel.locator(".diet-howto-steps li").first()).toBeVisible();
-  await panel.getByRole("tab", { name: "Ingredients", exact: true }).click();
-  await expect(panel.locator(".diet-basics-grid li").first()).toBeVisible();
-  await panel.getByRole("tab", { name: "Portion", exact: true }).click();
-  await expect(panel.getByRole("tab", { name: "Portion", exact: true })).toHaveAttribute("aria-selected", "true");
-  await expect(panel.locator(".smart-portion-card")).toContainText("Plate your serving");
-  await assertSelectionContrast(page, ".diet-howto-panel [aria-selected='true']");
-  // Repeatedly replace the long instructions with the shorter panels using
-  // real input, not dispatchEvent/force/retries. This catches moving targets
-  // even when one lucky first click would have passed on a developer's Mac.
-  for (let cycle = 0; cycle < 3; cycle += 1) {
-    for (const name of ["Cook", "Ingredients", "Portion"]) {
-      const tab = panel.getByRole("tab", { name, exact: true });
-      // Center the strip as a phone user would, then test the actual tap.
-      await tab.evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
-      if (page.viewportSize().width < 720) await tab.tap();
-      else await tab.click();
-      await expect(tab).toHaveAttribute("aria-selected", "true");
-      await expect(panel.getByRole("tabpanel", { name, exact: true })).toBeVisible();
-    }
-  }
-  await meal.getByRole("button", { name: "Make It", exact: true }).click();
-  await expect(panel).toHaveCount(0);
-  await meal.getByRole("button", { name: "Swap", exact: true }).click();
-  await meal.locator(".diet-swap-grid button").first().click();
-  await expect(meal.locator(".diet-swap-alert")).toBeVisible();
-  await meal.locator(".diet-swap-alert").getByRole("button", { name: "Revert to original", exact: true }).click();
-  await expect(meal.locator(".diet-swap-alert")).toHaveCount(0);
-  await meal.getByRole("button", { name: "Mark eaten", exact: true }).click();
-  await expect(meal.getByRole("button", { name: "Done", exact: true })).toBeVisible();
+  const planner = page.locator(".meal-prep-planner");
+  const tab = (name) => planner.getByRole("tab", { name, exact: true });
+  await expect(planner.locator(".mp-meal")).toHaveCount(4);
+  const lunch = planner.getByRole("article", { name: "Lunch", exact: true });
+  const dinner = planner.getByRole("article", { name: "Dinner", exact: true });
+  assert.equal(await lunch.locator("h3").innerText(), await dinner.locator("h3").innerText());
+  await tab("Cook batch").click();
+  // The fixture begins partway through a block. Restarting deliberately leaves
+  // earlier dates alone instead of silently changing yesterday's containers.
+  const restart = planner.getByRole("button", { name: "Start a new batch today", exact: true });
+  if (await restart.count()) await restart.click();
+  await planner.getByRole("button", { name: "3 days", exact: true }).click();
+  await expect(planner.locator(".mp-batch-counts")).toContainText("6");
+  await expect(planner.getByRole("region", { name: "Full batch ingredients", exact: true })).toContainText("dry weight");
+  const main = planner.getByRole("region", { name: "Lunch + dinner", exact: true });
+  const original = await main.locator("h3").innerText();
+  await main.getByRole("button", { name: /^Swap/ }).click();
+  await main.locator(".mp-swap-option[aria-pressed='false']").first().click();
+  await expect(main.locator("h3")).not.toHaveText(original);
+  await expect(main).toContainText("Swap version");
+  await main.getByRole("button", { name: /^Revert to original/ }).click();
+  await expect(main.locator("h3")).toHaveText(original);
+  // Reopening a checked meal must not retain its previous food/portion if the
+  // user then chooses another uncooked batch. Test the persisted record too.
+  await tab("Eat today").click();
+  await lunch.getByRole("button", { name: "Mark eaten: Lunch", exact: true }).click();
+  await lunch.getByRole("button", { name: "Reopen Lunch", exact: true }).click();
+  await tab("Cook batch").click();
+  await main.getByRole("button", { name: /^Swap/ }).click();
+  await main.locator(".mp-swap-option").filter({ hasText: "Beef + rice" }).click();
+  await tab("Eat today").click();
+  await lunch.getByRole("button", { name: "Mark eaten: Lunch", exact: true }).click();
+  await expect.poll(() => page.evaluate((key) => {
+    const saved = JSON.parse(localStorage.getItem(key));
+    return Object.values(saved.dietDays).some((day) => day.meals.lunch && day.recipes?.lunch === "prep-beef-rice" &&
+      day.portions?.lunch?.plate.some((line) => line.includes("beef")));
+  }, storageKey)).toBe(true);
+  await lunch.getByRole("button", { name: "Reopen Lunch", exact: true }).click();
+  await tab("Cook batch").click();
+  await main.getByRole("button", { name: /^Revert to original/ }).click();
+  await main.locator(".mp-instructions > summary").click();
+  await expect(main.locator(".mp-steps li").first()).toBeVisible();
+  await planner.getByRole("checkbox", { name: /Batch prepared/ }).check();
+  await expect(main.getByRole("button", { name: /^Swap/ })).toBeDisabled();
+  await tab("To buy").click();
+  await planner.getByRole("button", { name: "Next 7 days", exact: true }).click();
+  const grocery = planner.locator(".mp-grocery input").first();
+  await grocery.check();
+  await expect(grocery).toBeChecked();
+  await assertLayout(page, `${label}-batch-shopping`);
+  await page.screenshot({ path: `outputs/ui-check/${label}-batch-shopping.png` });
+  await tab("Eat today").click();
+  const meal = planner.getByRole("article", { name: "Breakfast", exact: true });
+  await meal.getByRole("button", { name: "Mark eaten: Breakfast", exact: true }).click();
+  await expect(meal.getByRole("button", { name: "Reopen Breakfast", exact: true })).toBeVisible();
   await page.locator(".undo-notice").getByRole("button", { name: "Undo", exact: true }).click();
-  await expect(meal.getByRole("button", { name: "Mark eaten", exact: true })).toBeVisible();
-  await meal.getByRole("button", { name: "Mark eaten", exact: true }).click();
-  await meal.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(meal.getByRole("button", { name: "Mark eaten: Breakfast", exact: true })).toBeVisible();
+  await meal.getByRole("button", { name: "Mark eaten: Breakfast", exact: true }).click();
+  await meal.getByRole("button", { name: "Reopen Breakfast", exact: true }).click();
   await page.locator(".undo-notice").getByRole("button", { name: "Dismiss undo", exact: true }).click();
+  await assertSelectionContrast(page, ".meal-prep-planner [role='tab'][aria-selected='true']");
   await assertLayout(page, `${label}-recipes`);
 }
 
@@ -360,7 +375,7 @@ const browserCases = [
 const runs = Array.from({ length: repeatCount }, (_, index) => index + 1)
   .flatMap((iteration) => browserCases.map((entry) => [iteration, ...entry]));
 try {
-  if (!values["momentum-only"] && !values["contrast-only"]) {
+  if (!values["momentum-only"] && !values["contrast-only"] && !values["batch-only"]) {
   for (const [iteration, engineName, engine, viewport] of runs) {
     const browser = await engine.launch();
     browsers.push(browser);
@@ -402,6 +417,7 @@ try {
       await assertLayout(page, `${label}-coach`);
       await page.screenshot({ path: `outputs/ui-check/${label}-coach.png` });
       await page.locator(".coach-disclosure > summary").click();
+      await page.locator(".calorie-mode-control > summary").click();
       await assertSelectionContrast(page, ".calorie-mode-control button.selected");
       await page.locator(".coach-disclosure > summary").click();
       await navigate(page, "Today");
@@ -582,8 +598,9 @@ try {
   await Promise.all(contexts.map((context) => context.close()));
   console.log("PASS two-device auth/reset/same-browser tab/offline stale-save/reconnect/reload integration (fixture only)");
   }
-  if (!values["contrast-only"]) await runMomentumChecks({ server, model, browsers, prepare, fixtureBackend, assertLayout, assertSelectionContrast, settlePresentation });
-  if (!values["momentum-only"]) await runContrastChecks({ server, model, browsers, prepare, fixtureBackend, navigate, settlePresentation });
+  if (!values["momentum-only"] && !values["contrast-only"]) await runBatchChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout });
+  if (!values["contrast-only"] && !values["batch-only"]) await runMomentumChecks({ server, model, browsers, prepare, fixtureBackend, assertLayout, assertSelectionContrast, settlePresentation });
+  if (!values["momentum-only"] && !values["batch-only"]) await runContrastChecks({ server, model, browsers, prepare, fixtureBackend, navigate, settlePresentation });
 } catch (error) {
   // Preserve the failing screen itself, not only earlier milestone screenshots.
   // Do not let diagnostic I/O hide the original assertion or delay cleanup.

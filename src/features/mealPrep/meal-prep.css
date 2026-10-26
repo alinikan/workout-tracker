@@ -1,0 +1,836 @@
+/* Scoped semantic tokens let the same planner live in Diet and Momentum. */
+.meal-prep-planner {
+  --prep-text: var(--mm-text, var(--text-primary));
+  --prep-muted: var(--mm-muted, var(--text-secondary));
+  --prep-line: var(--mm-line, var(--separator));
+  --prep-surface: var(--mm-surface, var(--surface-primary));
+  --prep-soft: var(--mm-soft, var(--surface-secondary));
+  --prep-accent: var(--mm-teal, var(--accent-strong));
+  --prep-tint: var(--mm-active, var(--accent-soft));
+  color: var(--prep-text);
+  min-width: 0;
+  width: 100%;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+.meal-prep-planner *,
+.meal-prep-planner *::before,
+.meal-prep-planner *::after {
+  box-sizing: border-box;
+  min-width: 0;
+  letter-spacing: 0;
+}
+.meal-prep-planner :is(h2, h3, h4, p, ul, ol, dl, fieldset) {
+  margin: 0;
+}
+.meal-prep-planner h2 {
+  color: var(--prep-text);
+  font-size: 22px;
+  line-height: 1.25;
+}
+.meal-prep-planner h3 {
+  color: var(--prep-text);
+  font-size: 17px;
+  line-height: 1.35;
+}
+.meal-prep-planner h4 {
+  color: var(--prep-text);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.meal-prep-planner small {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.meal-prep-planner :is(button, input, select) {
+  font: inherit;
+}
+.meal-prep-planner button {
+  touch-action: manipulation;
+}
+.meal-prep-planner :is(button, input, summary, a):focus-visible {
+  outline: 3px solid var(--prep-accent);
+  outline-offset: 3px;
+}
+.meal-prep-planner svg {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+}
+.meal-prep-planner :is(p, h2, h3, h4, li, span, strong) {
+  overflow-wrap: anywhere;
+}
+.meal-prep-planner .mp-muted {
+  color: var(--prep-muted);
+}
+.meal-prep-planner .mp-kicker {
+  display: block;
+  color: var(--prep-muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+.meal-prep-planner .mp-stack {
+  display: grid;
+  gap: 8px;
+}
+.meal-prep-planner .mp-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.meal-prep-planner .mp-heading-copy {
+  display: grid;
+  gap: 3px;
+}
+.meal-prep-planner .mp-date-nav {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  gap: 4px;
+  align-items: center;
+  width: 100%;
+}
+.meal-prep-planner .mp-date-label {
+  display: grid;
+  gap: 1px;
+  text-align: center;
+}
+.meal-prep-planner .mp-date-label strong {
+  font-size: 17px;
+}
+.meal-prep-planner .mp-date-label small {
+  color: var(--prep-muted);
+}
+.meal-prep-planner .mp-date-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid var(--prep-line);
+  border-radius: 6px;
+  background: var(--prep-surface);
+  color: var(--prep-text);
+  font-size: 14px;
+  text-align: center;
+}
+.meal-prep-planner .mp-icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--prep-line);
+  border-radius: 6px;
+  background: var(--prep-surface);
+  color: var(--prep-text);
+}
+.meal-prep-planner .session-section-tabs {
+  margin: 16px 0 20px;
+  border-color: var(--prep-line);
+  background: var(--prep-soft);
+}
+.meal-prep-planner .session-section-tabs button {
+  display: block;
+  min-height: 44px;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--prep-muted);
+  font-size: 13px;
+  line-height: 1.3;
+}
+.meal-prep-planner .session-section-tabs button[aria-selected="true"] {
+  color: var(--selection-ink);
+  background: var(--selection-fill);
+  box-shadow: none;
+}
+/* Semantic foreground/background pairs must change together, without a low-
+   contrast intermediate frame inherited from either host's button animation. */
+.meal-prep-planner .session-section-tabs button,
+.meal-prep-planner .mp-segment button,
+.meal-prep-planner .mp-button,
+.meal-prep-planner .mp-swap-option {
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease;
+}
+.meal-prep-planner .mp-panel {
+  outline: none;
+}
+.meal-prep-planner .mp-panel[hidden] {
+  display: none;
+}
+.meal-prep-planner .mp-day-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--prep-line);
+}
+.meal-prep-planner .mp-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--prep-accent);
+  font-size: 13px;
+  font-weight: 650;
+}
+.meal-prep-planner .mp-count svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Meals are compact repeated rows, not nested panels. */
+.meal-prep-planner .mp-meal {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--prep-line);
+}
+.meal-prep-planner .mp-meal-top {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+.meal-prep-planner .mp-photo {
+  display: block;
+  width: 76px;
+  height: 76px;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--prep-soft);
+}
+.meal-prep-planner .mp-photo-fallback {
+  display: grid;
+  place-items: center;
+  color: var(--prep-muted);
+}
+.meal-prep-planner .mp-photo-fallback svg {
+  width: 28px;
+  height: 28px;
+}
+.meal-prep-planner .mp-meal-copy {
+  display: grid;
+  gap: 4px;
+}
+.meal-prep-planner .mp-meal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 12px;
+  color: var(--prep-muted);
+}
+.meal-prep-planner .mp-meal-meta > span:first-child {
+  color: var(--prep-accent);
+  font-weight: 650;
+}
+.meal-prep-planner .mp-recorded {
+  color: var(--info);
+}
+.meal-prep-planner .mp-version {
+  color: var(--prep-accent);
+  font-weight: 650;
+}
+.meal-prep-planner .mp-eat-revert {
+  margin-top: 4px;
+}
+.meal-prep-planner .mp-plate {
+  display: grid;
+  gap: 3px;
+  list-style: none;
+  padding: 0;
+  color: var(--prep-text);
+  font-size: 13px;
+}
+.meal-prep-planner .mp-plate li {
+  padding-left: 11px;
+  position: relative;
+}
+.meal-prep-planner .mp-plate li::before {
+  content: "";
+  position: absolute;
+  top: 0.65em;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--prep-accent);
+}
+.meal-prep-planner .mp-meal-portion {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.meal-prep-planner .mp-nutrition {
+  color: var(--prep-muted);
+  font-size: 12px;
+}
+.meal-prep-planner .mp-meal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+.meal-prep-planner .mp-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid var(--prep-line);
+  border-radius: 6px;
+  background: var(--prep-surface);
+  color: var(--prep-text);
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: center;
+}
+.meal-prep-planner .mp-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+.meal-prep-planner .mp-button[aria-pressed="true"] {
+  border-color: var(--selection-fill);
+  color: var(--selection-ink);
+  background: var(--selection-fill);
+}
+.meal-prep-planner .mp-button-primary {
+  color: var(--selection-ink);
+  background: var(--selection-fill);
+  border-color: var(--selection-fill);
+}
+.meal-prep-planner .mp-text-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 0;
+  color: var(--prep-accent);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  font-size: 13px;
+  text-align: left;
+}
+.meal-prep-planner .mp-meal.is-eaten .mp-meal-copy h3 {
+  color: var(--prep-muted);
+}
+.meal-prep-planner .mp-instructions {
+  margin-top: 12px;
+}
+.meal-prep-planner .mp-instructions > summary,
+.meal-prep-planner .mp-safety > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--prep-accent);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.meal-prep-planner summary::-webkit-details-marker {
+  display: none;
+}
+.meal-prep-planner .mp-instructions > summary .mp-chevron,
+.meal-prep-planner .mp-safety > summary .mp-chevron {
+  margin-left: auto;
+  transition: transform 160ms ease;
+}
+.meal-prep-planner details[open] > summary .mp-chevron {
+  transform: rotate(180deg);
+}
+.meal-prep-planner .mp-instructions-body {
+  padding: 12px 0 4px;
+  display: grid;
+  gap: 14px;
+}
+.meal-prep-planner .mp-steps {
+  padding-left: 24px;
+  display: grid;
+  gap: 12px;
+}
+.meal-prep-planner .mp-steps li {
+  padding-left: 4px;
+}
+.meal-prep-planner .mp-steps li::marker {
+  color: var(--prep-accent);
+  font-weight: 700;
+}
+.meal-prep-planner .mp-ingredient-list {
+  padding: 0;
+  list-style: none;
+}
+.meal-prep-planner .mp-ingredient-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--prep-line);
+}
+.meal-prep-planner .mp-amount {
+  flex: 0 0 auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.meal-prep-planner .mp-amount small {
+  display: block;
+  color: var(--prep-muted);
+  font-size: 11px;
+}
+
+.meal-prep-planner .mp-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 12px 0;
+  padding: 12px;
+  border-left: 3px solid var(--prep-accent);
+  background: var(--prep-soft);
+  color: var(--prep-text);
+  font-size: 13px;
+}
+.meal-prep-planner .mp-notice > svg {
+  margin-top: 2px;
+}
+.meal-prep-planner .mp-notice > div {
+  display: grid;
+  gap: 6px;
+}
+.meal-prep-planner .mp-warning {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+  color: var(--text-primary);
+}
+.meal-prep-planner .mp-warning > svg {
+  color: var(--warning);
+}
+.meal-prep-planner .mp-notice .mp-text-button {
+  justify-content: flex-start;
+  padding: 4px 0;
+}
+.meal-prep-planner .mp-section {
+  padding: 22px 0;
+  border-bottom: 1px solid var(--prep-line);
+}
+.meal-prep-planner .mp-section > .mp-heading {
+  margin-bottom: 14px;
+}
+.meal-prep-planner .mp-duration {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+}
+.meal-prep-planner .mp-segment {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--prep-line);
+  border-radius: 6px;
+  background: var(--prep-soft);
+}
+.meal-prep-planner .mp-segment button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 40px;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--prep-muted);
+  font-size: 13px;
+}
+.meal-prep-planner .mp-segment button[aria-pressed="true"] {
+  background: var(--selection-fill);
+  color: var(--selection-ink);
+}
+.meal-prep-planner .mp-batch-counts {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 14px 0;
+  border-block: 1px solid var(--prep-line);
+}
+.meal-prep-planner .mp-batch-counts > div {
+  display: grid;
+  gap: 1px;
+}
+.meal-prep-planner .mp-batch-counts strong {
+  font-size: 21px;
+  line-height: 1.2;
+}
+.meal-prep-planner .mp-batch-counts small {
+  color: var(--prep-muted);
+}
+.meal-prep-planner .mp-batch-counts > div:first-child strong {
+  color: var(--prep-accent);
+}
+.meal-prep-planner .mp-recipe-row {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--prep-line);
+}
+.meal-prep-planner .mp-recipe-title {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 12px;
+}
+.meal-prep-planner .mp-recipe-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin-top: 8px;
+}
+.meal-prep-planner .mp-recipe-description {
+  margin-top: 12px;
+  color: var(--prep-muted);
+  font-size: 13px;
+}
+.meal-prep-planner .mp-swap-options {
+  display: grid;
+  margin-top: 10px;
+  gap: 0;
+}
+.meal-prep-planner .mp-swap-option {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 44px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 10px;
+  min-height: 70px;
+  padding: 10px 8px;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--prep-line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--prep-text);
+}
+.meal-prep-planner .mp-swap-option > span {
+  display: grid;
+  gap: 2px;
+}
+.meal-prep-planner .mp-swap-option small {
+  color: var(--prep-muted);
+}
+.meal-prep-planner .mp-swap-option .mp-photo {
+  width: 44px;
+  height: 44px;
+}
+.meal-prep-planner .mp-swap-option[aria-pressed="true"] {
+  background: var(--prep-tint);
+  color: var(--prep-text);
+  box-shadow: inset 3px 0 var(--prep-accent);
+}
+.meal-prep-planner .mp-swap-option[aria-pressed="true"] > svg {
+  color: var(--prep-accent);
+}
+.meal-prep-planner .mp-swap-caption {
+  padding-top: 8px;
+  font-size: 12px;
+  color: var(--prep-muted);
+}
+.meal-prep-planner .mp-prepared {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  min-height: 56px;
+  padding: 18px 0;
+  cursor: pointer;
+}
+.meal-prep-planner input[type="checkbox"] {
+  width: 21px;
+  height: 21px;
+  min-height: 21px;
+  flex: 0 0 21px;
+  margin: 3px 0 0;
+  padding: 0;
+  accent-color: var(--selection-fill);
+  border-radius: 3px;
+}
+.meal-prep-planner .mp-prepared > span {
+  display: grid;
+  gap: 3px;
+}
+.meal-prep-planner .mp-prepared small {
+  color: var(--prep-muted);
+}
+.meal-prep-planner .mp-ingredient-groups {
+  display: grid;
+  gap: 22px;
+}
+.meal-prep-planner .mp-ingredient-group h4 {
+  padding-bottom: 5px;
+  color: var(--prep-accent);
+}
+.meal-prep-planner .mp-optional-label {
+  margin-top: 20px;
+  margin-bottom: 8px;
+  color: var(--prep-muted);
+}
+
+/* Keep the table semantics; each day becomes a labeled grid on a phone. */
+.meal-prep-planner .mp-portions {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  font-size: 12px;
+}
+.meal-prep-planner .mp-portions caption {
+  text-align: left;
+  color: var(--prep-muted);
+  padding-bottom: 12px;
+  font-size: 12px;
+}
+.meal-prep-planner .mp-portions thead {
+  display: none;
+}
+.meal-prep-planner .mp-portions :is(tbody, tr) {
+  display: block;
+}
+.meal-prep-planner .mp-portions tr {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--prep-line);
+}
+.meal-prep-planner .mp-portions th {
+  display: block;
+  text-align: left;
+  margin-bottom: 10px;
+  padding: 0;
+  color: var(--prep-text);
+}
+.meal-prep-planner .mp-portions td {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 10px;
+  padding: 8px 0;
+  border: 0;
+  vertical-align: top;
+}
+.meal-prep-planner .mp-portions td::before {
+  content: attr(data-label);
+  color: var(--prep-muted);
+  font-weight: 650;
+}
+.meal-prep-planner .mp-portions .mp-plate {
+  font-size: 12px;
+}
+.meal-prep-planner .mp-portions .mp-plate li {
+  padding-left: 0;
+}
+.meal-prep-planner .mp-portions .mp-plate li::before {
+  display: none;
+}
+.meal-prep-planner .mp-portion-cell {
+  display: grid;
+  gap: 6px;
+}
+.meal-prep-planner .mp-portion-cell > small {
+  color: var(--prep-muted);
+  font-size: 11px;
+}
+.meal-prep-planner .mp-safety {
+  margin-top: 8px;
+  padding: 12px 0;
+}
+.meal-prep-planner .mp-safety-content {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+  color: var(--prep-muted);
+  font-size: 13px;
+}
+.meal-prep-planner .mp-safety-content ul {
+  display: grid;
+  gap: 10px;
+  padding-left: 20px;
+}
+.meal-prep-planner .mp-safety a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--prep-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.meal-prep-planner .mp-safety-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.meal-prep-planner .mp-safety-links svg {
+  width: 13px;
+  height: 13px;
+}
+.meal-prep-planner .mp-shopping-range {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.meal-prep-planner .mp-shopping-range .mp-segment {
+  width: 100%;
+}
+.meal-prep-planner .mp-shopping-progress {
+  display: grid;
+  gap: 7px;
+  margin: 16px 0 24px;
+}
+.meal-prep-planner .mp-shopping-progress > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--prep-muted);
+}
+.meal-prep-planner .mp-shopping-progress progress {
+  width: 100%;
+  height: 4px;
+  accent-color: var(--prep-accent);
+  border-radius: 2px;
+}
+.meal-prep-planner .mp-shopping-progress progress::-webkit-progress-bar {
+  background: var(--prep-soft);
+}
+.meal-prep-planner .mp-shopping-progress progress::-webkit-progress-value {
+  background: var(--prep-accent);
+}
+.meal-prep-planner .mp-grocery {
+  display: flex;
+  min-height: 64px;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--prep-line);
+  cursor: pointer;
+}
+.meal-prep-planner .mp-grocery > span {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 12px;
+}
+.meal-prep-planner .mp-grocery.is-checked .mp-grocery-name {
+  color: var(--prep-muted);
+  text-decoration: line-through;
+}
+.meal-prep-planner .mp-shopping-batches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  color: var(--prep-muted);
+  font-size: 12px;
+}
+.meal-prep-planner .mp-bottom-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 0;
+  color: var(--prep-accent);
+  width: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 14px;
+  text-align: left;
+}
+
+@media (min-width: 600px) {
+  .meal-prep-planner .mp-date-nav {
+    width: 320px;
+  }
+  .meal-prep-planner .mp-meal {
+    position: relative;
+    padding-right: 126px;
+  }
+  .meal-prep-planner .mp-meal-portion {
+    margin-left: 88px;
+  }
+  .meal-prep-planner .mp-meal-actions {
+    margin-left: 88px;
+  }
+  .meal-prep-planner .mp-eaten-button {
+    position: absolute;
+    right: 0;
+    top: 24px;
+    width: 110px;
+  }
+  .meal-prep-planner .mp-instructions {
+    margin-left: 88px;
+  }
+  .meal-prep-planner .mp-eat-revert {
+    margin-left: 88px;
+  }
+  .meal-prep-planner .mp-recipe-row > .mp-instructions {
+    margin-left: 0;
+  }
+  .meal-prep-planner .mp-panel > .mp-instructions {
+    margin-left: 0;
+  }
+  .meal-prep-planner .mp-ingredient-groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 32px;
+  }
+  .meal-prep-planner .mp-shopping-range {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+  .meal-prep-planner .mp-shopping-range .mp-segment {
+    width: auto;
+  }
+}
+
+@media (min-width: 800px) {
+  .meal-prep-planner .mp-portions thead {
+    display: table-header-group;
+  }
+  .meal-prep-planner .mp-portions tbody {
+    display: table-row-group;
+  }
+  .meal-prep-planner .mp-portions tr {
+    display: table-row;
+  }
+  .meal-prep-planner .mp-portions :is(th, td) {
+    display: table-cell;
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--prep-line);
+  }
+  .meal-prep-planner .mp-portions th {
+    width: 100px;
+  }
+  .meal-prep-planner .mp-portions thead th {
+    color: var(--prep-muted);
+    font-weight: 650;
+  }
+  .meal-prep-planner .mp-portions :is(th, td):first-child {
+    padding-left: 0;
+  }
+  .meal-prep-planner .mp-portions td::before {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meal-prep-planner *,
+  .meal-prep-planner *::before {
+    transition: none !important;
+  }
+}

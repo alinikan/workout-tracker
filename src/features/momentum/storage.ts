@@ -112,7 +112,8 @@ export function mergeMomentum(
         ![local, remote].some(
           (d) =>
             d.meals[date]?.eaten[slot] &&
-            d.meals[date]?.swaps[slot] === meal.swaps[slot],
+            (d.meals[date]?.recipes?.[slot] ?? d.meals[date]?.swaps[slot]) ===
+              (meal.recipes?.[slot] ?? meal.swaps[slot]),
         )
       )
         meal.eaten[slot] = false;

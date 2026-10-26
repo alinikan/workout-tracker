@@ -53,7 +53,6 @@ import {
   type ActivityLog,
   type Adaptation,
   type Journey,
-  type MealSlot,
   type MomentumData,
   type Outcome,
   type Resources,
@@ -78,7 +77,6 @@ type Props = {
   weightsReady: boolean;
 };
 type View = "today" | "meals" | "journey";
-const mealSlots: MealSlot[] = ["breakfast", "lunch", "snack", "dinner"];
 const dateLabel = (date: string) =>
   new Intl.DateTimeFormat("en-CA", {
     weekday: "short",
@@ -86,16 +84,6 @@ const dateLabel = (date: string) =>
     day: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${date}T12:00:00Z`));
-const recipeDay = (date: string) =>
-  [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-  ][weekday(date)];
 const Icon = ({ activity }: { activity: string }) =>
   activity === "boxing" ? (
     <Flame />
@@ -171,8 +159,15 @@ export default function MomentumPage(p: Props) {
   );
   const [start, setStart] = useState(suggestedStart(today)),
     [notice, setNotice] = useState("");
-  const [mealOpen, setMealOpen] = useState<MealSlot | null>(null),
-    [mealDate, setMealDate] = useState(today);
+  const [mealDate, setMealDate] = useState(today);
+  // A Home Screen app can remain suspended overnight. Keep an intentional
+  // browsed date, but advance Meals when it was following the previous today.
+  const lastMealToday = useRef(today);
+  useEffect(() => {
+    const previous = lastMealToday.current;
+    setMealDate((date) => date === previous ? today : date);
+    lastMealToday.current = today;
+  }, [today]);
   const [switchDate, setSwitchDate] = useState(""),
     [moveDate, setMoveDate] = useState("");
   const selected =
@@ -734,169 +729,12 @@ export default function MomentumPage(p: Props) {
             <section className="mm-meals">
               <div className="mm-page-heading">
                 <div>
-                  <span className="mm-eyebrow">Fuel the routine</span>
-                  <h1>Eat well. Keep it simple.</h1>
+                  <span className="mm-eyebrow">Cook once. Eat for days.</span>
+                  <h1>Meals that fit your week.</h1>
                 </div>
                 <Utensils />
               </div>
-              <Field label="Meals for">
-                <input
-                  type="date"
-                  value={mealDate}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setMealDate(e.target.value);
-                      setMealOpen(null);
-                    }
-                  }}
-                />
-              </Field>
-              <p className="mm-muted">
-                Regular meals, protein and comfortable portions. No extra
-                restriction to make up for missed training.
-              </p>
-              {mealSlots.map((slot, index) => {
-                const original = resources.meals[recipeDay(mealDate)]?.[slot];
-                const recipe = resources.recipes.find(
-                  (r) =>
-                    r.id === (data.meals[mealDate]?.swaps[slot] ?? original),
-                );
-                if (!recipe) return null;
-                const eaten = Boolean(data.meals[mealDate]?.eaten[slot]),
-                  swapped = recipe.id !== original;
-                const mealUpdate = (recipeId?: string, checked?: boolean) =>
-                  edit((d) => {
-                    const old = d.meals[mealDate] ?? { swaps: {}, eaten: {} };
-                    const swaps = { ...old.swaps };
-                    if (recipeId === original) delete swaps[slot];
-                    else if (recipeId) swaps[slot] = recipeId;
-                    return {
-                      ...d,
-                      meals: {
-                        ...d.meals,
-                        [mealDate]: {
-                          swaps,
-                          eaten: {
-                            ...old.eaten,
-                            [slot]: recipeId ? false : (checked ?? false),
-                          },
-                        },
-                      },
-                    };
-                  });
-                return (
-                  <article
-                    className={`mm-meal ${eaten ? "eaten" : ""}`}
-                    key={slot}
-                  >
-                    <button
-                      className="mm-meal-summary"
-                      aria-expanded={mealOpen === slot}
-                      onClick={() =>
-                        setMealOpen(mealOpen === slot ? null : slot)
-                      }
-                    >
-                      <img src={recipe.photo} alt="" loading="lazy" />
-                      <span>
-                        <small>
-                          {
-                            [
-                              "Morning",
-                              "Midday",
-                              "Before training · 30-60 min",
-                              "Evening / after training",
-                            ][index]
-                          }
-                          {swapped ? " · Swap version" : ""}
-                        </small>
-                        <strong>{recipe.title}</strong>
-                        <small>
-                          {eaten
-                            ? "Eaten"
-                            : slot[0].toUpperCase() + slot.slice(1)}
-                        </small>
-                      </span>
-                      {eaten ? <Check /> : <ChevronRight />}
-                    </button>
-                    {mealOpen === slot && (
-                      <div className="mm-meal-detail">
-                        <h3>On your plate</h3>
-                        <ul>
-                          {recipe.plate.map((s) => (
-                            <li key={s}>{s}</li>
-                          ))}
-                        </ul>
-                        <details className="mm-disclosure">
-                          <summary>Make it · step by step</summary>
-                          <h3>Ingredients</h3>
-                          <ul>
-                            {recipe.ingredients.map((s) => (
-                              <li key={s}>{s}</li>
-                            ))}
-                          </ul>
-                          <ol>
-                            {resources.howTo(recipe).map((s, i) => (
-                              <li key={i}>{s}</li>
-                            ))}
-                          </ol>
-                        </details>
-                        <Field label={`Swap ${slot}`}>
-                          <select
-                            value={recipe.id}
-                            onChange={(e) => mealUpdate(e.target.value)}
-                          >
-                            {resources.recipes
-                              .filter((r) => r.slot === slot)
-                              .map((r) => (
-                                <option key={r.id} value={r.id}>
-                                  {r.title}
-                                  {r.id === original ? " (original)" : ""}
-                                </option>
-                              ))}
-                          </select>
-                        </Field>
-                        {swapped && (
-                          <button
-                            className="mm-text-button"
-                            onClick={() => mealUpdate(original)}
-                          >
-                            Revert to original
-                          </button>
-                        )}
-                        <button
-                          className={`mm-wide ${eaten ? "" : "mm-primary"}`}
-                          aria-pressed={eaten}
-                          onClick={() => mealUpdate(undefined, !eaten)}
-                        >
-                          <Check size={18} />
-                          {eaten ? "Eaten · undo" : "Mark eaten"}
-                        </button>
-                      </div>
-                    )}
-                  </article>
-                );
-              })}
-              <details className="mm-disclosure">
-                <summary>To buy for these meals</summary>
-                <ul>
-                  {resources
-                    .groceries(
-                      mealSlots.flatMap((s) => {
-                        const id =
-                          data.meals[mealDate]?.swaps[s] ??
-                          resources.meals[recipeDay(mealDate)]?.[s];
-                        const r = resources.recipes.find((r) => r.id === id);
-                        return r ? [r] : [];
-                      }),
-                    )
-                    .map((g) => (
-                      <li key={g.name}>
-                        {g.name}
-                        {g.portions.length ? ` · ${g.portions.join(", ")}` : ""}
-                      </li>
-                    ))}
-                </ul>
-              </details>
+              {resources.mealPrep(mealDate, setMealDate)}
               <p className="mm-context">
                 For class: normal meal 2-3 hours before, or a small familiar
                 snack 30-60 minutes before if needed. Water and breaks help, but

@@ -119,6 +119,9 @@ export type MomentumData = {
     {
       swaps: Partial<Record<MealSlot, string>>;
       eaten: Partial<Record<MealSlot, boolean>>;
+      // Explicit snapshots preserve eaten meals when a later batch is changed.
+      recipes?: Partial<Record<MealSlot, string>>;
+      portions?: Partial<Record<MealSlot, { plate: string[]; calories: number; protein: number }>>;
     }
   >;
   waist: Record<string, string>;
@@ -151,6 +154,9 @@ export type Resources = {
   groceries: (
     recipes: RecipeResource[],
   ) => Array<{ name: string; category: string; portions: string[] }>;
+  // The same planner/settings/shopping list is used by Nutrition and Momentum;
+  // only their meal checkmarks remain in their existing separate records.
+  mealPrep: (date: string, onDateChange: (date: string) => void) => ReactNode;
 };
 export const newLog = (): ActivityLog => ({
   minutes: "",

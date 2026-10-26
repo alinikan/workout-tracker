@@ -211,12 +211,15 @@ export async function runContrastChecks({
             `${label}-selected-day`,
             ".diet-day-button.active :is(span, strong, small)",
           );
-          for (const group of await page
-            .locator(".shopping-group > summary")
-            .all())
-            await group.click();
+          await page.getByRole("tab", { name: "Cook batch", exact: true }).click();
+          const restart = page.getByRole("button", { name: "Start a new batch today", exact: true });
+          if (await restart.count()) await restart.click();
+          await page.locator(".mp-recipe-row").first().getByRole("button", { name: /^Swap/ }).click();
+          await audit(page, `${label}-batch-cook-swaps`);
+          await page.getByRole("tab", { name: "To buy", exact: true }).click();
           await audit(page, `${label}-shopping-expanded`);
-          await page.locator(".diet-complete-button").first().click();
+          await page.getByRole("tab", { name: "Eat today", exact: true }).click();
+          await page.getByRole("button", { name: "Mark eaten: Breakfast", exact: true }).click();
           await audit(page, `${label}-meal-completed`);
         }
       }
@@ -268,8 +271,11 @@ export async function runContrastChecks({
           .getByRole("button", { name, exact: true })
           .click();
       await privateTab("Meals");
-      await page.locator(".mm-meal-summary").first().click();
       await audit(page, `${label}-momentum-meals`);
+      await page.getByRole("tab", { name: "Cook batch", exact: true }).click();
+      await audit(page, `${label}-momentum-batch`);
+      await page.getByRole("tab", { name: "To buy", exact: true }).click();
+      await audit(page, `${label}-momentum-groceries`);
       await privateTab("Journey");
       await audit(page, `${label}-momentum-journey`);
       await privateTab("Today");

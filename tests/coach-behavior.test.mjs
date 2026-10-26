@@ -12,9 +12,99 @@ const server = await createServer({ envDir: false, server: { middlewareMode: tru
 after(() => server.close());
 const model = await server.ssrLoadModule("/src/App.tsx");
 const weightPresentation = await server.ssrLoadModule("/src/components/WeightTrendChart.tsx");
+const prepView = await server.ssrLoadModule("/src/features/mealPrep/MealPrepPlanner.tsx");
 const days = model.buildPlanDays("2026-08-31");
 const reference = { weight: 80, label: "Recent average", detail: "Test fixture" };
 const weight = (kg) => ({ weightKg: String(kg), weight: "", weightForgotten: false, note: "", photoReminderDone: false });
+
+test("batch migration preserves old records and adds a live prep calendar without resetting anything", () => {
+  const previous = model.emptyStore("2026-08-31");
+  delete previous.mealPrep;
+  previous.dietDays["2026-10-05"] = { completed: false, meals: { lunch: true }, swaps: {}, notes: "Packed at home" };
+  previous.metrics["2026-10-05"] = weight(81);
+  const next = model.normalizeStore(previous);
+  assert.equal(next.program.startedOn, previous.program.startedOn);
+  assert.equal(next.dietDays["2026-10-05"].meals.lunch, true);
+  assert.equal(next.dietDays["2026-10-05"].notes, "Packed at home");
+  assert.deepEqual(next.metrics, previous.metrics);
+  assert.equal(next.mealPrep.version, 1);
+  assert.ok(next.mealPrep.startedOn > "2026-08-31");
+});
+
+test("old eaten meals retain legacy identity; uncooked unchecked meals adopt the new batch", () => {
+  const state = model.emptyStore("2026-10-05").mealPrep;
+  const original = model.weeklyDietMealMap.Monday;
+  const ids = model.savedMealOverrides("2026-10-05", state, {
+    eaten: { lunch: true }, swaps: { dinner: "white-fish-plate" },
+  }, original);
+  assert.equal(ids.lunch, original.lunch);
+  assert.equal(ids.dinner, "white-fish-plate");
+  assert.equal(ids.breakfast, undefined);
+  const saved = model.savedMealOverrides("2026-10-05", state, {
+    eaten: { lunch: true, breakfast: false }, recipes: { lunch: "prep-chicken-breast-rice", breakfast: "prep-warm-oats" },
+  }, original);
+  assert.equal(saved.lunch, "prep-chicken-breast-rice");
+  assert.equal(saved.breakfast, undefined, "reopened un-swapped meals can follow a new uncooked batch");
+  const history = model.savedMealOverrides("2026-10-04", state, { eaten: {} }, model.weeklyDietMealMap.Sunday);
+  assert.deepEqual(history, model.weeklyDietMealMap.Sunday);
+});
+
+test("recipe and portion snapshots survive normalization and independent device edits", () => {
+  const base = model.emptyStore("2026-10-05");
+  base.dietDays["2026-10-05"] = { completed: false, meals: { lunch: true }, swaps: {}, notes: "",
+    recipes: { lunch: "prep-chicken-breast-rice" }, portions: { lunch: { plate: ["150 g cooked chicken"], calories: 650, protein: 47 } } };
+  const a = structuredClone(base), b = structuredClone(base);
+  a.mealPrep.checked.example = true;
+  b.dietDays["2026-10-05"].notes = "Taken to work";
+  const result = model.normalizeStore(mergeProgressChanges(base, a, b));
+  assert.equal(result.mealPrep.checked.example, true);
+  assert.equal(result.dietDays["2026-10-05"].notes, "Taken to work");
+  assert.deepEqual(result.dietDays["2026-10-05"].recipes, base.dietDays["2026-10-05"].recipes);
+  assert.deepEqual(result.dietDays["2026-10-05"].portions, base.dietDays["2026-10-05"].portions);
+  assert.deepEqual(model.normalizeDietDayLog({ portions: { lunch: { plate: ["bad"], calories: NaN, protein: 1 } } }).portions, {});
+});
+
+test("Momentum can review all legacy meal dates before batch activation without querying invalid prep dates", () => {
+  const state = model.emptyStore("2026-10-26").mealPrep;
+  const html = renderToString(createElement(prepView.MealPrepPlanner, {
+    state, date: "2026-09-01", today: "2026-10-26", contextForDate: () => ({ weightKg: 80, training: false }),
+    onChange: () => {}, mealLog: { eaten: {} }, onToggleMeal: () => {},
+    renderLegacyMeal: (slot) => createElement("p", null, `Saved ${slot}`),
+  }));
+  for (const slot of ["breakfast", "lunch", "snack", "dinner"]) assert.match(html, new RegExp(`Saved ${slot}`));
+  assert.doesNotMatch(html, /NaN|undefined/);
+});
+
+test("a new cooked batch beats a stale concurrent swap without mixing recipes and preparation metadata", () => {
+  const base = model.emptyStore("2026-10-26");
+  const a = structuredClone(base), b = structuredClone(base);
+  a.mealPrep.blocks["2026-10-26"] = { mainId: "prep-chicken-breast-rice", preparedAt: "2026-10-26T19:00:00Z", preparedSignature: "physical-chicken", contexts: { "2026-10-26": { weightKg: 80, training: true } } };
+  b.mealPrep.blocks["2026-10-26"] = { mainId: "prep-beef-rice" };
+  for (const [local, remote] of [[a, b], [b, a]]) {
+    const next = mergeProgressChanges(base, local, remote);
+    assert.deepEqual(next.mealPrep.blocks["2026-10-26"], a.mealPrep.blocks["2026-10-26"]);
+  }
+  const baseline = structuredClone(a), undo = structuredClone(a);
+  delete undo.mealPrep.blocks["2026-10-26"].preparedAt;
+  delete undo.mealPrep.blocks["2026-10-26"].preparedSignature;
+  delete undo.mealPrep.blocks["2026-10-26"].contexts;
+  undo.mealPrep.blocks["2026-10-26"].mainId = "prep-beef-rice";
+  const remote = structuredClone(a); remote.mealPrep.checked.other = true;
+  const next = mergeProgressChanges(baseline, undo, remote);
+  assert.equal(next.mealPrep.blocks["2026-10-26"].mainId, "prep-beef-rice");
+  assert.equal(next.mealPrep.blocks["2026-10-26"].preparedAt, undefined, "a deliberate unprepare against the known baseline remains possible");
+  assert.equal(next.mealPrep.checked.other, true);
+});
+
+test("two independent cooked records converge without throwing either physical preparation away", () => {
+  const base = model.emptyStore("2026-10-26"), a = structuredClone(base), b = structuredClone(base);
+  a.mealPrep.blocks["2026-10-26"] = { mainId: "prep-chicken-breast-rice", preparedAt: "2026-10-26T19:00:00Z", preparedSignature: "chicken" };
+  b.mealPrep.blocks["2026-10-26"] = { mainId: "prep-beef-rice", preparedAt: "2026-10-26T20:00:00Z", preparedSignature: "beef" };
+  const next = mergeProgressChanges(base, a, b);
+  assert.deepEqual(next, mergeProgressChanges(base, b, a));
+  assert.equal(next.mealPrep.blocks["2026-10-26"].mainId, "prep-beef-rice");
+  assert.equal(next.mealPrep.blocks["2026-10-26"].conflictingPreparation.mainId, "prep-chicken-breast-rice");
+});
 
 test("save UI distinguishes device saving, account sync, offline and errors", () => {
   const ready = { localError: "", online: true, signedIn: true, status: "synced", saved: true };

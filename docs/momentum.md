@@ -11,7 +11,7 @@ It does not replace or advance the original Workout/Diet program.
 | Destination | What happens here |
 | --- | --- |
 | **Today** | One activity, one primary action. Start or resume a focused session; record only actual work. A compact Titan row opens class details and membership research. |
-| **Meals** | Four meals in order. Expand one for portions, a cooking tutorial, same-slot swaps and an eaten checkmark. Swaps are labeled and reversible. |
+| **Meals** | Eat today / Cook batch / To buy. Repeat one main dish for lunch and dinner for 2-3 days; prepare four or six containers and share quantified groceries with Nutrition. |
 | **Journey** | Seven days at a time, thirteen initial weeks, actual attendance, earned workload options and the shared kg weight trend. |
 
 The settings icon opens pause, resume, repeat-week and fresh-journey controls. Settings is not
@@ -112,13 +112,25 @@ conditional recommendation. No purchase or binding membership action is performe
 
 ## Meals And Weight
 
-Momentum reuses the existing Monday-Sunday recipe rotation, photos, portions and beginner tutorials.
-It does not run the original app's automatic calorie-tightening engine or assume recipe calories
-are your measured personal energy needs. Protein foods, produce, regular meals and carbohydrates
-supporting activity take priority. A familiar meal 2-3 hours before class, or a tolerable small snack
-30-60 minutes before when needed, is flexible guidance, not a guarantee against feeling faint.
+Momentum and Nutrition share a rolling **two-day or three-day batch plan**. One main recipe fills
+all lunches and dinners, breakfast jars repeat and snacks reuse the same yogurt/fruit. The main
+rotation favours chicken breast, skinless thighs and extra-lean beef with rice or potatoes and
+frozen vegetables; changing a recipe changes the whole uncooked batch and its shopping quantities.
+See [the batch-cooking guide](meal-prep.md) for the full workflow, raw/dry versus cooked amounts,
+storage and reheating. Cook once, then follow dated containers instead of cooking every meal.
 
-Momentum meal swaps/checkmarks are private and separate from Diet history. Weigh-ins are different:
+An active Momentum journey supplies the planned lifting/class days for the shared portions.
+The existing logged body-weight reference informs bounded protein amounts. Prepared batches and
+checked meals keep snapshots. No automatic calorie restriction or food removal compensates for
+a missed class. Nutrition estimates are not measured personal energy needs. A familiar meal
+2-3 hours before class, or a tolerable small snack 30-60 minutes before when needed, is flexible
+guidance, not a guarantee against feeling faint.
+
+Batch choices, preparation records and grocery checks use the original account-bound
+`workout_progress` JSON, so changing them in either section updates the same plan. Momentum eaten
+checkmarks, saved recipe IDs and portion snapshots stay private and separate from Diet history.
+Already recorded legacy meals retain their names and checkmarks. This update requires **no SQL**
+or permission changes. Weigh-ins are different:
 **Coach Hub is the single place to enter kg weights**. Journey displays the existing shared chart,
 with real measurements and honest missing-day coverage. No separate measurements are requested.
 
