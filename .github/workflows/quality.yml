@@ -8,7 +8,9 @@ permissions:
   contents: read
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # A floating runner label can change the browser's OS/dependency set between
+    # identical commits. Keep Linux UI checks on this explicit LTS image.
+    runs-on: ubuntu-24.04
     # Includes full-view axe contrast audits as well as repeated interaction tests.
     timeout-minutes: 20
     steps:
@@ -20,6 +22,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - name: Install isolated browser test engines
+        # A stalled package mirror must not consume the entire test-job budget.
+        timeout-minutes: 6
         run: npx playwright install --with-deps chromium webkit
       - name: Phone and desktop UI checks
         # Run every viewport/theme twice in fresh contexts. No automatic retry

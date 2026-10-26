@@ -1174,6 +1174,12 @@ The existing source smoke tests additionally verify:
 
 `npm run build` now fails on TypeScript errors, including in Vercel. GitHub's **Quality checks** workflow runs the regression suite, browser UI checks, and dependency audit on main/pull requests. Failed runs attach UI screenshots and Playwright interaction traces as a downloadable `ui-check-screenshots` artifact. See the [diagnostic guide](docs/session-experience.md#verification) for trace-viewing instructions. This does not replace checking sign-in on a real device: automated tests do not use a live Supabase account, real iOS Safari, or assert pixel-perfect browser layout.
 
+The Linux runner is pinned to `ubuntu-24.04`, rather than a floating `ubuntu-latest` image.
+Browser installation has a six-minute timeout so a stalled operating-system package mirror does
+not use the entire job budget. This does not skip browser tests or retry failed interactions.
+See [GitHub's runner-image labels](https://github.com/actions/runner-images#available-images)
+and [Playwright's CI setup](https://playwright.dev/docs/ci).
+
 Momentum's database tests execute its actual SQL migration in test-only PGlite (PostgreSQL), rather
 than inferring security from mocked API responses. They check anonymous and other-account denial,
 guessed IDs, direct-write bypasses, the singleton grant, revocation, revision conflicts, activation

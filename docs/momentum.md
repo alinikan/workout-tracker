@@ -229,7 +229,9 @@ git commit -m "Build Titan 90-day Momentum routine"
 git push
 ```
 
-The connected GitHub workflow tests a clean Linux install; Vercel deploys the production branch.
+The connected GitHub workflow tests a clean Linux install on the explicit `ubuntu-24.04` runner;
+browser setup has its own six-minute timeout. The full checks still run without interaction retries.
+Vercel deploys the production branch.
 Confirm both checks succeeded. Reopen the Home Screen app after the new version becomes available.
 Do not reset browser data to update it.
 
