@@ -18,7 +18,7 @@ export const weekday = (date: string) =>
 export const firstMondayAfter = (date: string) =>
   addDays(date, (8 - weekday(date)) % 7 || 7);
 export function suggestedStart(today: string) {
-  return weekday(today) === 1 ? today : firstMondayAfter(today);
+  return today;
 }
 export const phase = (day: number) =>
   day <= 28
@@ -482,10 +482,16 @@ export const starterPlan: DayPlan[] = Array.from({ length: 90 }, (_, i) => {
       }
     : { day, ...weekly[position] };
 });
-export const dayPlan = (journey: Journey | undefined, slot: Slot): DayPlan =>
-  (journey?.planVersion === "titan-90" && !slot.legacy
-    ? starterPlan
-    : legacyPlan)[slot.day - 1] ?? starterPlan[Math.min(89, slot.day - 1)];
+export function dayPlan(journey: Journey | undefined, slot: Slot): DayPlan {
+  if (journey?.planVersion !== "titan-90" || slot.legacy)
+    return legacyPlan[slot.day - 1] ?? starterPlan[Math.min(89, slot.day - 1)];
+  // Prescription identity survives moved appointments; day remains the ordinal.
+  const templateDay = slot.templateDay ?? slot.day;
+  return {
+    ...(starterPlan[templateDay - 1] ?? starterPlan[Math.min(89, templateDay - 1)]),
+    day: slot.day,
+  };
+}
 export const strengthTemplates = {
   "strength-a": [
     { id: "leg-press", reps: "8" },
@@ -506,7 +512,8 @@ export function makeJourney(
   now = new Date().toISOString(),
   version: "legacy-30" | "titan-90" = "titan-90",
 ): Journey {
-  if (!isCalendarDate(start) || weekday(start) !== 1)
+  if (!isCalendarDate(start)) throw new Error("Choose a valid start date.");
+  if (version === "legacy-30" && weekday(start) !== 1)
     throw new Error("Choose a Monday.");
   return {
     planVersion: version,
@@ -514,10 +521,21 @@ export function makeJourney(
     createdAt: now,
     startedOn: start,
     slots: Object.fromEntries(
-      (version === "legacy-30" ? legacyPlan : starterPlan).map((p) => [
-        `day-${p.day}`,
-        { id: `day-${p.day}`, day: p.day, date: addDays(start, p.day - 1) },
-      ]),
+      (version === "legacy-30" ? legacyPlan : starterPlan).map((p) => {
+        const slot: Slot = {
+          id: `day-${p.day}`,
+          day: p.day,
+          date: addDays(start, p.day - 1),
+        };
+        if (version === "titan-90" && weekday(start) !== 1) {
+          const position = (weekday(slot.date) + 6) % 7,
+            templateDay = Math.floor((p.day - 1) / 7) * 7 + position + 1;
+          // The final template is a saved Monday-start reflection, not Saturday's
+          // normal session. Reuse week one for that Saturday or the missing Sunday.
+          slot.templateDay = templateDay >= 90 ? position + 1 : templateDay;
+        }
+        return [slot.id, slot];
+      }),
     ),
     logs: {},
     reviews: {},
@@ -657,8 +675,8 @@ export function repeatWeek(
   week.forEach((s, index) => {
     const id = `repeat-${token}-${index}`;
     slots[id] = {
+      ...s,
       id,
-      day: s.day,
       date: addDays(afterDate, index + 1),
       note: "Repeated week: familiar level, new attendance record.",
     };

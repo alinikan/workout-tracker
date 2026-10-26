@@ -11,11 +11,12 @@ import { chromium, webkit, expect } from "playwright/test";
 import { runMomentumChecks } from "./momentum-ui-check.mjs";
 import { runContrastChecks } from "./contrast-ui-check.mjs";
 import { runBatchChecks } from "./batch-ui-check.mjs";
+import { runSharedStartChecks } from "./shared-start-ui-check.mjs";
 
 const storageKey = "body-recomp-gym-tracker-v1";
 const fixtureHost = "tracker-fixture.supabase.co";
 const diagnosticContexts = new Set();
-const { values } = parseArgs({ options: { repeat: { type: "string", default: "1" }, "momentum-only": { type: "boolean", default: false }, "contrast-only": { type: "boolean", default: false }, "batch-only": { type: "boolean", default: false } } });
+const { values } = parseArgs({ options: { repeat: { type: "string", default: "1" }, "momentum-only": { type: "boolean", default: false }, "contrast-only": { type: "boolean", default: false }, "batch-only": { type: "boolean", default: false }, "shared-start-only": { type: "boolean", default: false } } });
 const repeatCount = Number(values.repeat);
 assert.ok(Number.isInteger(repeatCount) && repeatCount >= 1 && repeatCount <= 5, "--repeat must be an integer from 1 to 5");
 const server = await createServer({
@@ -39,6 +40,7 @@ function fixtureBackend(initial, options = {}) {
   let privateRevision = 0;
   let privateAccess = Boolean(options.privateAccess);
   let revision = 1;
+  const events = [];
   const updatedAt = () => new Date(Date.UTC(2026, 9, 5, 12, 0, revision)).toISOString();
   const user = { id: options.userId ?? "00000000-0000-4000-8000-000000000001", aud: "authenticated", role: "authenticated", email: "fixture@example.test" };
   const payload = Buffer.from(JSON.stringify({ sub: user.id, aud: "authenticated", role: "authenticated", exp: 2100000000 })).toString("base64url");
@@ -46,6 +48,7 @@ function fixtureBackend(initial, options = {}) {
   return {
     snapshot: () => structuredClone(data),
     privateSnapshot: () => structuredClone(privateData),
+    events: () => structuredClone(events),
     revokePrivate: () => { privateAccess = false; },
     route: async (route) => {
       const request = route.request();
@@ -56,18 +59,26 @@ function fixtureBackend(initial, options = {}) {
       if (url.pathname.endsWith("/user")) return send(user);
       if (url.pathname.endsWith("/logout")) return send({});
       if (url.pathname === "/rest/v1/rpc/momentum_access") return send(privateAccess);
-      if (url.pathname === "/rest/v1/momentum_progress") return send(privateAccess && privateData ? [{ data: privateData, revision: privateRevision }] : []);
+      if (url.pathname === "/rest/v1/momentum_progress") {
+        if (options.privateLoadDelay) await new Promise((resolve) => setTimeout(resolve, options.privateLoadDelay));
+        return send(privateAccess && privateData ? [{ data: privateData, revision: privateRevision }] : []);
+      }
       if (url.pathname === "/rest/v1/rpc/momentum_save") {
         if (!privateAccess) return send({code:"42501",message:"Momentum access denied"},403);
         const body = request.postDataJSON();
         if (body.p_expected_revision !== privateRevision) return send({conflict:true,data:privateData,revision:privateRevision});
+        if (body.p_data.activeJourneyId?.startsWith("program-") &&
+          (body.p_data.sharedProgram?.resetId !== data.program.resetId || body.p_data.sharedProgram?.startedOn !== data.program.startedOn))
+          return send({code:"22023",message:"Shared reset has not synced yet"},400);
         privateData = body.p_data; privateRevision += 1;
+        events.push({kind:"momentum",resetId:privateData.sharedProgram?.resetId});
         return send({conflict:false,data:privateData,revision:privateRevision});
       }
       if (url.pathname === "/rest/v1/workout_progress") {
         if (request.method() === "GET") return send([{ data, updated_at: updatedAt() }]);
         if (url.searchParams.has("updated_at") && url.searchParams.get("updated_at") !== `eq.${updatedAt()}`) return send([]);
         data = request.postDataJSON().data;
+        events.push({kind:"workout",resetId:data.program.resetId});
         revision += 1;
         const response = { updated_at: updatedAt() };
         return send(request.headers().accept?.includes("object+json") ? response : [response]);
@@ -375,7 +386,7 @@ const browserCases = [
 const runs = Array.from({ length: repeatCount }, (_, index) => index + 1)
   .flatMap((iteration) => browserCases.map((entry) => [iteration, ...entry]));
 try {
-  if (!values["momentum-only"] && !values["contrast-only"] && !values["batch-only"]) {
+  if (!values["momentum-only"] && !values["contrast-only"] && !values["batch-only"] && !values["shared-start-only"]) {
   for (const [iteration, engineName, engine, viewport] of runs) {
     const browser = await engine.launch();
     browsers.push(browser);
@@ -598,9 +609,10 @@ try {
   await Promise.all(contexts.map((context) => context.close()));
   console.log("PASS two-device auth/reset/same-browser tab/offline stale-save/reconnect/reload integration (fixture only)");
   }
-  if (!values["momentum-only"] && !values["contrast-only"]) await runBatchChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout });
-  if (!values["contrast-only"] && !values["batch-only"]) await runMomentumChecks({ server, model, browsers, prepare, fixtureBackend, assertLayout, assertSelectionContrast, settlePresentation });
-  if (!values["momentum-only"] && !values["batch-only"]) await runContrastChecks({ server, model, browsers, prepare, fixtureBackend, navigate, settlePresentation });
+  if (!values["momentum-only"] && !values["contrast-only"] && !values["batch-only"]) await runSharedStartChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout });
+  if (!values["momentum-only"] && !values["contrast-only"] && !values["shared-start-only"]) await runBatchChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout });
+  if (!values["contrast-only"] && !values["batch-only"] && !values["shared-start-only"]) await runMomentumChecks({ server, model, browsers, prepare, fixtureBackend, assertLayout, assertSelectionContrast, settlePresentation });
+  if (!values["momentum-only"] && !values["batch-only"] && !values["shared-start-only"]) await runContrastChecks({ server, model, browsers, prepare, fixtureBackend, navigate, settlePresentation });
 } catch (error) {
   // Preserve the failing screen itself, not only earlier milestone screenshots.
   // Do not let diagnostic I/O hide the original assertion or delay cleanup.

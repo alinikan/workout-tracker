@@ -20,7 +20,7 @@ export function exerciseGate(
 ) {
   const j = currentJourney(data);
   if (!j)
-    return "Choose your start Monday in Settings. Nothing starts automatically.";
+    return "Choose your start date in Settings. Nothing starts automatically.";
   if (j.startedOn > today)
     return `Preparation until ${j.startedOn}. Your exercise calendar has not started.`;
   if (activePause(data))
@@ -34,11 +34,7 @@ export function startJourneyAllowed(
   start: string,
   today: string,
 ) {
-  return (
-    isCalendarDate(start) &&
-    start >= today &&
-    new Date(`${start}T12:00:00Z`).getUTCDay() === 1
-  );
+  return isCalendarDate(start) && start >= today;
 }
 export function wasPaused(data: MomentumData, date: string) {
   const j = currentJourney(data);

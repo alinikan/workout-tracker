@@ -1,5 +1,7 @@
 import { mergeProgressChanges, sameData } from "../../lib/syncMerge.ts";
 import { emptyMomentum, newLog, type MomentumData } from "./types.ts";
+import { newerSharedStart } from "./sharedStart.ts";
+import { isCalendarDate, normalizeProgram } from "../../lib/programLifecycle.ts";
 
 const prefix = "momentum-private-v1:";
 type Envelope = { owner: string; iv: number[]; ciphertext: number[] };
@@ -19,6 +21,8 @@ export function normalizeMomentum(value: unknown): MomentumData {
     ...empty,
     ...v,
     schemaVersion: 2,
+    sharedProgram: v.sharedProgram && isCalendarDate(v.sharedProgram.startedOn)
+      ? normalizeProgram(v.sharedProgram, v.sharedProgram.startedOn) : undefined,
     profile: { ...empty.profile, ...v.profile },
     // Upgrade old records without erasing attendance, notes, meals or history.
     // Removed setup fields never return through a cache or a conflict response.
@@ -102,6 +106,14 @@ export function mergeMomentum(
     withDefaults(local),
     withDefaults(remote),
   );
+  const resetWinner = newerSharedStart(local, remote);
+  if (resetWinner) {
+    merged.sharedProgram = resetWinner.sharedProgram;
+    merged.activeJourneyId = resetWinner.activeJourneyId;
+    merged.meals = resetWinner.meals;
+    merged.preparation = resetWinner.preparation;
+    merged.profile.nextClassDate = resetWinner.profile.nextClassDate;
+  }
   // A device checking the original meal does not confirm that it ate a new
   // recipe selected by another device. Keep a checkmark only if one side
   // actually checked that final recipe; never count the wrong food as eaten.

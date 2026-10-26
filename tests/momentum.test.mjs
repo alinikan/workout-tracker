@@ -163,18 +163,18 @@ test("Setup needs only an explicit start, with no additional approval fields", (
   const d = emptyMomentum();
   assert.equal(d.activeJourneyId, null);
   assert.equal("clearance" in d, false);
-  assert.match(exerciseGate(d, "2026-10-26"), /start Monday/);
+  assert.match(exerciseGate(d, "2026-10-26"), /start date/);
   assert.equal(startJourneyAllowed(d, "2026-10-26", "2026-10-23"), true);
   assert.equal(exerciseGate(fixture(), "2026-10-26"), null);
 });
-test("Start must be an explicitly chosen Monday; date arithmetic survives DST", () => {
+test("Start can be any explicitly chosen current/future date; date arithmetic survives DST", () => {
   const d = fixture();
   assert.equal(firstMondayAfter("2026-10-23"), "2026-10-26");
   assert.equal(firstMondayAfter("2026-10-26"), "2026-11-02");
   assert.equal(suggestedStart("2026-10-26"), "2026-10-26");
-  assert.equal(suggestedStart("2026-10-23"), "2026-10-26");
+  assert.equal(suggestedStart("2026-10-23"), "2026-10-23");
   assert.equal(startJourneyAllowed(d, "2026-10-26", "2026-10-23"), true);
-  assert.equal(startJourneyAllowed(d, "2026-10-27", "2026-10-23"), false);
+  assert.equal(startJourneyAllowed(d, "2026-10-27", "2026-10-23"), true);
   assert.equal(startJourneyAllowed(d, "2026-10-19", "2026-10-23"), false);
   assert.equal(addDays("2026-10-31", 2), "2026-11-02");
   assert.equal(addDays("2026-03-07", 2), "2026-03-09");
@@ -615,15 +615,12 @@ test("Actual PostgreSQL: singleton allowlist, RLS, RPC ownership and compare-and
       async () => {
         await as(owner);
         const invalid = dbFixture();
-        invalid.journeys[invalid.activeJourneyId].startedOn = addDays(
-          firstMondayAfter(dbToday),
-          1,
-        );
+        invalid.journeys[invalid.activeJourneyId].startedOn = "not-a-date";
         await assert.rejects(
           db.query("select public.momentum_save(0,$1::jsonb)", [
             JSON.stringify(invalid),
           ]),
-          /future Monday/,
+          /valid journey and start date/,
         );
       },
     );

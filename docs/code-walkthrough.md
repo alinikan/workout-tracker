@@ -189,6 +189,19 @@ The account/auth session is never deleted. Local storage is committed before clo
 the old sync baseline stays intact so autosave can identify the new generation. Offline resets show
 a pending notice; the account JSONB row is replaced on sync without a schema migration.
 
+Momentum keeps a separate private row, but not a separate fresh-start decision. `sharedStart.ts`
+projects `store.program` into one deterministic `program-<resetId>` journey on the exact chosen date.
+It archives the previous private journey plus private meals/preparation and clears the new active
+records. The private sync hook waits for the root row's acknowledgement before calling its CAS RPC.
+This is an eventual two-document handoff, not an atomic multi-table transaction; the pending notice
+remains until both acknowledge. A stale device may contribute archived notes, but cannot reactivate
+an old generation. `20261026_shared_start.sql` updates only the private save function to verify the
+marker against `auth.uid()`'s root row; existing installations need that function-only migration.
+
+New Titan journeys accept any weekday. Each slot records a stable `templateDay` when needed so the
+chosen date is Day 1 without moving Wednesday classes onto another weekday. Moving an appointment
+later retains its original prescription; old Monday-start and legacy-30 records stay interpretable.
+
 Each product/tab also remembers its own scroll position through a passive scroll listener. Entering
 Gym does not reuse an unrelated offset from a long Today list; returning to Today restores the user's
 place. A program reset clears those transient positions along with open details and timers.

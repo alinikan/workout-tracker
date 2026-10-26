@@ -1,14 +1,16 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Check, RotateCcw, ShieldCheck, X } from "lucide-react";
 
 /** Presentation only: the parent owns the reset transaction and cloud status. */
-export function ProgramControls({ today, disabled, signedIn, pending, error, onReset }: {
+export function ProgramControls({ today, disabled, signedIn, pending, error, onReset, requestOpen = false, onOpenHandled }: {
   today: string;
   disabled: boolean;
   signedIn: boolean;
   pending: boolean;
   error: string;
   onReset: (startedOn: string) => boolean;
+  requestOpen?: boolean;
+  onOpenHandled?: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [startedOn, setStartedOn] = useState(today);
@@ -18,8 +20,13 @@ export function ProgramControls({ today, disabled, signedIn, pending, error, onR
     setConfirmation("");
     // Native modal dialogs handle focus containment, Escape, inert background,
     // and focus restoration in both Safari and installed iPhone web apps.
-    dialog.current?.showModal();
+    if (dialog.current && !dialog.current.open) dialog.current.showModal();
   };
+  useEffect(() => {
+    if (!requestOpen) return;
+    open();
+    onOpenHandled?.();
+  }, [requestOpen, onOpenHandled]);
 
   return (
     <section className="program-controls" aria-labelledby="program-controls-title">
@@ -31,7 +38,7 @@ export function ProgramControls({ today, disabled, signedIn, pending, error, onR
       <button className="restart-plan-button" type="button" disabled={disabled} onClick={open}>
         <RotateCcw size={18} aria-hidden="true" /> Start fresh
       </button>
-      {pending && <p className="reset-sync-notice" role="status">Fresh start saved on this device. Waiting for cloud sync before it reaches your other devices.</p>}
+      {pending && <p className="reset-sync-notice" role="status">Fresh start saved on this device. Waiting for all connected sections and cloud sync to confirm the same start date.</p>}
       <dialog ref={dialog} className="reset-dialog" aria-labelledby="reset-dialog-title" onClick={(event) => {
         if (event.target === event.currentTarget) {
           const rect = event.currentTarget.getBoundingClientRect();
@@ -49,6 +56,7 @@ export function ProgramControls({ today, disabled, signedIn, pending, error, onR
           <p className="eyebrow">Restart your program</p>
           <h2 id="reset-dialog-title">A clean slate. Same account.</h2>
           <p>This permanently clears workout sets, skips, swaps, meal tracking, weigh-ins, notes, achievements, and nutrition settings. Your training returns to Week 1.</p>
+          <p>Momentum uses the same new date and starts at Week 1 with a fresh 90-day journey. Its previous journey and private meal records stay archived. Titan classes keep their real weekdays; no class is booked automatically.</p>
           <p className="reset-account-note"><ShieldCheck size={18} aria-hidden="true" /> {signedIn ? "You stay signed in. The reset replaces this account's progress on all updated devices once synced." : "Your local progress resets. Sign in to sync the fresh start across devices."}</p>
           <label>New start date<input type="date" value={startedOn} min={today} required onChange={(event) => setStartedOn(event.target.value)} /></label>
           <label>Type RESET to confirm<input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder="RESET" /></label>

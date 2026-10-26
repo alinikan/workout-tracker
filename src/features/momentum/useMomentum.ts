@@ -9,6 +9,8 @@ import {
   sameData,
 } from "./storage";
 import type { MomentumData } from "./types";
+import type { ProgramState } from "../../lib/programLifecycle";
+import { reconcileSharedStart } from "./sharedStart";
 
 type State = {
   owner: string | null;
@@ -28,7 +30,11 @@ const initial = (owner: string | null): State => ({
 /** Independent sync document + account epoch. A response for account A can
  * never update account B's state. Revision conflicts use the existing three-way
  * merge, then retry CAS; auth failures fail closed instead of showing a cache. */
-export function useMomentum(userId: string | null) {
+export function useMomentum(
+  userId: string | null,
+  sharedProgram: ProgramState | null = null,
+  sharedProgramSynced = true,
+) {
   const [state, setState] = useState<State>(() => initial(userId));
   const current = useRef<State>(state),
     base = useRef<MomentumData | null>(null),
@@ -38,6 +44,18 @@ export function useMomentum(userId: string | null) {
     pendingCache = useRef(Promise.resolve());
   const liveOwner = useRef(userId);
   liveOwner.current = userId;
+  const shared = useRef({
+    program: sharedProgram,
+    synced: sharedProgramSynced,
+  });
+  shared.current = { program: sharedProgram, synced: sharedProgramSynced };
+  const connectProgram = useCallback(
+    (data: MomentumData) =>
+      shared.current.program
+        ? reconcileSharedStart(data, shared.current.program)
+        : data,
+    [],
+  );
   const commit = useCallback((next: State) => {
     current.current = next;
     setState(next);
@@ -130,9 +148,9 @@ export function useMomentum(userId: string | null) {
         const cached = await readPrivate(owner).catch(() => null);
         if (!stillHere()) return;
         base.current = remote;
-        const local = cached
-          ? mergeMomentum(cached.base, cached.local, remote)
-          : remote;
+        const local = connectProgram(
+          cached ? mergeMomentum(cached.base, cached.local, remote) : remote,
+        );
         commit({
           owner,
           access: "allowed",
@@ -146,7 +164,26 @@ export function useMomentum(userId: string | null) {
       for (let attempt = 0; attempt < 4; attempt++) {
         const local = current.current.data;
         if (!local || !base.current || !stillHere()) return;
-        const merged = mergeMomentum(base.current, local, remote);
+        const merged = connectProgram(
+          mergeMomentum(base.current, local, remote),
+        );
+        // Both documents retain separate privacy/RLS boundaries. Save the shared
+        // reset marker first; only then may the private RPC acknowledge it.
+        // An offline reset still updates the local calendar immediately.
+        if (
+          shared.current.program?.resetAt &&
+          !shared.current.synced &&
+          merged.sharedProgram?.resetId === shared.current.program.resetId
+        ) {
+          commit({
+            ...current.current,
+            data: merged,
+            status: "Shared fresh start waiting for cloud sync",
+            error: "",
+          });
+          await persist(owner, ticket);
+          return;
+        }
         // Edits made while the write is in flight are merged after acknowledgement.
         if (sameData(merged, remote)) {
           base.current = remote;
@@ -174,7 +211,9 @@ export function useMomentum(userId: string | null) {
         remote = normalizeMomentum(response.data);
         rev = Number(response.revision);
         if (response.conflict) continue;
-        const after = mergeMomentum(beforeWrite, current.current.data!, remote);
+        const after = connectProgram(
+          mergeMomentum(beforeWrite, current.current.data!, remote),
+        );
         base.current = remote;
         revision.current = rev;
         commit({
@@ -217,7 +256,7 @@ export function useMomentum(userId: string | null) {
     } finally {
       if (ticket === epoch.current) running.current = false;
     }
-  }, [commit, persist]);
+  }, [commit, persist, connectProgram]);
   useEffect(() => {
     epoch.current++;
     running.current = false;
@@ -259,7 +298,7 @@ export function useMomentum(userId: string | null) {
         ticket = epoch.current;
       if (!owner || s.owner !== owner || s.access !== "allowed" || !s.data)
         return;
-      const data = update(s.data);
+      const data = connectProgram(update(connectProgram(s.data)));
       commit({
         ...s,
         data,
@@ -270,8 +309,36 @@ export function useMomentum(userId: string | null) {
       // newer cache. Recheck the account after awaiting each queued operation.
       void persist(owner, ticket);
     },
-    [commit, persist],
+    [commit, persist, connectProgram],
   );
+  useEffect(() => {
+    const s = current.current;
+    if (!userId || s.owner !== userId || s.access !== "allowed" || !s.data)
+      return;
+    const connected = connectProgram(s.data);
+    if (!sameData(connected, s.data)) {
+      commit({
+        ...s,
+        data: connected,
+        status: "Updating shared start date",
+        error: "",
+      });
+      void persist(userId, epoch.current);
+    }
+    // A reset confirmed on another section's server row should not wait for the
+    // next 30-second background refresh before updating the private calendar.
+    if (sharedProgramSynced) void refresh();
+  }, [
+    userId,
+    sharedProgram?.resetId,
+    sharedProgram?.startedOn,
+    sharedProgramSynced,
+    state.access,
+    connectProgram,
+    commit,
+    persist,
+    refresh,
+  ]);
   useEffect(() => {
     if (
       state.owner !== userId ||
@@ -300,8 +367,23 @@ export function useMomentum(userId: string | null) {
     return () => window.removeEventListener("beforeunload", warn);
   }, []);
   // Render-time filtering prevents a one-frame leak before effects clear state.
+  const visible = state.owner === userId ? state : initial(userId);
+  const connectedData = visible.data ? connectProgram(visible.data) : null;
   return {
-    ...(state.owner === userId ? state : initial(userId)),
+    ...visible,
+    data: connectedData,
+    // A later private note can be unsynced without undoing the already-acked
+    // shared start. Inspect the server baseline, not the generic save label.
+    sharedStartSynced:
+      !sharedProgram?.resetAt ||
+      Boolean(
+        visible.access === "allowed" &&
+        base.current?.sharedProgram?.resetId === sharedProgram.resetId &&
+        base.current?.sharedProgram?.startedOn === sharedProgram.startedOn,
+      ),
+    status: !sameData(connectedData, visible.data)
+      ? "Updating shared start date"
+      : visible.status,
     edit,
     retry: refresh,
   };

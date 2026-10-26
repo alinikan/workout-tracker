@@ -6429,13 +6429,13 @@ export default function Home() {
   const planDays = useMemo(() => buildPlanDays(store.program.startedOn, calendarDate), [store.program.startedOn, calendarDate]);
   const [selectedDate, setSelectedDate] = useState(() => currentProgramDate);
   const [resetError, setResetError] = useState("");
+  const [openResetRequested, setOpenResetRequested] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [localSaveError, setLocalSaveError] = useState("");
   const [isOnline, setIsOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
   const [syncRevision, setSyncRevision] = useState(0);
   const [session, setSession] = useState<Session | null>(null);
-  const momentum = useMomentum(session?.user.id ?? null);
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authMessage, setAuthMessage] = useState("");
@@ -6494,6 +6494,11 @@ export default function Home() {
   const activeUserIdRef = useRef<string | null>(null);
   const cloudQueueRef = useRef<Promise<void>>(Promise.resolve());
   const earnedAchievementSnapshotRef = useRef<string | null>(null);
+  const ownerProgramReady = Boolean(session && cloudReadyForUser === session.user.id);
+  const sharedProgramSynced = ownerProgramReady &&
+    syncBaselineRef.current.userId === session?.user.id &&
+    sameData(syncBaselineRef.current.store?.program, store.program);
+  const momentum = useMomentum(session?.user.id ?? null, ownerProgramReady ? store.program : null, sharedProgramSynced);
 
   useEffect(() => {
     // Each app tab keeps its own scroll position. Entering Gym after browsing a
@@ -8391,6 +8396,7 @@ export default function Home() {
     return <Suspense fallback={<main className="app-shell"><p>Opening private journey…</p></main>}><MomentumPage key={session?.user.id}
       data={momentum.data} edit={momentum.edit} today={calendarDate} resources={momentumResources}
       status={momentum.status} error={momentum.error} retry={momentum.retry} onExit={()=>setAppMode("hub")}
+      sharedStartReady={!resetDisabled} onStartFresh={() => { setOpenResetRequested(true); setAppMode("hub"); }}
       weights={sharedWeightsReady ? weightEntries : []} weightsReady={sharedWeightsReady}
       weightChart={sharedWeightsReady ? <WeightTrendChart entries={weightEntries} weeks={weightWeekSummaries} today={calendarDate}/> : <p>Loading the shared account weight records.</p>}
       logWeight={(date,kg)=>{if(sharedWeightsReady)updateMetric(date,metric=>({...metric,weightKg:kg,weightForgotten:false}));}}/>
@@ -8784,7 +8790,9 @@ export default function Home() {
           {cloudError && <p className="sync-message error" role="alert">{cloudError}</p>}
         </section>
         <ProgramControls today={calendarDate} disabled={resetDisabled} signedIn={Boolean(session)}
-          pending={Boolean(session && store.program.resetAt && syncBaselineRef.current.store?.program.resetId !== store.program.resetId)}
+          pending={Boolean(session && store.program.resetAt && (!sharedProgramSynced ||
+            (momentum.access === "allowed" && !momentum.sharedStartSynced)))}
+          requestOpen={openResetRequested} onOpenHandled={() => setOpenResetRequested(false)}
           error={resetError} onReset={handleStartFresh} />
         {resetDisabled && <p className="reset-availability-note">Sign in and load your account before resetting synced progress.</p>}
         <AchievementMoment label={achievementMoment} />

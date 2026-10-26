@@ -90,7 +90,7 @@ That means the interface favors:
 ## Private Momentum Journey
 
 **Start small. Show up. Get stronger.** Momentum is an optional experience reached from Coach Hub,
-not a replacement for Recomp's 26-week training program. It has its own onboarding, chosen Monday,
+not a replacement for Recomp's 26-week training program. It has its own onboarding,
 90-day calendar, actual attendance, simple strength templates, Titan class planning, meals and recovery. Class-stage changes are deliberate; calendar passage alone never increases workload.
 Its guided Today flow follows **Plan → Session → Finish**. One movement appears at a time,
 with real set logging, a smaller-session option and a clear saved result. Three navigation items
@@ -99,7 +99,7 @@ keep daily tasks separate from planning: Today, Meals and Journey.
 | Boundary | How It Works |
 | --- | --- |
 | Private account | An administrator grants exactly one Supabase authentication UID. RLS and restricted server functions enforce access; hiding a button is not the security boundary. |
-| Simple start | Choose a start Monday directly, or decide later. Routine preferences are optional and collapsed. Nothing starts automatically. |
+| Connected start | Start on any weekday. Coach's confirmed Start Fresh date also restarts Momentum at Week 1; Momentum settings opens the same confirmation. First-time onboarding still requires an explicit start. |
 | Guided session | Plan, follow one movement at a time, then save the actual result. Next never marks a set complete. Partial work resumes without a questionnaire; feedback is optional. |
 | Earned options | No calendar-based load jump. Optional extra practice needs actual comfortable attendance, recovery, review and an explicit choice. |
 | Honest records | Planned, smaller, missed and stopped sessions are distinct. Finishing one set never completes the others. No catch-up workout is owed. Pauses can be resumed in Settings. |
@@ -392,13 +392,17 @@ The app freezes a day's training level when you first edit it. Backfilling older
 2. Scroll to **Need a fresh start?** and select **Start fresh**.
 3. Choose today or a future start date. Read the list of data that will be cleared.
 4. Type `RESET`, then select **Reset & start fresh**. Canceling does not change anything.
-5. Keep the app open until Coach shows **Synced across devices**. If offline, the fresh start saves on this device and a notice says it is waiting for cloud sync.
+5. Keep the app open until Coach shows **Synced across devices** and the fresh-start pending notice disappears. Momentum acknowledges the same date after the main progress record syncs. If offline, the fresh start saves locally and remains pending until both sections confirm it.
 6. Open your other updated devices online so they receive the new program.
 
 > [!WARNING]
 > A reset removes this account's workout, diet, weigh-in, note, swap, skip, achievement, and preference history. It cannot be undone in the app. Your Supabase user, email/password, and signed-in session stay intact. This clears app data in the account's progress row; it does not erase backups retained by your hosting provider.
 
-Every reset has its own generation ID. Updated clients choose the reset document as a whole instead of merging old history into it, including when an old save was already in flight. If two devices restart offline, the later reset wins when synced. Ordinary edits within the same generation still merge normally. **Update/reopen all installed app copies before resetting; old code cannot honor a protocol it does not know.** No SQL migration, new environment variable, or account recreation is required for this feature.
+**Momentum uses that exact date too, even when it is not a Monday.** Its active calendar restarts at Week 1 with 90 new days, without reusing old completion checks, pauses or workload unlocks. Its previous journey and private meal/preparation records are archived, not erased. Actual weekday appointments remain correct: Titan is Wednesday, home Strength A is Monday, and Saturday Strength B still needs earned eligibility. The original 26 earned workout weeks and Momentum's earned options remain independent; a shared start does not equate their attendance.
+
+Every reset has its own generation ID. Updated clients choose the root reset document as a whole instead of merging old history into it, including when an old save was already in flight. Momentum derives one deterministic journey ID from that generation, retains archived history, and rejects an old active journey winning a later sync. If two devices restart offline, the later reset wins when synced. Ordinary edits within the same generation still merge normally. **Update/reopen all installed app copies before resetting; old code cannot honor a protocol it does not know.**
+
+Existing Momentum installations must run [`supabase/migrations/20261026_shared_start.sql`](supabase/migrations/20261026_shared_start.sql) once in SQL Editor before deploying this update. It replaces only the private save function: no progress rows, owner permissions, tables or RLS policies are changed. Fresh installations already include it. No new environment variable or account recreation is required. An unapplied Start Fresh made after the existing Momentum journey was created is picked up automatically; do not reset your account again just to repair the old date mismatch.
 
 ### Month 1 Strength Sessions
 
@@ -1036,6 +1040,7 @@ workout-tracker/
 | `src/experience.css` | Coordinated session layouts, semantic colors, measured mobile controls, and keyboard/motion fallbacks. |
 | `docs/session-experience.md` | Detailed guide to the 12 interface improvements and their testing boundaries. |
 | `src/features/momentum/` | Independently authorized private journey, safety, calendar, coaching and revisioned sync. |
+| `src/features/momentum/sharedStart.ts` | Projects a confirmed root reset into one dated private journey while archiving the previous journey and private food records. |
 | `src/features/mealPrep/recipes.ts` | Structured batch recipes, shared grocery identities and explicit nutrition assumptions. |
 | `src/features/mealPrep/plan.ts` | Rolling 2/3-day calendar, per-date portions, prepared snapshots and exact grocery aggregation. |
 | `src/features/mealPrep/MealPrepPlanner.tsx` | Shared Eat today / Cook batch / To buy interface for both nutrition destinations. |
@@ -1043,6 +1048,7 @@ workout-tracker/
 | `tests/meal-prep.test.mjs` | Deterministic date, quantity, recipe-selection, validation and prepared-batch tests. |
 | `docs/momentum.md` | Administrator setup, user guide, privacy model, evidence and maintenance. |
 | `supabase/migrations/20261023_momentum.sql` | Additive Momentum allowlist, RLS and restricted read/write functions. Does not change the original table. |
+| `supabase/migrations/20261026_shared_start.sql` | Function-only update for any-weekday starts and account-verified shared reset metadata; preserves existing records, grants and RLS. |
 | `tests/momentum.test.mjs` | Starter-plan behavior, clinical gates, real PostgreSQL RLS/CAS checks and private-cache tests. |
 | `scripts/momentum-ui-check.mjs` | Private-feature onboarding, phone/desktop layout, meals, safety, offline and multi-device checks. |
 | `tests/coach-behavior.test.mjs` | Runs actual calendar, coaching, completion, weight, and merge functions using synthetic data. |

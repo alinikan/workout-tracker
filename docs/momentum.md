@@ -22,10 +22,29 @@ phone-width WebKit and desktop Chromium, in both light and dark themes.
 
 ### First Visit
 
-Choose an upcoming **Monday**, then **Start my 90 days**. Opening the app does not start it.
-The first planned Titan introduction is that week's Wednesday at **6:15 pm**. These are planned
+Choose **today or any future date**, then **Start my 90 days**. Opening the app does not start it.
+If you already chose a shared Start Fresh date in Coach, onboarding uses that exact date instead.
+The first planned Titan introduction is the first Wednesday on or after your start, at **6:15 pm**. These are planned
 appointments, not bookings; confirm with Titan, especially around holidays. A fresh journey
-archives previous journeys instead of deleting them. Shared weigh-ins and meals stay intact.
+archives previous journeys instead of deleting them.
+
+### One Start Fresh, All Sections
+
+Open **Coach settings → Start fresh**, choose the date, type `RESET` and confirm. The same dialog
+is also reached from **Momentum settings → Start fresh across the app**. Its confirmation lists
+the Workout/Nutrition/weigh-in history that is cleared. Your account stays signed in.
+
+Momentum restarts on the **exact chosen date**, at Week 1 of a new 90-day calendar. The previous
+private journey, its meals and preparation records stay archived. New attendance, meal checks,
+reviews, pauses and progression begin empty. Titan classes remain on real Wednesdays; no booking
+is made. Changing calendars does not grant workout completion or earned workload options.
+
+The shared date saves to the ordinary progress row first, then the private Momentum row acknowledges
+the same reset generation. Keep the app open until the pending notice clears. Offline devices adopt
+the same single journey after reconnecting; late responses cannot restore the former active plan.
+An older Start Fresh that was never applied to an earlier-created Momentum journey is repaired on
+loading this version, without asking you to erase your account again. Initial metadata adoption alone
+does not restart a newer journey or auto-complete onboarding.
 
 An existing 30-day journey offers **Use my 90-day plan**. The extension preserves its ID, logs,
 meals, reviews and dates with recorded, booked or partly worked sessions. Those slots retain
@@ -136,9 +155,13 @@ with real measurements and honest missing-day coverage. No separate measurements
 
 ## Supabase: Existing Installations
 
-**This 90-day update requires no new SQL migration, key, account or permission change.** It retains
-document schema version 2, the same owner allowlist, row-level security and revisioned save RPC.
-The optional plan-version, set-count and class-track fields live inside the existing private JSON.
+**The shared-start update requires one function-only migration:** run
+[`20261026_shared_start.sql`](../supabase/migrations/20261026_shared_start.sql) in **SQL Editor → New query**
+before deploying the new client. It retains document schema version 2, all saved records and revisions,
+the same owner allowlist, grants, row-level security and revisioned save RPC. Rerunning is safe.
+Fresh installs and the full setup revision already contain this function. No new key, account or
+permission change is needed. The server accepts any weekday and verifies linked reset metadata
+against the signed-in owner's root record before allowing a delayed historical activation.
 Vercel builds the app; it does not run database SQL or book classes.
 
 ### First-Time Private Feature Setup
@@ -187,6 +210,7 @@ original progress table. Already-open offline devices discover revocation only o
 npm install
 npm test
 npm run test:ui -- --momentum-only
+npm run test:ui -- --shared-start-only
 npm run dev -- --host 0.0.0.0 --port 3000
 ```
 
@@ -223,6 +247,7 @@ Do not reset browser data to update it.
 | `TitanPanel.tsx` | Dated price comparison, terms caveats and first-class preparation. |
 | `momentum.css` | Scoped palette, full-width activity bands, responsive layouts and safe areas. |
 | `storage.ts` / `useMomentum.ts` | Normalization, private encryption, authorization, merge and revisioned autosave. |
+| `sharedStart.ts` | Idempotent root-reset projection, deterministic journey ID, old-journey/private-food archiving and reset-generation conflict selection. |
 | `calendar.ts` | Generic reminder export with Vancouver date/time conversion. |
 | `research.ts` | Concise primary-source evidence and limitations. |
 
@@ -232,6 +257,12 @@ boundaries and membership math. `scripts/momentum-ui-check.mjs` exercises real U
 synthetic accounts and a CAS fixture, including independent offline devices. Tests do not access the
 owner's production health history. External media is blocked in fixtures, so actual video availability
 and physical-iPhone playback still deserve a device smoke test.
+
+`tests/shared-start.test.mjs` covers reset projection, historical repair, archive preservation and
+competing devices. `tests/shared-start-sql.test.mjs` executes the migration in real PostgreSQL
+(PGlite), testing owner isolation, dates, CAS, size limits, exact grants, RLS and non-destructive reruns.
+`scripts/shared-start-ui-check.mjs` tests phone WebKit and desktop Chromium with two independent
+contexts, offline reconnection, root-before-private saves, Week 1 navigation and cancellation.
 
 ## Evidence And Limits
 

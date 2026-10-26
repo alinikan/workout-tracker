@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { ProgramState } from "../../lib/programLifecycle.ts";
 
 // Everything below describes generic software, not the owner's personal health
 // history. Profile values live only in the separately authorized private record.
@@ -19,6 +20,7 @@ export type DayPlan = {
 export type Slot = {
   id: string;
   day: number;
+  templateDay?: number;
   date: string;
   note?: string;
   legacy?: boolean;
@@ -107,9 +109,12 @@ export type Journey = {
   reviews: Record<string, Review>;
   adaptations: Record<string, Adaptation>;
   pauses: Record<string, { from: string; to?: string; reason: "personal" }>;
+  archivedMeals?: MomentumData["meals"];
+  archivedPreparation?: Record<string, boolean>;
 };
 export type MomentumData = {
   schemaVersion: 2;
+  sharedProgram?: ProgramState;
   onboarded: boolean;
   profile: Profile;
   activeJourneyId: string | null;

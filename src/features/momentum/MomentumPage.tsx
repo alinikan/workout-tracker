@@ -75,6 +75,8 @@ type Props = {
   weightChart: ReactNode;
   logWeight: (date: string, kg: string) => void;
   weightsReady: boolean;
+  onStartFresh: () => void;
+  sharedStartReady: boolean;
 };
 type View = "today" | "meals" | "journey";
 const dateLabel = (date: string) =>
@@ -157,7 +159,8 @@ export default function MomentumPage(p: Props) {
       ? calendarWeekOf(j, slots.find((s) => s.date >= today) ?? slots.at(-1)!)
       : 1,
   );
-  const [start, setStart] = useState(suggestedStart(today)),
+  const linkedStart = data.sharedProgram?.resetAt ? data.sharedProgram.startedOn : null;
+  const [start, setStart] = useState(linkedStart ?? suggestedStart(today)),
     [notice, setNotice] = useState("");
   const [mealDate, setMealDate] = useState(today);
   // A Home Screen app can remain suspended overnight. Keep an intentional
@@ -215,7 +218,10 @@ export default function MomentumPage(p: Props) {
     setSelectedId("");
     setSession(false);
     setMealDate(today);
+    setWeek(j && slots.length
+      ? calendarWeekOf(j, slots.find((slot) => slot.date >= today) ?? slots.at(-1)!) : 1);
   }, [today, j?.id]);
+  useEffect(() => { if (linkedStart) setStart(linkedStart); }, [linkedStart]);
 
   const record = (outcome: Outcome) => {
     if (!j || !selected || !plan) return false;
@@ -368,11 +374,13 @@ export default function MomentumPage(p: Props) {
     );
   };
   const activate = () => {
-    if (!startJourneyAllowed(data, start, today)) {
-      setNotice("Choose an upcoming Monday. Existing history stays archived.");
+    const chosen = linkedStart ?? start;
+    if (!linkedStart && !startJourneyAllowed(data, chosen, today)) {
+      setNotice("Choose today or a future start date. Existing history stays archived.");
       return;
     }
-    const next = makeJourney(start);
+    const next = makeJourney(chosen, linkedStart ? `program-${data.sharedProgram!.resetId}` : undefined,
+      linkedStart ? data.sharedProgram!.resetAt! : undefined);
     edit((d) => ({
       ...d,
       onboarded: true,
@@ -387,7 +395,7 @@ export default function MomentumPage(p: Props) {
         classStage: "introduction",
         classSwitchDate: "",
         className: "Introduction to Muay Thai / Kickboxing",
-        nextClassDate: firstWednesday(start),
+        nextClassDate: firstWednesday(chosen),
       },
     }));
     setSheet(null);
@@ -499,14 +507,16 @@ export default function MomentumPage(p: Props) {
               <span>Wednesday · 6:15 pm · Introduction</span>
             </div>
           </div>
-          <Field label="Start Monday">
+          <Field label="Start date">
             <input
               type="date"
               min={today}
               value={start}
+              disabled={Boolean(linkedStart)}
               onChange={(e) => setStart(e.target.value)}
             />
           </Field>
+          {linkedStart && <p className="mm-muted">This is your shared Start Fresh date. Change it for all sections in Coach settings.</p>}
           <p className="mm-muted">
             First planned introduction:{" "}
             {dateLabel(firstWednesday(start || suggestedStart(today)))}. Confirm
@@ -1134,20 +1144,13 @@ export default function MomentumPage(p: Props) {
             </>
           )}
           <details className="mm-disclosure">
-            <summary>Start a fresh 90-day journey</summary>
+            <summary>Start fresh across the app</summary>
             <p>
-              Previous journeys stay archived. Meals and shared weigh-ins are
-              not reset.
+              Choose one new start date for Workout, Nutrition and Momentum.
+              Training starts at Week 1. Previous Momentum journeys stay archived;
+              the confirmation explains which progress is cleared.
             </p>
-            <Field label="New start Monday">
-              <input
-                type="date"
-                min={today}
-                value={start}
-                onChange={(e) => setStart(e.target.value)}
-              />
-            </Field>
-            <button onClick={activate}>Start new 90-day journey</button>
+            <button disabled={!p.sharedStartReady} onClick={p.onStartFresh}>Start fresh for all sections</button>
           </details>
           <details className="mm-disclosure">
             <summary>Archived journeys</summary>
