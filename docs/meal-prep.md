@@ -45,6 +45,14 @@ or proof that every body size meets a particular daily g/kg target. The app show
 estimated food totals and retains weight trends for feedback rather than cutting
 food in response to missed sessions. No recipe guarantees a body-composition result.
 
+Photos are illustrative serving references, not the ingredient or nutrition authority. The
+breakfast reference shows oats and berries, the main references show chicken or beef, and
+the snack reference includes yogurt and banana. Follow the written ingredients and measured
+portions, not extra toppings in a reference photo. Photos are hosted on Unsplash; the beef
+image is [Sheri Silver's beef and broccoli](https://unsplash.com/photos/a-bowl-of-beef-and-broccoli-with-white-rice-BA2UZ6w8JfY),
+and the snack image is [Nikita Khowala's yogurt and banana](https://unsplash.com/photos/yogurt-cup-with-granola-banana-and-spoon-on-yellow-background-jxt0SNnrtm0),
+both offered under the free Unsplash License when checked. No paid image/API service is required.
+
 ## Public API
 
 Types exported from `plan.ts`:

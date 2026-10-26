@@ -239,7 +239,7 @@ export const prepRecipes: PrepRecipe[] = [
     title: "Extra-Lean Beef and Rice Bowls",
     shortTitle: "Beef + rice",
     kind: "main",
-    photo: photo("photo-1559847844-5315695dadae"),
+    photo: photo("photo-1783375175952-705a0600e05c"),
     minutes: 30,
     description:
       "A smaller beef serving with rice, vegetables and measured oil; the fourth default block.",
@@ -264,7 +264,7 @@ export const prepRecipes: PrepRecipe[] = [
     title: "Extra-Lean Beef and Potato Skillet",
     shortTitle: "Beef + potatoes",
     kind: "main",
-    photo: photo("photo-1559847844-5315695dadae"),
+    photo: photo("photo-1783375175952-705a0600e05c"),
     minutes: 35,
     description:
       "An optional potato swap for the beef rice bowl, not an additional default beef block.",
@@ -289,7 +289,7 @@ export const prepRecipes: PrepRecipe[] = [
     title: "Greek Yogurt, Oats and Berries",
     shortTitle: "Overnight oats",
     kind: "breakfast",
-    photo: photo("photo-1511690743698-d9d85f2fbf38"),
+    photo: photo("photo-1517673400267-0251440c45dc"),
     minutes: 5,
     description:
       "A filling yogurt and oat breakfast without required whey or extra supplements.",
@@ -312,7 +312,7 @@ export const prepRecipes: PrepRecipe[] = [
     title: "Warm Berry Oats with Greek Yogurt",
     shortTitle: "Warm berry oats",
     kind: "breakfast",
-    photo: photo("photo-1511690743698-d9d85f2fbf38"),
+    photo: photo("photo-1517673400267-0251440c45dc"),
     minutes: 10,
     description:
       "The same groceries as overnight oats, cooked fresh from pre-weighed dry portions.",
@@ -335,7 +335,7 @@ export const prepRecipes: PrepRecipe[] = [
     title: "Greek Yogurt and Banana, with Training-Day Toast",
     shortTitle: "Yogurt + banana",
     kind: "snack",
-    photo: photo("photo-1488477181946-6428a0291777"),
+    photo: photo("photo-1763576178054-ff0152753fd8"),
     minutes: 5,
     description:
       "Yogurt and a banana every day; one slice of whole-grain toast on training days only.",
