@@ -7,6 +7,7 @@ import {
   currentJourney,
   dayPlan,
   makeJourney,
+  movementsFor,
   sortedSlots,
 } from "../src/features/momentum/plan.ts";
 import {
@@ -49,6 +50,67 @@ const planOn = (d, date) =>
     date,
   );
 
+test("home quad correction preserves actual machine history while future sessions use the cable", () => {
+  const d = fixture(),
+    j = currentJourney(d),
+    slots = sortedSlots(j).filter((s) =>
+      dayPlan(j, s).activity.startsWith("strength"),
+    ),
+    s = slots[0];
+  const activity = dayPlan(j, s).activity;
+  const oldIds = movementsFor(j, activity, s).map((e) =>
+    e.id === "mi6-leg-extension" ? "seated-leg-extension" : e.id,
+  );
+  j.logs[s.id] = {
+    ...newLog(),
+    outcome: "planned",
+    plannedActivity: activity,
+    plannedExerciseIds: oldIds,
+    plannedSets: 2,
+    sets: { "seated-leg-extension": { done: true, weight: "20", reps: "10" } },
+  };
+  const before = structuredClone(j.logs[s.id]);
+  assert.ok(
+    resolveDay(d, s, s.date).exerciseIds.includes("seated-leg-extension"),
+  );
+  assert.ok(
+    !resolveDay(d, s, s.date).exerciseIds.includes("mi6-leg-extension"),
+  );
+  assert.ok(planOn(d, slots[1].date).exerciseIds.includes("mi6-leg-extension"));
+  assert.deepEqual(j.logs[s.id], before);
+});
+
+test("the home cable warm-up follows the no-machine swap without asking for a weight", () => {
+  const log = app.normalizeDayLog({
+    swaps: { "mi6-leg-extension": "seated-quad-extension" },
+  });
+  const ramp = app.activeExerciseFor(
+    app.exerciseMap["warmup-ramp-home-cable-extension"],
+    log,
+  );
+  assert.equal(ramp.id, "warmup-ramp-home-cable-extension");
+  assert.equal(ramp.logType, "done");
+  assert.equal(
+    ramp.youtubeId,
+    app.exerciseMap["seated-quad-extension"].youtubeId,
+  );
+  assert.match(ramp.name, /Warm-Up/);
+  for (const id of [
+    "machine-chest-press",
+    "mi6-seated-row",
+    "mi6-cable-curl",
+    "mi6-bar-pressdown",
+    "mi6-leg-extension",
+  ]) {
+    const options = app.swapOptionsFor(app.exerciseMap[id]);
+    assert.ok(options.length, id);
+    assert.ok(
+      options.every((e) => e.youtubeId && e.cues.length && e.resources.length),
+      id,
+    );
+  }
+});
+
 for (let offset = 0; offset < 7; offset++)
   test(`home start weekday ${offset}: Day 1 lift, two weekly lifts, no assumed class`, () => {
     const d = fixture(addDays(start, offset)),
@@ -79,7 +141,8 @@ for (let offset = 0; offset < 7; offset++)
       assert.ok(!p.exerciseIds.includes("leg-press"));
       for (const id of p.exerciseIds)
         assert.ok(
-          app.exerciseMap[id]?.youtubeId && app.exerciseMap[id]?.motionDemo,
+          app.exerciseMap[id]?.youtubeId &&
+            app.exerciseMap[id]?.resources.length,
           id,
         );
     }
@@ -230,7 +293,8 @@ test("Today/Gym/Week and nutrition use the exact private schedule, with historic
   const first = days[0],
     exercises = app.scheduledExercisesForDay(first);
   assert.equal(exercises.length, 9);
-  assert.ok(exercises.some((e) => e.id === "seated-leg-extension"));
+  assert.ok(exercises.some((e) => e.id === "mi6-leg-extension"));
+  assert.ok(!exercises.some((e) => e.id === "seated-leg-extension"));
   assert.equal(
     app.recommendedSets(first, app.exerciseMap["machine-chest-press"], 0),
     2,

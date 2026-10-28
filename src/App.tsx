@@ -27,6 +27,7 @@ import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { isSupabaseConfigured, supabase, supabaseConfigError } from "./lib/supabaseClient";
 import { canClaimLocalProgress, mergeProgressChanges, sameData } from "./lib/syncMerge";
 import { ProductNavigation, ProgressRing, type ProductMode } from "./components/PremiumUI";
+import { WorkoutMove } from "./components/WorkoutMove";
 import { ProgramControls, TrainingJourney } from "./components/ProgramControls";
 import NutritionCoach from "./features/nutrition/NutritionCoach";
 import { emptyNutrition, normalizeNutrition, budgetFor as nutritionBudgetFor, planFor as nutritionPlanFor,
@@ -1466,7 +1467,7 @@ const exerciseMap: Record<string, Exercise> = {
     shortName: "Leg extension",
     family: "legs",
     equipment: "Leg extension machine",
-    loadNote: "Your multi-gym leg attachment is suitable only in its documented seated leg-extension setup. Align the machine pivot with your knee, pad above the ankle, and use a comfortable range. Log that machine's selected pin pounds.",
+    loadNote: "Dedicated machine only; it is not part of your current home equipment. This entry remains for past sessions or an equipped gym. At home choose the cable or no-machine swap. On a real machine align the pivot with your knee, keep the pad above the ankle and log that machine's selected pin pounds separately.",
     target: "Quadriceps",
     reps: "10-15",
     rest: "60-75 sec",
@@ -2456,8 +2457,36 @@ const exerciseMap: Record<string, Exercise> = {
   },
 };
 
+// Home equipment does not include a dedicated leg-extension machine. Keep a
+// separate cable identity: its leverage and load history are not interchangeable.
+exerciseMap["mi6-leg-extension"] = {
+  id: "mi6-leg-extension", name: "Seated Cable Knee Extension", shortName: "Cable knee extension", family: "legs",
+  equipment: "Mi6 low pulley, ankle strap and stable bench or chair", trainingLocation: "downstairs",
+  locationNote: "Use the home cable station. Only use a seat that stays stable with a clear cable path; otherwise choose the no-machine swap.",
+  loadNote: "Record the selected pounds on one Mi6 stack, not your previous machine weight. The Mi6's 2:1 ratio and this setup change resistance. Start at the lightest controllable setting; do not improvise an unstable seat or pinch the cable under a leg.",
+  target: "Quadriceps through knee extension, without a squat", reps: "8-12 per leg", rest: "60-90 sec after both sides",
+  cues: ["Position a stable seat facing away from one low pulley. Clip the ankle strap just above your shoe; keep the cable behind the working shin, clear of the seat and the other foot.", "Keep the thigh supported, sit tall and plant the other foot. Begin with a comfortable knee bend; test the cable path with minimal resistance first.", "Straighten the working knee slowly without lifting the thigh or snapping the joint. Pause briefly, then lower over two to three seconds.", "Finish the listed repetitions on each leg. Use a comfortable natural leg position; stop if the seat moves, the cable rubs or your knee hurts."],
+  avoid: ["Do not force the feet or knees into a new alignment.", "Do not kick, swing the hip, trap the cable or copy another machine's load.", "If the setup is not stable or comfortable, select the bodyweight seated knee-extension swap instead."],
+  progression: "Build controlled repetitions on BOTH legs first. Keep several comfortable repetitions available. Only then consider the smallest stack change; this movement starts its own load history.",
+  youtubeId: "ebjD98gZd8E", swapIds: ["seated-quad-extension"],
+  resources: [{label: "Cable setup and technique", url: "https://fitwill.app/exercise/5664/cable-seated-leg-extension/"}, {label: "Seated knee-extension guidance", url: "https://www.unmc.edu/cctr/community/proactive/fourtypes/strength_8_seated_knee_extension.pdf"}],
+};
+exerciseMap["seated-quad-extension"] = {
+  ...exerciseMap["seated-knee-extension-warmup"], id: "seated-quad-extension", name: "Seated Knee Extension (No Machine)", shortName: "Seated quad extension",
+  family: "legs", logType: "done", motionDemo: undefined, trainingLocation: "downstairs", reps: "10-15 per leg, slow return", rest: "60 sec after both sides",
+  target: "Lighter quadriceps work without a cable or machine", swapIds: ["mi6-leg-extension"],
+  loadNote: "A deliberately lighter, bodyweight option, not an equal-load machine replacement. Use the same stable seat and a slow two-to-three-second lowering phase. No weight entry is required.",
+  locationNote: "Use a chair downstairs inside the strength session so you do not interrupt lifting with an upstairs trip.",
+  progression: "Build comfortable control, not forced range. Move to the cable version only when a stable setup and a very light resistance are comfortable.",
+};
+exerciseMap["seated-leg-extension"].swapIds = ["mi6-leg-extension", "seated-quad-extension"];
+exerciseMap["machine-chest-press"].swapIds = ["incline-db-press", "incline-push-up"];
+exerciseMap["mi6-seated-row"].swapIds = ["single-arm-row", "seated-cable-row"];
+exerciseMap["mi6-cable-curl"].swapIds = ["dumbbell-biceps-curl"];
+exerciseMap["mi6-bar-pressdown"].swapIds = ["rope-triceps-pressdown"];
+
 // A warm-up reuses the exact movement's media/setup, never an unrelated demonstration.
-for (const [id, sourceId] of [["warmup-ramp-home-leg-extension", "seated-leg-extension"], ["warmup-ramp-home-machine-press", "machine-chest-press"]]) {
+for (const [id, sourceId] of [["warmup-ramp-home-leg-extension", "seated-leg-extension"], ["warmup-ramp-home-cable-extension", "mi6-leg-extension"], ["warmup-ramp-home-machine-press", "machine-chest-press"]]) {
   const source = exerciseMap[sourceId];
   exerciseMap[id] = { ...source, id, name: `${source.name} Warm-Up`, shortName: `${source.shortName} warm-up`,
     family: "warmup", priority: "main", swapIds: undefined,
@@ -3456,6 +3485,8 @@ const libraryOrder = [
   "warmup-ramp-single-arm-row",
   "leg-press",
   "seated-leg-extension",
+  "mi6-leg-extension",
+  "seated-quad-extension",
   "seated-leg-curl",
   "glute-bridge",
   "incline-db-press",
@@ -5168,16 +5199,19 @@ function activeExerciseFor(originalExercise: Exercise, log: DayLog) {
   // Keep a ramp slot's stable ID, but teach the movement actually selected for
   // its corresponding main lift. A row swap must not keep teaching dumbbell setup.
   if (isRampWarmup(originalExercise)) {
-    const mainId = originalExercise.id.replace("warmup-ramp-", "");
+    const homeRamp = { "warmup-ramp-home-cable-extension": "mi6-leg-extension", "warmup-ramp-home-leg-extension": "seated-leg-extension", "warmup-ramp-home-machine-press": "machine-chest-press" };
+    const mainId = homeRamp[originalExercise.id as keyof typeof homeRamp] ?? originalExercise.id.replace("warmup-ramp-", "");
     const main = exerciseMap[mainId];
     const swapId = log.swaps?.[mainId];
     const swap = swapId && main?.swapIds?.includes(swapId) ? exerciseMap[swapId] : null;
     if (swap) return {
       ...originalExercise,
-      name: `Light Practice: ${swap.name}`,
+      name: `Warm-Up: ${swap.name}`,
       shortName: `${swap.shortName} ramp`,
       equipment: swap.equipment,
       loadNote: swap.loadNote,
+      logType: swap.logType,
+      loadLabel: swap.loadLabel,
       youtubeId: swap.youtubeId,
       motionDemo: swap.motionDemo,
       cues: ["Use clearly lighter resistance than your working sets. Rehearse today's selected swap without fatigue; bodyweight swaps use an easier version.", ...swap.cues],
@@ -5637,11 +5671,11 @@ function connectedPlanDays(days: PlanDay[], data: MomentumData | null, logs: Rec
     if (log.completed || Object.values(log.exercises).some(rows => rows.some(set => set.done || set.weight || set.reps))) return day;
     const plan = momentumDay(data, slot, today), strength = plan.activity.startsWith("strength"), trial = plan.activity === "boxing";
     const targets = Object.fromEntries(plan.movementTargets.map(item => [item.id, `${item.reps} controlled reps; leave 3-4 comfortable reps available`]));
-    const practiceIds = plan.exerciseIds.slice(0, 2).flatMap(id => id === "seated-leg-extension" ? ["warmup-ramp-home-leg-extension"] : id === "machine-chest-press" ? ["warmup-ramp-home-machine-press"] : []);
+    const practiceIds = plan.exerciseIds.slice(0, 2).flatMap(id => id === "seated-leg-extension" ? ["warmup-ramp-home-leg-extension"] : id === "mi6-leg-extension" ? ["warmup-ramp-home-cable-extension"] : id === "machine-chest-press" ? ["warmup-ramp-home-machine-press"] : []);
     const ids = strength ? ["warmup-treadmill-walk", ...practiceIds, ...plan.exerciseIds]
       : trial ? ["muay-thai-trial"] : plan.activity === "walk" ? ["home-easy-walk"] : [];
     targets["warmup-treadmill-walk"] = "5-7 min easy walking";
-    targets["warmup-ramp-home-leg-extension"] = targets["warmup-ramp-home-machine-press"] = "5-8 easy reps; use a clearly lighter pin than working sets";
+    targets["warmup-ramp-home-leg-extension"] = targets["warmup-ramp-home-machine-press"] = targets["warmup-ramp-home-cable-extension"] = "5-8 easy reps; use a clearly lighter pin than working sets";
     targets["home-easy-walk"] = `${plan.minutes} min easy, conversational`;
     targets["muay-thai-trial"] = `${plan.minutes} active technique minutes, with breaks or observation`;
     return { ...day, session: {
@@ -6454,7 +6488,7 @@ function SetLoadFields({ exercise, set, setIndex, onChange, previous }: {
   // A label may own the input, not the separate copy command. Unique IDs also
   // keep the Today, Gym and detail-sheet fields associated correctly.
   const weightInputId = useId();
-  return <>
+  return <div className="set-inputs">
     <div className="set-field set-weight">
       <label className="set-field-label" htmlFor={weightInputId}>{exercise.id.startsWith("mi6-") ? "Stack (lbs)" : "Weight (lbs)"}</label>
       <input id={weightInputId} inputMode="decimal" value={set.weight} placeholder="lbs"
@@ -6483,7 +6517,7 @@ function SetLoadFields({ exercise, set, setIndex, onChange, previous }: {
         {effortOptions.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
       </select>
     </label>
-  </>;
+  </div>;
 }
 
 // Modern browsers can cross-fade substantial screen changes without a routing library. The
@@ -6565,7 +6599,14 @@ export default function Home() {
   const [libraryFilter, setLibraryFilter] = useState("all");
   const [librarySearch, setLibrarySearch] = useState("");
   const [detailExerciseId, setDetailExerciseId] = useState<string | null>(null);
-  const [detailTab, setDetailTab] = useState<"log" | "technique" | "history">("log");
+  const [detailTab, setDetailTab] = useState<"log" | "technique" | "swap" | "history">("log");
+  const [accountRequested, setAccountRequested] = useState(false);
+  useEffect(() => {
+    if (appMode === "hub" && accountRequested) {
+      document.getElementById("coach-account")?.scrollIntoView({ block: "start", behavior: "instant" });
+      setAccountRequested(false);
+    }
+  }, [appMode, accountRequested]);
   const [mealTab, setMealTab] = useState<"ingredients" | "cook" | "portion">("cook");
   const [expandedTodayMoveId, setExpandedTodayMoveId] = useState<string | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
@@ -8572,6 +8613,7 @@ export default function Home() {
       <main className={`app-shell coach-hub-shell ${keyboardOpen ? "keyboard-open" : ""}`}>
         <ProductNavigation
           activeMode="hub"
+          onAccount={() => { setAppMode("hub"); setAccountRequested(true); }}
           statusLabel={localSaveError ? "Save needs attention" : syncHeadline}
           statusTone={productStatusTone}
           onSelect={switchProductMode}
@@ -8581,7 +8623,8 @@ export default function Home() {
           <div className="brand-lockup hub-brand">
             <div>
               <p className="eyebrow">{formatDate(currentProgramDate)}</p>
-              <h1 id="coach-hub-heading">{greeting}</h1>
+              <h1 id="coach-hub-heading">Your day</h1>
+              <span className="hub-greeting">{greeting}</span>
               <p className="hero-text">Training Week {trainingProgress.trainingWeek} · {phaseForWeek(trainingProgress.trainingWeek).title}. Your pace, not a deadline.</p>
             </div>
           </div>
@@ -8596,16 +8639,12 @@ export default function Home() {
               onClick={() => switchProductMode("workout")}
             >
               <div className="hub-choice-content">
-                <span><Icon name="dumbbell" size={22} /> Today&apos;s workout <Icon name="chevronRight" size={18} /></span>
+                <span><Icon name="dumbbell" size={20} /> Training <Icon name="chevronRight" size={18} /></span>
                 <strong>{gymDay.session.title}</strong>
                 <small>{gymMoveRows.find((move) => !move.isComplete && !move.isSkipped)?.activeExercise.name ?? (gymSessionResolved ? "Session recorded" : "Recovery day")}</small>
                 <span className="hub-next-label">{gymSessionResolved ? "Review workout" : "Continue training"}</span>
               </div>
-              <ProgressRing
-                value={gymMoveRows.filter((move) => move.isComplete).length}
-                max={gymMoveRows.length}
-                label="Today's workout progress"
-              />
+              <div className="hub-destination-progress"><progress aria-label="Today's workout progress" value={gymMoveRows.filter(move => move.isComplete).length} max={Math.max(1,gymMoveRows.length)} /><span>{gymMoveRows.filter(move => move.isComplete).length}/{gymMoveRows.length} complete</span></div>
             </button>
             <button
               className="hub-choice-card diet"
@@ -8613,16 +8652,12 @@ export default function Home() {
               onClick={() => switchProductMode("diet")}
             >
               <div className="hub-choice-content">
-                <span><Icon name="cart" size={22} /> Today&apos;s nutrition <Icon name="chevronRight" size={18} /></span>
+                <span><Icon name="cart" size={20} /> Meals <Icon name="chevronRight" size={18} /></span>
                 <strong>{gymDietTarget.label}</strong>
                 <small>{nextMealSlot && nextMealRecipe ? `${nextMealSlot.label}: ${nextMealRecipe.shortTitle}` : "All meals recorded"}</small>
                 <span className="hub-next-label">{dietMealSlots.some((slot) => !normalizeDietDayLog(store.dietDays[currentProgramDate]).meals[slot.id]) ? "Plan your next meal" : "Review nutrition"}</span>
               </div>
-              <ProgressRing
-                value={Object.values(normalizeDietDayLog(store.dietDays[currentProgramDate]).meals).filter(Boolean).length}
-                max={4}
-                label="Today's meal progress"
-              />
+              <div className="hub-destination-progress"><progress aria-label="Today's meal progress" value={Object.values(normalizeDietDayLog(store.dietDays[currentProgramDate]).meals).filter(Boolean).length} max={4} /><span>{Object.values(normalizeDietDayLog(store.dietDays[currentProgramDate]).meals).filter(Boolean).length}/4 eaten</span></div>
             </button>
           </div>
         </section>
@@ -8979,6 +9014,7 @@ export default function Home() {
       <main className={`app-shell diet-shell diet-${selectedDietType} ${selectedDietAccent} ${keyboardOpen ? "keyboard-open" : ""}`}>
         <ProductNavigation
           activeMode="diet"
+          onAccount={() => { setAppMode("hub"); setAccountRequested(true); }}
           statusLabel={localSaveError ? "Save needs attention" : syncHeadline}
           statusTone={productStatusTone}
           onSelect={switchProductMode}
@@ -9014,7 +9050,7 @@ export default function Home() {
           <div>
             <p className="eyebrow">Today&apos;s nutrition</p>
             <h2 id="diet-heading">
-              {usesBatchMenu ? "Cook once. Lunch and dinner sorted." : selectedDietTarget.label}
+              {usesBatchMenu ? "Meal plan" : selectedDietTarget.label}
             </h2>
             <p className="diet-summary-date">{formatDate(selectedDietDay.iso)}</p>
             <details className="diet-coach-note">
@@ -9408,6 +9444,7 @@ export default function Home() {
     <main className={`app-shell workout-shell section-${activeSection} ${keyboardOpen ? "keyboard-open" : ""}`}>
       <ProductNavigation
         activeMode="workout"
+        onAccount={() => { setAppMode("hub"); setAccountRequested(true); }}
         statusLabel={localSaveError ? "Save needs attention" : syncHeadline}
         statusTone={productStatusTone}
         onSelect={switchProductMode}
@@ -9418,7 +9455,7 @@ export default function Home() {
           <span className="brand-mark">W</span>
           <div>
             <p className="eyebrow">Training · {activeSectionLabel}</p>
-            <h1>Workout</h1>
+            <h1>{activeSection === "progress" ? "Progress" : activeSection === "week" ? "Schedule" : activeSection === "library" ? "Exercises" : "Workout"}</h1>
           </div>
         </div>
 
@@ -9913,7 +9950,7 @@ export default function Home() {
               {currentGymRows.map((set, setIndex) => (
                 <div className="set-row" key={`${currentGymExercise.id}-gym-${setIndex}`}>
                   <span>{setIndex + 1}</span>
-                  <strong className="target-pill">{currentGymTarget}</strong>
+                  <strong className="target-pill">{currentGymTarget.split(";")[0]}</strong>
                   {currentGymTracksWeight && <SetLoadFields exercise={currentGymExercise} set={set} setIndex={setIndex} onChange={updateGymSet} previous={currentGymPreviousLoad?.rows[setIndex]} />}
                   <label className="mini-check">
                     <input
@@ -10136,23 +10173,6 @@ export default function Home() {
             </div>
           </div>
 
-          <details className="today-session-guidance">
-            <summary>
-              <span>Session guidance</span>
-              <strong>{phase.title} · {phase.rir}</strong>
-            </summary>
-            <div>
-              <p className="plan-note">{selectedSessionSummary}</p>
-              <p className="phase-note">{phase.note}</p>
-              <p className="phase-note">
-                <strong>{phase.title}:</strong> {phase.sets} · {phase.timeCap} target · {phase.rir}.
-              </p>
-              <p className="location-flow-note">
-                <strong>Home/gym split:</strong> {selectedLocationNote}
-              </p>
-            </div>
-          </details>
-
           <details className="readiness-disclosure">
           <summary><Activity size={17} aria-hidden="true" /><span>Readiness check<small>{Object.values(selectedLog.readiness).filter(Boolean).length}/4 answered · {selectedReadinessCopy.label}</small></span></summary>
           <section className={`readiness-card readiness-${selectedReadinessStatus}`} aria-labelledby="readiness-heading">
@@ -10233,32 +10253,6 @@ export default function Home() {
           </section>
 
           </details>
-          <details className="today-targets-disclosure" open={workoutMoveRows.length === 0}><summary>Daily targets <small>{completedTaskCount}/{selectedDay.session.tasks.length}</small></summary>
-          <section className="checklist-block compact-targets" aria-labelledby="tasks-heading">
-            <div className="flow-heading">
-              <h3 id="tasks-heading">Today&apos;s Targets</h3>
-              <span>{completedTaskCount}/{selectedDay.session.tasks.length}</span>
-            </div>
-            <div className="progress-track compact task-track">
-              <span style={{ width: `${taskCompletionPercent}%` }} />
-            </div>
-            <div className="check-grid compact">
-              {selectedDay.session.tasks.map((task) => (
-                <label key={task} className="check-row">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(selectedLog.tasks[task])}
-                    onChange={() => toggleTask(task)}
-                  />
-                  <span>
-                    <strong>{task}</strong>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </section>
-          </details>
-
           {workoutMoveRows.length > 0 ? (
             <section className="exercise-stack compact-flow" aria-labelledby="exercise-heading">
               <div className="flow-heading">
@@ -10275,88 +10269,20 @@ export default function Home() {
                   // Keep interactive rows untransformed as other logs expand or
                   // collapse: their touch targets should not travel during a tap.
                   return (
-                  <article
-                    key={move.originalExercise.id}
-                    id={`today-move-${move.originalExercise.id}`}
-                    className={`move-item ${move.activeExercise.family} ${
-                      move.isComplete ? "complete" : ""
-                    } ${move.isSkipped ? "skipped" : ""
-                    } ${nextOpenMove?.originalExercise.id === move.originalExercise.id ? "next-up" : ""} ${expanded ? "expanded" : ""}`}
-                  >
-                    <button
-                      className="move-check-button"
-                      type="button"
-                      disabled={selectedDay.session.connected?.kind === "trial" && selectedDay.iso > calendarDate}
-                      onClick={() =>
-                        toggleExerciseDone(move.activeExercise.id, move.setCount, move.isComplete)
-                      }
-                      aria-label={`${move.isComplete ? "Reopen" : "Complete"} movement ${
-                        move.exerciseIndex + 1
-                      }: ${move.activeExercise.name}`}
-                      title={move.isComplete ? "Mark movement incomplete" : "Mark movement complete"}
-                    >
-                      <span className="move-check-indicator" aria-hidden="true">
-                        {move.isComplete && <Icon name="check" size={16} />}
-                      </span>
-                    </button>
-                    <button
-                      className="move-main-button"
-                      type="button"
-                      aria-expanded={expanded}
-                      aria-controls={`inline-log-${move.originalExercise.id}`}
-                      onClick={() => setExpandedTodayMoveId(expanded ? "" : move.originalExercise.id)}
-                    >
-                      <span className="move-title-row">
-                        <strong>{move.activeExercise.name}</strong>
-                        <span className={`priority-chip priority-${move.priority}`}>
-                          {move.priorityLabel}
-                        </span>
-                        <span className={`move-status-chip ${move.status}`}>{move.statusLabel}</span>
-                        <span className="family-chip">{familyLabel(move.activeExercise.family)}</span>
-                        <span className={`location-chip ${move.location.type}`}>{move.location.label}</span>
-                        {move.isSwapped && <span className="swap-chip">Swap version</span>}
-                      </span>
-                      {move.isSwapped && (
-                        <small className="swap-origin">Original: {move.originalExercise.name}</small>
-                      )}
-                      <span className="move-meta-row">
-                        <span>{move.target}</span>
-                        <span>{move.rest}</span>
-                        <span>{move.activeExercise.equipment}</span>
-                      </span>
-                      <span className="move-inline-summary">{move.doneCount}/{move.setCount} sets <ChevronRight size={16} aria-hidden="true" /></span>
-                    </button>
-                    <div className="move-actions">
-                      <button
-                        className={`move-skip-button ${move.isSkipped ? "is-skipped" : ""}`}
-                        type="button"
-                        onClick={() =>
-                          move.isSkipped
-                            ? reopenSkippedExerciseForDay(selectedCoachDay, move.originalExercise.id)
-                            : requestSkipReason(selectedCoachDay, move.originalExercise.id, "today")
-                        }
-                      >
-                        {move.isSkipped ? "Reopen" : "Skip"}
-                      </button>
-                      <button
-                        className="move-detail-button"
-                        type="button"
-                        onClick={() => { setDetailTab("log"); setDetailExerciseId(move.originalExercise.id); }}
-                      >
-                        <Icon name={move.swaps.length ? "swap" : "video"} size={16} />
-                        <span>{move.swaps.length ? "Details / Swap" : "Details"}</span>
-                      </button>
-                      {move.isSwapped && (
-                        <button
-                          className="move-revert-button"
-                          type="button"
-                          onClick={() => setExerciseSwap(move.originalExercise.id, move.originalExercise.id)}
-                        >
-                          <Icon name="swap" size={16} />
-                          <span>Revert to original</span>
-                        </button>
-                      )}
-                    </div>
+                  <WorkoutMove key={move.originalExercise.id} id={move.originalExercise.id}
+                    family={move.activeExercise.family} index={move.exerciseIndex} name={move.activeExercise.name}
+                    target={move.target} location={move.location.label} done={move.doneCount} total={move.setCount}
+                    expanded={expanded} complete={move.isComplete} skipped={move.isSkipped}
+                    next={nextOpenMove?.originalExercise.id === move.originalExercise.id}
+                    thumbnail={move.activeExercise.youtubeId ? `https://i.ytimg.com/vi/${move.activeExercise.youtubeId}/mqdefault.jpg` : undefined}
+                    disabled={selectedDay.session.connected?.kind === "trial" && selectedDay.iso > calendarDate}
+                    original={move.isSwapped ? move.originalExercise.name : undefined} canSwap={move.swaps.length > 0}
+                    onExpand={() => setExpandedTodayMoveId(expanded ? "" : move.originalExercise.id)}
+                    onComplete={() => toggleExerciseDone(move.activeExercise.id, move.setCount, move.isComplete)}
+                    onSkip={() => move.isSkipped ? reopenSkippedExerciseForDay(selectedCoachDay, move.originalExercise.id) : requestSkipReason(selectedCoachDay, move.originalExercise.id, "today")}
+                    onDetails={() => { setDetailTab("technique"); setDetailExerciseId(move.originalExercise.id); }}
+                    onSwap={() => { setDetailTab("swap"); setDetailExerciseId(move.originalExercise.id); }}
+                    onRevert={() => setExerciseSwap(move.originalExercise.id, move.originalExercise.id)}>
                     {expanded && <div className="today-inline-log" id={`inline-log-${move.originalExercise.id}`}
                       role="region" aria-label={`${move.activeExercise.name} inline set log`}>
                       <div className="inline-log-heading"><strong>{move.isSkipped ? "Skipped - resume to continue" : "Your sets"}</strong>
@@ -10365,10 +10291,11 @@ export default function Home() {
                         </button>
                       </div>
                       {move.isSwapped && <p className="swap-note">Swap version of {move.originalExercise.name}. Revert to original is above.</p>}
+                      {move.target.includes(";") && <p className="inline-target-note">{move.target.split(";").slice(1).join(";").trim()}</p>}
                       <div className={`set-table inline-set-table ${tracksWeight(move.activeExercise) ? "" : "no-load"}`}>
                         {move.rows.map((set, setIndex) => <div className={`set-row ${set.done ? "set-done" : ""}`} key={setIndex}>
                           <span className="inline-set-number">Set {setIndex + 1}</span>
-                          <strong className="target-pill">{move.target}</strong>
+                          <strong className="target-pill">{move.target.split(";")[0]}</strong>
                           {tracksWeight(move.activeExercise) && <SetLoadFields exercise={move.activeExercise} set={set} setIndex={setIndex}
                             onChange={updateSet} previous={previous?.rows[setIndex]} />}
                           <label className="mini-check"><input type="checkbox" checked={set.done}
@@ -10381,7 +10308,7 @@ export default function Home() {
                         <p>{move.suggestion.detail}</p>
                       </details>
                     </div>}
-                  </article>
+                  </WorkoutMove>
                 ); })}
               </div>
             </section>
@@ -10392,6 +10319,23 @@ export default function Home() {
             </section>
           )}
 
+          <details className="today-session-guidance">
+            <summary><span>Session guidance</span><strong>{phase.title} · {phase.rir}</strong></summary>
+            <div><p className="plan-note">{selectedSessionSummary}</p><p className="phase-note">{phase.note}</p>
+              <p className="phase-note"><strong>{phase.title}:</strong> {phase.sets} · {phase.timeCap} target · {phase.rir}.</p>
+              <p className="location-flow-note"><strong>Home/gym split:</strong> {selectedLocationNote}</p>
+            </div>
+          </details>
+          <details className="today-targets-disclosure" open={workoutMoveRows.length === 0}>
+            <summary>Daily targets <small>{completedTaskCount}/{selectedDay.session.tasks.length}</small></summary>
+            <section className="checklist-block compact-targets" aria-labelledby="tasks-heading">
+              <div className="flow-heading"><h3 id="tasks-heading">Today&apos;s Targets</h3><span>{completedTaskCount}/{selectedDay.session.tasks.length}</span></div>
+              <div className="progress-track compact task-track"><span style={{width: `${taskCompletionPercent}%`}} /></div>
+              <div className="check-grid compact">{selectedDay.session.tasks.map(task => <label key={task} className="check-row">
+                <input type="checkbox" checked={Boolean(selectedLog.tasks[task])} onChange={() => toggleTask(task)} /><span><strong>{task}</strong></span>
+              </label>)}</div>
+            </section>
+          </details>
           <section className="notes-block" aria-labelledby="notes-heading">
             <h3 id="notes-heading">Workout Notes</h3>
             <label className="notes-field">
@@ -10842,7 +10786,7 @@ export default function Home() {
             </div>
 
             <SectionTabs id="exercise-detail" label="Exercise sections" value={detailTab} onChange={setDetailTab}
-              tabs={[{ id: "log", label: "Log" }, { id: "technique", label: "Technique" }, { id: "history", label: "History" }]} />
+              tabs={[{ id: "log", label: "Log" }, { id: "technique", label: "Technique" }, ...(detailMove.swaps.length ? [{ id: "swap" as const, label: "Swap" }] : []), { id: "history", label: "History" }]} />
             <div className="exercise-tab-panel" role="tabpanel" id={`exercise-detail-panel-${detailTab}`}
               aria-labelledby={`exercise-detail-tab-${detailTab}`}>
             {detailMove.isSwapped && (
@@ -10908,7 +10852,7 @@ export default function Home() {
               </div>
             </div>}
 
-            {detailTab === "log" && detailMove.swaps.length > 0 && (
+            {detailTab === "swap" && detailMove.swaps.length > 0 && (
               <section className="swap-panel" aria-labelledby="swap-heading">
                 <div className="flow-heading">
                   <h3 id="swap-heading">Swap Options</h3>
@@ -10991,7 +10935,7 @@ export default function Home() {
               {detailRows.map((set, setIndex) => (
                 <div className="set-row" key={`${detailExercise.id}-detail-${setIndex}`}>
                   <span>{setIndex + 1}</span>
-                  <strong className="target-pill">{detailMove.target}</strong>
+                  <strong className="target-pill">{detailMove.target.split(";")[0]}</strong>
                   {tracksWeight(detailExercise) && <SetLoadFields exercise={detailExercise} set={set} setIndex={setIndex} onChange={updateSet} previous={detailPreviousLoad?.rows[setIndex]} />}
                   <label className="mini-check">
                     <input

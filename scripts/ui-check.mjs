@@ -14,11 +14,12 @@ import { runBatchChecks } from "./batch-ui-check.mjs";
 import { runSharedStartChecks } from "./shared-start-ui-check.mjs";
 import { runTrialChecks } from "./trial-ui-check.mjs";
 import { runNutritionChecks } from "./nutrition-ui-check.mjs";
+import { runRedesignChecks } from "./redesign-ui-check.mjs";
 
 const storageKey = "body-recomp-gym-tracker-v1";
 const fixtureHost = "tracker-fixture.supabase.co";
 const diagnosticContexts = new Set();
-const { values } = parseArgs({ options: { repeat: { type: "string", default: "1" }, "momentum-only": { type: "boolean", default: false }, "contrast-only": { type: "boolean", default: false }, "batch-only": { type: "boolean", default: false }, "shared-start-only": { type: "boolean", default: false }, "trial-only": { type: "boolean", default: false }, "nutrition-only": { type: "boolean", default: false } } });
+const { values } = parseArgs({ options: { repeat: { type: "string", default: "1" }, "momentum-only": { type: "boolean", default: false }, "contrast-only": { type: "boolean", default: false }, "batch-only": { type: "boolean", default: false }, "shared-start-only": { type: "boolean", default: false }, "trial-only": { type: "boolean", default: false }, "nutrition-only": { type: "boolean", default: false }, "redesign-only": { type: "boolean", default: false } } });
 const focused = Object.entries(values).some(([key, value]) => key.endsWith("-only") && value);
 const runSuite = name => !focused || values[`${name}-only`];
 const repeatCount = Number(values.repeat);
@@ -164,13 +165,10 @@ async function assertSelectionContrast(page, selector) {
 }
 
 async function navigate(page, destination) {
-  if (page.viewportSize().width < 720) {
-    await page.locator(".primary-app-dock").getByRole("button", { name: destination, exact: true }).click();
-    return;
-  }
-  const product = destination === "Coach" ? "Coach" : destination === "Diet" ? "Nutrition" : "Workout";
-  await page.locator(".product-mode-switcher").getByRole("button", { name: product, exact: true }).click();
-  if (product === "Workout") await page.locator(".section-tabs").getByRole("button", { name: destination, exact: true }).click();
+  if (destination === "Week" || destination === "Library") {
+    await page.locator(".primary-app-dock").getByRole("button", { name: "Today", exact: true }).click();
+    await page.getByRole("button", { name: destination === "Week" ? "Week plan" : "Exercise library", exact: true }).click();
+  } else await page.locator(".primary-app-dock").getByRole("button", { name: destination, exact: true }).click();
 }
 
 async function settlePresentation(page) {
@@ -203,7 +201,8 @@ async function assertNoVideoLayout(page, label) {
   await assertLayout(page, label);
   if (page.viewportSize().width < 720) {
     const card = await page.locator(".gym-card").boundingBox();
-    assert.ok(Math.abs(card.x) <= 1 && Math.abs(card.x + card.width - page.viewportSize().width) <= 1, `${label}: Gym card does not align with both phone edges`);
+    const margin = await page.locator(".workout-context-nav").boundingBox();
+    assert.ok(Math.abs(card.x - margin.x) <= 1 && Math.abs(card.width - margin.width) <= 1, `${label}: Gym content does not align with the app's phone margins`);
   }
   const layout = await page.locator(".gym-main").evaluate((main) => {
     const heading = main.firstElementChild.getBoundingClientRect();
@@ -406,11 +405,11 @@ try {
       const label = `${engineName}-${colorScheme}${repeatCount > 1 ? `-repeat-${iteration}` : ""}`;
       console.log(`CHECK ${label}`);
       await expect(page.locator(".training-journey h2")).toHaveText("Training Week 1 of 26");
-      // The circular counts are the only progress display on these cards.
-      // Native progress tracks used to draw white lines across their action text.
+      // Progress now lives in its own labelled region below the action, never
+      // as an inherited decoration stretching across the action's text.
       await expect(page.locator(".hub-choice-card > progress")).toHaveCount(0);
-      await expect(page.locator(".hub-choice-card .premium-progress-ring")).toHaveCount(2);
-      const ringsFit = await page.locator(".hub-choice-card .premium-progress-ring").evaluateAll((rings) => rings.every((ring) => {
+      await expect(page.locator(".hub-choice-card .hub-destination-progress")).toHaveCount(2);
+      const ringsFit = await page.locator(".hub-choice-card .hub-destination-progress").evaluateAll((rings) => rings.every((ring) => {
         const a = ring.getBoundingClientRect(), b = ring.parentElement.getBoundingClientRect();
         return a.x >= b.x && a.right <= b.right + 1 && a.y >= b.y && a.bottom <= b.bottom + 1;
       }));
@@ -447,7 +446,7 @@ try {
       await assertLayout(page, `${label}-today`);
       await page.locator(".move-item").first().scrollIntoViewIfNeeded();
       await page.screenshot({ path: `outputs/ui-check/${label}-today.png` });
-      const detailsButton = page.getByRole("button", { name: "Details / Swap", exact: true }).first();
+      const detailsButton = page.locator(".entry-swap-button").first();
       // Position the action away from the fixed dock before tapping, just as a
       // user scrolls it into view. This also avoids WebKit's edge-focus scrolling.
       await detailsButton.evaluate((button) => button.scrollIntoView({ block: "center", behavior: "instant" }));
@@ -619,6 +618,7 @@ try {
   if (runSuite("batch")) await runBatchChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout });
   if (runSuite("momentum")) await runMomentumChecks({ server, model, browsers, prepare, fixtureBackend, assertLayout, assertSelectionContrast, settlePresentation });
   if (runSuite("contrast")) await runContrastChecks({ server, model, browsers, prepare, fixtureBackend, navigate, settlePresentation });
+  if (runSuite("redesign")) await runRedesignChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout, settlePresentation });
 } catch (error) {
   // Preserve the failing screen itself, not only earlier milestone screenshots.
   // Do not let diagnostic I/O hide the original assertion or delay cleanup.

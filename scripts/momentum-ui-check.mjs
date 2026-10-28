@@ -18,7 +18,7 @@ export async function runMomentumChecks({
   const trialModel = await server.ssrLoadModule(
     "/src/features/momentum/trial.ts",
   );
-  const firstMove = model.exerciseMap["seated-leg-extension"].name;
+  const firstMove = model.exerciseMap["mi6-leg-extension"].name;
   const original = () => model.emptyStore("2026-10-05");
   const active = (trialDate) => {
     const d = mm.emptyMomentum(),
@@ -525,7 +525,7 @@ export async function runMomentumChecks({
   await devices[0].setOffline(false);
   await click(pages[0], "Sync Momentum now");
   await expect
-    .poll(() => privateLog(shared)?.sets["seated-leg-extension"]?.reps)
+    .poll(() => privateLog(shared)?.sets["mi6-leg-extension"]?.reps)
     .toBe("6");
   assert.equal(privateLog(shared).note, "Synthetic device B note");
   for (const d of devices) await d.close();

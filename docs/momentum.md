@@ -57,12 +57,12 @@ The cycle is relative to your chosen start, not hardcoded weekdays.
 | 7 | Plan next week | Check your schedule and batch meals; no training test. |
 
 The first two cycles contain four home lifts and no class unless you add one. Both strength days
-use seated leg extension, the fixed-arm machine chest press, Mi6 cable row, glute bridge and dead
+use seated cable knee extension, the fixed-arm machine chest press, Mi6 cable row, glute bridge and dead
 bug. A adds cable curls; B adds cable pressdowns. Machine/cable work comes before floor work to
 avoid travelling upstairs and downstairs repeatedly.
 
 Use the documented setup and a secure bench for the row; never improvise unstable equipment.
-The app does not assume an unknown multi-gym has a safe seated leg-curl configuration. No forced
+The home plan does not assume a dedicated leg-extension machine or a safe seated leg-curl attachment. The cable quad movement has a lighter no-machine alternative; recorded old machine sessions stay historical. No forced
 squat or leg press is required. Exact existing exercise media and cues are reused. Weights are in
 **lbs**. Keep comfortable range, controlled technique and several reps available; no maximum test
 or training to failure is required.

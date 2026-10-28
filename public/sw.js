@@ -6,8 +6,8 @@
 
 // Bump CACHE_NAME and APP_VERSION whenever deploy behavior changes. A new cache name makes old
 // assets easy to delete during activate.
-const CACHE_NAME = "recomp-gym-console-v55";
-const APP_VERSION = "2026-10-28-personal-nutrition-v55";
+const CACHE_NAME = "recomp-gym-console-v56";
+const APP_VERSION = "2026-10-28-app-redesign-v56";
 const APP_FALLBACK_URL = "/";
 
 // Core assets are safe to precache because they are small and required for the installed shell.
@@ -16,6 +16,7 @@ const CORE_ASSETS = [
   "/app-icon.svg",
   "/icon-192.png",
   "/icon-512.png",
+  "/icons/chevron-down.svg",
 ];
 
 self.addEventListener("install", (event) => {

@@ -37,6 +37,7 @@ intentional; do not copy original plaintext persistence into this private featur
 | File | What It Is For |
 | --- | --- |
 | `src/App.tsx` | Main application logic, data, helpers, and UI. This is the product brain. |
+| `src/components/WorkoutMove.tsx` | Isolated movement header/actions and inline-log composition. Receives domain callbacks without owning saved records. See the [rebuilt interface guide](app-interface.md). |
 | `src/features/momentum/` | Scoped private feature; pure plan/safety/coaching modules, independent sync hook and lazy UI. |
 | `src/features/nutrition/` | Shared profile, estimated targets, ingredient calculations and evidence-backed reviews. Values live in the owner-bound progress row, never source defaults. See the [nutrition guide](nutrition-coach.md). |
 | `src/features/momentum/trial.ts` | Pure home-plan creation, non-destructive legacy adoption, one-off trial validation and adjacent-day/fueling projections. Cancellation is a timestamped tombstone for offline merges. |

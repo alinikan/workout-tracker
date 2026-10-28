@@ -586,8 +586,8 @@ export default function MomentumPage(p: Props) {
                       </span>
                       <h1>
                         {selected && selected.date > today
-                          ? "Your next beginning."
-                          : "One thing at a time."}
+                          ? "Upcoming plan"
+                          : "Daily plan"}
                       </h1>
                     </div>
                     <span className="mm-day-label">
@@ -771,7 +771,7 @@ export default function MomentumPage(p: Props) {
               <div className="mm-page-heading">
                 <div>
                   <span className="mm-eyebrow">Cook once. Eat for days.</span>
-                  <h1>Meals that fit your week.</h1>
+                  <h1>Meal plan</h1>
                 </div>
                 <Utensils />
               </div>

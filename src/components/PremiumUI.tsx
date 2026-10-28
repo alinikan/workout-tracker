@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { Activity, UserRound } from "lucide-react";
 
 /**
  * Small presentation primitives shared by the three product areas.
@@ -15,6 +16,7 @@ type ProductNavigationProps = {
   statusLabel: string;
   statusTone?: "calm" | "working" | "attention";
   onSelect: (mode: ProductMode) => void;
+  onAccount: () => void;
 };
 
 const modeLabels: Array<{ id: ProductMode; label: string }> = [
@@ -29,6 +31,7 @@ export function ProductNavigation({
   statusLabel,
   statusTone = "calm",
   onSelect,
+  onAccount,
 }: ProductNavigationProps) {
   return (
     <header className="product-navigation">
@@ -38,31 +41,28 @@ export function ProductNavigation({
         aria-label="Open Coach Hub"
         onClick={() => onSelect("hub")}
       >
-        <span className="product-symbol" aria-hidden="true">R</span>
+        <span className="product-symbol" aria-hidden="true">
+          <Activity size={22} />
+        </span>
         <span>
           <strong>Recomp</strong>
-          <small>Personal coaching</small>
+          <small>Your daily training companion</small>
         </span>
       </button>
 
-      <nav className="product-mode-switcher" aria-label="Product areas">
-        {modeLabels.map((mode) => (
-          <button
-            key={mode.id}
-            className={activeMode === mode.id ? "active" : ""}
-            type="button"
-            aria-current={activeMode === mode.id ? "page" : undefined}
-            onClick={() => onSelect(mode.id)}
-          >
-            {mode.label}
-          </button>
-        ))}
-      </nav>
-
-      <span className={`product-save-state ${statusTone}`} role="status">
-        <i aria-hidden="true" />
-        {statusLabel}
+      <span className="app-context-label">
+        {modeLabels.find((mode) => mode.id === activeMode)?.label}
       </span>
+
+      <button
+        className={`product-save-state ${statusTone}`}
+        type="button"
+        onClick={onAccount}
+        aria-label="Account and sync settings"
+      >
+        <UserRound size={18} aria-hidden="true" />
+        <span role="status">{statusLabel}</span>
+      </button>
     </header>
   );
 }
@@ -78,7 +78,12 @@ type ProgressRingProps = {
  * A compact, accessible progress visual. The text label remains authoritative;
  * the SVG is only the visual treatment and never the sole status indicator.
  */
-export function ProgressRing({ value, max, label, children }: ProgressRingProps) {
+export function ProgressRing({
+  value,
+  max,
+  label,
+  children,
+}: ProgressRingProps) {
   const safeMax = Math.max(max, 1);
   const safeValue = Math.min(Math.max(value, 0), safeMax);
   const percent = Math.round((safeValue / safeMax) * 100);

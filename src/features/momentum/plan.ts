@@ -575,7 +575,7 @@ export const strengthTemplates = {
 } as const;
 export const homeStrengthTemplates = {
   "strength-a": [
-    { id: "seated-leg-extension", reps: "8-12" },
+    { id: "mi6-leg-extension", reps: "8-12 per leg" },
     { id: "machine-chest-press", reps: "8-12" },
     { id: "mi6-seated-row", reps: "8-12" },
     { id: "mi6-cable-curl", reps: "10-12" },
@@ -583,7 +583,7 @@ export const homeStrengthTemplates = {
     { id: "dead-bug", reps: "5 per side" },
   ],
   "strength-b": [
-    { id: "seated-leg-extension", reps: "8-12" },
+    { id: "mi6-leg-extension", reps: "8-12 per leg" },
     { id: "machine-chest-press", reps: "8-12" },
     { id: "mi6-seated-row", reps: "8-12" },
     { id: "mi6-bar-pressdown", reps: "10-12" },
@@ -596,9 +596,14 @@ export function movementsFor(
   activity: "strength-a" | "strength-b",
   slot?: Slot,
 ) {
-  return journey?.planVersion === "home-trial-90" && !slot?.originalPlan
-    ? homeStrengthTemplates[activity]
-    : strengthTemplates[activity];
+  if (journey?.planVersion !== "home-trial-90" || slot?.originalPlan) return strengthTemplates[activity];
+  const log = slot ? journey.logs[slot.id] : undefined;
+  // An equipment correction applies to unstarted sessions, not to actual old
+  // machine work. Preserve the old prescription AND its earned training credit.
+  const recordedMachine = log && (log.plannedExerciseIds?.includes("seated-leg-extension") || log.sets["seated-leg-extension"])
+    && (log.outcome === "planned" || log.outcome === "modified" || Object.values(log.sets).some(s => s.done || s.weight || s.reps));
+  return homeStrengthTemplates[activity].map(row => recordedMachine && row.id === "mi6-leg-extension"
+    ? { id: "seated-leg-extension", reps: "8-12" } : row);
 }
 export function makeJourney(
   start: string,

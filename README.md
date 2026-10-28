@@ -89,6 +89,12 @@ That means the interface favors:
 
 ## Private Momentum Journey
 
+> [!NOTE]
+> **Rebuilt app interface:** One phone dock / desktop rail, a set-by-set Today workflow,
+> direct exercise swaps, an account shortcut and updated home quad equipment.
+> See the [interface and navigation guide](docs/app-interface.md) for where every feature lives,
+> how to swap/revert exercises and how existing history is preserved.
+
 > [!TIP]
 > **Personal Nutrition Coach:** Coach can now estimate an initial calorie/protein target from a
 > confirmed adult profile, ordinary activity and logged weights. Real recipe portions, cooking
@@ -492,8 +498,8 @@ The base program remains recognizable on purpose. Repeating the same main moveme
 | Equipment | Supported use in the app | Important rule |
 | --- | --- | --- |
 | Selectorized multi-gym press arms | Machine Chest Press swap. | Use only the manufacturer's chest-press position. Extra grip choices do not turn fixed press arms into an overhead press. |
-| Multi-gym leg attachment | Seated Leg Extension when the documented setup aligns the knee pivot and ankle pad. Seated Leg Curl only when the manual provides the correct curl setup and thigh restraint. | An attachment that can extend the knee is not automatically safe or mechanically correct for a seated curl. |
-| HOIST Mi6 dual cable | Seated row, short-bar biceps curl, and short-bar triceps pressdown swaps; the existing standing cable fly also works with its two handles. | Set both columns symmetrically when the move uses both stacks, lock every adjustment, and use a stable bench. |
+| No home leg-extension machine | New home sessions use seated cable knee extension, with a no-machine seated alternative. | Old machine records remain historical; do not copy their pounds into the cable setup. |
+| HOIST Mi6 dual cable | Seated knee extension with ankle strap, seated row, short-bar biceps curl, and short-bar triceps pressdown; the standing cable fly uses two handles. | Lock every adjustment, use a stable seat and clear cable path, and follow the specific movement's setup. |
 | HOIST Mi6 pull-up bar | Assisted pull-up only with the manufacturer-documented assistance setup and compatible strap. | Never improvise a loose foot/knee connection. Assistance is inverse: more assistance means an easier rep. |
 
 The Mi6 manual specifies a **2:1 pulley ratio**, or about half of the selected stack weight at each handle before cable and attachment effects. The tracker deliberately asks for the visible pin pounds **per stack** because that is easy to reproduce. Do not add the two stack numbers together, and do not compare Mi6 pin pounds with a different cable machine. Keep the same attachment, pulley height, bench position, stance, and grip when evaluating Smart Load.

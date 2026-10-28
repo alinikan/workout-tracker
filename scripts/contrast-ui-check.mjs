@@ -193,9 +193,8 @@ export async function runContrastChecks({
       );
       await checkComputedPairs(
         page,
-        `${label}-ring-captions`,
-        ".premium-progress-ring :is(strong, small)",
-        "ring",
+        `${label}-overview-progress-captions`,
+        ".hub-destination-progress > span",
       );
       await checkComputedPairs(
         page,
@@ -240,7 +239,7 @@ export async function runContrastChecks({
       }
       await navigate(page, "Today");
       const details = page
-        .getByRole("button", { name: "Details / Swap", exact: true })
+        .getByRole("button", { name: "Details", exact: true })
         .first();
       await details.scrollIntoViewIfNeeded();
       await details.click();

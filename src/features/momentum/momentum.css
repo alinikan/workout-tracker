@@ -1,17 +1,17 @@
 /* Momentum has its own bounded palette and rhythm. No selector changes Recomp.
  * Opaque surfaces preserve contrast in Safari/PWA, including without blur. */
 .momentum {
-  --mm-bg: #f8faf9;
-  --mm-surface: #fff;
-  --mm-soft: #edf1ef;
-  --mm-text: #152923;
-  --mm-muted: #52675e;
-  --mm-line: #ced9d2;
-  --mm-teal: #006958;
-  --mm-coral: #b03f2c;
-  --mm-gold: #866000;
-  --mm-active: #d9efe8;
-  --mm-ink: #054c3e;
+  --mm-bg: var(--surface-canvas);
+  --mm-surface: var(--surface-primary);
+  --mm-soft: var(--surface-secondary);
+  --mm-text: var(--text-primary);
+  --mm-muted: var(--text-secondary);
+  --mm-line: var(--separator-strong);
+  --mm-teal: var(--training-ink);
+  --mm-coral: var(--nutrition-ink);
+  --mm-gold: var(--skip-ink);
+  --mm-active: var(--training-fill);
+  --mm-ink: var(--training-ink);
   box-sizing: border-box;
   color: var(--mm-text);
   background: var(--mm-bg);
@@ -797,17 +797,17 @@
 }
 @media (prefers-color-scheme: dark) {
   .momentum {
-    --mm-bg: #111b18;
-    --mm-surface: #17251f;
-    --mm-soft: #203129;
-    --mm-text: #f0f7f2;
-    --mm-muted: #afc2b5;
-    --mm-line: #365043;
-    --mm-teal: #8cdec0;
-    --mm-coral: #ffb59c;
-    --mm-gold: #ebcd79;
-    --mm-active: #214b3c;
-    --mm-ink: #d4ffe9;
+    --mm-bg: var(--surface-canvas);
+    --mm-surface: var(--surface-primary);
+    --mm-soft: var(--surface-secondary);
+    --mm-text: var(--text-primary);
+    --mm-muted: var(--text-secondary);
+    --mm-line: var(--separator-strong);
+    --mm-teal: var(--training-ink);
+    --mm-coral: var(--nutrition-ink);
+    --mm-gold: var(--skip-ink);
+    --mm-active: var(--training-fill);
+    --mm-ink: var(--training-ink);
     color-scheme: dark;
   }
   .momentum .mm-primary,

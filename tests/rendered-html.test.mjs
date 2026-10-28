@@ -35,7 +35,7 @@ test("ships the finished workout tracker instead of the starter preview", async 
 });
 
 test("includes researched movement resources and autosave controls", async () => {
-  const page = await text("src/App.tsx");
+  const page = await text("src/App.tsx") + await text("src/components/WorkoutMove.tsx");
 
   for (const required of [
     "Leg Press",
@@ -129,8 +129,7 @@ test("includes researched movement resources and autosave controls", async () =>
     "workoutMoveRows",
     "primary-app-dock",
     "section-tabs",
-    "move.exerciseIndex + 1",
-    "move-check-indicator",
+    "WorkoutMove",
     "gym-action-label",
     "Weight",
     "Weight (lbs)",
@@ -141,7 +140,7 @@ test("includes researched movement resources and autosave controls", async () =>
     "youtube-nocookie.com/embed",
     "Swap version",
     "swap-alert",
-    "move-revert-button",
+    "onRevert",
     "setOpenDietHowToSlot",
     "detailedRecipeHowTo",
     "recipeHowToSteps",
@@ -254,8 +253,8 @@ test("includes built-in diet tracker with meal swaps and kg weigh-ins", async ()
     "Coach Hub",
     "Recomp Diet Console",
     "Nutrition",
-    "Today&apos;s workout",
-    "Today&apos;s nutrition",
+    "hub-choice-card workout",
+    "hub-choice-card diet",
     "Breakfast",
     "Lunch",
     "Snack",
@@ -677,8 +676,9 @@ test("day skip controls share date-scoped handlers and Gym shows a terminal summ
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v55/);
-  assert.match(serviceWorker, /personal-nutrition-v55/);
+  assert.match(serviceWorker, /recomp-gym-console-v56/);
+  assert.match(serviceWorker, /app-redesign-v56/);
+  assert.match(serviceWorker, /\/icons\/chevron-down\.svg/);
   const appSource = await text("src/App.tsx");
   assert.match(appSource, /registration\.update\(\)\.catch\(/);
   assert.match(serviceWorker, /event\.request\.mode === "navigate"/);
@@ -784,8 +784,15 @@ test("ships the premium responsive presentation without replacing the data contr
   assert.match(premium, /min-width: 981px/);
   assert.match(primitives, /ProductNavigation/);
   assert.match(primitives, /ProgressRing/);
-  assert.match(primitives, /aria-current/);
+  assert.match(await text("src/App.tsx"), /aria-current/);
+  const movement = await text("src/components/WorkoutMove.tsx");
+  assert.match(movement, /p\.index \+ 1/);
+  assert.match(movement, /move-check-indicator/);
   assert.match(manifest, /Recomp Personal Coach/);
+  assert.equal(JSON.parse(manifest).theme_color, "#f3f6f8");
+  const shell = await text("index.html");
+  assert.match(shell, /name="theme-color" media="\(prefers-color-scheme: light\)" content="#f3f6f8"/);
+  assert.match(shell, /name="theme-color" media="\(prefers-color-scheme: dark\)" content="#101419"/);
 });
 
 test("ships an iPhone-first app shell with Coach Hub home and Today as the primary workout surface", async () => {
