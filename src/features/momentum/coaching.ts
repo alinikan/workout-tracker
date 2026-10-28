@@ -5,6 +5,7 @@ import {
   isStrength,
   sortedSlots,
   strengthTemplates,
+  movementsFor,
   weekOf,
 } from "./plan.ts";
 import {
@@ -17,6 +18,12 @@ import {
 import { isCalendarDate } from "../../lib/programLifecycle.ts";
 import { sessionSets } from "./flow.ts";
 import { classFor } from "./titan.ts";
+import {
+  hasActualWork,
+  isHomePlan,
+  trialAdjustment,
+  trialFor,
+} from "./trial.ts";
 import type {
   ActivityLog,
   Adaptation,
@@ -95,16 +102,17 @@ export function progressionEligible(data: MomentumData, before: string) {
 }
 export function resolveDay(data: MomentumData, slot: Slot, today: string) {
   const j = currentJourney(data);
-  const base = dayPlan(j, slot);
+  const adjusted = trialAdjustment(data, slot);
+  const base = adjusted;
   const adaptation = j?.adaptations[String(weekOf(slot.day))];
   const history = j?.logs[slot.id];
   let activity = base.activity;
   let minutes = base.minutes;
-  let reason = slot.note ?? "";
-  // B is an opt-in extra session, not an automatic calendar progression.
+  let reason = adjusted.reason || slot.note || "";
+  // Legacy B is opt-in; the new home routine schedules two manageable lifts.
   const eligible = progressionEligible(data, slot.date);
   const titanPlan = j?.planVersion === "titan-90" && !slot.legacy;
-  const level = titanPlan ? earnedLevel(data, slot.date) : 0;
+  const level = titanPlan || isHomePlan(j) ? earnedLevel(data, slot.date) : 0;
   const choices = j
     ? Object.entries(j.adaptations)
         .filter(([w]) => Number(w) <= weekOf(slot.day))
@@ -112,6 +120,7 @@ export function resolveDay(data: MomentumData, slot: Slot, today: string) {
     : [];
   const choice = titanPlan ? choices[0]?.[1] : adaptation;
   if (
+    !isHomePlan(j) &&
     activity === "strength-b" &&
     !(
       eligible &&
@@ -135,11 +144,11 @@ export function resolveDay(data: MomentumData, slot: Slot, today: string) {
           comfortable(j.logs[s.id] ?? ({} as ActivityLog)),
       )
     : [];
-  if (titanPlan) {
-    if (activity === "walk")
+  if (titanPlan || isHomePlan(j)) {
+    if (activity === "walk" && !adjusted.reason)
       minutes =
         previous.length >= 8 ? "20-30" : previous.length >= 4 ? "15-20" : "10";
-    if (activity === "boxing")
+    if (activity === "boxing" && !isHomePlan(j))
       minutes =
         previous.length >= 6
           ? "30-45"
@@ -149,6 +158,7 @@ export function resolveDay(data: MomentumData, slot: Slot, today: string) {
   }
   if (
     !titanPlan &&
+    !isHomePlan(j) &&
     activity === "boxing" &&
     previous.length < Math.min(3, weekOf(slot.day) - 1)
   ) {
@@ -158,6 +168,7 @@ export function resolveDay(data: MomentumData, slot: Slot, today: string) {
   }
   if (
     !titanPlan &&
+    !isHomePlan(j) &&
     activity === "walk" &&
     previous.length < 2 &&
     slot.day > 2
@@ -198,31 +209,40 @@ export function resolveDay(data: MomentumData, slot: Slot, today: string) {
       : undefined;
   const setsPerExercise: 1 | 2 =
     history?.plannedSets ??
-    (titanPlan && level >= 2 && choice?.mode === "two-sets" ? 2 : 1);
+    (isHomePlan(j) && !slot.originalPlan
+      ? choice?.mode === "lighter"
+        ? 1
+        : 2
+      : titanPlan && level >= 2 && choice?.mode === "two-sets"
+        ? 2
+        : 1);
   if (titanPlan && isStrength(activity) && setsPerExercise === 2)
     minutes = "30-40";
-  if (history?.outcome && history.plannedActivity) {
+  if (hasActualWork(history) && history?.plannedActivity) {
     activity = history.plannedActivity;
     minutes = history.plannedMinutes ?? minutes;
   }
   const replaced = activity === "recovery" && isStrength(base.activity);
   const available: string[] = isStrength(activity)
-    ? strengthTemplates[activity].map((e) => e.id)
+    ? movementsFor(j, activity, slot).map((e) => e.id)
     : [];
   const exerciseIds =
-    history?.outcome && history.plannedExerciseIds
+    hasActualWork(history) && history?.plannedExerciseIds
       ? history.plannedExerciseIds.filter((id) => available.includes(id))
       : choice?.mode === "lighter"
         ? available.slice(0, 1)
         : available;
   return {
     ...base,
+    movementTargets: isStrength(activity)
+      ? movementsFor(j, activity, slot)
+      : [],
     activity,
     title: replaced
       ? base.activity === "strength-b"
         ? "Recovery instead of extra strength"
         : "Recovery"
-      : titanPlan && activity === "boxing"
+      : (titanPlan || isHomePlan(j)) && activity === "boxing"
         ? (history?.className ?? classFor(data, slot.date).name)
         : base.title,
     exerciseIds,
@@ -322,8 +342,11 @@ export function coachNote(data: MomentumData, today: string) {
   if (activePause(data))
     return "Your journey is paused. Resume in Settings when the next appointment feels achievable.";
   const j = currentJourney(data);
-  if (!j)
-    return "Choose a realistic start Monday. Nothing starts automatically.";
+  if (!j) return "Choose a realistic start date. Nothing starts automatically.";
+  if (isHomePlan(j))
+    return trialFor(data)
+      ? "Your trial is one visit, not a recurring commitment. Keep nearby days light; continue the home routine afterwards until you choose your next plan."
+      : "Two manageable home sessions, easy walks and regular meals. No class date is assumed; add one confirmed trial when it suits you.";
   const missed = sortedSlots(j).filter(
     (s) => s.date <= today && j.logs[s.id]?.outcome === "missed",
   );
@@ -348,6 +371,8 @@ export function monthTwo(data: MomentumData, today: string) {
   const entries = attendance(j, today);
   const classes = entries.filter((s) => loggedActivity(j, s) === "boxing");
   const lifts = entries.filter((s) => isStrength(loggedActivity(j, s)));
+  if (isHomePlan(j))
+    return "Keep the home routine repeatable. One trial does not activate a class membership or a new training block; review what you enjoyed before choosing a longer-term plan.";
   if (classes.some((s) => j.logs[s.id].enjoyment === "no"))
     return "Try a different beginner coach or environment. Keep the movement you enjoy; do not abandon all activity because one class was not a fit.";
   if (classes.length >= 2 && lifts.length < 2)
@@ -408,7 +433,7 @@ export function earnedLevel(data: MomentumData, before: string): 0 | 1 | 2 {
     // A deliberately lighter one-movement day is useful, but is not evidence
     // that all four movements were tolerated. Require actual repetitions too.
     return sessionSets(
-      strengthTemplates[activity].map((e) => e.id),
+      movementsFor(j, activity, s).map((e) => e.id),
       log.extraExercise,
       log.plannedSets ?? 1,
     ).every(
@@ -427,6 +452,7 @@ export function earnedLevel(data: MomentumData, before: string): 0 | 1 | 2 {
     .sort()
     .at(-1)!;
   if (!latest || latest < addDays(before, -10)) return 0;
+  if (isHomePlan(j)) return lifts.length >= 8 ? 2 : lifts.length >= 4 ? 1 : 0;
   if (
     lifts.length >= 8 &&
     classes.length >= 6 &&

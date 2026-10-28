@@ -11,6 +11,7 @@ import {
 import type { MomentumData } from "./types";
 import type { ProgramState } from "../../lib/programLifecycle";
 import { reconcileSharedStart } from "./sharedStart";
+import { adoptHomePlan } from "./trial";
 
 type State = {
   owner: string | null;
@@ -34,6 +35,7 @@ export function useMomentum(
   userId: string | null,
   sharedProgram: ProgramState | null = null,
   sharedProgramSynced = true,
+  today = new Date().toLocaleDateString("en-CA"),
 ) {
   const [state, setState] = useState<State>(() => initial(userId));
   const current = useRef<State>(state),
@@ -47,13 +49,21 @@ export function useMomentum(
   const shared = useRef({
     program: sharedProgram,
     synced: sharedProgramSynced,
+    today,
   });
-  shared.current = { program: sharedProgram, synced: sharedProgramSynced };
+  shared.current = {
+    program: sharedProgram,
+    synced: sharedProgramSynced,
+    today,
+  };
   const connectProgram = useCallback(
     (data: MomentumData) =>
-      shared.current.program
-        ? reconcileSharedStart(data, shared.current.program)
-        : data,
+      adoptHomePlan(
+        shared.current.program
+          ? reconcileSharedStart(data, shared.current.program)
+          : data,
+        shared.current.today,
+      ),
     [],
   );
   const commit = useCallback((next: State) => {

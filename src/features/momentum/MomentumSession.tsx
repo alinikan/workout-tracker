@@ -127,7 +127,7 @@ export default function MomentumSession(p: Props) {
                     <span style={{ width: `${(100 * done) / sets.length}%` }} />
                   </div>
                   <p className="mm-muted">
-                    Warm up for 3-5 easy minutes, then clearly lighter practice
+                    Warm up for 5-7 easy minutes, then clearly lighter practice
                     sets of the first two movements. Rest 90-180 seconds between
                     working sets.
                   </p>

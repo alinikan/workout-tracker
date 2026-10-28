@@ -24,6 +24,7 @@ export type Slot = {
   date: string;
   note?: string;
   legacy?: boolean;
+  originalPlan?: "legacy-30" | "titan-90";
 };
 export type Readiness = {
   energy?: "low" | "normal" | "good";
@@ -100,7 +101,10 @@ export type Profile = {
   height: string;
 };
 export type Journey = {
-  planVersion?: "legacy-30" | "titan-90";
+  planVersion?: "legacy-30" | "titan-90" | "home-trial-90";
+  homeFrom?: string;
+  // One atomic, timestamped choice: clearing a trial must survive offline sync.
+  trial?: { id: string; updatedAt: string; date: string | null; time: string };
   id: string;
   createdAt: string;
   startedOn: string;
@@ -126,7 +130,9 @@ export type MomentumData = {
       eaten: Partial<Record<MealSlot, boolean>>;
       // Explicit snapshots preserve eaten meals when a later batch is changed.
       recipes?: Partial<Record<MealSlot, string>>;
-      portions?: Partial<Record<MealSlot, { plate: string[]; calories: number; protein: number }>>;
+      portions?: Partial<
+        Record<MealSlot, { plate: string[]; calories: number; protein: number }>
+      >;
     }
   >;
   waist: Record<string, string>;
@@ -151,6 +157,8 @@ export type RecipeResource = {
   plate: string[];
 };
 export type Resources = {
+  workoutDates?: string[];
+  recordedTrialDates?: string[];
   exercises: Record<string, ExerciseResource>;
   recipes: RecipeResource[];
   meals: Record<string, Record<MealSlot, string>>;
@@ -185,14 +193,14 @@ export function emptyMomentum(): MomentumData {
       goals: ["Consistency", "Gradual fat loss", "Fitness", "Muay Thai skills"],
       activity: "sedentary",
       discipline: "muay-thai",
-      environment: "both",
+      environment: "home",
       jointModification: false,
       availableDays: [1, 3, 6],
       budget: "",
       gymId: "titan",
       className: "Introduction to Muay Thai / Kickboxing",
       classWeekday: 3,
-      classTime: "18:15",
+      classTime: "",
       nextClassDate: "",
       classStage: "introduction",
       classSwitchDate: "",

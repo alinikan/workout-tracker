@@ -4,7 +4,10 @@
 the clock, browser storage, authentication, workout history or Momentum data, and
 does not write to either existing tracker. UI and persistence are separate work.
 `recipes.ts` is a separate structured catalog; existing Diet recipe IDs and the
-Monday-Sunday rotation remain unchanged.
+legacy rotation remain available to interpret saved food history. With an active Momentum home
+routine, the UI passes that routine's training/rest context into this engine; a confirmed one-off
+trial counts as training. No trial date is inferred from a weekday. Moving/removing the visit
+recomputes uncooked portions and groceries, while prepared batches and eaten meals retain snapshots.
 
 ## Everyday Workflow
 

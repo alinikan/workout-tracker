@@ -267,6 +267,8 @@ export async function runContrastChecks({
       await audit(page, `${label}-momentum-today`);
       await page.locator(".mm-titan-row").click();
       await audit(page, `${label}-momentum-titan`, ".mm-sheet");
+      await page.getByLabel("Trial date", { exact: true }).fill("2026-10-08");
+      await audit(page, `${label}-momentum-trial-preview`, ".mm-sheet");
       await page
         .getByRole("button", { name: "Close panel", exact: true })
         .click();

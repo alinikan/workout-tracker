@@ -15,14 +15,30 @@ export async function runMomentumChecks({
 }) {
   const mm = await server.ssrLoadModule("/src/features/momentum/types.ts");
   const plan = await server.ssrLoadModule("/src/features/momentum/plan.ts");
+  const trialModel = await server.ssrLoadModule(
+    "/src/features/momentum/trial.ts",
+  );
+  const firstMove = model.exerciseMap["seated-leg-extension"].name;
   const original = () => model.emptyStore("2026-10-05");
-  const active = () => {
+  const active = (trialDate) => {
     const d = mm.emptyMomentum(),
-      j = plan.makeJourney("2026-10-05", "synthetic-private-journey");
+      j = trialModel.makeHomeJourney(
+        "2026-10-05",
+        "synthetic-private-journey",
+        "2026-10-04T18:00:00Z",
+      );
     d.activeJourneyId = j.id;
     d.journeys[j.id] = j;
     d.onboarded = true;
-    return d;
+    return trialDate
+      ? trialModel.chooseTrial(
+          d,
+          trialDate,
+          "18:15",
+          "2026-10-05",
+          "2026-10-05T18:00:00Z",
+        )
+      : d;
   };
   const signIn = async (page) => {
     await page
@@ -123,14 +139,14 @@ export async function runMomentumChecks({
       );
       await click(page, "Back to session");
       await page
-        .getByLabel("Leg Press set 1 actual reps", { exact: true })
+        .getByLabel(`${firstMove} set 1 actual reps`, { exact: true })
         .fill("6");
       await page
-        .getByLabel("Leg Press set 1 weight in pounds", { exact: true })
+        .getByLabel(`${firstMove} set 1 weight in pounds`, { exact: true })
         .fill("10");
-      await click(page, "Complete Leg Press set 1");
+      await click(page, `Complete ${firstMove} set 1`);
       await expect(
-        page.getByRole("button", { name: "Undo Leg Press set 1" }),
+        page.getByRole("button", { name: `Undo ${firstMove} set 1` }),
       ).toHaveAttribute("aria-pressed", "true");
       await assertSelectionContrast(page, ".mm-set-grid.is-done .mm-icon");
       await page.locator(".mm-exercise .video-poster").click();
@@ -138,7 +154,7 @@ export async function runMomentumChecks({
       await click(page, "Next movement");
       await click(page, "Previous movement");
       await expect(
-        page.getByLabel("Leg Press set 1 actual reps", { exact: true }),
+        page.getByLabel(`${firstMove} set 1 actual reps`, { exact: true }),
       ).toHaveValue("6");
       await assertLayout(page, `momentum-${name}-${colorScheme}-practice`);
       await page.screenshot({
@@ -177,25 +193,52 @@ export async function runMomentumChecks({
       await click(page, "Back to today");
       await tab(page, "Meals");
       const planner = page.locator(".meal-prep-planner");
-      await planner.getByRole("tab", { name: "Cook batch", exact: true }).click();
-      const restart = planner.getByRole("button", { name: "Start a new batch today", exact: true });
+      await planner
+        .getByRole("tab", { name: "Cook batch", exact: true })
+        .click();
+      const restart = planner.getByRole("button", {
+        name: "Start a new batch today",
+        exact: true,
+      });
       if (await restart.count()) await restart.click();
-      const breakfast = planner.getByRole("region", { name: "Breakfast", exact: true });
+      const breakfast = planner.getByRole("region", {
+        name: "Breakfast",
+        exact: true,
+      });
       const old = await breakfast.locator("h3").innerText();
       await breakfast.getByRole("button", { name: /^Swap/ }).click();
-      await breakfast.locator(".mp-swap-option[aria-pressed='false']").first().click();
+      await breakfast
+        .locator(".mp-swap-option[aria-pressed='false']")
+        .first()
+        .click();
       await expect(breakfast).toContainText("Swap version");
-      await breakfast.getByRole("button", { name: /^Revert to original/ }).click();
+      await breakfast
+        .getByRole("button", { name: /^Revert to original/ })
+        .click();
       await expect(breakfast.locator("h3")).toHaveText(old);
       await breakfast.locator(".mp-instructions > summary").click();
       await expect(breakfast.locator(".mp-steps li").first()).toBeVisible();
       await planner.getByRole("tab", { name: "To buy", exact: true }).click();
       await planner.locator(".mp-grocery input").first().check();
-      await planner.getByRole("tab", { name: "Eat today", exact: true }).click();
-      const meal = planner.getByRole("article", { name: "Breakfast", exact: true });
-      await meal.getByRole("button", { name: "Mark eaten: Breakfast", exact: true }).click();
-      await expect(meal.getByRole("button", { name: "Reopen Breakfast", exact: true })).toHaveAttribute("aria-pressed", "true");
-      await expect.poll(() => backend.privateSnapshot().meals["2026-10-05"]?.recipes?.breakfast).toBe("prep-overnight-oats");
+      await planner
+        .getByRole("tab", { name: "Eat today", exact: true })
+        .click();
+      const meal = planner.getByRole("article", {
+        name: "Breakfast",
+        exact: true,
+      });
+      await meal
+        .getByRole("button", { name: "Mark eaten: Breakfast", exact: true })
+        .click();
+      await expect(
+        meal.getByRole("button", { name: "Reopen Breakfast", exact: true }),
+      ).toHaveAttribute("aria-pressed", "true");
+      await expect
+        .poll(
+          () =>
+            backend.privateSnapshot().meals["2026-10-05"]?.recipes?.breakfast,
+        )
+        .toBe("prep-overnight-oats");
       await assertLayout(page, `momentum-${name}-${colorScheme}-meals`);
       await page.screenshot({
         path: `outputs/ui-check/momentum-${name}-${colorScheme}-meals.png`,
@@ -216,13 +259,16 @@ export async function runMomentumChecks({
       });
       await tab(page, "Today");
       await page.locator(".mm-titan-row").click();
-      await expect(page.getByRole("dialog")).toContainText("Wed, Oct 7");
-      await expect(page.getByRole("dialog")).toContainText("Room #2");
-      await expect(page.getByRole("dialog")).toContainText("$300");
-      await page
-        .getByLabel("Expected visits per billing month", { exact: true })
-        .fill("8");
-      await expect(page.getByRole("dialog")).toContainText("eight or more");
+      await expect(page.getByRole("dialog")).toContainText(
+        "Choose a trial when you are ready",
+      );
+      await expect(page.getByLabel("Trial date", { exact: true })).toHaveValue(
+        "",
+      );
+      await expect(
+        page.getByLabel("Trial time (optional)", { exact: true }),
+      ).toHaveValue("");
+      await expect(page.getByRole("dialog")).not.toContainText("$300");
       const panelFit = await page
         .getByRole("dialog")
         .evaluate((e) => e.scrollWidth <= e.clientWidth + 1);
@@ -320,7 +366,9 @@ export async function runMomentumChecks({
     );
     const backend = fixtureBackend(original(), {
       privateAccess: true,
-      momentum: active(),
+      momentum: active(
+        kind === "boxing" || kind === "recovery" ? "2026-10-07" : undefined,
+      ),
     });
     const { page, errors } = await prepare(
       c,
@@ -362,41 +410,22 @@ export async function runMomentumChecks({
     if (kind === "boxing") {
       await click(page, "Back to today");
       await page.locator(".mm-titan-row").click();
-      await page
-        .getByText("When I am ready for Beginners / Intermediate", {
-          exact: true,
-        })
-        .click();
-      await page
-        .getByLabel("First Wednesday in the new class", { exact: true })
-        .fill("2026-10-14");
-      await click(page, "Use Beginners / Intermediate from this date");
+      await expect(
+        page.getByLabel("Trial date", { exact: true }),
+      ).toBeDisabled();
       await expect
-        .poll(() => backend.privateSnapshot()?.profile.classSwitchDate)
-        .toBe("2026-10-14");
-      assert.equal(
-        backend.privateSnapshot().journeys["synthetic-private-journey"].logs[
-          "day-3"
-        ].className,
-        "Introduction to Muay Thai / Kickboxing",
-      );
+        .poll(
+          () =>
+            backend.privateSnapshot().journeys["synthetic-private-journey"]
+              .logs["day-3"]?.className,
+        )
+        .toBe("Muay Thai / Kickboxing trial");
+      await click(page, "Close panel");
       await tab(page, "Journey");
       await click(page, "Next week");
-      await expect(page.locator(".mm-calendar")).toContainText(
-        "Muay Thai Kickboxing (Beginners / Intermediate)",
+      await expect(page.locator(".mm-calendar")).not.toContainText(
+        /Kickboxing|Muay Thai/,
       );
-      await tab(page, "Today");
-      await page.locator(".mm-titan-row").click();
-      await page
-        .getByText("When I am ready for Beginners / Intermediate", {
-          exact: true,
-        })
-        .click();
-      await click(page, "Return future classes to Introduction");
-      await expect
-        .poll(() => backend.privateSnapshot()?.profile.classStage)
-        .toBe("introduction");
-      await click(page, "Close panel");
     }
     assert.deepEqual(errors, []);
     await c.close();
@@ -415,12 +444,20 @@ export async function runMomentumChecks({
   await signIn(page);
   await open(page);
   await click(page, "Start session");
-  for (const [i] of plan.strengthTemplates["strength-a"].entries()) {
-    await page
-      .locator('.mm-set-grid input[aria-label$="actual reps"]')
-      .fill("8");
-    await page.locator('.mm-set-grid button[aria-pressed="false"]').click();
-    await click(page, i === 3 ? "Review session" : "Next movement");
+  for (const [i] of plan.homeStrengthTemplates["strength-a"].entries()) {
+    const inputs = page.locator(
+      '.mm-set-grid input[aria-label$="actual reps"]',
+    );
+    for (let s = 0; s < (await inputs.count()); s++)
+      await inputs.nth(s).fill("8");
+    while (
+      await page.locator('.mm-set-grid button[aria-pressed="false"]').count()
+    )
+      await page
+        .locator('.mm-set-grid button[aria-pressed="false"]')
+        .first()
+        .click();
+    await click(page, i === 5 ? "Review session" : "Next movement");
   }
   await expect(
     page.getByRole("combobox", { name: "Session result", exact: true }),
@@ -431,11 +468,14 @@ export async function runMomentumChecks({
   await click(page, "View recorded session");
   await click(page, "Edit result");
   await click(page, "Back to session");
-  await page.locator('.mm-set-grid button[aria-pressed="true"]').click();
+  await page
+    .locator('.mm-set-grid button[aria-pressed="true"]')
+    .first()
+    .click();
   await click(page, "Back to overview");
   await click(page, "Continue session");
   await expect(page.locator(".mm-movement-position")).toContainText(
-    "Movement 1 of 4",
+    "Movement 1 of 6",
   );
   await expect
     .poll(
@@ -443,7 +483,7 @@ export async function runMomentumChecks({
         Object.values(privateLog(backend)?.sets ?? {}).filter((s) => s.done)
           .length,
     )
-    .toBe(3);
+    .toBe(11);
   await c.close();
   console.log(
     "PASS Momentum full completion, correction, first-unfinished resume",
@@ -470,7 +510,7 @@ export async function runMomentumChecks({
     await d.setOffline(true);
   }
   await pages[0]
-    .getByLabel("Leg Press set 1 actual reps", { exact: true })
+    .getByLabel(`${firstMove} set 1 actual reps`, { exact: true })
     .fill("6");
   await click(pages[1], "Finish with what I did");
   await pages[1].getByText("Notes & corrections", { exact: true }).click();
@@ -485,7 +525,7 @@ export async function runMomentumChecks({
   await devices[0].setOffline(false);
   await click(pages[0], "Sync Momentum now");
   await expect
-    .poll(() => privateLog(shared)?.sets["leg-press"]?.reps)
+    .poll(() => privateLog(shared)?.sets["seated-leg-extension"]?.reps)
     .toBe("6");
   assert.equal(privateLog(shared).note, "Synthetic device B note");
   for (const d of devices) await d.close();

@@ -31,6 +31,11 @@ export const titan = {
 export const introName = "Introduction to Muay Thai / Kickboxing";
 export const beginnerName = "Muay Thai Kickboxing (Beginners / Intermediate)";
 export function classFor(data: MomentumData, date: string) {
+  const journey = currentJourney(data);
+  if (journey?.planVersion === "home-trial-90") return {
+    name: "Muay Thai / Kickboxing trial", room: "Confirm the room with Titan",
+    time: journey.trial?.date === date ? journey.trial.time : "",
+  };
   const beginner =
     data.profile.classStage === "beginner" &&
     Boolean(

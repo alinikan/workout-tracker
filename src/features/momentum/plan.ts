@@ -483,12 +483,79 @@ export const starterPlan: DayPlan[] = Array.from({ length: 90 }, (_, i) => {
     : { day, ...weekly[position] };
 });
 export function dayPlan(journey: Journey | undefined, slot: Slot): DayPlan {
+  if (journey?.planVersion === "home-trial-90" && !slot.originalPlan) {
+    const activity = (
+      [
+        "strength-a",
+        "walk",
+        "recovery",
+        "strength-b",
+        "walk",
+        "recovery",
+        "review",
+      ] as const
+    )[(slot.day - 1) % 7];
+    const strength = isStrength(activity);
+    return {
+      day: slot.day,
+      activity,
+      title:
+        activity === "strength-a"
+          ? "Home Strength A"
+          : activity === "strength-b"
+            ? "Home Strength B"
+            : activity === "walk"
+              ? "Easy home walk"
+              : activity === "review"
+                ? "Plan the next week"
+                : "Recovery day",
+      minutes: strength
+        ? "25-40"
+        : activity === "walk"
+          ? "10-15"
+          : activity === "review"
+            ? "5 planning"
+            : "0",
+      steps: strength
+        ? [
+            "Walk easily for 5-7 minutes. Before the first two movements, practise 5-8 repetitions with a clearly lighter weight than your working weight.",
+            "Do two controlled working sets of the listed movements. Rest 90-180 seconds, breathe normally and finish with several comfortable repetitions still available.",
+            "Use only a comfortable knee and hip range. Do not force squats or improvise a leg-curl setup on your multi-gym.",
+          ]
+        : activity === "walk"
+          ? [
+              "Walk at an easy, conversational pace. A shorter walk is fine; no hard finisher is required.",
+            ]
+          : [
+              "Rest or do optional easy movement. Prepare the next meals without making up missed workouts.",
+            ],
+      task: strength
+        ? "Familiar equipment, comfortable range, steady technique."
+        : "Keep the day manageable.",
+      enough: strength
+        ? "Two controlled sets per movement; choose a lighter day when needed."
+        : activity === "walk"
+          ? "10-15 easy minutes, or less if needed."
+          : "Recovery or a few minutes of planning.",
+      minimum: strength
+        ? "Warm up and do one comfortable movement, or rest."
+        : "Rest is an option.",
+    };
+  }
+  if (slot.originalPlan) {
+    const source = slot.originalPlan === "titan-90" ? starterPlan : legacyPlan;
+    return {
+      ...(source[(slot.templateDay ?? slot.day) - 1] ?? source[0]),
+      day: slot.day,
+    };
+  }
   if (journey?.planVersion !== "titan-90" || slot.legacy)
     return legacyPlan[slot.day - 1] ?? starterPlan[Math.min(89, slot.day - 1)];
   // Prescription identity survives moved appointments; day remains the ordinal.
   const templateDay = slot.templateDay ?? slot.day;
   return {
-    ...(starterPlan[templateDay - 1] ?? starterPlan[Math.min(89, templateDay - 1)]),
+    ...(starterPlan[templateDay - 1] ??
+      starterPlan[Math.min(89, templateDay - 1)]),
     day: slot.day,
   };
 }
@@ -506,6 +573,33 @@ export const strengthTemplates = {
     { id: "incline-push-up", reps: "6-8" },
   ],
 } as const;
+export const homeStrengthTemplates = {
+  "strength-a": [
+    { id: "seated-leg-extension", reps: "8-12" },
+    { id: "machine-chest-press", reps: "8-12" },
+    { id: "mi6-seated-row", reps: "8-12" },
+    { id: "mi6-cable-curl", reps: "10-12" },
+    { id: "glute-bridge", reps: "8-12" },
+    { id: "dead-bug", reps: "5 per side" },
+  ],
+  "strength-b": [
+    { id: "seated-leg-extension", reps: "8-12" },
+    { id: "machine-chest-press", reps: "8-12" },
+    { id: "mi6-seated-row", reps: "8-12" },
+    { id: "mi6-bar-pressdown", reps: "10-12" },
+    { id: "glute-bridge", reps: "8-12" },
+    { id: "dead-bug", reps: "5 per side" },
+  ],
+} as const;
+export function movementsFor(
+  journey: Journey | undefined,
+  activity: "strength-a" | "strength-b",
+  slot?: Slot,
+) {
+  return journey?.planVersion === "home-trial-90" && !slot?.originalPlan
+    ? homeStrengthTemplates[activity]
+    : strengthTemplates[activity];
+}
 export function makeJourney(
   start: string,
   id: string = crypto.randomUUID(),

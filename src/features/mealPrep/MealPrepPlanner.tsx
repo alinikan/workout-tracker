@@ -62,6 +62,12 @@ export type MealPrepPlannerProps = {
   batchLocked?: boolean;
   lockedKinds?: Partial<Record<ChoiceKind, boolean>>;
   onStartNewBatch?: () => void;
+  sessionGuidance?: {
+    title: string;
+    detail: string;
+    prepared: string;
+    timings?: Partial<Record<MealSlot, string>>;
+  } | null;
 };
 
 const slots: Array<{ id: MealSlot; label: string }> = [
@@ -293,6 +299,7 @@ export function MealPrepPlanner({
   batchLocked = false,
   lockedKinds,
   onStartNewBatch,
+  sessionGuidance,
 }: MealPrepPlannerProps) {
   const id = useId();
   const [destination, setDestination] = useState<Destination>("eat");
@@ -657,6 +664,18 @@ export function MealPrepPlanner({
             </div>
           </div>
         )}
+        {sessionGuidance && (
+          <section
+            className="mp-notice mp-session-guidance"
+            aria-label="Trial meal guidance"
+          >
+            <div>
+              <strong>{sessionGuidance.title}</strong>
+              <p>{sessionGuidance.detail}</p>
+              {prepared && <p>{sessionGuidance.prepared}</p>}
+            </div>
+          </section>
+        )}
         {date > today && (
           <p className="mp-notice">
             <Clock3 aria-hidden="true" />
@@ -704,19 +723,24 @@ export function MealPrepPlanner({
                     <div className="mp-meal-meta">
                       <span>{label}</span>
                       <span>
-                        {slot === "breakfast"
-                          ? "Morning"
-                          : slot === "lunch"
-                            ? "Midday"
-                            : slot === "snack"
-                              ? (block.contexts?.[date] ?? contextForDate(date))
-                                  .training
-                                ? "60-120 min before training"
-                                : "Afternoon"
-                              : (block.contexts?.[date] ?? contextForDate(date))
-                                    .training
-                                ? "Evening, after training"
-                                : "Evening"}
+                        {sessionGuidance?.timings?.[slot] ??
+                          (slot === "breakfast"
+                            ? "Morning"
+                            : slot === "lunch"
+                              ? "Midday"
+                              : slot === "snack"
+                                ? (
+                                    block.contexts?.[date] ??
+                                    contextForDate(date)
+                                  ).training
+                                  ? "60-120 min before training"
+                                  : "Afternoon"
+                                : (
+                                      block.contexts?.[date] ??
+                                      contextForDate(date)
+                                    ).training
+                                  ? "Evening, after training"
+                                  : "Evening")}
                       </span>
                       {recorded ? (
                         <span className="mp-recorded">Recorded meal</span>

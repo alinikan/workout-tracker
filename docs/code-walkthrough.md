@@ -17,7 +17,7 @@ Workout Tracker is a React + TypeScript Progressive Web App. Its original three 
 | Coach Hub | Account sign-in, sync status, daily kg weigh-ins, weight chart, and weekly averages. |
 | Workout | Today, Gym Mode, weekly planner, progress dashboard, and exercise library. |
 | Diet | Daily meal cards, recipe steps, meal swaps, pre-workout fueling, and weekly to-buy list. |
-| Momentum (optional/private) | A separately authorized 90-day Titan/home-strength journey, with Today, Meals and Journey screens. It never advances the original earned-week counter. |
+| Momentum (optional/private) | A separately authorized 90-day home-first journey. Its active calendar supplies Workout/Nutrition scheduling; activity logs remain separate. One optional confirmed trial, never assumed weekly classes. |
 
 The app saves progress in two layers:
 
@@ -38,6 +38,10 @@ intentional; do not copy original plaintext persistence into this private featur
 | --- | --- |
 | `src/App.tsx` | Main application logic, data, helpers, and UI. This is the product brain. |
 | `src/features/momentum/` | Scoped private feature; pure plan/safety/coaching modules, independent sync hook and lazy UI. |
+| `src/features/momentum/trial.ts` | Pure home-plan creation, non-destructive legacy adoption, one-off trial validation and adjacent-day/fueling projections. Cancellation is a timestamped tombstone for offline merges. |
+| `src/features/momentum/TrialPanel.tsx` | Date/time editor with a derived week preview. Save is explicit; the preview never writes activity or books a class. |
+| `tests/home-trial.test.mjs` | Home starts on every weekday, no assumed class, trial moves/cancellation, preserved history, shared workouts, meal context and reset tests. |
+| `scripts/trial-ui-check.mjs` | Real browser trial editing, cross-device sync, home restoration and linked meal guidance using synthetic accounts. |
 | `supabase/migrations/20261023_momentum.sql` | Administrator-installed singleton authorization, separate RLS table and revisioned write RPC. |
 | `tests/momentum.test.mjs` | Pure feature tests plus actual PostgreSQL authorization, activation and conflict checks. |
 | `src/styles.css` | Stable feature styles and the original mobile/PWA layout contract. |

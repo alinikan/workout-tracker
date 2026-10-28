@@ -144,6 +144,28 @@ function saveDefinition(source) {
   return definition;
 }
 
+test("PostgreSQL: existing owner RPC saves home plans, optional-time trials and cancellation without SQL changes", async (t) => {
+  const { dates, save, as } = await database(t);
+  const data = document(dates.today);
+  const j = data.journeys.ordinary;
+  j.planVersion = "home-trial-90";
+  j.trial = {
+    id: "trial-one",
+    updatedAt: new Date().toISOString(),
+    date: dates.future,
+    time: "",
+  };
+  const first = await save(0, data);
+  assert.equal(first.conflict, false);
+  assert.equal(first.data.journeys.ordinary.trial.time, "");
+  j.trial = { ...j.trial, id: "trial-cancel", date: null };
+  const cancelled = await save(first.revision, data);
+  assert.equal(cancelled.data.journeys.ordinary.trial.date, null);
+  assert.equal(cancelled.data.journeys.archived.logs.day1.note, "Preserve");
+  await as(other);
+  await assert.rejects(() => save(cancelled.revision, data), denied);
+});
+
 test("shared-start migration is transaction-wrapped, function-only and identical in both install paths", () => {
   const incremental = sql["20261026_shared_start"];
   const definition = saveDefinition(incremental);

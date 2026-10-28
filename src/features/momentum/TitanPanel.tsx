@@ -139,7 +139,7 @@ export function TitanIntro() {
           </li>
           <li>
             Eat a familiar meal or snack, bring water and arrive early enough to
-            find Room #2.
+            find the room confirmed by the coach.
           </li>
           <li>
             Ask the instructor for a manageable introduction, with breaks or

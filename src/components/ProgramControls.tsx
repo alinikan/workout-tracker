@@ -56,7 +56,7 @@ export function ProgramControls({ today, disabled, signedIn, pending, error, onR
           <p className="eyebrow">Restart your program</p>
           <h2 id="reset-dialog-title">A clean slate. Same account.</h2>
           <p>This permanently clears workout sets, skips, swaps, meal tracking, weigh-ins, notes, achievements, and nutrition settings. Your training returns to Week 1.</p>
-          <p>Momentum uses the same new date and starts at Week 1 with a fresh 90-day journey. Its previous journey and private meal records stay archived. Titan classes keep their real weekdays; no class is booked automatically.</p>
+          <p>Momentum uses the same new date and starts at Week 1 with a fresh home-gym routine. Its previous journey and private meal records stay archived. No trial or recurring class is scheduled; add one confirmed trial date later when ready.</p>
           <p className="reset-account-note"><ShieldCheck size={18} aria-hidden="true" /> {signedIn ? "You stay signed in. The reset replaces this account's progress on all updated devices once synced." : "Your local progress resets. Sign in to sync the fresh start across devices."}</p>
           <label>New start date<input type="date" value={startedOn} min={today} required onChange={(event) => setStartedOn(event.target.value)} /></label>
           <label>Type RESET to confirm<input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="off" autoCapitalize="characters" spellCheck={false} placeholder="RESET" /></label>
@@ -71,13 +71,14 @@ export function ProgramControls({ today, disabled, signedIn, pending, error, onR
   );
 }
 
-export function TrainingJourney({ week, credits, inWeek, complete, startedOn, onContinue }: {
+export function TrainingJourney({ week, credits, inWeek, complete, startedOn, onContinue, sessions = 3 }: {
   week: number;
   credits: number;
   inWeek: number;
   complete: boolean;
   startedOn: string;
   onContinue: () => void;
+  sessions?: number;
 }) {
   return (
     <section className="training-journey" aria-labelledby="training-journey-title">
@@ -85,12 +86,12 @@ export function TrainingJourney({ week, credits, inWeek, complete, startedOn, on
         <div><p className="eyebrow">Earned progress · no expiry</p><h2 id="training-journey-title">{complete ? "26 training weeks earned" : `Training Week ${week} of 26`}</h2></div>
         <button type="button" onClick={onContinue} aria-label="Open today's workout"><ArrowUpRight size={21} aria-hidden="true" /></button>
       </div>
-      <div className="journey-session-rail" aria-label={`${inWeek} of 3 lifting sessions earned in this training week`}>
-        {[0, 1, 2].map((index) => <span key={index} className={index < inWeek ? "earned" : ""}>{index < inWeek ? <Check size={16} aria-hidden="true" /> : index + 1}<small>{index < inWeek ? "Earned" : "To earn"}</small></span>)}
+      <div className="journey-session-rail" style={{ gridTemplateColumns: `repeat(${sessions}, minmax(0, 1fr))` }} aria-label={`${inWeek} of ${sessions} lifting sessions earned in this training week`}>
+        {Array.from({ length: sessions }, (_, index) => <span key={index} className={index < inWeek ? "earned" : ""}>{index < inWeek ? <Check size={16} aria-hidden="true" /> : index + 1}<small>{index < inWeek ? "Earned" : "To earn"}</small></span>)}
       </div>
-      <div className="journey-meta"><strong>{Math.min(credits, 78)} / 78 lifts</strong><span>Started {startedOn}</span></div>
-      <div className="journey-track" role="progressbar" aria-label="Earned six-month training progress" aria-valuenow={Math.min(credits, 78)} aria-valuemin={0} aria-valuemax={78}><span style={{ width: `${Math.min(100, credits / 78 * 100)}%` }} /></div>
-      <p>{complete ? "Keep training at your current level, or start a new program when you're ready." : "Every 3 completed lifting sessions earns a week. Missed days hold your level, not your place."}</p>
+      <div className="journey-meta"><strong>{Math.min(credits, 26 * sessions)} / {26 * sessions} lifts</strong><span>Started {startedOn}</span></div>
+      <div className="journey-track" role="progressbar" aria-label="Earned six-month training progress" aria-valuenow={Math.min(credits, 26 * sessions)} aria-valuemin={0} aria-valuemax={26 * sessions}><span style={{ width: `${Math.min(100, credits / (26 * sessions) * 100)}%` }} /></div>
+      <p>{complete ? "Keep training at your current level, or start a new program when you're ready." : `Every ${sessions} completed lifting sessions earns a week. Missed days hold your level, not your place.`}</p>
     </section>
   );
 }

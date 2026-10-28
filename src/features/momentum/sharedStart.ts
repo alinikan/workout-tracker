@@ -2,8 +2,8 @@ import {
   isCalendarDate,
   type ProgramState,
 } from "../../lib/programLifecycle.ts";
-import { currentJourney, makeJourney } from "./plan.ts";
-import { firstWednesday } from "./titan.ts";
+import { currentJourney } from "./plan.ts";
+import { makeHomeJourney } from "./trial.ts";
 import type { MomentumData } from "./types.ts";
 
 /** The public reset marker contains dates/IDs only, never private fitness data.
@@ -44,7 +44,8 @@ export function reconcileSharedStart(
   if (data.activeJourneyId === id)
     return { ...data, sharedProgram: { ...program } };
   const next =
-    data.journeys[id] ?? makeJourney(program.startedOn, id, program.resetAt);
+    data.journeys[id] ??
+    makeHomeJourney(program.startedOn, id, program.resetAt);
   return {
     ...data,
     sharedProgram: { ...program },
@@ -64,7 +65,8 @@ export function reconcileSharedStart(
     preparation: {},
     profile: {
       ...data.profile,
-      nextClassDate: firstWednesday(program.startedOn),
+      environment: "home",
+      nextClassDate: "",
     },
   };
 }

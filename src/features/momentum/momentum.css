@@ -919,3 +919,11 @@
     scroll-behavior: auto !important;
   }
 }
+.mm-trial-editor h3 { margin-block: 12px; }
+.mm-trial-preview { margin-block: 20px; padding-block: 16px; border-block: 1px solid var(--mm-line); }
+.mm-trial-preview h4 { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.mm-trial-preview ol { list-style: none; padding: 0; margin: 12px 0; }
+.mm-trial-preview li { display: grid; grid-template-columns: 88px minmax(0, 1fr) 20px; gap: 8px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--mm-line); font-size: 13px; }
+.mm-trial-preview li strong { font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.mm-trial-preview .boxing { color: var(--mm-coral); }
+.mm-trial-actions { display: flex; flex-wrap: wrap; gap: 10px; }

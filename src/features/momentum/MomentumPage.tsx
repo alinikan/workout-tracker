@@ -23,12 +23,10 @@ import {
   currentJourney,
   dayPlan,
   isStrength,
-  makeJourney,
   phase,
   repeatWeek,
   rescheduleClass,
   sortedSlots,
-  strengthTemplates,
   suggestedStart,
   weekday,
   weekOf,
@@ -45,7 +43,7 @@ import {
   resolveDay,
 } from "./coaching";
 import { calendarText } from "./calendar";
-import { classFor, firstWednesday, upgradeTitan } from "./titan";
+import { classFor, upgradeTitan } from "./titan";
 import { evidence } from "./research";
 import { sessionSets } from "./flow";
 import {
@@ -60,6 +58,8 @@ import {
 } from "./types";
 import { Outside, TitanIntro, TitanPrices } from "./TitanPanel";
 import MomentumSession from "./MomentumSession";
+import TrialPanel from "./TrialPanel";
+import { isHomePlan, makeHomeJourney, trialFor } from "./trial";
 import "./momentum.css";
 
 type Props = {
@@ -150,6 +150,8 @@ export default function MomentumPage(p: Props) {
   const { data, today, edit, resources } = p;
   const j = currentJourney(data),
     slots = j ? sortedSlots(j) : [];
+  const homePlan = isHomePlan(j),
+    trial = trialFor(data);
   const [view, setView] = useState<View>("today"),
     [sheet, setSheet] = useState<"titan" | "settings" | null>(null);
   const [selectedId, setSelectedId] = useState(""),
@@ -159,7 +161,9 @@ export default function MomentumPage(p: Props) {
       ? calendarWeekOf(j, slots.find((s) => s.date >= today) ?? slots.at(-1)!)
       : 1,
   );
-  const linkedStart = data.sharedProgram?.resetAt ? data.sharedProgram.startedOn : null;
+  const linkedStart = data.sharedProgram?.resetAt
+    ? data.sharedProgram.startedOn
+    : null;
   const [start, setStart] = useState(linkedStart ?? suggestedStart(today)),
     [notice, setNotice] = useState("");
   const [mealDate, setMealDate] = useState(today);
@@ -168,7 +172,7 @@ export default function MomentumPage(p: Props) {
   const lastMealToday = useRef(today);
   useEffect(() => {
     const previous = lastMealToday.current;
-    setMealDate((date) => date === previous ? today : date);
+    setMealDate((date) => (date === previous ? today : date));
     lastMealToday.current = today;
   }, [today]);
   const [switchDate, setSwitchDate] = useState(""),
@@ -183,7 +187,7 @@ export default function MomentumPage(p: Props) {
   const nextClass = slots.find(
     (s) =>
       s.date >= today &&
-      dayPlan(j, s).activity === "boxing" &&
+      resolveDay(data, s, today).activity === "boxing" &&
       !j?.logs[s.id]?.outcome,
   );
   const stage = classFor(data, nextClass?.date ?? today),
@@ -218,10 +222,18 @@ export default function MomentumPage(p: Props) {
     setSelectedId("");
     setSession(false);
     setMealDate(today);
-    setWeek(j && slots.length
-      ? calendarWeekOf(j, slots.find((slot) => slot.date >= today) ?? slots.at(-1)!) : 1);
+    setWeek(
+      j && slots.length
+        ? calendarWeekOf(
+            j,
+            slots.find((slot) => slot.date >= today) ?? slots.at(-1)!,
+          )
+        : 1,
+    );
   }, [today, j?.id]);
-  useEffect(() => { if (linkedStart) setStart(linkedStart); }, [linkedStart]);
+  useEffect(() => {
+    if (linkedStart) setStart(linkedStart);
+  }, [linkedStart]);
 
   const record = (outcome: Outcome) => {
     if (!j || !selected || !plan) return false;
@@ -244,7 +256,7 @@ export default function MomentumPage(p: Props) {
       ...(plan.activity === "boxing"
         ? {
             className: log.className ?? details.name,
-            classTime: "18:15",
+            classTime: log.classTime ?? details.time,
             gymId: "titan",
           }
         : {}),
@@ -259,7 +271,7 @@ export default function MomentumPage(p: Props) {
         <p>Exercise instructions are unavailable. Do not guess the movement.</p>
       );
     const template = isStrength(plan.activity)
-      ? strengthTemplates[plan.activity].find((e) => e.id === id)
+      ? plan.movementTargets.find((e) => e.id === id)
       : undefined;
     const keys = sessionSets([id], plan.extraId, plan.setsPerExercise);
     const changeSet = (
@@ -376,11 +388,16 @@ export default function MomentumPage(p: Props) {
   const activate = () => {
     const chosen = linkedStart ?? start;
     if (!linkedStart && !startJourneyAllowed(data, chosen, today)) {
-      setNotice("Choose today or a future start date. Existing history stays archived.");
+      setNotice(
+        "Choose today or a future start date. Existing history stays archived.",
+      );
       return;
     }
-    const next = makeJourney(chosen, linkedStart ? `program-${data.sharedProgram!.resetId}` : undefined,
-      linkedStart ? data.sharedProgram!.resetAt! : undefined);
+    const next = makeHomeJourney(
+      chosen,
+      linkedStart ? `program-${data.sharedProgram!.resetId}` : undefined,
+      linkedStart ? data.sharedProgram!.resetAt! : undefined,
+    );
     edit((d) => ({
       ...d,
       onboarded: true,
@@ -390,12 +407,12 @@ export default function MomentumPage(p: Props) {
         ...d.profile,
         gymId: "titan",
         discipline: "muay-thai",
-        classWeekday: 3,
-        classTime: "18:15",
+        classTime: "",
         classStage: "introduction",
         classSwitchDate: "",
         className: "Introduction to Muay Thai / Kickboxing",
-        nextClassDate: firstWednesday(chosen),
+        environment: "home",
+        nextClassDate: "",
       },
     }));
     setSheet(null);
@@ -492,19 +509,19 @@ export default function MomentumPage(p: Props) {
         <section className="mm-start">
           <span className="mm-eyebrow">Your next 90 days</span>
           <h1>
-            One class.
+            Start at home.
             <br />
             One good beginning.
           </h1>
           <p>
-            Learn Muay Thai at Titan. Build strength at home. Start small,
-            repeat what works, and earn the next step.
+            Build a repeatable home-gym routine. Add one Titan trial later, only
+            when you know which date suits you.
           </p>
           <div className="mm-anchor">
-            <Flame />
+            <Dumbbell />
             <div>
-              <strong>Titan Training Centre</strong>
-              <span>Wednesday · 6:15 pm · Introduction</span>
+              <strong>Home gym first</strong>
+              <span>Two manageable strength days · easy walks · recovery</span>
             </div>
           </div>
           <Field label="Start date">
@@ -516,11 +533,15 @@ export default function MomentumPage(p: Props) {
               onChange={(e) => setStart(e.target.value)}
             />
           </Field>
-          {linkedStart && <p className="mm-muted">This is your shared Start Fresh date. Change it for all sections in Coach settings.</p>}
+          {linkedStart && (
+            <p className="mm-muted">
+              This is your shared Start Fresh date. Change it for all sections
+              in Coach settings.
+            </p>
+          )}
           <p className="mm-muted">
-            First planned introduction:{" "}
-            {dateLabel(firstWednesday(start || suggestedStart(today)))}. Confirm
-            your spot with Titan; this app does not book classes.
+            Day 1 starts with Home Strength A. No class or trial date is
+            scheduled automatically.
           </p>
           <button className="mm-primary mm-wide" onClick={activate}>
             Start my 90 days
@@ -574,7 +595,7 @@ export default function MomentumPage(p: Props) {
                       <small>of 90</small>
                     </span>
                   </div>
-                  {j.planVersion !== "titan-90" && (
+                  {j.planVersion !== "titan-90" && !homePlan && (
                     <div className="mm-callout">
                       <strong>Your 90-day routine is ready.</strong>
                       <p>
@@ -607,7 +628,7 @@ export default function MomentumPage(p: Props) {
                       <h2>{plan.title}</h2>
                       <p>
                         {plan.activity === "boxing"
-                          ? `6:15 pm · ${classFor(data, selected.date).room} · 60-minute class`
+                          ? `${classFor(data, selected.date).time || "Time to confirm"} · ${classFor(data, selected.date).room}`
                           : `${plan.minutes}${plan.minutes.includes("planning") ? "" : " minutes"}${isStrength(plan.activity) ? ` · ${plan.exerciseIds.length} movements · ${plan.setsPerExercise} set each` : ""}`}
                       </p>
                       <div className="mm-focus-instruction">
@@ -698,11 +719,21 @@ export default function MomentumPage(p: Props) {
                     <span>
                       <strong>Titan Training Centre</strong>
                       <small>
-                        {nextClass
-                          ? `${dateLabel(nextClass.date)} · 6:15 pm`
-                          : "Your chosen training centre"}
+                        {homePlan
+                          ? trial
+                            ? `${dateLabel(trial.date!)}${trial.time ? ` · ${trial.time}` : " · time to confirm"}`
+                            : "No trial scheduled · home gym for now"
+                          : nextClass
+                            ? `${dateLabel(nextClass.date)} · 6:15 pm`
+                            : "Your chosen training centre"}
                       </small>
-                      <small>{stage.name}</small>
+                      <small>
+                        {homePlan
+                          ? trial
+                            ? "One trial only · view details"
+                            : "Add a trial date when ready"
+                          : stage.name}
+                      </small>
                     </span>
                     <ChevronRight />
                   </button>
@@ -745,12 +776,14 @@ export default function MomentumPage(p: Props) {
                 <Utensils />
               </div>
               {resources.mealPrep(mealDate, setMealDate)}
-              <p className="mm-context">
-                For class: normal meal 2-3 hours before, or a small familiar
-                snack 30-60 minutes before if needed. Water and breaks help, but
-                cannot guarantee prevention of dizziness. Stop if you feel
-                faint.
-              </p>
+              {!homePlan && (
+                <p className="mm-context">
+                  For class: normal meal 2-3 hours before, or a small familiar
+                  snack 30-60 minutes before if needed. Water and breaks help,
+                  but cannot guarantee prevention of dizziness. Stop if you feel
+                  faint.
+                </p>
+              )}
             </section>
           )}
           {view === "journey" && (
@@ -827,7 +860,9 @@ export default function MomentumPage(p: Props) {
                               : s.date < today
                                 ? "No entry"
                                 : resolved.activity === "boxing"
-                                  ? "Planned · 6:15 pm · not a booking"
+                                  ? homePlan
+                                    ? `One trial · ${classFor(data, s.date).time || "time to confirm"}`
+                                    : "Planned · 6:15 pm · not a booking"
                                   : resolved.minutes === "0"
                                     ? "Rest / optional movement"
                                     : `${resolved.minutes} min`}
@@ -845,19 +880,35 @@ export default function MomentumPage(p: Props) {
               <section className="mm-progression">
                 <span className="mm-eyebrow">Earned, not calendar-based</span>
                 <h2>
-                  {level === 2
-                    ? "Ready for a little more volume"
-                    : level === 1
-                      ? "A second strength day is an option"
-                      : "Build a repeatable base"}
+                  {homePlan ? (
+                    "Build your home routine"
+                  ) : (
+                    <>
+                      {level === 2
+                        ? "Ready for a little more volume"
+                        : level === 1
+                          ? "A second strength day is an option"
+                          : "Build a repeatable base"}
+                    </>
+                  )}
                 </h2>
-                <p>
-                  Start with one home strength session and one Wednesday class.
-                  Four comfortable full lifts and three comfortable classes can
-                  unlock Saturday Strength B. Eight full lifts (including two B
-                  sessions) and six comfortable classes can unlock two sets.
-                  Recent recovery must also support it.
-                </p>
+                {homePlan ? (
+                  <p>
+                    Two full-body home sessions per seven-day block, separated
+                    by easier days. Start with comfortable loads and two
+                    controlled sets; choose a lighter day when needed. No
+                    calendar-based load jump and no class attendance needed to
+                    keep training at home.
+                  </p>
+                ) : (
+                  <p>
+                    Start with one home strength session and one Wednesday
+                    class. Four comfortable full lifts and three comfortable
+                    classes can unlock Saturday Strength B. Eight full lifts
+                    (including two B sessions) and six comfortable classes can
+                    unlock two sets. Recent recovery must also support it.
+                  </p>
+                )}
                 <Field label="My workload choice">
                   <select
                     value={
@@ -876,16 +927,24 @@ export default function MomentumPage(p: Props) {
                       accept(e.target.value as Adaptation["mode"])
                     }
                   >
-                    <option value="steady">Keep one strength day</option>
+                    <option value="steady">
+                      {homePlan
+                        ? "Keep the home routine"
+                        : "Keep one strength day"}
+                    </option>
                     <option value="lighter">Make it lighter</option>
-                    <option value="second-session" disabled={level < 1}>
-                      Add Saturday Strength B
-                      {level < 1 ? " · not earned yet" : ""}
-                    </option>
-                    <option value="two-sets" disabled={level < 2}>
-                      Two strength days, two sets
-                      {level < 2 ? " · not earned yet" : ""}
-                    </option>
+                    {!homePlan && (
+                      <option value="second-session" disabled={level < 1}>
+                        Add Saturday Strength B
+                        {level < 1 ? " · not earned yet" : ""}
+                      </option>
+                    )}
+                    {!homePlan && (
+                      <option value="two-sets" disabled={level < 2}>
+                        Two strength days, two sets
+                        {level < 2 ? " · not earned yet" : ""}
+                      </option>
+                    )}
                   </select>
                 </Field>
                 <p className="mm-muted">
@@ -948,140 +1007,159 @@ export default function MomentumPage(p: Props) {
       )}
       {sheet === "titan" && (
         <Sheet title="Your Titan routine" close={() => setSheet(null)}>
-          <span className="mm-eyebrow">Your chosen gym</span>
-          <h3>Titan Training Centre</h3>
-          <div className="mm-class-ticket">
-            <span>
-              {nextClass ? dateLabel(nextClass.date) : "Wednesday"} · 6:15 pm
-            </span>
-            <h3>{stage.name}</h3>
-            <p>{stage.room} · one-hour appointment</p>
-            <small>
-              Planned, not booked. Confirm your spot and holiday changes with
-              Titan.
-            </small>
-          </div>
-          <TitanIntro />
-          <details className="mm-disclosure">
-            <summary>When I am ready for Beginners / Intermediate</summary>
-            <p>
-              There is no deadline to leave the introduction. Ask your
-              instructor whether the next class fits your technique and
-              recovery. This is not advanced sparring.
-            </p>
-            <Field label="First Wednesday in the new class">
-              <input
-                type="date"
-                min={today}
-                value={switchDate}
-                onChange={(e) => setSwitchDate(e.target.value)}
+          {homePlan ? (
+            <>
+              <TrialPanel
+                data={data}
+                today={today}
+                edit={edit}
+                close={() => setSheet(null)}
+                workoutDates={resources.workoutDates}
+                recordedTrialDates={resources.recordedTrialDates}
               />
-            </Field>
-            <button
-              disabled={
-                !switchDate || weekday(switchDate) !== 3 || switchDate < today
-              }
-              onClick={() => {
-                edit((d) => ({
-                  ...d,
-                  profile: {
-                    ...d.profile,
-                    classStage: "beginner",
-                    classSwitchDate: switchDate,
-                  },
-                }));
-                setSheet(null);
-              }}
-            >
-              Use Beginners / Intermediate from this date
-            </button>
-            {data.profile.classStage === "beginner" && (
-              <button
-                className="mm-text-button"
-                onClick={() =>
-                  edit((d) => ({
-                    ...d,
-                    profile: {
-                      ...d.profile,
-                      classStage: "introduction",
-                      classSwitchDate: "",
-                    },
-                  }))
-                }
-              >
-                Return future classes to Introduction
-              </button>
-            )}
-            <p className="mm-muted">
-              Same Wednesday time, 6:15 pm; Room #1, not Room #2. Saturday
-              requires four months' experience and is not unlocked by this
-              calendar.
-            </p>
-          </details>
-          {nextClass && (
-            <details className="mm-disclosure">
-              <summary>Calendar & appointment changes</summary>
-              <button
-                onClick={() => {
-                  const a = document.createElement("a");
-                  a.href = URL.createObjectURL(
-                    new Blob(
-                      [
-                        calendarText(
-                          nextClass.date,
-                          "18:15",
-                          `${j?.id}-${nextClass.id}`,
-                        ),
-                      ],
-                      { type: "text/calendar" },
-                    ),
-                  );
-                  a.download = "personal-appointment.ics";
-                  a.click();
-                  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-                }}
-              >
-                Download private calendar reminder
-              </button>
-              <Field label="Move this planned appointment">
-                <input
-                  type="date"
-                  min={today}
-                  value={moveDate}
-                  onChange={(e) => setMoveDate(e.target.value)}
-                />
-              </Field>
-              <button
-                disabled={!moveDate}
-                onClick={() => {
-                  try {
-                    updateJourney((c) =>
-                      rescheduleClass(c, nextClass.id, moveDate, today),
-                    );
-                    setSheet(null);
-                  } catch (e) {
-                    setNotice((e as Error).message);
-                    setSheet(null);
+              <TitanIntro />
+            </>
+          ) : (
+            <>
+              <span className="mm-eyebrow">Your chosen gym</span>
+              <h3>Titan Training Centre</h3>
+              <div className="mm-class-ticket">
+                <span>
+                  {nextClass ? dateLabel(nextClass.date) : "Wednesday"} · 6:15
+                  pm
+                </span>
+                <h3>{stage.name}</h3>
+                <p>{stage.room} · one-hour appointment</p>
+                <small>
+                  Planned, not booked. Confirm your spot and holiday changes
+                  with Titan.
+                </small>
+              </div>
+              <TitanIntro />
+              <details className="mm-disclosure">
+                <summary>When I am ready for Beginners / Intermediate</summary>
+                <p>
+                  There is no deadline to leave the introduction. Ask your
+                  instructor whether the next class fits your technique and
+                  recovery. This is not advanced sparring.
+                </p>
+                <Field label="First Wednesday in the new class">
+                  <input
+                    type="date"
+                    min={today}
+                    value={switchDate}
+                    onChange={(e) => setSwitchDate(e.target.value)}
+                  />
+                </Field>
+                <button
+                  disabled={
+                    !switchDate ||
+                    weekday(switchDate) !== 3 ||
+                    switchDate < today
                   }
-                }}
-              >
-                Move appointment
-              </button>
-              <p className="mm-muted">
-                Only within this week with recovery spacing. Confirm another
-                suitable class with Titan first. This does not book or cancel
-                anything.
-              </p>
-            </details>
+                  onClick={() => {
+                    edit((d) => ({
+                      ...d,
+                      profile: {
+                        ...d.profile,
+                        classStage: "beginner",
+                        classSwitchDate: switchDate,
+                      },
+                    }));
+                    setSheet(null);
+                  }}
+                >
+                  Use Beginners / Intermediate from this date
+                </button>
+                {data.profile.classStage === "beginner" && (
+                  <button
+                    className="mm-text-button"
+                    onClick={() =>
+                      edit((d) => ({
+                        ...d,
+                        profile: {
+                          ...d.profile,
+                          classStage: "introduction",
+                          classSwitchDate: "",
+                        },
+                      }))
+                    }
+                  >
+                    Return future classes to Introduction
+                  </button>
+                )}
+                <p className="mm-muted">
+                  Same Wednesday time, 6:15 pm; Room #1, not Room #2. Saturday
+                  requires four months' experience and is not unlocked by this
+                  calendar.
+                </p>
+              </details>
+              {nextClass && (
+                <details className="mm-disclosure">
+                  <summary>Calendar & appointment changes</summary>
+                  <button
+                    onClick={() => {
+                      const a = document.createElement("a");
+                      a.href = URL.createObjectURL(
+                        new Blob(
+                          [
+                            calendarText(
+                              nextClass.date,
+                              "18:15",
+                              `${j?.id}-${nextClass.id}`,
+                            ),
+                          ],
+                          { type: "text/calendar" },
+                        ),
+                      );
+                      a.download = "personal-appointment.ics";
+                      a.click();
+                      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+                    }}
+                  >
+                    Download private calendar reminder
+                  </button>
+                  <Field label="Move this planned appointment">
+                    <input
+                      type="date"
+                      min={today}
+                      value={moveDate}
+                      onChange={(e) => setMoveDate(e.target.value)}
+                    />
+                  </Field>
+                  <button
+                    disabled={!moveDate}
+                    onClick={() => {
+                      try {
+                        updateJourney((c) =>
+                          rescheduleClass(c, nextClass.id, moveDate, today),
+                        );
+                        setSheet(null);
+                      } catch (e) {
+                        setNotice((e as Error).message);
+                        setSheet(null);
+                      }
+                    }}
+                  >
+                    Move appointment
+                  </button>
+                  <p className="mm-muted">
+                    Only within this week with recovery spacing. Confirm another
+                    suitable class with Titan first. This does not book or
+                    cancel anything.
+                  </p>
+                </details>
+              )}
+              <TitanPrices />
+            </>
           )}
-          <TitanPrices />
         </Sheet>
       )}
       {sheet === "settings" && (
         <Sheet title="Routine settings" close={() => setSheet(null)}>
           <p>
-            Your original workout program, meals and weight history remain
-            unchanged.
+            Your recorded workouts, meals and weight history stay saved. The
+            home-first schedule also appears in Workout and Nutrition.
           </p>
           {j && (
             <>
@@ -1147,10 +1225,12 @@ export default function MomentumPage(p: Props) {
             <summary>Start fresh across the app</summary>
             <p>
               Choose one new start date for Workout, Nutrition and Momentum.
-              Training starts at Week 1. Previous Momentum journeys stay archived;
-              the confirmation explains which progress is cleared.
+              Training starts at Week 1. Previous Momentum journeys stay
+              archived; the confirmation explains which progress is cleared.
             </p>
-            <button disabled={!p.sharedStartReady} onClick={p.onStartFresh}>Start fresh for all sections</button>
+            <button disabled={!p.sharedStartReady} onClick={p.onStartFresh}>
+              Start fresh for all sections
+            </button>
           </details>
           <details className="mm-disclosure">
             <summary>Archived journeys</summary>

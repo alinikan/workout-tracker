@@ -1,7 +1,11 @@
 import { mergeProgressChanges, sameData } from "../../lib/syncMerge.ts";
 import { emptyMomentum, newLog, type MomentumData } from "./types.ts";
 import { newerSharedStart } from "./sharedStart.ts";
-import { isCalendarDate, normalizeProgram } from "../../lib/programLifecycle.ts";
+import {
+  isCalendarDate,
+  normalizeProgram,
+} from "../../lib/programLifecycle.ts";
+import { isHomePlan } from "./trial.ts";
 
 const prefix = "momentum-private-v1:";
 type Envelope = { owner: string; iv: number[]; ciphertext: number[] };
@@ -21,28 +25,40 @@ export function normalizeMomentum(value: unknown): MomentumData {
     ...empty,
     ...v,
     schemaVersion: 2,
-    sharedProgram: v.sharedProgram && isCalendarDate(v.sharedProgram.startedOn)
-      ? normalizeProgram(v.sharedProgram, v.sharedProgram.startedOn) : undefined,
+    sharedProgram:
+      v.sharedProgram && isCalendarDate(v.sharedProgram.startedOn)
+        ? normalizeProgram(v.sharedProgram, v.sharedProgram.startedOn)
+        : undefined,
     profile: { ...empty.profile, ...v.profile },
     // Upgrade old records without erasing attendance, notes, meals or history.
     // Removed setup fields never return through a cache or a conflict response.
     journeys: Object.fromEntries(
-      Object.entries(v.journeys).map(([id, j]) => [id, {
-        ...j,
-        logs: Object.fromEntries(
-          Object.entries(j.logs).map(([key, log]) => [key, {
-            ...log,
-            ...(String(log.outcome) === "medical"
-              ? { outcome: "stopped" as const }
-              : {}),
-          }]),
-        ),
-        pauses: Object.fromEntries(
-          Object.entries(j.pauses).map(([key, p]) => [key, {
-            ...p, reason: "personal" as const,
-          }]),
-        ),
-      }]),
+      Object.entries(v.journeys).map(([id, j]) => [
+        id,
+        {
+          ...j,
+          logs: Object.fromEntries(
+            Object.entries(j.logs).map(([key, log]) => [
+              key,
+              {
+                ...log,
+                ...(String(log.outcome) === "medical"
+                  ? { outcome: "stopped" as const }
+                  : {}),
+              },
+            ]),
+          ),
+          pauses: Object.fromEntries(
+            Object.entries(j.pauses).map(([key, p]) => [
+              key,
+              {
+                ...p,
+                reason: "personal" as const,
+              },
+            ]),
+          ),
+        },
+      ]),
     ),
   };
 }
@@ -107,6 +123,24 @@ export function mergeMomentum(
     withDefaults(remote),
   );
   const resetWinner = newerSharedStart(local, remote);
+  for (const [id, journey] of Object.entries(merged.journeys)) {
+    const a = local.journeys[id],
+      b = remote.journeys[id];
+    if (isHomePlan(a) || isHomePlan(b)) {
+      journey.planVersion = "home-trial-90";
+      const choices = [a?.trial, b?.trial].filter(
+        (t): t is NonNullable<typeof t> =>
+          Boolean(t && Number.isFinite(Date.parse(t.updatedAt))),
+      );
+      choices.sort(
+        (x, y) =>
+          Date.parse(y.updatedAt) - Date.parse(x.updatedAt) ||
+          (x.id < y.id ? 1 : x.id > y.id ? -1 : 0),
+      );
+      // Never merge a date from one edit with the time or cancellation from another.
+      if (choices[0]) journey.trial = choices[0];
+    }
+  }
   if (resetWinner) {
     merged.sharedProgram = resetWinner.sharedProgram;
     merged.activeJourneyId = resetWinner.activeJourneyId;
@@ -114,6 +148,11 @@ export function mergeMomentum(
     merged.preparation = resetWinner.preparation;
     merged.profile.nextClassDate = resetWinner.profile.nextClassDate;
   }
+  const active = merged.activeJourneyId
+    ? merged.journeys[merged.activeJourneyId]
+    : null;
+  if (active?.planVersion === "home-trial-90")
+    merged.profile.nextClassDate = active.trial?.date ?? "";
   // A device checking the original meal does not confirm that it ate a new
   // recipe selected by another device. Keep a checkmark only if one side
   // actually checked that final recipe; never count the wrong food as eaten.

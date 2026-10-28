@@ -12,11 +12,12 @@ import { runMomentumChecks } from "./momentum-ui-check.mjs";
 import { runContrastChecks } from "./contrast-ui-check.mjs";
 import { runBatchChecks } from "./batch-ui-check.mjs";
 import { runSharedStartChecks } from "./shared-start-ui-check.mjs";
+import { runTrialChecks } from "./trial-ui-check.mjs";
 
 const storageKey = "body-recomp-gym-tracker-v1";
 const fixtureHost = "tracker-fixture.supabase.co";
 const diagnosticContexts = new Set();
-const { values } = parseArgs({ options: { repeat: { type: "string", default: "1" }, "momentum-only": { type: "boolean", default: false }, "contrast-only": { type: "boolean", default: false }, "batch-only": { type: "boolean", default: false }, "shared-start-only": { type: "boolean", default: false } } });
+const { values } = parseArgs({ options: { repeat: { type: "string", default: "1" }, "momentum-only": { type: "boolean", default: false }, "contrast-only": { type: "boolean", default: false }, "batch-only": { type: "boolean", default: false }, "shared-start-only": { type: "boolean", default: false }, "trial-only": { type: "boolean", default: false } } });
 const repeatCount = Number(values.repeat);
 assert.ok(Number.isInteger(repeatCount) && repeatCount >= 1 && repeatCount <= 5, "--repeat must be an integer from 1 to 5");
 const server = await createServer({
@@ -386,7 +387,7 @@ const browserCases = [
 const runs = Array.from({ length: repeatCount }, (_, index) => index + 1)
   .flatMap((iteration) => browserCases.map((entry) => [iteration, ...entry]));
 try {
-  if (!values["momentum-only"] && !values["contrast-only"] && !values["batch-only"] && !values["shared-start-only"]) {
+  if (!values["momentum-only"] && !values["contrast-only"] && !values["batch-only"] && !values["shared-start-only"] && !values["trial-only"]) {
   for (const [iteration, engineName, engine, viewport] of runs) {
     const browser = await engine.launch();
     browsers.push(browser);
@@ -609,10 +610,11 @@ try {
   await Promise.all(contexts.map((context) => context.close()));
   console.log("PASS two-device auth/reset/same-browser tab/offline stale-save/reconnect/reload integration (fixture only)");
   }
-  if (!values["momentum-only"] && !values["contrast-only"] && !values["batch-only"]) await runSharedStartChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout });
-  if (!values["momentum-only"] && !values["contrast-only"] && !values["shared-start-only"]) await runBatchChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout });
-  if (!values["contrast-only"] && !values["batch-only"] && !values["shared-start-only"]) await runMomentumChecks({ server, model, browsers, prepare, fixtureBackend, assertLayout, assertSelectionContrast, settlePresentation });
-  if (!values["momentum-only"] && !values["batch-only"] && !values["shared-start-only"]) await runContrastChecks({ server, model, browsers, prepare, fixtureBackend, navigate, settlePresentation });
+  if (!values["momentum-only"] && !values["contrast-only"] && !values["batch-only"] && !values["shared-start-only"]) await runTrialChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout });
+  if (!values["momentum-only"] && !values["contrast-only"] && !values["batch-only"] && !values["trial-only"]) await runSharedStartChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout });
+  if (!values["momentum-only"] && !values["contrast-only"] && !values["shared-start-only"] && !values["trial-only"]) await runBatchChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout });
+  if (!values["contrast-only"] && !values["batch-only"] && !values["shared-start-only"] && !values["trial-only"]) await runMomentumChecks({ server, model, browsers, prepare, fixtureBackend, assertLayout, assertSelectionContrast, settlePresentation });
+  if (!values["momentum-only"] && !values["batch-only"] && !values["shared-start-only"] && !values["trial-only"]) await runContrastChecks({ server, model, browsers, prepare, fixtureBackend, navigate, settlePresentation });
 } catch (error) {
   // Preserve the failing screen itself, not only earlier milestone screenshots.
   // Do not let diagnostic I/O hide the original assertion or delay cleanup.

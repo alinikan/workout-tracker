@@ -39,6 +39,8 @@ import { createMealPrep, normalizeMealPrep, prepBatch, prepBlockFor, prepServing
 import { prepRecipeMap } from "./features/mealPrep/recipes";
 import { currentJourney as momentumJourney, sortedSlots as momentumSlots } from "./features/momentum/plan";
 import { resolveDay as momentumDay } from "./features/momentum/coaching";
+import { isHomePlan, trialFuel } from "./features/momentum/trial";
+import type { MomentumData } from "./features/momentum/types";
 const MomentumPage = lazy(() => import("./features/momentum/MomentumPage"));
 
 /**
@@ -97,7 +99,7 @@ type MotionDemo = {
   match: "exact" | "reference";
 };
 
-type TrainingLocation = "upstairs" | "downstairs" | "downstairs-outside" | "either";
+type TrainingLocation = "upstairs" | "downstairs" | "downstairs-outside" | "either" | "titan";
 type SkipReason = "time" | "pain" | "equipment" | "fatigue" | "other" | "forgotten";
 type MoveStatus = "pending" | "done" | "skipped";
 type DayStatus = "incomplete" | "complete" | "finished-with-skips" | "skipped";
@@ -371,6 +373,7 @@ type SessionTemplate = {
   exerciseIds: string[];
   tasks: string[];
   finisher?: string;
+  connected?: { kind: "home" | "trial" | "easy"; sets: 1 | 2; targets: Record<string, string> };
 };
 
 type SetLog = {
@@ -385,6 +388,7 @@ type DayLog = {
   // Freeze the earned level when a current/past day is first edited; later history edits
   // must not add sets to a workout that was already logged at an easier level.
   trainingWeek?: number;
+  sessionSnapshot?: SessionTemplate;
   daySkipReason?: SkipReason;
   warmup: Record<string, boolean>;
   tasks: Record<string, boolean>;
@@ -692,6 +696,19 @@ function normalizeSettings(value: unknown): UserSettings {
   };
 }
 
+// A connected prescription is historical data, not trusted executable UI input.
+// Reject malformed snapshots as a whole; never mix half an old template with a new schedule.
+function normalizeSessionSnapshot(value: unknown): SessionTemplate | undefined {
+  if (!isRecord(value) || !["strength", "cardio", "movement", "recovery"].includes(String(value.type))
+    || !["title", "code", "time", "summary", "accent"].every(key => typeof value[key] === "string")
+    || !Array.isArray(value.exerciseIds) || !value.exerciseIds.every(id => typeof id === "string" && exerciseMap[id])
+    || !Array.isArray(value.tasks) || !value.tasks.every(task => typeof task === "string")) return undefined;
+  if (value.connected && (!isRecord(value.connected) || !["home", "trial", "easy"].includes(String(value.connected.kind))
+    || (value.connected.sets !== 1 && value.connected.sets !== 2) || !isRecord(value.connected.targets)
+    || !Object.values(value.connected.targets).every(target => typeof target === "string"))) return undefined;
+  return value as SessionTemplate;
+}
+
 // Normalizers act like small migrations. They protect the UI when localStorage or Supabase contains
 // older data from before diet tracking, kg weigh-ins, skips, or swaps existed.
 function normalizeDayLog(log: DayLog | undefined): DayLog {
@@ -704,6 +721,7 @@ function normalizeDayLog(log: DayLog | undefined): DayLog {
     ...log,
     trainingWeek: typeof log?.trainingWeek === "number" && Number.isInteger(log.trainingWeek) && log.trainingWeek >= 1 && log.trainingWeek <= TRAINING_WEEKS
       ? log.trainingWeek : undefined,
+    sessionSnapshot: normalizeSessionSnapshot(log?.sessionSnapshot),
     completed: (!savedSkipReason || completedOverAutomaticSkip) && Boolean(log?.completed),
     daySkipReason: completedOverAutomaticSkip ? undefined : savedSkipReason,
     warmup: log?.warmup ?? {},
@@ -2432,6 +2450,26 @@ const exerciseMap: Record<string, Exercise> = {
   },
 };
 
+// A warm-up reuses the exact movement's media/setup, never an unrelated demonstration.
+for (const [id, sourceId] of [["warmup-ramp-home-leg-extension", "seated-leg-extension"], ["warmup-ramp-home-machine-press", "machine-chest-press"]]) {
+  const source = exerciseMap[sourceId];
+  exerciseMap[id] = { ...source, id, name: `${source.name} Warm-Up`, shortName: `${source.shortName} warm-up`,
+    family: "warmup", priority: "main", swapIds: undefined,
+    reps: "5-8 easy reps with a clearly lighter pin than working sets", rest: "45-60 sec",
+    cues: ["Use the lightest comfortable setting, clearly below your working weight. This is preparation, not a hard set.", ...source.cues],
+    progression: "Keep this easy. Do not turn a warm-up into another working set." };
+}
+exerciseMap["muay-thai-trial"] = {
+  id: "muay-thai-trial", name: "Muay Thai / Kickboxing Trial", shortName: "One coached trial", family: "cardio", logType: "done",
+  trainingLocation: "titan", locationNote: "Attend your confirmed visit at Titan, not the home gym. Follow the coach's introduction and take breaks whenever needed.",
+  equipment: "Titan Training Centre; confirm date, time, room and any loan equipment with the coach",
+  reps: "10-20 active technique minutes with breaks or observation", rest: "As needed", target: "One manageable introduction, not a fitness test",
+  cues: ["Confirm your place with Titan. Tell the coach this is your first trial and keep the session easy.", "Take breaks or observe instead of trying to match experienced participants.", "This replaces the home workout; do not add lifting or a hard finisher afterwards."],
+  avoid: ["Do not push through dizziness or painful movements. Stop and tell the coach.", "Do not mark this complete before actually attending."],
+  progression: "One trial does not activate recurring classes. Continue the home routine until you choose a longer-term plan.", resources: [],
+};
+exerciseMap["home-easy-walk"] = { ...exerciseMap["warmup-treadmill-walk"], id: "home-easy-walk", name: "Easy Treadmill Walk", shortName: "Easy walk", family: "cardio", reps: "10-15 easy conversational minutes" };
+
 // Diet recipes are the nutrition equivalent of the exercise library: each recipe needs a slot,
 // portioned ingredients, a photo, and plate guidance so the daily plan can rotate variety while
 // still staying aligned with fat-loss targets.
@@ -3662,6 +3700,7 @@ function exercisePriorityLabel(priority: ExercisePriority) {
 }
 
 function exerciseIntroductionWeek(planDay: PlanDay, exerciseId: string) {
+  if (planDay.session.connected) return 1;
   if (planDay.session.type === "cardio" || planDay.session.type === "recovery") return 1;
 
   if (planDay.session.type === "movement") {
@@ -3755,6 +3794,8 @@ function recommendedSets(
   readinessStatus: ReadinessStatus = "green",
   originalExercise: Exercise = exercise,
 ) {
+  if (planDay.session.connected) return exercise.family === "warmup" || exercise.family === "cardio" ? 1
+    : readinessStatus === "red" || readinessStatus === "yellow" ? 1 : planDay.session.connected.sets;
   const week = coachingWeek(planDay);
   // A swap changes the movement and its load history, not the program slot.
   // Derive volume from the original slot so an equivalent machine option does
@@ -4032,6 +4073,7 @@ function sessionTimeEstimateForDay(planDay: PlanDay, log?: DayLog) {
 }
 
 function sessionTimeForDay(planDay: PlanDay, log?: DayLog) {
+  if (planDay.session.connected) return planDay.session.time;
   if (planDay.session.type === "recovery" && planDay.session.exerciseIds.length === 0) {
     return "Estimated total gym time: 0-20 min";
   }
@@ -4048,6 +4090,7 @@ function sessionTimeDetailForDay(planDay: PlanDay, log?: DayLog) {
 }
 
 function sessionSummaryForDay(planDay: PlanDay) {
+  if (planDay.session.connected) return planDay.session.summary;
   if (planDay.session.type === "strength") {
     const scheduled = scheduledExercisesForDay(planDay);
     const finisher = scheduled.some((exercise) => exercise.id === "treadmill-finisher")
@@ -5077,6 +5120,8 @@ function weightMomentumCoach(
 // Target and rest helpers are read by every workout view. Centralizing them means Today, Gym Mode,
 // detail sheets, and the library always agree about what the user should do.
 function targetForExercise(planDay: PlanDay, exercise: Exercise) {
+  const connected = planDay.session.connected;
+  if (connected) return connected.targets[exercise.id] ?? exercise.reps;
   const week = coachingWeek(planDay);
   if (isRampWarmup(exercise)) return rampWarmupTarget(planDay, exercise);
   if (exercise.family === "warmup") return warmupTarget(planDay, exercise);
@@ -5568,6 +5613,39 @@ function buildPlanDays(startedOn = isoFromDate(new Date()), through = startedOn)
   });
 }
 
+/** One private schedule supplies the date model in Today, Gym, Week and Nutrition.
+ * Actual saved workouts keep their prescription. Unstarted days are projections,
+ * so moving/removing a trial cannot leave behind a second "patched" calendar. */
+function connectedPlanDays(days: PlanDay[], data: MomentumData | null, logs: Record<string, DayLog>, today: string): PlanDay[] {
+  const journey = data ? momentumJourney(data) : null;
+  if (!data || !journey || !isHomePlan(journey)) return days;
+  const byDate = new Map(momentumSlots(journey).map(slot => [slot.date, slot]));
+  return days.map(day => {
+    const log = normalizeDayLog(logs[day.iso]);
+    if (log.sessionSnapshot) return { ...day, session: log.sessionSnapshot };
+    const slot = byDate.get(day.iso) ?? (day.iso >= journey.startedOn ? { id: `continuation-${day.iso}`, date: day.iso, day: diffDays(journey.startedOn, day.iso) + 1 } : undefined);
+    if (!slot || slot.originalPlan || day.iso < (journey.homeFrom ?? journey.startedOn)) return day;
+    if (log.completed || Object.values(log.exercises).some(rows => rows.some(set => set.done || set.weight || set.reps))) return day;
+    const plan = momentumDay(data, slot, today), strength = plan.activity.startsWith("strength"), trial = plan.activity === "boxing";
+    const targets = Object.fromEntries(plan.movementTargets.map(item => [item.id, `${item.reps} controlled reps; leave 3-4 comfortable reps available`]));
+    const practiceIds = plan.exerciseIds.slice(0, 2).flatMap(id => id === "seated-leg-extension" ? ["warmup-ramp-home-leg-extension"] : id === "machine-chest-press" ? ["warmup-ramp-home-machine-press"] : []);
+    const ids = strength ? ["warmup-treadmill-walk", ...practiceIds, ...plan.exerciseIds]
+      : trial ? ["muay-thai-trial"] : plan.activity === "walk" ? ["home-easy-walk"] : [];
+    targets["warmup-treadmill-walk"] = "5-7 min easy walking";
+    targets["warmup-ramp-home-leg-extension"] = targets["warmup-ramp-home-machine-press"] = "5-8 easy reps; use a clearly lighter pin than working sets";
+    targets["home-easy-walk"] = `${plan.minutes} min easy, conversational`;
+    targets["muay-thai-trial"] = `${plan.minutes} active technique minutes, with breaks or observation`;
+    return { ...day, session: {
+      title: plan.title, type: strength ? "strength" : trial ? "cardio" : plan.activity === "walk" ? "movement" : "recovery",
+      code: trial ? "TRIAL" : plan.activity === "strength-a" ? "HA" : plan.activity === "strength-b" ? "HB" : plan.activity === "walk" ? "EASY" : "REST",
+      time: `${plan.minutes} minutes`, summary: [plan.enough, plan.modifiedReason].filter(Boolean).join(" "),
+      accent: trial ? "cardio" : plan.activity === "strength-a" ? "strength-a" : plan.activity === "strength-b" ? "strength-b" : "recovery",
+      exerciseIds: ids, tasks: strength ? ["Keep loads comfortable and use the documented machine setup", "No painful range or forced squats"] : trial ? ["Confirm the trial with Titan", "Use breaks; no extra home workout"] : [plan.task],
+      connected: { kind: trial ? "trial" : strength ? "home" : "easy", sets: plan.setsPerExercise, targets },
+    } };
+  });
+}
+
 function qualifiesForTrainingCredit(planDay: PlanDay, log: DayLog) {
   return planDay.session.type === "strength" &&
     readinessStatusFor(log.readiness) !== "red" && isPlanDayComplete(planDay, log);
@@ -5575,12 +5653,13 @@ function qualifiesForTrainingCredit(planDay: PlanDay, log: DayLog) {
 
 // One forward pass supplies stable historical levels and avoids repeatedly
 // scanning years of history for every day rendered. Credits are full lifts only:
-// three completed sessions earn the next level; missed calendar weeks earn none.
+// the routine's completed-session quota earns a level; missed calendar weeks earn none.
 function coachedDaysForStore(planDays: PlanDay[], store: TrackerStore): PlanDay[] {
   let credits = 0;
+  const sessions = planDays.some(day => day.session.connected?.kind === "home") ? 2 : STRENGTH_SESSIONS_PER_WEEK;
   return planDays.map((day) => {
     const log = normalizeDayLog(store.days[day.iso]);
-    const earned = Math.min(TRAINING_WEEKS, Math.floor(credits / STRENGTH_SESSIONS_PER_WEEK) + 1);
+    const earned = Math.min(TRAINING_WEEKS, Math.floor(credits / sessions) + 1);
     const coached = withTrainingWeek(day, log.trainingWeek ?? earned);
     if (qualifiesForTrainingCredit(coached, log)) credits += 1;
     return coached;
@@ -5602,20 +5681,22 @@ function trainingProgressFor(planDays: PlanDay[], store: TrackerStore, through: 
   const creditedDays = coachedDaysForStore(planDays, store).filter((day) =>
     day.iso <= through && qualifiesForTrainingCredit(day, normalizeDayLog(store.days[day.iso])));
   const credits = creditedDays.length;
+  const sessions = planDays.some(day => day.session.connected?.kind === "home") ? 2 : STRENGTH_SESSIONS_PER_WEEK;
+  const target = TRAINING_WEEKS * sessions;
   return {
-    credits,
-    trainingWeek: Math.min(TRAINING_WEEKS, Math.floor(credits / STRENGTH_SESSIONS_PER_WEEK) + 1),
-    completedWeeks: Math.min(TRAINING_WEEKS, Math.floor(credits / STRENGTH_SESSIONS_PER_WEEK)),
-    inWeek: credits >= PROGRAM_STRENGTH_SESSIONS ? 3 : credits % STRENGTH_SESSIONS_PER_WEEK,
-    percent: Math.min(100, Math.round(credits / PROGRAM_STRENGTH_SESSIONS * 100)),
-    isComplete: credits >= PROGRAM_STRENGTH_SESSIONS,
+    credits, sessions, target,
+    trainingWeek: Math.min(TRAINING_WEEKS, Math.floor(credits / sessions) + 1),
+    completedWeeks: Math.min(TRAINING_WEEKS, Math.floor(credits / sessions)),
+    inWeek: credits >= target ? sessions : credits % sessions,
+    percent: Math.min(100, Math.round(credits / target * 100)),
+    isComplete: credits >= target,
     lastCompletedOn: creditedDays.at(-1)?.iso ?? null,
     creditedDays,
   };
 }
 
-function trainingLevelCopy(_calendarWeek: number, trainingWeek: number) {
-  return `Training Week ${trainingWeek} of ${TRAINING_WEEKS}. Three completed lifting sessions earn the next week. Missed days never increase your targets; load increases need performance evidence.`;
+function trainingLevelCopy(_calendarWeek: number, trainingWeek: number, sessions = 3) {
+  return `Training Week ${trainingWeek} of ${TRAINING_WEEKS}. ${sessions === 2 ? "Two" : "Three"} completed lifting sessions earn the next week. Missed days never increase your targets; load increases need performance evidence.`;
 }
 
 function resetProgress(store: TrackerStore, startedOn: string, now = new Date()): TrackerStore {
@@ -5625,8 +5706,8 @@ function resetProgress(store: TrackerStore, startedOn: string, now = new Date())
 function monthlyCheckInForDay(planDays: PlanDay[], store: TrackerStore, selectedDay: PlanDay) {
   const month = trainingMonthForWeek(earnedTrainingWeekForDay(planDays, store, selectedDay));
   const progress = trainingProgressFor(planDays, store, selectedDay.iso);
-  const firstCredit = (month - 1) * 12;
-  const totalStrength = month === 7 ? 6 : 12;
+  const firstCredit = (month - 1) * progress.sessions * 4;
+  const totalStrength = progress.sessions * (month === 7 ? 2 : 4);
   const blockSessions = progress.creditedDays.slice(firstCredit, firstCredit + totalStrength);
   const previousCheckpoint = progress.creditedDays[firstCredit - 1];
   const checkpointDay = blockSessions.length === totalStrength ? blockSessions.at(-1)! : selectedDay;
@@ -5725,6 +5806,10 @@ function familyLabel(family: Exercise["family"]) {
 // Location labels support the home-gym split. They teach which prep can happen upstairs and which
 // work should happen downstairs near the equipment.
 const locationLabels: Record<TrainingLocation, { label: string; detail: string }> = {
+  titan: {
+    label: "Titan class",
+    detail: "Your confirmed visit at Titan Training Centre; check the room with the coach.",
+  },
   upstairs: {
     label: "Upstairs OK",
     detail: "Good to do in your unit if you have clear floor space and head downstairs soon after.",
@@ -5760,6 +5845,8 @@ function locationGuideForExercise(exercise: Exercise) {
 }
 
 function locationFlowNoteForDay(planDay: PlanDay) {
+  if (planDay.session.connected?.kind === "trial") return "Your one confirmed visit is at Titan. It replaces today's home workout; do not add lifting or a hard finisher.";
+  if (planDay.session.connected?.kind === "home") return "Start downstairs with easy walking and clearly lighter practice sets. Complete the machine and cable work, then finish the floor exercises upstairs or downstairs without returning for more equipment.";
   if (planDay.session.type === "strength") {
     return "Do the gentle Upstairs OK prep first, then head straight downstairs for the treadmill warm-up, ramp sets, lifting, cable work, and treadmill finisher. Finish the Either floor exercises upstairs or downstairs. If you take a long break, warm up again before lifting.";
   }
@@ -5847,6 +5934,12 @@ function smartLoadSuggestion(
   const setCount = recommendedSets(selectedDay, exercise, exerciseIndex, readiness, originalExercise);
   const target = targetForExercise(selectedDay, exercise);
   const repRange = repRangeFromTarget(target);
+
+  if (exercise.id === "muay-thai-trial") return {
+    label: "One coached visit",
+    detail: "Check this only after attending. Breaks or observation are fine; no extra home workout is owed.",
+    tone: "steady",
+  };
 
   if (!tracksWeight(exercise)) {
     return {
@@ -6403,6 +6496,7 @@ function runViewTransition(update: () => void) {
 // 26-week plans and saved progress without duplicating the coaching logic.
 export {
   buildPlanDays, emptyStore, normalizeDayLog, normalizeStore, completePlanDay,
+  connectedPlanDays,
   withTrainingWeek, earnedTrainingWeekForDay, scheduledExercisesForDay,
   recommendedSets, targetForExercise, dayStatusForDay, firstUnfinishedMoveIndex,
   nextUnfinishedMoveIndex, proteinReferenceFromMetrics, weightTrendSignalFor,
@@ -6426,7 +6520,7 @@ export default function Home() {
   const [calendarDate, setCalendarDate] = useState(() => isoFromDate(new Date()));
   const [store, setStore] = useState<TrackerStore>(() => loadStore());
   const currentProgramDate = closestProgramDate(dateFromIso(calendarDate), store.program.startedOn);
-  const planDays = useMemo(() => buildPlanDays(store.program.startedOn, calendarDate), [store.program.startedOn, calendarDate]);
+  const basePlanDays = useMemo(() => buildPlanDays(store.program.startedOn, calendarDate), [store.program.startedOn, calendarDate]);
   const [selectedDate, setSelectedDate] = useState(() => currentProgramDate);
   const [resetError, setResetError] = useState("");
   const [openResetRequested, setOpenResetRequested] = useState(false);
@@ -6498,7 +6592,9 @@ export default function Home() {
   const sharedProgramSynced = ownerProgramReady &&
     syncBaselineRef.current.userId === session?.user.id &&
     sameData(syncBaselineRef.current.store?.program, store.program);
-  const momentum = useMomentum(session?.user.id ?? null, ownerProgramReady ? store.program : null, sharedProgramSynced);
+  const momentum = useMomentum(session?.user.id ?? null, ownerProgramReady ? store.program : null, sharedProgramSynced, calendarDate);
+  const planDays = useMemo(() => connectedPlanDays(basePlanDays, momentum.access === "allowed" ? momentum.data : null, store.days, calendarDate),
+    [basePlanDays, momentum.data, momentum.access, store.days, calendarDate]);
 
   useEffect(() => {
     // Each app tab keeps its own scroll position. Entering Gym after browsing a
@@ -6839,7 +6935,7 @@ export default function Home() {
   useEffect(() => {
     // Rollover runs only after account restoration is settled. On a new device this prevents an
     // empty local store from auto-skipping old dates before the real Supabase history arrives.
-    if (!isHydrated || !authResolved) return;
+    if (!isHydrated || !authResolved || (session && ["checking", "unavailable"].includes(momentum.access))) return;
     const userId = session?.user.id ?? null;
     const hasAccountSnapshot =
       !userId ||
@@ -6848,7 +6944,7 @@ export default function Home() {
     if (!hasAccountSnapshot) return;
 
     setStore((current) => reconcilePastTracking(planDays, current, calendarDate));
-  }, [authResolved, calendarDate, cloudReadyForUser, isHydrated, planDays, session?.user.id]);
+  }, [authResolved, calendarDate, cloudReadyForUser, isHydrated, planDays, session?.user.id, momentum.access]);
 
   useEffect(() => {
     const refresh = () => {
@@ -6982,9 +7078,13 @@ export default function Home() {
       return activity === "boxing" || activity.startsWith("strength");
     }));
     const workout = store.days[date];
-    const actualLift = Boolean(workout && Object.values(workout.exercises).some((sets) => sets.some((set) => set.done)));
+    const recordedSession = workout?.sessionSnapshot ?? planDays.find(day => day.iso === date)?.session;
+    // Checking an easy walk is not a lifting/class session. Preserve fuel for
+    // actual lifts or the trial, without upgrading every completed rest-day walk.
+    const actualLift = Boolean(workout && (recordedSession?.type === "strength" || recordedSession?.connected?.kind === "trial")
+      && Object.values(workout.exercises).some((sets) => sets.some((set) => set.done)));
     return {
-      training: actualLift || (prepJourney ? momentumTraining : weeklySchedule[dayName(date)].type === "strength"),
+      training: actualLift || (prepJourney && slots.length ? momentumTraining : planDays.find(day => day.iso === date)?.session.type === "strength"),
       weightKg: proteinReference.weight,
     };
   };
@@ -7371,7 +7471,7 @@ export default function Home() {
     {
       label: "Six-month finish",
       earned: trainingProgress.isComplete,
-      detail: "Earn all 26 training weeks with 78 completed lifts.",
+      detail: `Earn all 26 training weeks with ${trainingProgress.target} completed lifts.`,
     },
   ];
   const earnedAchievementSignature = achievements
@@ -7414,6 +7514,7 @@ export default function Home() {
   // These small updater wrappers keep all edits immutable. React notices the changed objects, and
   // the autosave effects above persist the updated store.
   const updateDay = (date: string, updater: (log: DayLog) => DayLog, undoLabel?: string) => {
+    if (date > calendarDate && planDays.find(day => day.iso === date)?.session.connected?.kind === "trial") return;
     if (undoLabel) {
       const current = latestStoreRef.current;
       const before = normalizeDayLog(current.days[date]);
@@ -7424,7 +7525,10 @@ export default function Home() {
       const rawDay = planDays.find((day) => day.iso === date);
       const log = normalizeDayLog(current.days[date]);
       const frozenLevel = rawDay ? trainingWeekForEdit(planDays, current, rawDay, calendarDate) : log.trainingWeek;
-      const nextLog = { ...updater({ ...log, trainingWeek: frozenLevel }), trainingWeek: frozenLevel };
+      const updated = updater({ ...log, trainingWeek: frozenLevel });
+      const actualWork = updated.completed || Object.values(updated.exercises).some(rows => rows.some(set => set.done || set.weight || set.reps));
+      const nextLog = { ...updated, trainingWeek: frozenLevel,
+        ...(rawDay?.session.connected && date <= calendarDate && actualWork ? { sessionSnapshot: log.sessionSnapshot ?? rawDay.session } : {}) };
       return {
         ...current,
         days: {
@@ -8367,6 +8471,7 @@ export default function Home() {
       });
     };
     return <MealPrepPlanner state={store.mealPrep} date={date} today={calendarDate}
+      sessionGuidance={momentum.data ? trialFuel(momentum.data, date) : null}
       contextForDate={prepContextForDate} onChange={updateMealPrep} onDateChange={source === "momentum" ? onDateChange : undefined}
       mealLog={{ eaten: log.eaten, overrides, portions: log.portions }}
       onToggleMeal={toggle} history={date < store.mealPrep.startedOn}
@@ -8382,6 +8487,8 @@ export default function Home() {
   // the ORIGINAL metric handler. Momentum never calls Recomp's day completion,
   // reset or earned-week handlers and never embeds private data in its bundle.
   const momentumResources: MomentumResources = {
+    recordedTrialDates: Object.entries(store.days).filter(([, log]) => log.exercises?.["muay-thai-trial"]?.some(set => set.done)).map(([date]) => date),
+    workoutDates: Object.entries(store.days).filter(([, log]) => log.completed || Object.values(log.exercises ?? {}).some(rows => rows.some(set => set.done || set.weight || set.reps))).map(([date]) => date),
     exercises: exerciseMap, recipes: dietRecipes, meals: weeklyDietMealMap,
     howTo: (recipe) => detailedRecipeHowTo(dietRecipeMap[recipe.id]),
     media: (id) => <ExerciseMedia exercise={exerciseMap[id]} variant="gym" />,
@@ -8401,6 +8508,10 @@ export default function Home() {
       weightChart={sharedWeightsReady ? <WeightTrendChart entries={weightEntries} weeks={weightWeekSummaries} today={calendarDate}/> : <p>Loading the shared account weight records.</p>}
       logWeight={(date,kg)=>{if(sharedWeightsReady)updateMetric(date,metric=>({...metric,weightKg:kg,weightForgotten:false}));}}/>
     </Suspense>;
+  }
+
+  if (session && ["workout", "diet"].includes(appMode) && ["checking", "unavailable"].includes(momentum.access)) {
+    return <main className="app-shell"><h1>Loading your connected plan</h1><p>Your workouts and meals are unchanged while private planning loads.</p><button type="button" onClick={momentum.retry}>Retry plan sync</button><button type="button" onClick={() => setAppMode("hub")}>Back to Coach</button></main>;
   }
 
   if (appMode === "hub") {
@@ -8710,7 +8821,7 @@ export default function Home() {
         </section>
 
         <TrainingJourney week={trainingProgress.trainingWeek} credits={trainingProgress.credits}
-          inWeek={trainingProgress.inWeek} complete={trainingProgress.isComplete}
+          inWeek={trainingProgress.inWeek} sessions={trainingProgress.sessions} complete={trainingProgress.isComplete}
           startedOn={formatDate(store.program.startedOn, "short")} onContinue={() => switchProductMode("workout")} />
         {trainingProgress.lastCompletedOn && diffDays(trainingProgress.lastCompletedOn, calendarDate) > 21 && (
           <p className="returning-coach-note"><strong>Welcome back.</strong> Your earned progress is still here. Start with comfortable loads, check your readiness, and rebuild consistency before increasing weight.</p>
@@ -9361,7 +9472,7 @@ export default function Home() {
         <div className="quick-stat">
           <span>Completed</span>
           <strong>
-            {Math.min(trainingProgress.credits, PROGRAM_STRENGTH_SESSIONS)}/{PROGRAM_STRENGTH_SESSIONS} lifts
+            {Math.min(trainingProgress.credits, trainingProgress.target)}/{trainingProgress.target} lifts
           </strong>
         </div>
         <div className="strip-actions">
@@ -9525,7 +9636,7 @@ export default function Home() {
               )}
             </div>
 
-            <details className="gym-session-guidance">
+            {gymDay.session.connected?.kind !== "trial" && <details className="gym-session-guidance">
               <summary>
                 <span>Session guidance</span>
                 <strong>{gymReadinessCopy.label} · {gymPhase.rir}</strong>
@@ -9568,7 +9679,7 @@ export default function Home() {
                   </strong>
                 </div>
               </div>
-            </details>
+            </details>}
 
             {restTimer && (
               <div className={`rest-timer-card ${restSecondsLeft === 0 ? "ready" : ""}`}>
@@ -9889,7 +10000,7 @@ export default function Home() {
                   selectedDayStatus === "finished-with-skips" || selectedDayStatus === "skipped" ? "is-skipped" : ""
                 }`}
                 type="button"
-                disabled={selectedDayComplete}
+                disabled={selectedDayComplete || (selectedDay.session.connected?.kind === "trial" && selectedDay.iso > calendarDate)}
                 onClick={() =>
                   updateDay(selectedDay.iso, (log) => completePlanDay(selectedCoachDay, log), "Workout completed")
                 }
@@ -9961,7 +10072,7 @@ export default function Home() {
             <div className="command-progress-card">
               <span>Training level</span>
               <strong>Week {selectedTrainingWeek}</strong>
-              <small>{trainingLevelCopy(selectedDay.week, selectedTrainingWeek)}</small>
+              <small>{trainingLevelCopy(selectedDay.week, selectedTrainingWeek, trainingProgress.sessions)}</small>
             </div>
           </div>
 
@@ -10115,6 +10226,7 @@ export default function Home() {
                     <button
                       className="move-check-button"
                       type="button"
+                      disabled={selectedDay.session.connected?.kind === "trial" && selectedDay.iso > calendarDate}
                       onClick={() =>
                         toggleExerciseDone(move.activeExercise.id, move.setCount, move.isComplete)
                       }
@@ -10359,7 +10471,7 @@ export default function Home() {
                 <h2>Training Week {trainingProgress.trainingWeek} of 26</h2>
                 <p>{phaseForWeek(trainingProgress.trainingWeek).title} · {stats.percent}% of your training journey earned</p>
               </div>
-              <ProgressRing value={Math.min(trainingProgress.credits, PROGRAM_STRENGTH_SESSIONS)} max={PROGRAM_STRENGTH_SESSIONS} label="Earned training program completion" />
+              <ProgressRing value={Math.min(trainingProgress.credits, trainingProgress.target)} max={trainingProgress.target} label="Earned training program completion" />
             </div>
             <div className="program-map" aria-label="26-week program map">
               {Array.from({ length: TRAINING_WEEKS }, (_, weekIndex) => {
@@ -10455,7 +10567,7 @@ export default function Home() {
               <div className="dashboard-stat strength">
                 <span>Program</span>
                 <strong>{stats.percent}%</strong>
-                <small>{Math.min(trainingProgress.credits, PROGRAM_STRENGTH_SESSIONS)} of {PROGRAM_STRENGTH_SESSIONS} lifts earned</small>
+                <small>{Math.min(trainingProgress.credits, trainingProgress.target)} of {trainingProgress.target} lifts earned</small>
               </div>
               <div className="dashboard-stat skipped">
                 <span>With skips</span>

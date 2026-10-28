@@ -55,7 +55,8 @@ test("one shared reset creates Week 1 on the exact date and archives private his
   assert.deepEqual(next.meals, {});
   assert.deepEqual(next.preparation, {});
   assert.equal(next.profile.gymId, before.profile.gymId);
-  assert.equal(next.profile.nextClassDate, "2026-11-04");
+  assert.equal(next.profile.nextClassDate, "");
+  assert.equal(j.planVersion, "home-trial-90");
   assert.deepEqual(data, before, "never mutate the old private record");
 });
 
@@ -103,7 +104,7 @@ test("a reset arriving after its chosen date keeps that date instead of moving t
   };
   const next = reconcileSharedStart(fixture(), delayed);
   assert.equal(currentJourney(next).startedOn, "2026-10-20");
-  assert.equal(next.profile.nextClassDate, "2026-10-21");
+  assert.equal(next.profile.nextClassDate, "");
 });
 
 test("stale private saves cannot revive the old active journey or old eaten checks", () => {

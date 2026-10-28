@@ -63,7 +63,7 @@ The app ships with:
 - A Coach Hub for sign-in, morning weigh-ins, and weight trend review.
 - A Gym Mode that shows the current exercise, current set, target, video, GIF option, and completion controls.
 - Cloud sync through Supabase so the same account can be used on iPhone, MacBook, and any other device.
-- An optional **Momentum** journey: a separately authorized, private **90-day** routine with Titan Muay Thai, home strength, meals and attendance-earned progression. Three destinations: **Today, Meals, Journey**.
+- An optional **Momentum** journey: a separately authorized, private **90-day home-gym routine**, with one optional, confirmed Titan trial. Three destinations: **Today, Meals, Journey**.
 
 > [!NOTE]
 > The original training and nutrition ideas were converted into app data. A new user does not need any external file to understand or use the project. The program, meals, recipes, cues, videos, swaps, and progression rules are already inside the app.
@@ -90,8 +90,9 @@ That means the interface favors:
 ## Private Momentum Journey
 
 **Start small. Show up. Get stronger.** Momentum is an optional experience reached from Coach Hub,
-not a replacement for Recomp's 26-week training program. It has its own onboarding,
-90-day calendar, actual attendance, simple strength templates, Titan class planning, meals and recovery. Class-stage changes are deliberate; calendar passage alone never increases workload.
+with a 90-day home-gym calendar, actual attendance, meals and recovery. An active home plan also
+supplies the schedule in Workout Today, Gym, Week and Nutrition, so these views agree about the day.
+Workout and Momentum attendance logs remain separate; a shared schedule does not duplicate checkmarks.
 Its guided Today flow follows **Plan → Session → Finish**. One movement appears at a time,
 with real set logging, a smaller-session option and a clear saved result. Three navigation items
 keep daily tasks separate from planning: Today, Meals and Journey.
@@ -101,10 +102,12 @@ keep daily tasks separate from planning: Today, Meals and Journey.
 | Private account | An administrator grants exactly one Supabase authentication UID. RLS and restricted server functions enforce access; hiding a button is not the security boundary. |
 | Connected start | Start on any weekday. Coach's confirmed Start Fresh date also restarts Momentum at Week 1; Momentum settings opens the same confirmation. First-time onboarding still requires an explicit start. |
 | Guided session | Plan, follow one movement at a time, then save the actual result. Next never marks a set complete. Partial work resumes without a questionnaire; feedback is optional. |
-| Earned options | No calendar-based load jump. Optional extra practice needs actual comfortable attendance, recovery, review and an explicit choice. |
+| Home first | Two manageable strength sessions per seven-day cycle; Day 1 is Strength A, even when the start is not Monday. Two working sets per movement, with lighter practice first. |
+| One flexible trial | Add a confirmed date and optional time when ready. Preview that week before saving. Move or remove an unperformed trial; no recurring classes are assumed. |
+| Earned progress | No calendar-based load jump. Home training weeks require two fully completed lifts; missed weeks earn none. Load suggestions remain optional and history-based. |
 | Honest records | Planned, smaller, missed and stopped sessions are distinct. Finishing one set never completes the others. No catch-up workout is owed. Pauses can be resumed in Settings. |
 | Original data intact | Workout attendance and meal checks stay separate. Nutrition and Momentum share cooking batches and groceries; Coach's kg weigh-ins are the shared weight source. |
-| Affordable planning | Dated official local-gym references, manual booking and safe rescheduling. No paid API, automated membership purchase or invented live timetable. |
+| Connected meals | The trial uses training-day portions for uncooked batches and offers meal timing guidance. Eaten meals and already-cooked containers keep their quantities. |
 
 > [!IMPORTANT]
 > **GitHub/Vercel deployment alone does not enable Momentum.** Install
@@ -117,10 +120,28 @@ instructions, authorization/revocation, start and pause controls, all 90 days, c
 Private device drafts are encrypted with a session-scoped key: sync before closing an offline
 session. Background push notifications and progress-photo storage are not configured.
 
-Already using the current Momentum save function? **This batch-meal update needs no SQL.**
-Only installations still on the original, older save function need the existing
-[`20261023_momentum_setup.sql`](supabase/migrations/20261023_momentum_setup.sql) upgrade.
-It changes the function, not your records, account grant or row-level security.
+Already using the shared-start save function? **This home/trial update needs no SQL, keys or account reset.**
+Older installations need the existing [`20261026_shared_start.sql`](supabase/migrations/20261026_shared_start.sql)
+function upgrade. The client adopts the home routine without deleting past sessions, meals or weigh-ins.
+
+<details>
+<summary><strong>Quick start: home gym now, one trial later</strong></summary>
+
+1. Open **Coach settings → Start fresh** only when you actually want to clear the shared workout,
+   meal and weight history. Choose your start date and read the confirmation. Momentum's former
+   private journey is archived; this software update itself never performs a reset.
+2. Open **Momentum**. Today presents the home session for that date. The first two weeks contain
+   four home strength sessions, easy walks and recovery, with no assumed class appointment.
+3. Once Titan confirms a visit, open the **Titan row → Trial date**. Set the date and, if known,
+   the time. Review the week preview and press **Save trial date**.
+4. That date becomes the trial in both schedules. The day after is recovery; a lift immediately
+   before becomes easy movement. No missed lift is squeezed elsewhere. Meal prep and groceries
+   adapt only where food has not already been cooked or eaten.
+5. Use **Remove trial date** or save another date if plans change. A visit with actual activity
+   stays locked as history. After trying the class, continue the home routine until you deliberately
+   make a new longer-term plan; the app does not enroll you in recurring classes.
+
+</details>
 
 ---
 
@@ -187,11 +208,11 @@ accessibility, browser limitations, design references, and the verification matr
 | Exercise detail sheet | Log, Technique, and History tabs organize set logging, swaps, cues, mistakes, progression, resources, inline YouTube, and optional GIFs. |
 | Knee/hip-friendly lower body | Default lower-body work avoids forced deep squats and uses supported leg press ranges, quad/hamstring machines, glute bridges, and hip-control warm-ups. |
 | Beginner-to-trained progression | Month 1 teaches the gym, then each 4-week block earns more volume, stronger loading, longer cardio, and more confident execution. |
-| Earned training week | Every 3 fully completed lifting sessions earns a training week. The 26-week journey requires 78 completed lifts, regardless of how many calendar months that takes. |
+| Earned training week | Active home plan: 2 fully completed lifts per earned week, 52 across 26 weeks. Original standalone plan: 3 per week, 78 total. Missed calendar months earn no credit. |
 | RIR and set feel | Gym Mode explains Reps In Reserve and lets each set be marked Too easy, About right, or Very hard for smarter load suggestions. |
 | Readiness check | Energy, soreness, joint pain, and sleep create Green, Yellow, or Red training guidance before each workout. |
 | Rest timer | Completing a set starts a movement-specific rest timer with longer rest for main lifts and shorter rest for core/accessories. |
-| Training-block check-ins | After each 12 completed lifts (4 earned weeks), review strength, cardio, weight trends, optional photos, and recovery. The final 2-week block needs 6 lifts. |
+| Training-block check-ins | Every 4 earned weeks: 8 completed lifts for the home routine, 12 for the original. The final 2-week block uses 4 or 6 respectively. |
 | Skip tracking | Skip a move or the remaining day with a Time, Pain, Equipment, Fatigue, or Other reason. Resume without losing logged sets. |
 | Automatic day rollover | When a new calendar day starts, unresolved moves from earlier dates are marked Skipped. Partial workouts keep completed sets and skip only what remained open. |
 | Day status | Separates Complete, Finished with skips, Day skipped, and Incomplete days. |
@@ -352,7 +373,9 @@ UI command includes this test alongside the workout, Momentum and contrast suite
 
 The program is built for a true beginner who wants to train seriously for six months. The first month is deliberately smaller so the user can learn machines, setup, breathing, bracing, pain-free range of motion, logging, and recovery. After that, the app adds work gradually.
 
-The weekly structure stays consistent:
+With an active Momentum home routine, use the [home-first schedule](docs/momentum.md#home-rhythm)
+and one optional confirmed trial. The table and training blocks below describe the **original
+standalone routine**, retained for accounts without that private plan and for historical records:
 
 | Day | Focus |
 | --- | --- |
@@ -378,9 +401,15 @@ The weekly structure stays consistent:
 
 ### Earned Progression
 
-The app separates **calendar week** from **earned training week**. If the calendar says Week 5 but you only completed two lifting sessions, your targets still use Training Week 1. Complete the third lift to earn Week 2 for your next unstarted workout. No calendar deadline removes your chance to finish.
+The app separates **calendar week** from **earned training week**. Calendar Week 5 with no completed
+lifts still uses Training Week 1. Two completed home lifts (three in the original standalone routine)
+earn Week 2 for the next unstarted workout. No calendar deadline removes your chance to finish.
 
-Three fully completed strength sessions earn one week; 78 earn the full 26-week journey. Cardio, recovery replacements, skipped days, and partially completed lifts do not earn strength credit, although their logged activity remains visible. Calendar dates still organize meals, actual weekdays, weigh-ins, and weekly averages. A restart on Saturday uses Saturday's session; Monday/Wednesday/Friday remain the normal lifting days.
+With an active Momentum home routine, two fully completed strength sessions earn one week; 52 earn
+26 training weeks. The original standalone routine uses three and 78 respectively. Cardio, recovery
+replacements, skipped days and partial lifts remain visible but do not earn full strength credit.
+Calendar dates still organize meals, weigh-ins and weekly averages. The home routine starts with
+Strength A on the chosen date and Strength B three days later, not on hardcoded weekdays.
 
 The app freezes a day's training level when you first edit it. Backfilling older history cannot add sets to a workout you already logged. Readiness can reduce today's work, and Smart Load still requires two recent comparable top-rep sessions with manageable effort before recommending heavier weights. Finishing a training week is not proof you should increase every weight.
 
@@ -398,7 +427,11 @@ The app freezes a day's training level when you first edit it. Backfilling older
 > [!WARNING]
 > A reset removes this account's workout, diet, weigh-in, note, swap, skip, achievement, and preference history. It cannot be undone in the app. Your Supabase user, email/password, and signed-in session stay intact. This clears app data in the account's progress row; it does not erase backups retained by your hosting provider.
 
-**Momentum uses that exact date too, even when it is not a Monday.** Its active calendar restarts at Week 1 with 90 new days, without reusing old completion checks, pauses or workload unlocks. Its previous journey and private meal/preparation records are archived, not erased. Actual weekday appointments remain correct: Titan is Wednesday, home Strength A is Monday, and Saturday Strength B still needs earned eligibility. The original 26 earned workout weeks and Momentum's earned options remain independent; a shared start does not equate their attendance.
+**Momentum uses that exact date too, even when it is not a Monday.** Its active calendar restarts at
+Week 1 with 90 new home-first days and no assumed trial. Previous private journeys and their meals
+are archived. No old completion checks, pauses or trial date are carried into the new routine.
+Workout and Momentum still record attendance separately; sharing a start and schedule does not
+equate their attendance.
 
 Every reset has its own generation ID. Updated clients choose the root reset document as a whole instead of merging old history into it, including when an old save was already in flight. Momentum derives one deterministic journey ID from that generation, retains archived history, and rejects an old active journey winning a later sync. If two devices restart offline, the later reset wins when synced. Ordinary edits within the same generation still merge normally. **Update/reopen all installed app copies before resetting; old code cannot honor a protocol it does not know.**
 
@@ -462,7 +495,9 @@ The Mi6 manual specifies a **2:1 pulley ratio**, or about half of the selected s
 
 ### Monthly Check-Ins
 
-Every four **earned training weeks** (12 completed lifts), the app opens a coach-style review; the final two-week block needs six. It does not unlock merely because 28 days passed:
+Every four **earned training weeks** (8 completed home lifts, or 12 in the original routine), the app
+opens a coach-style review; the final two-week block needs 4 or 6 respectively. It does not unlock
+merely because 28 days passed:
 
 - Strength sessions completed.
 - Cardio days completed.
@@ -1134,6 +1169,8 @@ npm run test:ui
 npm run test:ui -- --repeat=2
 # Focused Momentum checks while developing this optional feature:
 npm run test:ui -- --momentum-only
+# Focused one-off trial editing and cross-device scheduling checks:
+npm run test:ui -- --trial-only
 # Run only the full-view color contrast audits (including sign-in and Momentum).
 npm run test:ui -- --contrast-only
 ```
