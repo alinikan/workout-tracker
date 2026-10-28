@@ -7005,7 +7005,9 @@ export default function Home() {
       navigator.serviceWorker
         .register("/sw.js")
         .then((registration) => {
-          void registration.update();
+          // First activation may reload WebKit while this update is in flight.
+          // Offline/cancelled checks must not become unhandled rejections.
+          void registration.update().catch(() => undefined);
 
           if (registration.waiting) {
             registration.waiting.postMessage({ type: "SKIP_WAITING" });
