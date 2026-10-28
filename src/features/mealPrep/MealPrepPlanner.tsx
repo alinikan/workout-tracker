@@ -419,6 +419,13 @@ export function MealPrepPlanner({
     (total, meal) => total + meal.portion.calories,
     0,
   );
+  const personalTarget = legacyDate
+    ? undefined
+    : contextForDate(date).nutrition;
+  const dailyProtein = meals.reduce(
+    (total, meal) => total + meal.portion.protein,
+    0,
+  );
 
   // Always purchase complete, deduplicated batches, including any overlapping
   // boundary days. Do not multiply one live day's portion by the batch length.
@@ -646,6 +653,34 @@ export function MealPrepPlanner({
               : `${amount(Math.round(dailyCalories))} kcal planned`}
           </span>
         </div>
+        {personalTarget && (
+          <div
+            className="mp-personal-target"
+            aria-label="Personal nutrition target"
+          >
+            <strong>
+              Estimated target: {personalTarget.calories.toLocaleString()} kcal
+              · {personalTarget.protein} g protein
+            </strong>
+            <span>
+              These portions: ~{Math.round(dailyCalories).toLocaleString()} kcal
+              · {Math.round(dailyProtein)} g protein
+            </span>
+            <small>
+              {prepared
+                ? "Prepared quantities stay as cooked; new targets apply to uncooked batches."
+                : "Portions use your saved Coach profile. Review targets and daily check-ins in Coach."}
+            </small>
+            {(Math.abs(dailyCalories - personalTarget.calories) > 100 ||
+              dailyProtein < personalTarget.protein * 0.9) && (
+              <small>
+                The current menu is outside the target range. Recorded food and
+                practical portion limits can cause this; review the next
+                uncooked batch rather than skipping meals.
+              </small>
+            )}
+          </div>
+        )}
         {legacyDate && (
           <div className="mp-notice">
             <Info aria-hidden="true" />
@@ -729,16 +764,10 @@ export function MealPrepPlanner({
                             : slot === "lunch"
                               ? "Midday"
                               : slot === "snack"
-                                ? (
-                                    block.contexts?.[date] ??
-                                    contextForDate(date)
-                                  ).training
+                                ? contextForDate(date).training
                                   ? "60-120 min before training"
                                   : "Afternoon"
-                                : (
-                                      block.contexts?.[date] ??
-                                      contextForDate(date)
-                                    ).training
+                                : contextForDate(date).training
                                   ? "Evening, after training"
                                   : "Evening")}
                       </span>

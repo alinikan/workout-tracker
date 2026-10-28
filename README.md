@@ -89,6 +89,14 @@ That means the interface favors:
 
 ## Private Momentum Journey
 
+> [!TIP]
+> **Personal Nutrition Coach:** Coach can now estimate an initial calorie/protein target from a
+> confirmed adult profile, ordinary activity and logged weights. Real recipe portions, cooking
+> quantities and groceries follow the target in Nutrition and Momentum. Daily food/energy check-ins
+> support cautious weekly reviews; no weight-loss guarantee or automatic escalating food cuts.
+> Read the [complete nutrition guide](docs/nutrition-coach.md) for setup, calculations, limitations,
+> evidence requirements and what stays preserved. Existing accounts need **no new SQL or keys**.
+
 **Start small. Show up. Get stronger.** Momentum is an optional experience reached from Coach Hub,
 with a 90-day home-gym calendar, actual attendance, meals and recovery. An active home plan also
 supplies the schedule in Workout Today, Gym, Week and Nutrition, so these views agree about the day.

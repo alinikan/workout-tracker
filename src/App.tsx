@@ -28,6 +28,10 @@ import { isSupabaseConfigured, supabase, supabaseConfigError } from "./lib/supab
 import { canClaimLocalProgress, mergeProgressChanges, sameData } from "./lib/syncMerge";
 import { ProductNavigation, ProgressRing, type ProductMode } from "./components/PremiumUI";
 import { ProgramControls, TrainingJourney } from "./components/ProgramControls";
+import NutritionCoach from "./features/nutrition/NutritionCoach";
+import { emptyNutrition, normalizeNutrition, budgetFor as nutritionBudgetFor, planFor as nutritionPlanFor,
+  profileFor as nutritionProfileFor, recentReference as nutritionReferenceFor, restartNutrition, foodEvidence, trainingFuelDay,
+  type NutritionState, type ReviewEvidence, type WeightEvidence } from "./features/nutrition/model";
 import { DeviceSaveStatus, SectionTabs, UndoNotice } from "./components/SessionUI";
 import { WeightTrendChart } from "./components/WeightTrendChart";
 import { savePresentation, undoUnchangedFields } from "./lib/presentationState";
@@ -425,6 +429,7 @@ type TrackerStore = {
   metrics: Record<string, MetricLog>;
   settings: UserSettings;
   mealPrep: MealPrepState;
+  nutrition: NutritionState;
 };
 
 type StoreMeta = {
@@ -578,6 +583,7 @@ const emptyStore = (startedOn = isoFromDate(new Date())): TrackerStore => ({
   metrics: {},
   settings: createEmptySettings(),
   mealPrep: createMealPrep(startedOn),
+  nutrition: emptyNutrition(),
 });
 
 // The to-buy list groups recipe ingredients into a small number of store sections. It is not tied
@@ -5275,6 +5281,7 @@ function normalizeStore(value: unknown): TrackerStore | null {
     // Old calendars stay historical. The first batch begins on the day the
     // updated app is opened, without resetting any workout or diet record.
     mealPrep: normalizeMealPrep(value.mealPrep, isoFromDate(new Date())),
+    nutrition: normalizeNutrition(value.nutrition),
   };
 }
 
@@ -5333,6 +5340,7 @@ function hasStoreData(store: TrackerStore) {
     Object.keys(store.dietDays).length > 0 ||
     Object.keys(store.metrics).length > 0 ||
     store.settings.calorieMode !== "calculated" ||
+    Object.keys(store.nutrition.profiles).length > 0 ||
     Object.keys(store.mealPrep.blocks).length > 0 ||
     Object.keys(store.mealPrep.checked).length > 0 ||
     Object.keys(store.mealPrep.schedules).length > 1
@@ -5510,6 +5518,7 @@ function mergeStores(localStore: TrackerStore, cloudStore: TrackerStore) {
     mealPrep: hasStoreData(cloudStore)
       ? mergeProgressChanges(createMealPrep(cloudStore.mealPrep.startedOn), localStore.mealPrep, cloudStore.mealPrep)
       : localStore.mealPrep,
+    nutrition: mergeProgressChanges(emptyNutrition(), localStore.nutrition, cloudStore.nutrition),
   };
 }
 
@@ -5700,7 +5709,9 @@ function trainingLevelCopy(_calendarWeek: number, trainingWeek: number, sessions
 }
 
 function resetProgress(store: TrackerStore, startedOn: string, now = new Date()): TrackerStore {
-  return { ...emptyStore(startedOn), program: restartedProgram(store.program, startedOn, now) };
+  const weights = Object.entries(store.metrics).flatMap(([date, metric]) => { const kg = weightKgFromMetric(metric); return kg === null ? [] : [{ date, kg }]; });
+  return { ...emptyStore(startedOn), program: restartedProgram(store.program, startedOn, now),
+    nutrition: restartNutrition(store.nutrition, startedOn, weights, now.toISOString()) };
 }
 
 function monthlyCheckInForDay(planDays: PlanDay[], store: TrackerStore, selectedDay: PlanDay) {
@@ -7071,6 +7082,13 @@ export default function Home() {
   // classes/lifts; otherwise the original workout calendar supplies training days.
   const prepJourney = momentum.data ? momentumJourney(momentum.data) : null;
   const prepSlots = prepJourney ? momentumSlots(prepJourney) : [];
+  const nutritionWeights: WeightEvidence[] = Object.entries(store.metrics).flatMap(([date, metric]) => {
+    const kg = weightKgFromMetric(normalizeMetricLogShape(metric));
+    return kg === null ? [] : [{ date, kg }];
+  });
+  const currentNutritionPlan = nutritionPlanFor(store.nutrition, calendarDate);
+  const currentNutritionProfile = nutritionProfileFor(store.nutrition, calendarDate);
+  const nutritionReference = nutritionReferenceFor(nutritionWeights, calendarDate, currentNutritionPlan?.referenceWeightKg ?? currentNutritionProfile?.startWeightKg ?? 0);
   const prepContextForDate = (date: string): PrepContext => {
     const slots = prepSlots.filter((slot) => slot.date === date && !slot.legacy);
     const momentumTraining = Boolean(momentum.data && slots.some((slot) => {
@@ -7083,11 +7101,43 @@ export default function Home() {
     // actual lifts or the trial, without upgrading every completed rest-day walk.
     const actualLift = Boolean(workout && (recordedSession?.type === "strength" || recordedSession?.connected?.kind === "trial")
       && Object.values(workout.exercises).some((sets) => sets.some((set) => set.done)));
+    const privateActual = Boolean(prepJourney && slots.some(slot => {
+      const log = prepJourney.logs[slot.id];
+      return log && (log.plannedActivity?.startsWith("strength") || log.plannedActivity === "boxing")
+        && (log.outcome === "planned" || log.outcome === "modified" || Object.values(log.sets).some(set => set.done) || Number(log.minutes) > 0);
+    }));
+    const skipped = Boolean(workout?.daySkipReason) || Boolean(prepJourney && slots.length && slots.every(slot => prepJourney.logs[slot.id]?.outcome === "missed"));
+    const training = trainingFuelDay(prepJourney && slots.length ? momentumTraining : planDays.find(day => day.iso === date)?.session.type === "strength", actualLift || privateActual, skipped);
     return {
-      training: actualLift || (prepJourney && slots.length ? momentumTraining : planDays.find(day => day.iso === date)?.session.type === "strength"),
+      training,
       weightKg: proteinReference.weight,
+      nutrition: nutritionBudgetFor(store.nutrition, date, training, date >= calendarDate && nutritionReference > 0 ? nutritionReference : undefined),
     };
   };
+  // Read ONE complete meal source, never double-count Nutrition and Momentum.
+  // Old meals without numeric saved portions are unknown, not zero-calorie days.
+  const nutritionFoodForDate = (date: string) => {
+    const log = normalizeDietDayLog(store.dietDays[date]);
+    const main = foodEvidence({ eaten: log.meals, recipes: log.recipes, portions: log.portions }, "Nutrition");
+    const privateFood = foodEvidence(momentum.data?.meals[date], "Momentum");
+    return main.complete ? main : privateFood.complete ? privateFood : main;
+  };
+  const nutritionEvidence: ReviewEvidence = {
+    weights: nutritionWeights,
+    food: Object.fromEntries(Array.from({ length: 21 }, (_, i) => { const date = addDays(calendarDate, i - 21); return [date, nutritionFoodForDate(date)]; })),
+    trainingForDate: date => prepContextForDate(date).training,
+    recoveryConcern: Object.entries(store.days).some(([date, log]) => date >= addDays(calendarDate, -6) && date <= calendarDate && readinessStatusFor(normalizeDayLog(log).readiness) === "red")
+      || Boolean(prepJourney && momentumSlots(prepJourney).some(slot => slot.date >= addDays(calendarDate, -6) && slot.date <= calendarDate && prepJourney.logs[slot.id]?.readiness?.dizzy)),
+  };
+  const todayFood = nutritionFoodForDate(calendarDate);
+  const nutritionMenu = todayFood.complete ? { calories: todayFood.calories!, protein: todayFood.protein! }
+    : prepBatch(store.mealPrep, calendarDate < store.mealPrep.startedOn ? store.mealPrep.startedOn : calendarDate, prepContextForDate).servings
+      .filter(row => row.date === (calendarDate < store.mealPrep.startedOn ? store.mealPrep.startedOn : calendarDate))
+      .reduce((sum, row) => {
+        const log = normalizeDietDayLog(store.dietDays[row.date]);
+        const saved = log.meals[row.slot] ? log.portions?.[row.slot] : undefined;
+        return { calories: sum.calories + (saved?.calories ?? row.serving.calories), protein: sum.protein + (saved?.protein ?? row.serving.protein) };
+      }, { calories: 0, protein: 0 });
   const prepOverridesForDiet = (date: string, log: DietDayLog) => savedMealOverrides(
     date, store.mealPrep, { ...log, eaten: log.meals }, weeklyDietMealMap[dayName(date) as PlanWeekday],
   );
@@ -8590,7 +8640,7 @@ export default function Home() {
                 <input
                   inputMode="decimal"
                   value={currentProgramMetric.weightKg}
-                  placeholder={isWeightForgotten(currentProgramMetric) ? "Not logged" : "78.0"}
+                  placeholder={isWeightForgotten(currentProgramMetric) ? "Not logged" : "kg"}
                   onChange={(event) =>
                     updateMetric(currentProgramDate, (metric) => ({
                       ...metric,
@@ -8654,8 +8704,16 @@ export default function Home() {
           </div>
         </section>
 
+        <NutritionCoach state={store.nutrition} today={calendarDate}
+          training={prepContextForDate(calendarDate).training} referenceWeight={nutritionReference > 0 ? nutritionReference : null}
+          weightHandled={weightKgFromMetric(normalizeMetricLogShape(store.metrics[calendarDate])) !== null || isWeightForgotten(normalizeMetricLogShape(store.metrics[calendarDate]))}
+          menu={nutritionMenu} evidence={nutritionEvidence} foodFor={nutritionFoodForDate}
+          onUpdate={fn => setStore(current => ({ ...current, nutrition: normalizeNutrition(fn(current.nutrition)) }))}
+          onWeight={() => { const field = document.querySelector<HTMLInputElement>(".hub-checkin-fields input"); field?.scrollIntoView({ block: "center", behavior: "smooth" }); field?.focus({ preventScroll: true }); }}
+          onMeals={() => switchProductMode("diet")} />
+
         <details className="diet-settings-card coach-disclosure">
-          <summary>Nutrition planning <span>{proteinReference.label}</span></summary>
+          <summary>{currentNutritionPlan ? "Earlier nutrition settings" : "Nutrition planning"} <span>{proteinReference.label}</span></summary>
           <div>
             <p className="eyebrow">Nutrition settings</p>
             <h2 id="diet-settings-heading">Your meal portions</h2>

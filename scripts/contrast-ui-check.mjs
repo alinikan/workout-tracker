@@ -294,6 +294,21 @@ export async function runContrastChecks({
         .getByRole("button", { name: "Finish with what I did", exact: true })
         .click();
       await audit(page, `${label}-momentum-finish`);
+      await page.getByRole("button", { name: "Back to Coach Hub", exact: true }).click();
+      const nutrition = page.locator(".nutrition-coach");
+      await nutrition.getByLabel("Age", { exact: true }).fill("30");
+      await nutrition.getByLabel("Height (cm)", { exact: true }).fill("175");
+      await nutrition.getByLabel("Starting weight (kg)", { exact: true }).fill("80");
+      await nutrition.getByLabel("Usual daily steps", { exact: true }).fill("2500");
+      await nutrition.getByLabel("Calorie equation", { exact: true }).selectOption("male");
+      await audit(page, `${label}-nutrition-profile-filled`, ".nutrition-coach");
+      await nutrition.getByRole("button", { name: "Calculate my target", exact: true }).click();
+      await audit(page, `${label}-nutrition-target`, ".nutrition-coach");
+      await nutrition.locator("summary").filter({ hasText: "Daily food & activity check-in" }).click();
+      await nutrition.getByLabel("Did you follow the listed portions?", { exact: true }).selectOption("yes");
+      await nutrition.getByLabel("Extra food or drinks (kcal)", { exact: true }).fill("0");
+      await nutrition.getByLabel("Energy today", { exact: true }).selectOption("unwell");
+      await audit(page, `${label}-nutrition-checkin-warning`, ".nutrition-coach");
       assert.deepEqual(errors, [], `${label}: console errors`);
       await context.close();
     }

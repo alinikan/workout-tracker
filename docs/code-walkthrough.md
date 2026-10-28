@@ -38,6 +38,7 @@ intentional; do not copy original plaintext persistence into this private featur
 | --- | --- |
 | `src/App.tsx` | Main application logic, data, helpers, and UI. This is the product brain. |
 | `src/features/momentum/` | Scoped private feature; pure plan/safety/coaching modules, independent sync hook and lazy UI. |
+| `src/features/nutrition/` | Shared profile, estimated targets, ingredient calculations and evidence-backed reviews. Values live in the owner-bound progress row, never source defaults. See the [nutrition guide](nutrition-coach.md). |
 | `src/features/momentum/trial.ts` | Pure home-plan creation, non-destructive legacy adoption, one-off trial validation and adjacent-day/fueling projections. Cancellation is a timestamped tombstone for offline merges. |
 | `src/features/momentum/TrialPanel.tsx` | Date/time editor with a derived week preview. Save is explicit; the preview never writes activity or books a class. |
 | `tests/home-trial.test.mjs` | Home starts on every weekday, no assumed class, trial moves/cancellation, preserved history, shared workouts, meal context and reset tests. |

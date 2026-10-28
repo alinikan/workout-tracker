@@ -78,6 +78,16 @@ export function mergeProgressChanges<T>(base: T, local: T, remote: T): T {
         }
       }
     }
+    // A check-in's extras, meal signature and intake belong to ONE confirmation.
+    // Never assemble a fictitious day from two devices' independent form fields.
+    if (local.version === 1 && remote.version === 1 && isObject(local.profiles) && isObject(remote.profiles)
+      && isObject(local.plans) && isObject(remote.plans) && isObject(local.checkins) && isObject(remote.checkins) && isObject(result.checkins)) {
+      for (const date of new Set([...Object.keys(local.checkins), ...Object.keys(remote.checkins)])) {
+        const a = local.checkins[date], b = remote.checkins[date];
+        if (isObject(a) && isObject(b) && typeof a.updatedAt === "string" && typeof b.updatedAt === "string")
+          result.checkins[date] = `${a.updatedAt}:${String(a.id)}` >= `${b.updatedAt}:${String(b.id)}` ? a : b;
+      }
+    }
     return result as T;
   }
 

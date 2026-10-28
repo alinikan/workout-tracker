@@ -84,7 +84,7 @@ const catalog: Record<
   },
   "greek-yogurt": {
     id: "greek-yogurt",
-    name: "Plain Greek yogurt",
+    name: "Plain nonfat Greek yogurt",
     category: "Protein & dairy",
     unit: "g",
     basis: "ready",
@@ -332,13 +332,13 @@ export const prepRecipes: PrepRecipe[] = [
   },
   {
     id: "prep-yogurt-banana-toast",
-    title: "Greek Yogurt and Banana, with Training-Day Toast",
+    title: "Greek Yogurt, Banana and Portioned Toast",
     shortTitle: "Yogurt + banana",
     kind: "snack",
     photo: photo("photo-1763576178054-ff0152753fd8"),
     minutes: 5,
     description:
-      "Yogurt and a banana every day; one slice of whole-grain toast on training days only.",
+      "Yogurt and a banana, with the bread amount shown for that day. Personal targets can include toast on easier days too.",
     ingredients: [
       ingredient("greek-yogurt", 200),
       ingredient("banana", 1),
@@ -346,8 +346,8 @@ export const prepRecipes: PrepRecipe[] = [
     ],
     steps: [
       "Weigh the plain Greek yogurt into one covered snack container per date and refrigerate at 4 C or colder. Keep the bananas whole until their serving day.",
-      "Keep bread dry in its package or frozen. Count one slice only for a date marked as training; rest-day servings contain yogurt and banana without toast.",
-      "On the snack's day, peel and slice the banana over the yogurt. Toast the training-day bread just before eating; do not pack toasted bread against wet yogurt during batch preparation.",
+      "Keep bread dry in its package or frozen. Follow that date's listed bread amount; if none is listed, serve the yogurt and banana without toast. Personal calorie targets can include a half-slice or more on easier days too.",
+      "On the snack's day, peel and slice the banana over the yogurt. Toast any listed bread just before eating; do not pack toasted bread against wet yogurt during batch preparation.",
     ],
     storage:
       "Keep yogurt at 4 C or colder and follow its package date. Store bread dry or frozen; peel the banana and toast any training-day slice on the day. This snack is not a cooked leftover to reheat.",

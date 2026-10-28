@@ -56,6 +56,7 @@ export function ProgramControls({ today, disabled, signedIn, pending, error, onR
           <p className="eyebrow">Restart your program</p>
           <h2 id="reset-dialog-title">A clean slate. Same account.</h2>
           <p>This permanently clears workout sets, skips, swaps, meal tracking, weigh-ins, notes, achievements, and nutrition settings. Your training returns to Week 1.</p>
+          <p>Your factual nutrition profile is kept. Its food check-ins and calorie adjustments restart from a fresh baseline on the chosen date; this does not create a weigh-in.</p>
           <p>Momentum uses the same new date and starts at Week 1 with a fresh home-gym routine. Its previous journey and private meal records stay archived. No trial or recurring class is scheduled; add one confirmed trial date later when ready.</p>
           <p className="reset-account-note"><ShieldCheck size={18} aria-hidden="true" /> {signedIn ? "You stay signed in. The reset replaces this account's progress on all updated devices once synced." : "Your local progress resets. Sign in to sync the fresh start across devices."}</p>
           <label>New start date<input type="date" value={startedOn} min={today} required onChange={(event) => setStartedOn(event.target.value)} /></label>

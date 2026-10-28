@@ -4,10 +4,16 @@ import {
   type Ingredient,
   type PrepRecipe,
 } from "./recipes.ts";
+import { calibratedIngredients } from "../nutrition/portions.ts";
+import type { NutritionBudget } from "../nutrition/model.ts";
 
 export type { Ingredient, PrepRecipe } from "./recipes.ts";
 export type MealSlot = "breakfast" | "lunch" | "snack" | "dinner";
-export type PrepContext = { training: boolean; weightKg: number | null };
+export type PrepContext = {
+  training: boolean;
+  weightKg: number | null;
+  nutrition?: NutritionBudget;
+};
 export type BlockChoice = {
   mainId?: string;
   breakfastId?: string;
@@ -111,6 +117,7 @@ function context(value: unknown): PrepContext {
   const v = record(value) ? value : {};
   return {
     training: v.training === true,
+    ...(validBudget(v.nutrition) ? { nutrition: { ...v.nutrition } } : {}),
     weightKg:
       typeof v.weightKg === "number" &&
       Number.isFinite(v.weightKg) &&
@@ -118,6 +125,20 @@ function context(value: unknown): PrepContext {
         ? v.weightKg
         : null,
   };
+}
+function validBudget(v: unknown): v is NutritionBudget {
+  return (
+    record(v) &&
+    v.version === 1 &&
+    typeof v.calories === "number" &&
+    Number.isFinite(v.calories) &&
+    v.calories >= 1500 &&
+    v.calories <= 3800 &&
+    typeof v.protein === "number" &&
+    Number.isFinite(v.protein) &&
+    v.protein >= 75 &&
+    v.protein <= 220
+  );
 }
 function validChoice(id: unknown, kind: PrepRecipe["kind"]): id is string {
   return (
@@ -140,6 +161,7 @@ function validContext(value: unknown): value is PrepContext {
   return (
     record(value) &&
     typeof value.training === "boolean" &&
+    (value.nutrition === undefined || validBudget(value.nutrition)) &&
     (value.weightKg === null ||
       (typeof value.weightKg === "number" &&
         Number.isFinite(value.weightKg) &&
@@ -316,38 +338,42 @@ export function prepServing(
   input: PrepContext,
 ): PrepServing {
   const c = context(input);
-  const ingredients = recipe.ingredients.flatMap((base) => {
-    assertIngredient(base);
-    const item = { ...base };
-    if (recipe.kind === "main") {
-      if (
-        ["chicken-breast", "chicken-thigh", "extra-lean-beef"].includes(item.id)
-      ) {
-        const baseCooked = item.id === "extra-lean-beef" ? 120 : 150;
-        const maximum = item.id === "extra-lean-beef" ? 160 : 200;
-        const cooked = Math.max(
-          120,
-          Math.min(
-            maximum,
-            Math.round(
-              (c.weightKg === null
-                ? baseCooked
-                : baseCooked * (c.weightKg / 80)) / 5,
-            ) * 5,
-          ),
-        );
-        item.amount = round(cooked / 0.75);
-        item.cookedAmount = cooked;
-      } else if (item.id === "rice") {
-        item.amount = base.amount + (c.training ? 5 : 0);
-        item.cookedAmount = item.amount * 3;
-      } else if (item.id === "potatoes")
-        item.amount = base.amount + (c.training ? 25 : 0);
-    }
-    if (recipe.kind === "snack" && item.id === "toast" && !c.training)
-      return [];
-    return item.amount > 0 ? [item] : [];
-  });
+  const ingredients = c.nutrition
+    ? calibratedIngredients(recipe, c.nutrition)
+    : recipe.ingredients.flatMap((base) => {
+        assertIngredient(base);
+        const item = { ...base };
+        if (recipe.kind === "main") {
+          if (
+            ["chicken-breast", "chicken-thigh", "extra-lean-beef"].includes(
+              item.id,
+            )
+          ) {
+            const baseCooked = item.id === "extra-lean-beef" ? 120 : 150;
+            const maximum = item.id === "extra-lean-beef" ? 160 : 200;
+            const cooked = Math.max(
+              120,
+              Math.min(
+                maximum,
+                Math.round(
+                  (c.weightKg === null
+                    ? baseCooked
+                    : baseCooked * (c.weightKg / 80)) / 5,
+                ) * 5,
+              ),
+            );
+            item.amount = round(cooked / 0.75);
+            item.cookedAmount = cooked;
+          } else if (item.id === "rice") {
+            item.amount = base.amount + (c.training ? 5 : 0);
+            item.cookedAmount = item.amount * 3;
+          } else if (item.id === "potatoes")
+            item.amount = base.amount + (c.training ? 25 : 0);
+        }
+        if (recipe.kind === "snack" && item.id === "toast" && !c.training)
+          return [];
+        return item.amount > 0 ? [item] : [];
+      });
   let calories = 0,
     protein = 0;
   for (const item of ingredients) {
@@ -393,12 +419,19 @@ export function prepServing(
     note:
       "Approximate food-label nutrition, not a daily calorie prescription. Optional ingredients are excluded from estimates." +
       (recipe.kind === "main"
-        ? " Meat assumes 75% cooked yield and rice 3x dry weight from water; weigh actual cooked output and divide it in proportion to the dated ingredient amounts, not the estimates. Protein portions are bounded, with a small training-day starch addition."
+        ? " Meat assumes 75% cooked yield and rice 3x dry weight from water; weigh actual cooked output and divide it in proportion to the dated ingredient amounts, not the estimates." +
+          (c.nutrition
+            ? " Meat and starch are portioned together for the day's energy and protein target."
+            : " Protein portions are bounded, with a small training-day starch addition.")
         : "") +
       (recipe.kind === "snack"
-        ? " Bread is included only on training days; keep it dry and toast on the day."
+        ? c.nutrition
+          ? " Use the dated bread quantity, if listed; keep it dry and toast on the day."
+          : " Bread is included only on training days; keep it dry and toast on the day."
         : "") +
-      " No missed-session compensation or automatic calorie deficit.",
+      (c.nutrition
+        ? " Portions follow your estimated daily calorie and protein target. Check the full-day totals; practical serving limits and food labels mean these are estimates, not exact intake."
+        : " No missed-session compensation or automatic calorie deficit."),
   };
 }
 

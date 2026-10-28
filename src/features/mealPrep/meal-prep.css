@@ -834,3 +834,6 @@
     transition: none !important;
   }
 }
+.mp-personal-target { display: grid; gap: 6px; padding-block: 14px; margin-bottom: 16px; border-block: 1px solid var(--separator-strong); color: var(--text-primary); font-size: 13px; line-height: 1.5; }
+.mp-personal-target strong { color: var(--nutrition-ink); font-size: 14px; }
+.mp-personal-target small { color: var(--text-secondary); font-size: 12px; }

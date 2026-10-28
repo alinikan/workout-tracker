@@ -11,6 +11,11 @@ recomputes uncooked portions and groceries, while prepared batches and eaten mea
 
 ## Everyday Workflow
 
+With a confirmed **Coach → Nutrition coach** profile, portion quantities use a personal estimated
+calorie/protein budget. Old cooked contexts remain reproducible; new targets change only uncooked
+food. See [Personal Nutrition Coach](nutrition-coach.md) for the formula, boundaries and review rules.
+Without a profile, the original bounded weight/training-day portion behavior below remains active.
+
 1. Open **Nutrition**, or **Momentum → Meals**. They show the same batch choices.
 2. In **Cook batch**, keep the default two days or choose three before starting.
    Choose one main dish for all lunches/dinners. Swap breakfast only if wanted;

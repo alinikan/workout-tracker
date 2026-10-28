@@ -1,0 +1,228 @@
+/* Shared semantic tokens keep profile/check-in controls legible in both themes. */
+.nutrition-coach {
+  padding-block: 24px;
+  border-block: 1px solid var(--separator-strong);
+  color: var(--text-primary);
+}
+.nutrition-coach *,
+.nutrition-coach *::before,
+.nutrition-coach *::after {
+  box-sizing: border-box;
+  min-width: 0;
+  letter-spacing: 0;
+}
+.nutrition-coach header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+.nutrition-coach h2 {
+  font-size: 24px;
+  line-height: 1.2;
+  margin: 8px 0 16px;
+}
+.nutrition-coach p {
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 12px 0;
+}
+.nc-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--nutrition-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+.nc-targets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  padding: 16px 0;
+}
+.nc-targets > div {
+  display: grid;
+  gap: 6px;
+}
+.nc-targets > div > span,
+.nc-muted {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.nc-targets strong {
+  font-size: 30px;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+.nc-targets strong small {
+  font-size: 14px;
+  font-weight: 500;
+}
+.nc-day-label {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--nutrition-ink);
+  font-weight: 650;
+}
+.nutrition-coach button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 10px 14px;
+  border: 1px solid var(--separator-strong);
+  border-radius: 6px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: normal;
+}
+.nutrition-coach .nc-primary {
+  color: var(--selection-ink);
+  background: var(--selection-fill);
+  border-color: var(--selection-fill);
+}
+.nutrition-coach .nc-icon {
+  flex: 0 0 46px;
+  width: 46px;
+  padding: 0;
+}
+.nc-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 16px 0;
+}
+.nutrition-coach label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.nutrition-coach :is(input, select) {
+  display: block;
+  min-height: 48px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--separator-strong);
+  border-radius: 6px;
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 16px;
+}
+/* Safari's native popup appearance can ignore min-height. Keep the native
+ * select behavior while drawing a consistently sized, touch-friendly surface. */
+.nc-select {
+  position: relative;
+  display: block;
+}
+.nutrition-coach .nc-select select {
+  appearance: none;
+  height: 48px;
+  padding-right: 40px;
+}
+.nc-select > svg {
+  position: absolute;
+  right: 12px;
+  top: 15px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+.nutrition-coach input::placeholder {
+  color: var(--text-secondary);
+  opacity: 1;
+}
+.nc-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.nc-details {
+  border-top: 1px solid var(--separator);
+  margin-top: 16px;
+  padding-block: 8px;
+}
+.nc-details > summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding-block: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  list-style: none;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+.nc-details > summary::-webkit-details-marker {
+  display: none;
+}
+.nc-details summary small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 450;
+  color: var(--text-secondary);
+}
+.nc-details[open] > summary > svg {
+  transform: rotate(180deg);
+}
+.nc-checkin {
+  display: grid;
+  gap: 14px;
+  margin-top: 12px;
+}
+.nc-checkin > button {
+  justify-self: start;
+}
+.nc-date {
+  max-width: 240px;
+  margin-block: 10px;
+}
+.nc-facts {
+  display: grid;
+  gap: 10px;
+  font-size: 13px;
+}
+.nc-facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.nc-facts dd {
+  margin: 0;
+  font-weight: 650;
+}
+.nc-notice {
+  padding: 12px;
+  color: var(--warning);
+  background: var(--warning-soft);
+  border-left: 3px solid var(--warning);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.nc-saved {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--done-ink);
+}
+.nc-weight-action {
+  margin-top: 8px;
+}
+@media (max-width: 390px) {
+  .nc-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .nc-targets strong {
+    font-size: 27px;
+  }
+}
