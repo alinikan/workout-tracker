@@ -225,6 +225,7 @@ export async function runRedesignChecks({
       await expect(sheet.locator(".detail-swap-alert")).toBeVisible();
       await sheet.getByRole("tab", { name: "Log", exact: true }).click();
       await expect(sheet.locator(".set-weight input")).toHaveCount(0);
+      await expect(sheet.getByRole("textbox", { name: "Incline Push-Up set 1 reps", exact: true })).toBeVisible();
       await sheet.getByRole("tab", { name: "Technique", exact: true }).click();
       await expect(sheet.locator(".video-poster")).toBeVisible();
       await expect(sheet.locator(".video-poster img")).toHaveAttribute(

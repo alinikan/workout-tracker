@@ -2503,6 +2503,7 @@ exerciseMap["wall-sit"] = {
   resources: [{label: "E3 Rehab wall sit demonstration", url: "https://www.youtube.com/watch?v=RG7z0P9qrLk"}],
 };
 exerciseMap["seated-quad-extension"].logType = "reps";
+exerciseMap["incline-push-up"].logType = "reps";
 exerciseMap["seated-quad-extension"].swapIds = ["wall-sit", "reverse-nordic"];
 // Historical equipment entries stay readable; no future home plan requires them.
 exerciseMap["mi6-leg-extension"].swapIds = ["wall-sit", "reverse-nordic", "seated-quad-extension"];
@@ -5234,6 +5235,10 @@ function tracksPerformance(exercise: Exercise) {
     (exercise.logType === "done" && ["legs", "push", "core", "hinge"].includes(exercise.family));
 }
 
+function performanceUnit(exercise: Exercise) {
+  return exercise.logType === "seconds" || (!tracksWeight(exercise) && /sec/i.test(exercise.reps)) ? "hold seconds" : "reps";
+}
+
 // Swaps are resolved at render time. The original exercise stays in the schedule, while the saved
 // log says which replacement should currently be shown.
 function activeExerciseFor(originalExercise: Exercise, log: DayLog) {
@@ -6551,10 +6556,10 @@ function SetLoadFields({ exercise, set, setIndex, onChange, previous }: {
       )}
     </div>}
     <label className="set-field set-reps">
-      <span className="set-field-label">{exercise.logType === "seconds" ? "Hold (seconds)" : "Reps"}</span>
-      <input inputMode="numeric" value={set.reps} placeholder={exercise.logType === "seconds" ? "sec" : "reps"}
+      <span className="set-field-label">{performanceUnit(exercise) === "hold seconds" ? "Hold (seconds)" : "Reps"}</span>
+      <input inputMode="numeric" value={set.reps} placeholder={performanceUnit(exercise) === "hold seconds" ? "sec" : "reps"}
         onChange={(event) => onChange(exercise.id, setIndex, "reps", event.target.value)}
-        aria-label={`${exercise.name} set ${setIndex + 1} ${exercise.logType === "seconds" ? "hold seconds" : "reps"}`} />
+        aria-label={`${exercise.name} set ${setIndex + 1} ${performanceUnit(exercise)}`} />
     </label>
     <label className="set-field set-effort">
       <span className="set-field-label">Feel</span>
