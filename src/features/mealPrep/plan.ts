@@ -435,6 +435,39 @@ export function prepServing(
   };
 }
 
+/** A shopping trip covers full batches intersecting the requested future window.
+ * Purchase each batch once; never reinterpret a cooked batch as new demand. */
+export function prepShoppingWindow(
+  state: MealPrepState,
+  today: string,
+  days: 14 | 21,
+  contextForDate: (date: string) => PrepContext,
+) {
+  if (!isPrepDate(today) || (days !== 14 && days !== 21))
+    throw new Error("Invalid shopping window");
+  const start = today < state.startedOn ? state.startedOn : today;
+  const end = addPrepDays(start, days - 1);
+  const covered: PrepBatch[] = [];
+  const seen = new Set<string>();
+  for (let offset = 0; offset < days; offset++) {
+    const date = addPrepDays(start, offset);
+    const block = prepBlockFor(state, date);
+    if (seen.has(block.key)) continue;
+    seen.add(block.key);
+    covered.push(prepBatch(state, date, contextForDate));
+  }
+  const batches = covered.filter(
+    (batch) => !preparedBatchFor(state, batch.block.start, contextForDate),
+  );
+  return {
+    start,
+    end,
+    covered,
+    batches,
+    preparedOmitted: covered.length - batches.length,
+  };
+}
+
 function shoppingIdentity(item: Ingredient) {
   return JSON.stringify([
     item.id,

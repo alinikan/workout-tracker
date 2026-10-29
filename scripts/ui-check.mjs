@@ -363,7 +363,9 @@ async function verifyRecipeExperience(page, label) {
   await planner.getByRole("checkbox", { name: /Batch prepared/ }).check();
   await expect(main.getByRole("button", { name: /^Swap/ })).toBeDisabled();
   await tab("To buy").click();
-  await planner.getByRole("button", { name: "Next 7 days", exact: true }).click();
+  await expect(planner.getByRole("button", { name: "2 weeks", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await planner.getByRole("button", { name: "3 weeks", exact: true }).click();
+  await expect(planner.getByRole("button", { name: "3 weeks", exact: true })).toHaveAttribute("aria-pressed", "true");
   const grocery = planner.locator(".mp-grocery input").first();
   await grocery.check();
   await expect(grocery).toBeChecked();

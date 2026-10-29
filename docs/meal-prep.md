@@ -20,8 +20,15 @@ Without a profile, the original bounded weight/training-day portion behavior bel
 2. In **Cook batch**, keep the default two days or choose three before starting.
    Choose one main dish for all lunches/dinners. Swap breakfast only if wanted;
    there is no requirement to invent another breakfast each morning.
-3. Open **To buy**. Shop for the current uncooked batch or complete uncooked
-   batches covering the next seven days. Check off groceries you already have.
+3. Open **To buy**. Choose **2 weeks** (the default) or **3 weeks** for a bulk
+   shopping trip. The list covers complete uncooked batches intersecting the next
+   14 or 21 days, starting today (or the future plan start). Boundary batches may
+   extend coverage by a day or two; their actual dates are shown. Prepared batches
+   are omitted, and quantities reflect planned recipes, swaps and daily portions.
+   Check off groceries you already have. Changing the range or quantities uses a
+   separate checklist so an earlier smaller purchase is not treated as sufficient.
+   Shopping for weeks does not mean cooking or refrigerating weeks of meals at once;
+   retain the 2-3 day cooking routine and existing storage guidance below.
 4. Follow **Full batch ingredients**, expand the recipe, then use **Portion by day**
    to fill the dated containers. Rice/meat cooked weights are yield estimates;
    divide the actual cooked output using the dated ingredient shares.
@@ -100,6 +107,7 @@ Date strings are local calendar labels, strictly `YYYY-MM-DD`, not timestamps.
 | `prepBatch(state, date, contextForDate)` | `{block, servings, ingredients, signature, mainServings}` for the containing block. Each serving has `{date, slot, serving}`. |
 | `preparedBatchFor(state, date, contextForDate)` | `PrepBatch \| null`: reconstruct the original physical cooked batch for the current block's start, accepting it only when its signature exactly matches the stored prepared signature. |
 | `prepShopping(batches)` | A sorted `Ingredient[]` aggregated across unique non-overlapping batches. |
+| `prepShoppingWindow(state, today, days, contextForDate)` | Full, deduplicated batches covering 14 or 21 future days; returns requested start/end, all covered batches, uncooked batches and prepared count omitted. Does not mutate the plan or cooking schedule. |
 | `prepShoppingKey(ingredient)` | Stable JSON string including ID, unit, basis, optionality, quantity and cooked estimate; changed quantities do not reuse an old checked state. |
 | `setPrepChoice(state, date, kind, id)` | Immutable block-specific choice; validates kind and clears preparation/snapshots only when the effective recipe changes. |
 | `startPrepSchedule(state, date, days)` | Add or replace the schedule at that exact date without erasing earlier/later schedule entries or saved block choices. |

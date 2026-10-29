@@ -26,6 +26,7 @@ import {
   preparedBatchFor,
   prepServing,
   prepShopping,
+  prepShoppingWindow,
   prepShoppingKey,
   recipeForPrepSlot,
   setPrepChoice,
@@ -39,7 +40,6 @@ import "./meal-prep.css";
 
 type Recipe = (typeof prepRecipes)[number];
 type Ingredient = ReturnType<typeof prepShopping>[number];
-type Batch = ReturnType<typeof prepBatch>;
 type ChoiceKind = "main" | "breakfast" | "snack";
 type Destination = "eat" | "cook" | "buy";
 type Portion = { plate: string[]; calories: number; protein: number };
@@ -303,7 +303,7 @@ export function MealPrepPlanner({
 }: MealPrepPlannerProps) {
   const id = useId();
   const [destination, setDestination] = useState<Destination>("eat");
-  const [shoppingRange, setShoppingRange] = useState<"batch" | "week">("batch");
+  const [shoppingRange, setShoppingRange] = useState<14 | 21>(14);
   const [swap, setSwap] = useState<{ key: string; kind: ChoiceKind } | null>(
     null,
   );
@@ -429,45 +429,29 @@ export function MealPrepPlanner({
 
   // Always purchase complete, deduplicated batches, including any overlapping
   // boundary days. Do not multiply one live day's portion by the batch length.
-  const coveredBatches: Batch[] = [];
-  const seen = new Set<string>();
-  const shoppingWindowStart =
-    shoppingRange === "week"
-      ? today < state.startedOn
-        ? state.startedOn
-        : today
-      : engineDate;
-  for (
-    let offset = 0;
-    offset < (shoppingRange === "week" ? 7 : 1);
-    offset += 1
-  ) {
-    const nextDate = shiftDate(shoppingWindowStart, offset);
-    const key = prepBlockFor(state, nextDate).key;
-    if (!seen.has(key)) {
-      seen.add(key);
-      coveredBatches.push(prepBatch(state, nextDate, contextForDate));
-    }
-  }
+  const {
+    start: shoppingWindowStart,
+    end: shoppingWindowEnd,
+    covered: coveredBatches,
+    batches: shoppingBatches,
+    preparedOmitted,
+  } = prepShoppingWindow(state, today, shoppingRange, contextForDate);
   // Coverage describes the requested range even when every batch is cooked.
   // Prepared food is already purchased; omit it without changing its records.
   const shoppingStart = coveredBatches[0]?.block.start ?? block.start;
   const shoppingEnd =
     coveredBatches[coveredBatches.length - 1]?.block.end ?? block.end;
-  const shoppingBatches = coveredBatches.filter(
-    (item) => !preparedBatchFor(state, item.block.start, contextForDate),
-  );
-  const preparedOmitted = coveredBatches.length - shoppingBatches.length;
   const shopping = prepShopping(shoppingBatches);
   const required = shopping.filter((ingredient) => !ingredient.optional);
   const optional = shopping.filter((ingredient) => ingredient.optional);
-  // Current-batch and seven-day lists intentionally have independent checklists.
+  // Two- and three-week trips intentionally have independent checklists.
   // Changed recipes, quantities or covered dates must not inherit old purchases.
   const shoppingVersion = shoppingFingerprint(
     shoppingBatches.map((item) => item.signature).join("|"),
   );
   const groceryKey = (ingredient: Ingredient) =>
     JSON.stringify([
+      shoppingRange,
       shoppingStart,
       shoppingEnd,
       shoppingVersion,
@@ -1198,34 +1182,35 @@ export function MealPrepPlanner({
           <div className="mp-segment" role="group" aria-label="Shopping range">
             <button
               type="button"
-              aria-pressed={shoppingRange === "batch"}
-              onClick={() => setShoppingRange("batch")}
+              aria-pressed={shoppingRange === 14}
+              onClick={() => setShoppingRange(14)}
             >
-              Current batch
+              2 weeks
             </button>
             <button
               type="button"
-              aria-pressed={shoppingRange === "week"}
-              onClick={() => setShoppingRange("week")}
+              aria-pressed={shoppingRange === 21}
+              onClick={() => setShoppingRange(21)}
             >
-              Next 7 days
+              3 weeks
             </button>
           </div>
         </div>
-        {shoppingRange === "week" && (
-          <div className="mp-stack">
-            <p className="mp-muted">
-              {coveredBatches.length} complete batches for{" "}
-              {rangeLabel(
-                shoppingWindowStart,
-                shiftDate(shoppingWindowStart, 6),
-              )}
-              .
-              {shoppingStart < shoppingWindowStart ||
-              shoppingEnd > shiftDate(shoppingWindowStart, 6)
-                ? ` Includes full batches through ${shortDate(shoppingEnd)}, starting ${shortDate(shoppingStart)}.`
-                : ""}
-            </p>
+        <p className="mp-muted">
+          Buy for {shoppingRange / 7} weeks; keep cooking in 2-3 day batches.
+          This shopping window does not extend food storage times.
+        </p>
+        <div className="mp-stack">
+          <p className="mp-muted">
+            {coveredBatches.length} complete batches for{" "}
+            {rangeLabel(shoppingWindowStart, shoppingWindowEnd)}.
+            {shoppingStart < shoppingWindowStart ||
+            shoppingEnd > shoppingWindowEnd
+              ? ` Includes full batches through ${shortDate(shoppingEnd)}, starting ${shortDate(shoppingStart)}.`
+              : ""}
+          </p>
+          <details>
+            <summary>{coveredBatches.length} included batches</summary>
             <div className="mp-shopping-batches">
               {coveredBatches.map((item) => (
                 <span key={item.block.key}>
@@ -1233,8 +1218,8 @@ export function MealPrepPlanner({
                 </span>
               ))}
             </div>
-          </div>
-        )}
+          </details>
+        </div>
         {preparedOmitted > 0 && (
           <p className="mp-muted">
             {preparedOmitted} prepared{" "}
@@ -1244,9 +1229,7 @@ export function MealPrepPlanner({
         {shoppingBatches.length === 0 ? (
           <p className="mp-notice">
             <ShoppingBasket aria-hidden="true" />
-            {shoppingRange === "batch"
-              ? "Batch already prepared. Nothing to buy for it."
-              : "All batches already prepared. Nothing to buy for this range."}
+            All batches already prepared. Nothing to buy for this range.
           </p>
         ) : (
           <div className="mp-shopping-progress">

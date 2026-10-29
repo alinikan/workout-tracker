@@ -11,6 +11,7 @@ import {
   prepBlockFor,
   prepServing,
   prepShopping,
+  prepShoppingWindow,
   prepShoppingKey,
   recipeForPrepSlot,
   resetPrepPrepared,
@@ -931,6 +932,75 @@ test("explicit unprepare and changed recipe clear the retained preparation confl
     { mainId: "prep-beef-potato" },
   );
   assert.ok(state.blocks[start].conflictingPreparation);
+});
+
+for (const cadence of [2, 3])
+  for (const days of [14, 21]) {
+    test(`${days}-day shopping covers complete ${cadence}-day batches once across a month boundary`, () => {
+      const state = startPrepSchedule(base(), start, cadence);
+      const before = structuredClone(state);
+      const from = addPrepDays(start, 1);
+      const window = prepShoppingWindow(state, from, days, (date) => ({
+        ...rest,
+        training: date.endsWith("1"),
+      }));
+      assert.equal(window.start, from);
+      assert.equal(window.end, addPrepDays(from, days - 1));
+      assert.equal(
+        new Set(window.covered.map((b) => b.block.key)).size,
+        window.covered.length,
+      );
+      for (let offset = 0; offset < days; offset++) {
+        const date = addPrepDays(from, offset);
+        assert.equal(
+          window.covered.filter(
+            (b) => b.block.start <= date && b.block.end >= date,
+          ).length,
+          1,
+        );
+      }
+      assert.ok(window.covered[0].block.start <= from);
+      assert.ok(window.covered.at(-1).block.end >= window.end);
+      assert.equal(window.preparedOmitted, 0);
+      assert.ok(prepShopping(window.batches).length > 0);
+      assert.deepEqual(state, before);
+    });
+  }
+
+test("bulk shopping omits cooked batches, reflects future swaps and never changes cooking cadence", () => {
+  let state = cooked(base(), start, () => rest);
+  state = setPrepChoice(
+    state,
+    addPrepDays(start, 2),
+    "main",
+    "prep-beef-potato",
+  );
+  const window = prepShoppingWindow(state, start, 14, () => rest);
+  assert.equal(window.preparedOmitted, 1);
+  assert.equal(window.batches.length, 6);
+  assert.ok(!window.batches.some((b) => b.block.start === start));
+  assert.equal(window.batches[0].block.mainId, "prep-beef-potato");
+  assert.deepEqual(
+    prepShopping(window.batches),
+    prepShopping(window.covered.slice(1)),
+  );
+  assert.equal(prepBlockFor(state, start).days, 2);
+  assert.ok(state.blocks[start].preparedSignature);
+});
+
+test("bulk shopping starts at a future plan activation and validates the supported windows", () => {
+  assert.equal(
+    prepShoppingWindow(base(), "2026-10-01", 21, () => rest).start,
+    start,
+  );
+  assert.throws(
+    () => prepShoppingWindow(base(), start, 7, () => rest),
+    /Invalid shopping window/,
+  );
+  assert.throws(
+    () => prepShoppingWindow(base(), "not-a-date", 14, () => rest),
+    /Invalid shopping window/,
+  );
 });
 
 test("shopping aggregates shared groceries across batches in deterministic category order", () => {

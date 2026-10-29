@@ -251,7 +251,7 @@ accessibility, browser limitations, design references, and the verification matr
 | Weight-informed portions | Bounded protein portions use the existing weight reference. Prepared batches and checked meal portions are frozen, not recalculated after each weigh-in. |
 | Batch swaps | Change the whole upcoming main dish, breakfast or snack before cooking; no need to swap lunch and dinner separately. |
 | Preference-aware defaults | Chicken breast, skinless thighs, lean beef, rice, potatoes, oats and yogurt reuse familiar groceries. No default beans, chickpeas, turkey, rice cakes or muesli. |
-| To-buy list | Adds raw, dry and ready-to-use quantities for the current batch or complete batches covering the next seven days. Check off items you already have or bought. |
+| To-buy list | Adds raw, dry and ready-to-use quantities for complete batches covering the next **2 or 3 weeks**. Check off items you already have or bought. |
 | Completion tracking | Each meal can be marked eaten; full days show clearly when complete. |
 
 ### Progress Features
@@ -314,7 +314,7 @@ It includes:
 - Meal timing chips.
 - After-work pre-workout fueling guidance.
 - Whole-batch swaps and visible original/revert states.
-- Current-batch or seven-day shopping with ingredient totals.
+- Two- or three-week shopping trips with combined ingredient totals.
 - A notes field for hunger, digestion, swaps, or meal prep reminders.
 
 ---
@@ -328,7 +328,7 @@ Variety comes between batches, not from buying ingredients for fourteen differen
 
 | Step | What To Do |
 | --- | --- |
-| **To buy** | Choose the current batch or **Next 7 days**. Quantities are added across meals; already-prepared batches are omitted. Raw meat, dry rice and ready-to-use yogurt are labeled separately. Check what you have/bought. |
+| **To buy** | Choose **2 weeks** (default) or **3 weeks** for your shopping trip. Quantities include every complete batch intersecting that period, with already-prepared batches omitted. Raw meat, dry rice and ready-to-use yogurt are labeled separately. Check what you have/bought; keep cooking in 2-3 day batches. |
 | **Cook batch** | Choose two or three days before starting, optionally swap the main dish, and expand the cooking steps. Use **Full batch ingredients**, then **Portion by day** to fill dated containers. |
 | **Batch prepared** | Record that you prepared it. Quantities freeze so tomorrow's weigh-in cannot change the food already in your fridge. This does not mark any meal eaten or certify freshness. |
 | **Eat today** | Follow breakfast, lunch, snack and dinner. Reheat a container for lunch/dinner; mark each actual meal eaten. Training-day starch/snack differences are already included in the quantities. |

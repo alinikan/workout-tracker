@@ -103,7 +103,14 @@ export async function runBatchChecks({
     .getByRole("button", { name: "Mark eaten: Lunch", exact: true })
     .click();
   await section(a, "To buy");
+  await expect(planner(a).getByRole("button", { name: "2 weeks", exact: true })).toHaveAttribute("aria-pressed", "true");
+  const twoWeekBatches = await planner(a).locator(".mp-shopping-batches > span").count();
   await planner(a).locator(".mp-grocery input").first().check();
+  await planner(a).getByRole("button", { name: "3 weeks", exact: true }).click();
+  assert.ok(await planner(a).locator(".mp-shopping-batches > span").count() > twoWeekBatches);
+  await expect(planner(a).locator(".mp-grocery input").first()).not.toBeChecked();
+  await planner(a).getByRole("button", { name: "2 weeks", exact: true }).click();
+  await expect(planner(a).locator(".mp-grocery input").first()).toBeChecked();
   await expect
     .poll(() =>
       Object.values(backend.snapshot().mealPrep.checked).some(Boolean),
@@ -198,7 +205,9 @@ export async function runBatchChecks({
     false,
   );
   await section(b, "To buy");
-  await expect(planner(b)).toContainText("Nothing to buy");
+  await expect(planner(b)).toContainText("1 prepared batch omitted");
+  await expect(planner(b).getByRole("button", { name: "2 weeks", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(planner(b).locator(".mp-grocery input").first()).toBeVisible();
   await planner(b).getByLabel("Meal date", { exact: true }).fill("2026-10-27");
   await section(b, "Eat today");
   await expect(
