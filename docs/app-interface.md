@@ -29,37 +29,45 @@ that movement's own instructions and video. A swapped movement is labelled
 original restores its own recorded loads; it does not copy another machine's
 pounds across. Ramp-up teaching also follows the chosen alternative.
 
-## Home Quad Work Without A Leg-Extension Machine
+## Bodyweight Quads And Available Home Equipment
 
-New, unstarted home sessions use **Seated Cable Knee Extension** with the Mi6 low
-pulley, ankle strap and a stable seat. This trains knee extension without adding
-a squat. The seat and cable path must actually be stable and comfortable. Start
-with minimal resistance and do not force leg alignment or a painful range.
+New, unstarted home A sessions use **Bodyweight Wall Sit** (10-20 seconds,
+shallow comfortable depth); B sessions use **Nordic Leg Extension (Reverse Nordic)**
+(4-6 small-range repetitions). These replace the former cable quad slot rather
+than adding two more quad exercises to every workout. A wall sit is a timed
+isometric hold, not a dynamic leg extension. The reverse Nordic trains the quads;
+it is not an ankle-anchored Nordic hamstring curl.
 
-The **Seated Knee Extension (No Machine)** swap is deliberately lighter bodyweight
-work. It is not an equal-load replacement for the cable. It needs no weight
-input. Both choices include a matched YouTube tutorial and setup instructions.
-The cable exercise does not advertise an unverified machine GIF as an exact demo.
-Existing optional GIFs remain available on the exercises that have them.
+Both movements have their own E3 Rehab video and instructions. Neither asks for
+pounds: log hold seconds for wall sits and reps for reverse Nordics. Because knee
+bending/sitting has previously been difficult, do not force a deep wall sit or
+kneeling lean. Use the **Seated Knee Extension (No Machine)** swap if either is
+uncomfortable. It is a lighter option, not identical resistance. No unverified
+GIF is advertised as an exact demonstration of either new movement.
 
-Already-recorded machine sessions keep the machine prescription and their
-history/credit. Future unstarted sessions use the corrected equipment. Cable
-history is separate from the old machine's selected pounds. The gentle seated
-knee-extension warm-up still requires only a chair, not a leg machine.
+Future home rows use **Single-Arm Dumbbell Row**, not the unavailable Mi6 seated
+row. Existing machine/cable sessions keep their actual history and training credit.
+Upstairs bodyweight practice comes first; downstairs walking precedes machine
+ramp sets and lifting. Machine Chest Press Warm-Up is always downstairs. Finish
+floor work can stay downstairs or be done upstairs without another equipment trip.
+Movements open only when explicitly selected; completing one never opens the next.
 
-References: [cable setup demonstration](https://www.youtube.com/watch?v=ebjD98gZd8E),
-[exercise publisher's setup guide](https://fitwill.app/exercise/5664/cable-seated-leg-extension/),
+References: [E3 Rehab reverse Nordic guide](https://e3rehab.com/reversenordic/),
+[reverse Nordic setup video](https://www.youtube.com/watch?v=PvJDjcfZe1c),
+[wall sit demonstration](https://www.youtube.com/watch?v=RG7z0P9qrLk),
 [UNMC seated knee extension](https://www.unmc.edu/cctr/community/proactive/fourtypes/strength_8_seated_knee_extension.pdf),
 [HOIST Mi6 equipment and resistance ratio](https://www.hoistfitness.com/products/mi6-functional-trainer).
 These establish the movement/setup; they do not diagnose an individual's knee or hip alignment.
 
 ## Design And Accessibility
 
+- Today is a location-grouped session checklist, not a stack of expanded exercise cards. Coach uses compact training/meal launch rows; set logs open explicitly in place.
 - One navigation model, fixed-size controls and clear screen titles replace the previous stacked navigation/dashboard treatment.
 - Training is green, meals coral and weight/account utilities blue. Completed and skipped states have text as well as color.
 - Foreground/background selection colors change together; a transition cannot temporarily put dark selected text on a dark transparent surface.
 - Set rows explicitly assign every grid track. Labels, targets, weight, reps, effort and completion controls cannot share an inherited grid area.
 - Exercise sheets and working fields are opaque. Keyboard focus stays contained in the sheet, and changing tabs unmounts inactive media.
+- Media resets when the exercise, video or GIF changes. Inline iframes are keyed by the active video, preventing a swap from retaining the old player.
 - Inputs use readable text and touch-friendly dimensions. Reduced motion is respected. Image failures show a video icon rather than a broken thumbnail.
 
 The design draws on [Apple's separation of navigation and toolbars](https://developer.apple.com/documentation/uikit/uitabbar)

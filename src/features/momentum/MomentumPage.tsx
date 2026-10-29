@@ -307,21 +307,19 @@ export default function MomentumPage(p: Props) {
       <div className="mm-exercise">
         <h2>{resource.name}</h2>
         <p className="mm-muted">
-          {template?.reps ?? "8"} reps · {keys.length} working{" "}
+          {template?.reps ?? "8 reps"} · {keys.length} working{" "}
           {keys.length === 1 ? "set" : "sets"} · comfortable range
         </p>
         {resources.media(id)}
         <div className="mm-set-grid mm-set-heading">
           <span>Set</span>
-          <span>Weight (lbs)</span>
-          <span>Actual reps</span>
+          <span>{["done", "reps", "seconds"].includes(resource.logType ?? "") ? "Bodyweight" : "Weight (lbs)"}</span>
+          <span>{id === "wall-sit" ? "Hold (sec)" : "Actual reps"}</span>
           <span>Done</span>
         </div>
         {keys.map((key, i) => {
           const entry = log.sets[key] ?? { weight: "", reps: "", done: false };
-          const weighted =
-            resource.logType !== "none" &&
-            !["dead-bug", "glute-bridge", "incline-push-up"].includes(id);
+          const weighted = resource.logType === undefined || resource.logType === "weight";
           return (
             <div
               className={`mm-set-grid ${entry.done ? "is-done" : ""}`}
@@ -339,7 +337,7 @@ export default function MomentumPage(p: Props) {
                 <span className="mm-muted">Bodyweight</span>
               )}
               <input
-                aria-label={`${resource.name} set ${i + 1} actual reps`}
+                aria-label={`${resource.name} set ${i + 1} actual ${id === "wall-sit" ? "hold seconds" : "reps"}`}
                 inputMode="numeric"
                 value={entry.reps}
                 onChange={(e) => changeSet(key, { reps: e.target.value })}

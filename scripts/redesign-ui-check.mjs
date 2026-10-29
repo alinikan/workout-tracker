@@ -75,14 +75,56 @@ export async function runRedesignChecks({
         path: `outputs/ui-check/redesign-${name}-${colorScheme}-coach.png`,
       });
       await navigate(page, "Today");
-      const entry = page.locator("#today-move-mi6-leg-extension");
+      await expect(page.locator(".today-inline-log")).toHaveCount(0);
+      const quad = page.locator("#today-move-wall-sit");
+      await quad.locator(".move-check-button").click();
+      await expect(page.locator(".today-inline-log")).toHaveCount(0);
+      await quad.locator(".move-check-button").click();
+      await expect(page.locator(".today-inline-log")).toHaveCount(0);
+      await quad.locator(".move-main-button").click();
+      await expect(quad.locator(".set-weight")).toHaveCount(0);
+      await quad
+        .getByRole("textbox", {
+          name: "Bodyweight Wall Sit set 1 hold seconds",
+          exact: true,
+        })
+        .fill("15");
+      await quad.locator(".move-main-button").click();
+      await quad.locator(".entry-swap-button").click();
+      const quadSheet = page.locator(".exercise-detail-sheet");
+      await quadSheet
+        .locator(".swap-option-grid")
+        .getByRole("button", { name: /Nordic Leg Extension/ })
+        .click();
+      await quadSheet.getByRole("tab", { name: "Log", exact: true }).click();
+      await expect(quadSheet.locator(".set-weight")).toHaveCount(0);
+      await expect(
+        quadSheet.getByRole("textbox", {
+          name: "Nordic Leg Extension (Reverse Nordic) set 1 reps",
+          exact: true,
+        }),
+      ).toBeVisible();
+      await quadSheet
+        .getByRole("tab", { name: "Technique", exact: true })
+        .click();
+      await expect(quadSheet.locator(".video-poster img")).toHaveAttribute(
+        "src",
+        /PvJDjcfZe1c/,
+      );
+      await quadSheet
+        .getByRole("button", { name: "Close exercise details", exact: true })
+        .click();
+      await quad
+        .getByRole("button", { name: "Revert to original", exact: true })
+        .click();
+      const entry = page.locator("#today-move-machine-chest-press");
       await expect(entry).toBeVisible();
       await expect(
         page.locator("#today-move-seated-leg-extension"),
       ).toHaveCount(0);
       await entry.locator(".move-main-button").click();
       const weight = entry.getByRole("textbox", {
-        name: "Seated Cable Knee Extension set 1 weight in pounds",
+        name: "Machine Chest Press set 1 weight in pounds",
         exact: true,
       });
       await weight.fill("10");
@@ -167,7 +209,7 @@ export async function runRedesignChecks({
       );
       await entry
         .getByRole("checkbox", {
-          name: "Seated Cable Knee Extension set 1 complete",
+          name: "Machine Chest Press set 1 complete",
           exact: true,
         })
         .check();
@@ -178,13 +220,22 @@ export async function runRedesignChecks({
       ).toHaveAttribute("aria-selected", "true");
       await sheet
         .locator(".swap-option-grid")
-        .getByRole("button", { name: /Seated Knee Extension \(No Machine\)/ })
+        .getByRole("button", { name: /Incline Push-Up/ })
         .click();
       await expect(sheet.locator(".detail-swap-alert")).toBeVisible();
       await sheet.getByRole("tab", { name: "Log", exact: true }).click();
       await expect(sheet.locator(".set-weight input")).toHaveCount(0);
       await sheet.getByRole("tab", { name: "Technique", exact: true }).click();
       await expect(sheet.locator(".video-poster")).toBeVisible();
+      await expect(sheet.locator(".video-poster img")).toHaveAttribute(
+        "src",
+        new RegExp(model.exerciseMap["incline-push-up"].youtubeId),
+      );
+      await sheet.locator(".video-poster").click();
+      await expect(sheet.locator("iframe")).toHaveAttribute(
+        "src",
+        new RegExp(model.exerciseMap["incline-push-up"].youtubeId),
+      );
       await sheet
         .getByRole("button", { name: "Close exercise details", exact: true })
         .click();
@@ -195,7 +246,7 @@ export async function runRedesignChecks({
       await expect(weight).toHaveValue("10");
       await expect(
         entry.getByRole("checkbox", {
-          name: "Seated Cable Knee Extension set 1 complete",
+          name: "Machine Chest Press set 1 complete",
           exact: true,
         }),
       ).toBeChecked();

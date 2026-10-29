@@ -498,8 +498,9 @@ The base program remains recognizable on purpose. Repeating the same main moveme
 | Equipment | Supported use in the app | Important rule |
 | --- | --- | --- |
 | Selectorized multi-gym press arms | Machine Chest Press swap. | Use only the manufacturer's chest-press position. Extra grip choices do not turn fixed press arms into an overhead press. |
-| No home leg-extension machine | New home sessions use seated cable knee extension, with a no-machine seated alternative. | Old machine records remain historical; do not copy their pounds into the cable setup. |
-| HOIST Mi6 dual cable | Seated knee extension with ankle strap, seated row, short-bar biceps curl, and short-bar triceps pressdown; the standing cable fly uses two handles. | Lock every adjustment, use a stable seat and clear cable path, and follow the specific movement's setup. |
+| Bodyweight quad work | Home A: shallow wall sit, recorded in seconds. Home B: small-range reverse Nordic, recorded in reps. A seated knee-extension swap is available. | Neither requires added weight. Do not force painful knee bending or kneeling; use the seated alternative when needed. |
+| Home horizontal row | Supported single-arm dumbbell row replaces the unavailable Mi6 seated row. | Keep each side controlled and the supporting surface stable. Past Mi6 records remain readable. |
+| HOIST Mi6 dual cable | Short-bar biceps curl, short-bar triceps pressdown and standing cable fly. | Lock every adjustment and follow the movement-specific setup. |
 | HOIST Mi6 pull-up bar | Assisted pull-up only with the manufacturer-documented assistance setup and compatible strap. | Never improvise a loose foot/knee connection. Assistance is inverse: more assistance means an easier rep. |
 
 The Mi6 manual specifies a **2:1 pulley ratio**, or about half of the selected stack weight at each handle before cable and attachment effects. The tracker deliberately asks for the visible pin pounds **per stack** because that is easy to reproduce. Do not add the two stack numbers together, and do not compare Mi6 pin pounds with a different cable machine. Keep the same attachment, pulley height, bench position, stance, and grip when evaluating Smart Load.

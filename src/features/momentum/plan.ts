@@ -575,17 +575,17 @@ export const strengthTemplates = {
 } as const;
 export const homeStrengthTemplates = {
   "strength-a": [
-    { id: "mi6-leg-extension", reps: "8-12 per leg" },
+    { id: "wall-sit", reps: "10-20 sec comfortable hold" },
     { id: "machine-chest-press", reps: "8-12" },
-    { id: "mi6-seated-row", reps: "8-12" },
+    { id: "single-arm-row", reps: "8-12 per side" },
     { id: "mi6-cable-curl", reps: "10-12" },
     { id: "glute-bridge", reps: "8-12" },
     { id: "dead-bug", reps: "5 per side" },
   ],
   "strength-b": [
-    { id: "mi6-leg-extension", reps: "8-12 per leg" },
+    { id: "reverse-nordic", reps: "4-6 small-range reps" },
     { id: "machine-chest-press", reps: "8-12" },
-    { id: "mi6-seated-row", reps: "8-12" },
+    { id: "single-arm-row", reps: "8-12 per side" },
     { id: "mi6-bar-pressdown", reps: "10-12" },
     { id: "glute-bridge", reps: "8-12" },
     { id: "dead-bug", reps: "5 per side" },
@@ -602,8 +602,17 @@ export function movementsFor(
   // machine work. Preserve the old prescription AND its earned training credit.
   const recordedMachine = log && (log.plannedExerciseIds?.includes("seated-leg-extension") || log.sets["seated-leg-extension"])
     && (log.outcome === "planned" || log.outcome === "modified" || Object.values(log.sets).some(s => s.done || s.weight || s.reps));
-  return homeStrengthTemplates[activity].map(row => recordedMachine && row.id === "mi6-leg-extension"
-    ? { id: "seated-leg-extension", reps: "8-12" } : row);
+  const recorded = log && (log.outcome === "planned" || log.outcome === "modified" || Object.values(log.sets).some(s => s.done || s.weight || s.reps));
+  return homeStrengthTemplates[activity].map(row => {
+    if (!recorded) return row;
+    const ids = log.plannedExerciseIds ?? Object.keys(log.sets).map(id => id.split(":")[0]);
+    if (["wall-sit", "reverse-nordic"].includes(row.id)) {
+      if (recordedMachine) return { id: "seated-leg-extension", reps: "8-12" };
+      if (ids.includes("mi6-leg-extension")) return { id: "mi6-leg-extension", reps: "8-12 per leg" };
+    }
+    if (row.id === "single-arm-row" && ids.includes("mi6-seated-row")) return { id: "mi6-seated-row", reps: "8-12" };
+    return row;
+  });
 }
 export function makeJourney(
   start: string,

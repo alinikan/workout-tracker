@@ -50,7 +50,7 @@ const planOn = (d, date) =>
     date,
   );
 
-test("home quad correction preserves actual machine history while future sessions use the cable", () => {
+test("home quad correction preserves actual machine history while future sessions use bodyweight", () => {
   const d = fixture(),
     j = currentJourney(d),
     slots = sortedSlots(j).filter((s) =>
@@ -59,7 +59,7 @@ test("home quad correction preserves actual machine history while future session
     s = slots[0];
   const activity = dayPlan(j, s).activity;
   const oldIds = movementsFor(j, activity, s).map((e) =>
-    e.id === "mi6-leg-extension" ? "seated-leg-extension" : e.id,
+    e.id === "wall-sit" ? "seated-leg-extension" : e.id,
   );
   j.logs[s.id] = {
     ...newLog(),
@@ -76,8 +76,34 @@ test("home quad correction preserves actual machine history while future session
   assert.ok(
     !resolveDay(d, s, s.date).exerciseIds.includes("mi6-leg-extension"),
   );
-  assert.ok(planOn(d, slots[1].date).exerciseIds.includes("mi6-leg-extension"));
+  assert.ok(planOn(d, slots[1].date).exerciseIds.includes("reverse-nordic"));
   assert.deepEqual(j.logs[s.id], before);
+});
+
+test("home sessions order upstairs quad practice before walking, then equipment warm-ups and lifting", () => {
+  const d = fixture(), j = currentJourney(d);
+  const days = app.connectedPlanDays(app.buildPlanDays(j.startedOn), d, {}, j.startedOn);
+  for (const day of days.filter(day => day.session.connected?.kind === "home")) {
+    const moves = app.scheduledExercisesForDay(day);
+    const treadmill = moves.findIndex(e => e.id === "warmup-treadmill-walk");
+    const pressRamp = moves.findIndex(e => e.id === "warmup-ramp-home-machine-press");
+    const press = moves.findIndex(e => e.id === "machine-chest-press");
+    assert.equal(app.locationGuideForExercise(app.exerciseMap["warmup-ramp-home-machine-press"]).type, "downstairs");
+    assert.ok(treadmill >= 0 && pressRamp > treadmill && press > pressRamp);
+    assert.ok(moves.slice(0, treadmill).every(e => app.locationGuideForExercise(e).type === "upstairs"));
+    assert.ok(!moves.some(e => ["mi6-leg-extension", "mi6-seated-row"].includes(e.id)));
+  }
+});
+
+test("bodyweight quad alternatives have distinct verified videos and do not request pounds", () => {
+  for (const [id, type, video] of [["wall-sit", "seconds", "RG7z0P9qrLk"], ["reverse-nordic", "reps", "PvJDjcfZe1c"]]) {
+    const e = app.exerciseMap[id];
+    assert.equal(e.logType, type);
+    assert.equal(e.youtubeId, video);
+    assert.ok(e.cues.length >= 4 && e.avoid.length >= 2);
+  }
+  assert.notEqual(app.exerciseMap["single-arm-row"].youtubeId, app.exerciseMap["seated-cable-row"].youtubeId);
+  assert.equal(app.exerciseMap["single-arm-row"].youtubeId, "pYcpY20QaE8");
 });
 
 test("the home cable warm-up follows the no-machine swap without asking for a weight", () => {
@@ -89,7 +115,7 @@ test("the home cable warm-up follows the no-machine swap without asking for a we
     log,
   );
   assert.equal(ramp.id, "warmup-ramp-home-cable-extension");
-  assert.equal(ramp.logType, "done");
+  assert.equal(ramp.logType, "reps");
   assert.equal(
     ramp.youtubeId,
     app.exerciseMap["seated-quad-extension"].youtubeId,
@@ -137,7 +163,8 @@ for (let offset = 0; offset < 7; offset++)
       const p = resolveDay(d, s, s.date);
       assert.equal(p.setsPerExercise, 2);
       assert.ok(p.exerciseIds.includes("machine-chest-press"));
-      assert.ok(p.exerciseIds.includes("mi6-seated-row"));
+      assert.ok(p.exerciseIds.includes("single-arm-row"));
+      assert.ok(!p.exerciseIds.includes("mi6-seated-row"));
       assert.ok(!p.exerciseIds.includes("leg-press"));
       for (const id of p.exerciseIds)
         assert.ok(
@@ -293,7 +320,7 @@ test("Today/Gym/Week and nutrition use the exact private schedule, with historic
   const first = days[0],
     exercises = app.scheduledExercisesForDay(first);
   assert.equal(exercises.length, 9);
-  assert.ok(exercises.some((e) => e.id === "mi6-leg-extension"));
+  assert.ok(exercises.some((e) => e.id === "wall-sit"));
   assert.ok(!exercises.some((e) => e.id === "seated-leg-extension"));
   assert.equal(
     app.recommendedSets(first, app.exerciseMap["machine-chest-press"], 0),

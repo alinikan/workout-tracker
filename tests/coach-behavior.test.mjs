@@ -345,7 +345,7 @@ test("a newer skipped attempt blocks older qualifying wins and new swaps do not 
   store.days[days[7].iso] = model.skipPlanDay(days[7], model.normalizeDayLog(undefined), "time");
   assert.notEqual(model.smartLoadSuggestion(days, store, days[11], exercise, 0).tone, "build");
   const row = model.scheduledExercisesForDay(days[2]).find((move) => move.id === "single-arm-row");
-  const swap = model.swapOptionsFor(row).find((move) => move.id === "mi6-seated-row");
+  const swap = model.swapOptionsFor(row).find((move) => move.id === "seated-cable-row");
   store.days[days[2].iso] = model.normalizeDayLog(undefined);
   store.days[days[2].iso].exercises[row.id] = [{ weight: "80", reps: "12", done: true, effort: "too-easy" }];
   assert.equal(model.smartLoadSuggestion(days, store, days[9], swap, 0).tone, "start");
@@ -380,7 +380,7 @@ test("Mi6 swaps have media, setup notes and ramp teaching while originals remain
   const day = model.withTrainingWeek(days[2], 9);
   const log = model.normalizeDayLog(undefined);
   const exercises = model.scheduledExercisesForDay(day);
-  for (const [originalId, swapId] of [["single-arm-row", "mi6-seated-row"], ["dumbbell-biceps-curl", "mi6-cable-curl"], ["rope-triceps-pressdown", "mi6-bar-pressdown"]]) {
+  for (const [originalId, swapId] of [["dumbbell-biceps-curl", "mi6-cable-curl"], ["rope-triceps-pressdown", "mi6-bar-pressdown"]]) {
     const original = exercises.find((move) => move.id === originalId);
     log.swaps[originalId] = swapId;
     const swap = model.activeExerciseFor(original, log);

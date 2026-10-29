@@ -18,7 +18,7 @@ export async function runMomentumChecks({
   const trialModel = await server.ssrLoadModule(
     "/src/features/momentum/trial.ts",
   );
-  const firstMove = model.exerciseMap["mi6-leg-extension"].name;
+  const firstMove = model.exerciseMap["machine-chest-press"].name;
   const original = () => model.emptyStore("2026-10-05");
   const active = (trialDate) => {
     const d = mm.emptyMomentum(),
@@ -138,6 +138,9 @@ export async function runMomentumChecks({
         "Record at least one actual set",
       );
       await click(page, "Back to session");
+      // The first slot is now a timed bodyweight wall sit. Test weighted
+      // logging on the next, actual machine lift instead of inventing pounds.
+      await click(page, "Next movement");
       await page
         .getByLabel(`${firstMove} set 1 actual reps`, { exact: true })
         .fill("6");
@@ -446,17 +449,17 @@ export async function runMomentumChecks({
   await click(page, "Start session");
   for (const [i] of plan.homeStrengthTemplates["strength-a"].entries()) {
     const inputs = page.locator(
-      '.mm-set-grid input[aria-label$="actual reps"]',
+      '.mm-set-grid input[aria-label$="actual reps"], .mm-set-grid input[aria-label$="actual hold seconds"]',
     );
     for (let s = 0; s < (await inputs.count()); s++)
       await inputs.nth(s).fill("8");
-    while (
-      await page.locator('.mm-set-grid button[aria-pressed="false"]').count()
-    )
+    const pending = await page.locator('.mm-set-grid button[aria-pressed="false"]').count();
+    for (let attempt = 0; attempt < pending; attempt++)
       await page
         .locator('.mm-set-grid button[aria-pressed="false"]')
         .first()
         .click();
+    await expect(page.locator('.mm-set-grid button[aria-pressed="false"]')).toHaveCount(0);
     await click(page, i === 5 ? "Review session" : "Next movement");
   }
   await expect(
@@ -506,6 +509,7 @@ export async function runMomentumChecks({
     await open(page);
     await expect(page.locator(".mm-sync")).toContainText("Private data synced");
     await click(page, "Start session");
+    await click(page, "Next movement");
     pages.push(page);
     await d.setOffline(true);
   }
@@ -525,7 +529,7 @@ export async function runMomentumChecks({
   await devices[0].setOffline(false);
   await click(pages[0], "Sync Momentum now");
   await expect
-    .poll(() => privateLog(shared)?.sets["mi6-leg-extension"]?.reps)
+    .poll(() => privateLog(shared)?.sets["machine-chest-press"]?.reps)
     .toBe("6");
   assert.equal(privateLog(shared).note, "Synthetic device B note");
   for (const d of devices) await d.close();

@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Fragment, type FormEvent, type ReactNode, lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
   Activity,
@@ -360,7 +360,7 @@ type Exercise = {
   timing?: Partial<ExerciseTiming>;
   motionDemo?: MotionDemo;
   youtubeId?: string;
-  logType?: "weight" | "done";
+  logType?: "weight" | "done" | "reps" | "seconds";
   loadLabel?: string;
   trainingLocation?: TrainingLocation;
   locationNote?: string;
@@ -2480,18 +2480,51 @@ exerciseMap["seated-quad-extension"] = {
   progression: "Build comfortable control, not forced range. Move to the cable version only when a stable setup and a very light resistance are comfortable.",
 };
 exerciseMap["seated-leg-extension"].swapIds = ["mi6-leg-extension", "seated-quad-extension"];
+// Reverse Nordic is a quadriceps movement, NOT a Nordic hamstring curl.
+// These are alternatives, not two extra demanding quad exercises per session.
+exerciseMap["reverse-nordic"] = {
+  id: "reverse-nordic", name: "Nordic Leg Extension (Reverse Nordic)", shortName: "Reverse Nordic", family: "legs",
+  equipment: "Bodyweight and a thick kneeling pad", logType: "reps", trainingLocation: "upstairs",
+  target: "Quadriceps", reps: "4-6 small-range reps", rest: "90-120 sec",
+  cues: ["Kneel on a thick pad with knees comfortably spaced. Only use this option if kneeling and bending your knees are comfortable.", "Keep shoulders, hips and knees in one line. Reach your hands forward and lean back just a few degrees, slowly, without bending at your hips.", "Return upright by tightening your thighs. Begin with a very small range; you do not need to reach the floor.", "Stop before losing control. If kneeling, knee bending or returning upright is uncomfortable, use the seated no-machine swap instead."],
+  avoid: ["Do not force knee alignment or a deep lean.", "Do not attempt a hamstring Nordic curl or anchor your ankles.", "Do not add weights or train to failure."],
+  progression: "First repeat 4-6 comfortable controlled reps. Increase range slightly only after repeated comfortable sessions; never increase range, reps and sets together.",
+  youtubeId: "PvJDjcfZe1c", swapIds: ["wall-sit", "seated-quad-extension"],
+  resources: [{label: "E3 Rehab: reverse Nordic setup and regressions", url: "https://e3rehab.com/reversenordic/"}],
+};
+exerciseMap["wall-sit"] = {
+  id: "wall-sit", name: "Bodyweight Wall Sit", shortName: "Wall sit", family: "legs",
+  equipment: "A clear wall and non-slip floor", logType: "seconds", trainingLocation: "upstairs",
+  target: "Quadriceps isometric hold", reps: "10-20 sec comfortable hold", rest: "60-90 sec",
+  cues: ["Place your back against a sturdy wall, feet comfortably apart and forward from the wall.", "Slide down only a little until you feel your thighs working. Start shallow: a 90-degree knee bend is not required.", "Keep your feet planted and breathe normally for 10-20 seconds. End the hold before shaking or losing control.", "Slide back up and rest. If sitting down into the position is difficult or painful, choose the seated no-machine swap instead."],
+  avoid: ["Do not force a deep squat position or hold your breath.", "Do not add a weight plate or push through knee pain."],
+  progression: "Build comfortable hold time gradually, not added weight. Keep the same shallow depth; change only one variable at a time.",
+  youtubeId: "RG7z0P9qrLk", swapIds: ["reverse-nordic", "seated-quad-extension"],
+  resources: [{label: "E3 Rehab wall sit demonstration", url: "https://www.youtube.com/watch?v=RG7z0P9qrLk"}],
+};
+exerciseMap["seated-quad-extension"].logType = "reps";
+exerciseMap["seated-quad-extension"].swapIds = ["wall-sit", "reverse-nordic"];
+// Historical equipment entries stay readable; no future home plan requires them.
+exerciseMap["mi6-leg-extension"].swapIds = ["wall-sit", "reverse-nordic", "seated-quad-extension"];
+exerciseMap["seated-leg-extension"].swapIds = ["wall-sit", "reverse-nordic", "seated-quad-extension"];
+exerciseMap["single-arm-row"].swapIds = ["seated-cable-row", "mi6-seated-row"];
+exerciseMap["single-arm-row"].trainingLocation = "downstairs";
+exerciseMap["single-arm-row"].youtubeId = "pYcpY20QaE8";
+if (exerciseMap["warmup-ramp-single-arm-row"]) exerciseMap["warmup-ramp-single-arm-row"].youtubeId = "pYcpY20QaE8";
+exerciseMap["seated-cable-row"].youtubeId = "7o2oolbmzeI";
+exerciseMap["mi6-seated-row"].youtubeId = undefined;
 exerciseMap["machine-chest-press"].swapIds = ["incline-db-press", "incline-push-up"];
 exerciseMap["mi6-seated-row"].swapIds = ["single-arm-row", "seated-cable-row"];
 exerciseMap["mi6-cable-curl"].swapIds = ["dumbbell-biceps-curl"];
 exerciseMap["mi6-bar-pressdown"].swapIds = ["rope-triceps-pressdown"];
 
 // A warm-up reuses the exact movement's media/setup, never an unrelated demonstration.
-for (const [id, sourceId] of [["warmup-ramp-home-leg-extension", "seated-leg-extension"], ["warmup-ramp-home-cable-extension", "mi6-leg-extension"], ["warmup-ramp-home-machine-press", "machine-chest-press"]]) {
+for (const [id, sourceId] of [["warmup-ramp-home-wall-sit", "wall-sit"], ["warmup-ramp-home-reverse-nordic", "reverse-nordic"], ["warmup-ramp-home-leg-extension", "seated-leg-extension"], ["warmup-ramp-home-cable-extension", "mi6-leg-extension"], ["warmup-ramp-home-machine-press", "machine-chest-press"]]) {
   const source = exerciseMap[sourceId];
   exerciseMap[id] = { ...source, id, name: `${source.name} Warm-Up`, shortName: `${source.shortName} warm-up`,
     family: "warmup", priority: "main", swapIds: undefined,
-    reps: "5-8 easy reps with a clearly lighter pin than working sets", rest: "45-60 sec",
-    cues: ["Use the lightest comfortable setting, clearly below your working weight. This is preparation, not a hard set.", ...source.cues],
+    reps: source.logType === "seconds" ? "5-10 sec shallow, easy rehearsal" : source.logType === "reps" ? "2-3 small, easy reps" : "5-8 easy reps with a clearly lighter pin than working sets", rest: "45-60 sec",
+    cues: [tracksWeight(source) ? "Use the lightest comfortable setting, clearly below your working weight. This is preparation, not a hard set." : "Rehearse a smaller, easier range or shorter hold than your working set. Use bodyweight only and do not create fatigue.", ...source.cues],
     progression: "Keep this easy. Do not turn a warm-up into another working set." };
 }
 exerciseMap["muay-thai-trial"] = {
@@ -3485,7 +3518,8 @@ const libraryOrder = [
   "warmup-ramp-single-arm-row",
   "leg-press",
   "seated-leg-extension",
-  "mi6-leg-extension",
+  "wall-sit",
+  "reverse-nordic",
   "seated-quad-extension",
   "seated-leg-curl",
   "glute-bridge",
@@ -3505,7 +3539,6 @@ const libraryOrder = [
   "rope-triceps-pressdown",
   "mi6-bar-pressdown",
   "single-arm-row",
-  "mi6-seated-row",
   "push-up",
   "seated-db-overhead",
   "machine-shoulder-press",
@@ -3807,10 +3840,12 @@ function workoutLocationOrder(planDay: PlanDay, original: Exercise, log?: DayLog
   if (planDay.session.type !== "strength") return 0;
   const exercise = log ? activeExerciseFor(original, log) : original;
   const location = trainingLocationForExercise(exercise);
-  if (location === "upstairs") return 0;
-  if (location === "either") return 3;
-  if (exercise.id === "treadmill-finisher") return 2;
-  return 1;
+  if (location === "upstairs") return isRampWarmup(exercise) ? 0 : 1;
+  if (exercise.id === "warmup-treadmill-walk") return 10;
+  if (isRampWarmup(exercise)) return 20;
+  if (location === "either") return 50;
+  if (exercise.id === "treadmill-finisher") return 40;
+  return 30;
 }
 
 function mainLiftIndex(planDay: PlanDay, exercise: Exercise) {
@@ -5157,6 +5192,7 @@ function weightMomentumCoach(
 // Target and rest helpers are read by every workout view. Centralizing them means Today, Gym Mode,
 // detail sheets, and the library always agree about what the user should do.
 function targetForExercise(planDay: PlanDay, exercise: Exercise) {
+  if (isRampWarmup(exercise) && !tracksWeight(exercise)) return exercise.logType === "seconds" ? "5-10 sec shallow, easy rehearsal" : "2-3 easy, small-range reps";
   const connected = planDay.session.connected;
   if (connected) return connected.targets[exercise.id] ?? exercise.reps;
   const week = coachingWeek(planDay);
@@ -5190,7 +5226,12 @@ function progressionForExercise(planDay: PlanDay, exercise: Exercise) {
 // Only true strength/ramp rows ask for pounds. Warm-ups, cardio, and bodyweight moves become clean
 // done buttons so the UI does not show unusable input placeholders.
 function tracksWeight(exercise: Exercise) {
-  return exercise.logType !== "done";
+  return exercise.logType === undefined || exercise.logType === "weight";
+}
+
+function tracksPerformance(exercise: Exercise) {
+  return tracksWeight(exercise) || exercise.logType === "reps" || exercise.logType === "seconds" ||
+    (exercise.logType === "done" && ["legs", "push", "core", "hinge"].includes(exercise.family));
 }
 
 // Swaps are resolved at render time. The original exercise stays in the schedule, while the saved
@@ -5199,7 +5240,7 @@ function activeExerciseFor(originalExercise: Exercise, log: DayLog) {
   // Keep a ramp slot's stable ID, but teach the movement actually selected for
   // its corresponding main lift. A row swap must not keep teaching dumbbell setup.
   if (isRampWarmup(originalExercise)) {
-    const homeRamp = { "warmup-ramp-home-cable-extension": "mi6-leg-extension", "warmup-ramp-home-leg-extension": "seated-leg-extension", "warmup-ramp-home-machine-press": "machine-chest-press" };
+    const homeRamp = { "warmup-ramp-home-wall-sit": "wall-sit", "warmup-ramp-home-reverse-nordic": "reverse-nordic", "warmup-ramp-home-cable-extension": "mi6-leg-extension", "warmup-ramp-home-leg-extension": "seated-leg-extension", "warmup-ramp-home-machine-press": "machine-chest-press" };
     const mainId = homeRamp[originalExercise.id as keyof typeof homeRamp] ?? originalExercise.id.replace("warmup-ramp-", "");
     const main = exerciseMap[mainId];
     const swapId = log.swaps?.[mainId];
@@ -5209,6 +5250,8 @@ function activeExerciseFor(originalExercise: Exercise, log: DayLog) {
       name: `Warm-Up: ${swap.name}`,
       shortName: `${swap.shortName} ramp`,
       equipment: swap.equipment,
+      trainingLocation: swap.trainingLocation,
+      locationNote: swap.locationNote,
       loadNote: swap.loadNote,
       logType: swap.logType,
       loadLabel: swap.loadLabel,
@@ -5225,7 +5268,7 @@ function activeExerciseFor(originalExercise: Exercise, log: DayLog) {
 }
 
 function swapOptionsFor(exercise: Exercise) {
-  return (exercise.swapIds ?? []).flatMap((id) => (exerciseMap[id] ? [exerciseMap[id]] : []));
+  return (exercise.swapIds ?? []).filter(id => id !== "mi6-seated-row").flatMap((id) => (exerciseMap[id] ? [exerciseMap[id]] : []));
 }
 
 function isSwappedExercise(originalExercise: Exercise, log: DayLog) {
@@ -5670,12 +5713,14 @@ function connectedPlanDays(days: PlanDay[], data: MomentumData | null, logs: Rec
     if (!slot || slot.originalPlan || day.iso < (journey.homeFrom ?? journey.startedOn)) return day;
     if (log.completed || Object.values(log.exercises).some(rows => rows.some(set => set.done || set.weight || set.reps))) return day;
     const plan = momentumDay(data, slot, today), strength = plan.activity.startsWith("strength"), trial = plan.activity === "boxing";
-    const targets = Object.fromEntries(plan.movementTargets.map(item => [item.id, `${item.reps} controlled reps; leave 3-4 comfortable reps available`]));
-    const practiceIds = plan.exerciseIds.slice(0, 2).flatMap(id => id === "seated-leg-extension" ? ["warmup-ramp-home-leg-extension"] : id === "mi6-leg-extension" ? ["warmup-ramp-home-cable-extension"] : id === "machine-chest-press" ? ["warmup-ramp-home-machine-press"] : []);
+    const targets = Object.fromEntries(plan.movementTargets.map(item => [item.id, item.id === "wall-sit" ? `${item.reps}; breathe normally and stop before strain` : `${item.reps} controlled reps; leave 3-4 comfortable reps available`]));
+    const practiceIds = plan.exerciseIds.slice(0, 2).flatMap(id => id === "wall-sit" ? ["warmup-ramp-home-wall-sit"] : id === "reverse-nordic" ? ["warmup-ramp-home-reverse-nordic"] : id === "seated-leg-extension" ? ["warmup-ramp-home-leg-extension"] : id === "mi6-leg-extension" ? ["warmup-ramp-home-cable-extension"] : id === "machine-chest-press" ? ["warmup-ramp-home-machine-press"] : []);
     const ids = strength ? ["warmup-treadmill-walk", ...practiceIds, ...plan.exerciseIds]
       : trial ? ["muay-thai-trial"] : plan.activity === "walk" ? ["home-easy-walk"] : [];
     targets["warmup-treadmill-walk"] = "5-7 min easy walking";
     targets["warmup-ramp-home-leg-extension"] = targets["warmup-ramp-home-machine-press"] = targets["warmup-ramp-home-cable-extension"] = "5-8 easy reps; use a clearly lighter pin than working sets";
+    targets["warmup-ramp-home-wall-sit"] = "5-10 sec shallow, easy rehearsal";
+    targets["warmup-ramp-home-reverse-nordic"] = "2-3 very small, easy reps";
     targets["home-easy-walk"] = `${plan.minutes} min easy, conversational`;
     targets["muay-thai-trial"] = `${plan.minutes} active technique minutes, with breaks or observation`;
     return { ...day, session: {
@@ -5874,6 +5919,8 @@ const locationLabels: Record<TrainingLocation, { label: string; detail: string }
 };
 
 function trainingLocationForExercise(exercise: Exercise): TrainingLocation {
+  // Rehearsing a machine lift still needs that machine, regardless of family.
+  if (isRampWarmup(exercise) && tracksWeight(exercise)) return "downstairs";
   if (exercise.trainingLocation) return exercise.trainingLocation;
   if (exercise.family === "warmup") return "upstairs";
   if (exercise.family === "cardio") return "downstairs-outside";
@@ -5891,7 +5938,7 @@ function locationGuideForExercise(exercise: Exercise) {
 
 function locationFlowNoteForDay(planDay: PlanDay) {
   if (planDay.session.connected?.kind === "trial") return "Your one confirmed visit is at Titan. It replaces today's home workout; do not add lifting or a hard finisher.";
-  if (planDay.session.connected?.kind === "home") return "Start downstairs with easy walking and clearly lighter practice sets. Complete the machine and cable work, then finish the floor exercises upstairs or downstairs without returning for more equipment.";
+  if (planDay.session.connected?.kind === "home") return "Do the comfortable bodyweight quad practice and quad sets upstairs first. Then head downstairs for easy walking, lighter machine practice sets and equipment work. Finish the floor exercises downstairs or upstairs, with no need to return for equipment.";
   if (planDay.session.type === "strength") {
     return "Do the gentle Upstairs OK prep first, then head straight downstairs for the treadmill warm-up, ramp sets, lifting, cable work, and treadmill finisher. Finish the Either floor exercises upstairs or downstairs. If you take a long break, warm up again before lifting.";
   }
@@ -6389,7 +6436,7 @@ function ExerciseMedia({
     setShowGif(false);
     setGifFailed(false);
     setVideoPlaying(false);
-  }, [exercise.id]);
+  }, [exercise.id, exercise.youtubeId, exercise.motionDemo?.workoutXId]);
   const demo = exercise.motionDemo;
   const canShowGif = Boolean(demo && !gifFailed);
   const isShowingGif = Boolean(canShowGif && showGif);
@@ -6423,6 +6470,7 @@ function ExerciseMedia({
       ) : exercise.youtubeId ? (
         <div className={className}>
           {videoPlaying ? <iframe
+            key={`${exercise.id}-${exercise.youtubeId}`}
             title={`${exercise.name} YouTube demo`}
             src={`${youtubeEmbedUrl(exercise.youtubeId)}&autoplay=1`}
             loading={variant === "gym" ? "eager" : "lazy"}
@@ -6489,7 +6537,7 @@ function SetLoadFields({ exercise, set, setIndex, onChange, previous }: {
   // keep the Today, Gym and detail-sheet fields associated correctly.
   const weightInputId = useId();
   return <div className="set-inputs">
-    <div className="set-field set-weight">
+    {tracksWeight(exercise) && <div className="set-field set-weight">
       <label className="set-field-label" htmlFor={weightInputId}>{exercise.id.startsWith("mi6-") ? "Stack (lbs)" : "Weight (lbs)"}</label>
       <input id={weightInputId} inputMode="decimal" value={set.weight} placeholder="lbs"
         onChange={(event) => onChange(exercise.id, setIndex, "weight", event.target.value)}
@@ -6501,12 +6549,12 @@ function SetLoadFields({ exercise, set, setIndex, onChange, previous }: {
           Last: {previous.weight} lb
         </button>
       )}
-    </div>
+    </div>}
     <label className="set-field set-reps">
-      <span className="set-field-label">Reps</span>
-      <input inputMode="numeric" value={set.reps} placeholder="reps"
+      <span className="set-field-label">{exercise.logType === "seconds" ? "Hold (seconds)" : "Reps"}</span>
+      <input inputMode="numeric" value={set.reps} placeholder={exercise.logType === "seconds" ? "sec" : "reps"}
         onChange={(event) => onChange(exercise.id, setIndex, "reps", event.target.value)}
-        aria-label={`${exercise.name} set ${setIndex + 1} reps`} />
+        aria-label={`${exercise.name} set ${setIndex + 1} ${exercise.logType === "seconds" ? "hold seconds" : "reps"}`} />
     </label>
     <label className="set-field set-effort">
       <span className="set-field-label">Feel</span>
@@ -8584,7 +8632,7 @@ export default function Home() {
     workoutDates: Object.entries(store.days).filter(([, log]) => log.completed || Object.values(log.exercises ?? {}).some(rows => rows.some(set => set.done || set.weight || set.reps))).map(([date]) => date),
     exercises: exerciseMap, recipes: dietRecipes, meals: weeklyDietMealMap,
     howTo: (recipe) => detailedRecipeHowTo(dietRecipeMap[recipe.id]),
-    media: (id) => <ExerciseMedia exercise={exerciseMap[id]} variant="gym" />,
+    media: (id) => <ExerciseMedia key={id} exercise={exerciseMap[id]} variant="gym" />,
     groceries: (recipes) => shoppingItemsForRecipes(recipes.map(r=>dietRecipeMap[r.id])).flatMap(group=>group.items),
     mealPrep: (date, onDateChange) => session && cloudReadyForUser === session.user.id
       ? renderSharedPrep(date, onDateChange, "momentum")
@@ -9727,7 +9775,7 @@ export default function Home() {
               </div>
               {(currentGymExercise.youtubeId || currentGymExercise.motionDemo) && (
                 <div className="gym-media-stack">
-                  <ExerciseMedia exercise={currentGymExercise} variant="gym" />
+                  <ExerciseMedia key={currentGymExercise.id} exercise={currentGymExercise} variant="gym" />
                   <ExerciseMediaLinks exercise={currentGymExercise} />
                 </div>
               )}
@@ -9936,7 +9984,7 @@ export default function Home() {
             )}
 
             <div
-              className={`set-table gym-set-table ${currentGymTracksWeight ? "" : "no-load"}`}
+              className={`set-table gym-set-table ${tracksPerformance(currentGymExercise) ? "" : "no-load"}`}
               aria-label={`${currentGymExercise.name} gym set log`}
             >
               <div className="set-head">
@@ -9951,7 +9999,7 @@ export default function Home() {
                 <div className="set-row" key={`${currentGymExercise.id}-gym-${setIndex}`}>
                   <span>{setIndex + 1}</span>
                   <strong className="target-pill">{currentGymTarget.split(";")[0]}</strong>
-                  {currentGymTracksWeight && <SetLoadFields exercise={currentGymExercise} set={set} setIndex={setIndex} onChange={updateGymSet} previous={currentGymPreviousLoad?.rows[setIndex]} />}
+                  {tracksPerformance(currentGymExercise) && <SetLoadFields exercise={currentGymExercise} set={set} setIndex={setIndex} onChange={updateGymSet} previous={currentGymPreviousLoad?.rows[setIndex]} />}
                   <label className="mini-check">
                     <input
                       type="checkbox"
@@ -10263,13 +10311,16 @@ export default function Home() {
                 </span>
               </div>
               <div className="move-list">
-                {workoutMoveRows.map((move) => {
-                  const expanded = (expandedTodayMoveId ?? nextOpenMove?.originalExercise.id) === move.originalExercise.id;
+                {workoutMoveRows.map((move, rowIndex) => {
+                  const expanded = expandedTodayMoveId === move.originalExercise.id;
                   const previous = lastExerciseLoad(planDays, store, selectedDay, move.activeExercise.id);
                   // Keep interactive rows untransformed as other logs expand or
                   // collapse: their touch targets should not travel during a tap.
                   return (
-                  <WorkoutMove key={move.originalExercise.id} id={move.originalExercise.id}
+                  <Fragment key={move.originalExercise.id}>
+                  {(rowIndex === 0 || workoutMoveRows[rowIndex - 1].location.type !== move.location.type) &&
+                    <div className="session-stage"><span>{move.location.type === "upstairs" ? "At home" : move.location.type === "either" ? "Finish · Your choice" : move.location.type === "titan" ? "Your class" : "Home gym"}</span><small>{move.location.type === "upstairs" ? "Bodyweight & preparation" : move.location.type === "either" ? "Floor work" : "Equipment & training"}</small></div>}
+                  <WorkoutMove id={move.originalExercise.id}
                     family={move.activeExercise.family} index={move.exerciseIndex} name={move.activeExercise.name}
                     target={move.target} location={move.location.label} done={move.doneCount} total={move.setCount}
                     expanded={expanded} complete={move.isComplete} skipped={move.isSkipped}
@@ -10292,11 +10343,11 @@ export default function Home() {
                       </div>
                       {move.isSwapped && <p className="swap-note">Swap version of {move.originalExercise.name}. Revert to original is above.</p>}
                       {move.target.includes(";") && <p className="inline-target-note">{move.target.split(";").slice(1).join(";").trim()}</p>}
-                      <div className={`set-table inline-set-table ${tracksWeight(move.activeExercise) ? "" : "no-load"}`}>
+                      <div className={`set-table inline-set-table ${tracksPerformance(move.activeExercise) ? "" : "no-load"}`}>
                         {move.rows.map((set, setIndex) => <div className={`set-row ${set.done ? "set-done" : ""}`} key={setIndex}>
                           <span className="inline-set-number">Set {setIndex + 1}</span>
                           <strong className="target-pill">{move.target.split(";")[0]}</strong>
-                          {tracksWeight(move.activeExercise) && <SetLoadFields exercise={move.activeExercise} set={set} setIndex={setIndex}
+                          {tracksPerformance(move.activeExercise) && <SetLoadFields exercise={move.activeExercise} set={set} setIndex={setIndex}
                             onChange={updateSet} previous={previous?.rows[setIndex]} />}
                           <label className="mini-check"><input type="checkbox" checked={set.done}
                             aria-label={`${move.activeExercise.name} set ${setIndex + 1} complete`}
@@ -10309,6 +10360,7 @@ export default function Home() {
                       </details>
                     </div>}
                   </WorkoutMove>
+                  </Fragment>
                 ); })}
               </div>
             </section>
@@ -10812,7 +10864,7 @@ export default function Home() {
 
             {detailTab === "technique" && <div className="detail-media-grid">
               <div className="detail-media-panel">
-                <ExerciseMedia exercise={detailExercise} variant="gym" />
+                <ExerciseMedia key={detailExercise.id} exercise={detailExercise} variant="gym" />
                 <ExerciseMediaLinks exercise={detailExercise} />
                 <div className="resource-links detail-resources">
                   {detailExercise.resources.map((resource) => (
@@ -10921,7 +10973,7 @@ export default function Home() {
             </div>}
 
             {detailTab === "log" && <div
-              className={`set-table detail-set-table ${tracksWeight(detailExercise) ? "" : "no-load"}`}
+              className={`set-table detail-set-table ${tracksPerformance(detailExercise) ? "" : "no-load"}`}
               aria-label={`${detailExercise.name} detail set log`}
             >
               <div className="set-head">
@@ -10936,7 +10988,7 @@ export default function Home() {
                 <div className="set-row" key={`${detailExercise.id}-detail-${setIndex}`}>
                   <span>{setIndex + 1}</span>
                   <strong className="target-pill">{detailMove.target.split(";")[0]}</strong>
-                  {tracksWeight(detailExercise) && <SetLoadFields exercise={detailExercise} set={set} setIndex={setIndex} onChange={updateSet} previous={detailPreviousLoad?.rows[setIndex]} />}
+                  {tracksPerformance(detailExercise) && <SetLoadFields exercise={detailExercise} set={set} setIndex={setIndex} onChange={updateSet} previous={detailPreviousLoad?.rows[setIndex]} />}
                   <label className="mini-check">
                     <input
                       type="checkbox"

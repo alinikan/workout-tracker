@@ -234,6 +234,8 @@ async function verifyInlineExperience(page, label, viewport) {
   await page.locator(".today-command-header").getByRole("button", { name: "Back to Today", exact: true }).click();
   await expect(page.locator(".today-command-date")).toContainText("Monday, Oct 5");
   const first = page.locator(".move-item").first();
+  await expect(first.locator(".today-inline-log")).toHaveCount(0);
+  await first.locator(".move-main-button").click();
   await expect(first.locator(".today-inline-log")).toBeVisible();
   // Completion intentionally unmounts this one-set inline log. Assert the row's
   // completed state rather than waiting for the removed checkbox to stay mounted.

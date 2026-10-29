@@ -65,6 +65,7 @@ html {
   --accent-soft: var(--nutrition-fill);
 }
 .coach-hub-shell {
+  gap: 12px;
   --accent: var(--weight-ink);
   --accent-strong: var(--weight-ink);
   --accent-soft: var(--weight-fill);
@@ -378,7 +379,7 @@ html {
 }
 .coach-hub-hero h1 {
   margin: 6px 0;
-  font-size: 34px;
+  font-size: 26px;
 }
 .hub-greeting {
   display: block;
@@ -387,7 +388,7 @@ html {
 }
 .hub-brand .hero-text {
   font-size: 13px;
-  margin: 8px 0 20px;
+  margin: 6px 0 12px;
   color: var(--text-secondary);
 }
 .hub-save-status {
@@ -395,15 +396,15 @@ html {
 }
 .hub-choice-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
   padding: 0;
 }
 .hub-choice-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 100px;
   align-content: space-between;
-  min-height: 210px;
+  min-height: 138px;
   padding: 20px;
   border: 0;
   border-radius: 8px;
@@ -463,6 +464,19 @@ html {
   color: var(--text-secondary);
   line-height: 1.4;
 }
+.hub-destination-progress { align-self: center; }
+.session-stage {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 22px 0 10px;
+  border-bottom: 2px solid var(--training-ink);
+  color: var(--training-ink);
+  font-size: 14px;
+  font-weight: 750;
+}
+.session-stage small { color: var(--text-secondary); font-size: 11px; font-weight: 500; }
 .hub-choice-content > .hub-next-label {
   display: block;
   color: var(--choice-ink);
@@ -841,25 +855,26 @@ html {
 /* A movement owns its header, actions, and log. No overlapping siblings. */
 .move-list {
   display: grid;
-  gap: 14px;
+  gap: 0;
 }
 .workout-entry.move-item {
   display: block;
   position: relative;
-  padding: 18px;
+  padding: 20px 0;
   margin: 0;
-  border: 1px solid var(--separator);
-  border-radius: 8px;
-  background: var(--surface-primary);
+  border: 0;
+  border-bottom: 1px solid var(--separator);
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
   content-visibility: visible;
   scroll-margin-block: 88px 110px;
 }
 .workout-entry.expanded {
-  border-color: var(--training-ink);
+  border-bottom: 2px solid var(--training-ink);
 }
 .workout-entry.complete {
-  background: var(--done-fill);
+  background: transparent;
   opacity: 1;
 }
 .workout-entry.skipped {
@@ -867,13 +882,15 @@ html {
 }
 .entry-heading {
   display: grid;
-  grid-template-columns: 60px minmax(0, 1fr) 44px;
+  grid-template-columns: minmax(0, 1fr) 52px 44px;
   gap: 14px;
   align-items: start;
 }
 .entry-thumbnail {
-  width: 60px;
-  height: 60px;
+  grid-column: 2;
+  grid-row: 1;
+  width: 52px;
+  height: 52px;
   padding: 0;
   display: grid;
   place-items: center;
@@ -898,7 +915,8 @@ html {
   background: transparent;
   color: var(--text-primary);
   border: 0;
-  grid-column: auto;
+  grid-column: 1;
+  grid-row: 1;
   text-align: left;
   align-self: start;
 }
@@ -933,8 +951,8 @@ html {
   font-weight: 450;
 }
 .workout-entry .move-check-button {
-  grid-column: auto;
-  grid-row: auto;
+  grid-column: 3;
+  grid-row: 1;
   width: 44px;
   height: 44px;
   border: 0;
@@ -1145,6 +1163,9 @@ html {
 }
 .app-shell .set-inputs > .set-field {
   grid-area: auto;
+}
+.app-shell .set-inputs:not(:has(.set-weight)) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .app-shell .set-row .mini-check {
   position: relative;
@@ -1831,14 +1852,14 @@ html {
     padding-top: 16px;
   }
   .coach-hub-hero h1 {
-    font-size: 30px;
+    font-size: 26px;
   }
   .hub-choice-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 12px;
   }
   .hub-choice-card {
-    min-height: 230px;
+    min-height: 132px;
     padding: 16px;
   }
   .hub-choice-card .hub-choice-content > strong {
@@ -1874,15 +1895,15 @@ html {
     font-size: 11px;
   }
   .workout-entry.move-item {
-    padding: 14px;
+    padding: 18px 0;
   }
   .entry-heading {
-    grid-template-columns: 48px minmax(0, 1fr) 40px;
+    grid-template-columns: minmax(0, 1fr) 44px 40px;
     gap: 10px;
   }
   .entry-thumbnail {
-    width: 48px;
-    height: 56px;
+    width: 44px;
+    height: 48px;
   }
   .move-main-button > strong {
     font-size: 16px;
