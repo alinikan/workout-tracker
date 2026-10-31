@@ -6,8 +6,8 @@
 
 // Bump CACHE_NAME and APP_VERSION whenever deploy behavior changes. A new cache name makes old
 // assets easy to delete during activate.
-const CACHE_NAME = "recomp-gym-console-v62";
-const APP_VERSION = "2026-10-31-coach-contrast-v62";
+const CACHE_NAME = "recomp-gym-console-v63";
+const APP_VERSION = "2026-10-31-coach-workload-v63";
 const APP_FALLBACK_URL = "/";
 
 // Core assets are safe to precache because they are small and required for the installed shell.

@@ -419,3 +419,27 @@ test("after migration the Diet log alone controls intake evidence, even after a 
     "the retained archive cannot override a live correction",
   );
 });
+
+test("a midweek trial change never adds two more lifts after one already performed", () => {
+  const store = app.emptyStore(start),
+    home = choose(emptyCoaching(), input());
+  const first = projected(home)[0];
+  store.days[start] = {
+    ...app.completePlanDay(first, app.normalizeDayLog()),
+    sessionSnapshot: first.session,
+  };
+  const today = addDays(start, 1);
+  const trial = choose(home, input("trial", { date: today }), today);
+  const days = projected(trial, store.days, today);
+  assert.deepEqual(
+    days[0].session,
+    first.session,
+    "performed training stays unchanged",
+  );
+  assert.equal(days[1].session.connected.kind, "trial");
+  assert.ok(
+    days.slice(0, 7).filter((d) => d.session.type === "strength").length <= 2,
+    "recorded plus planned lifts share a single weekly budget",
+  );
+  assert.equal(days[2].session.type, "recovery");
+});

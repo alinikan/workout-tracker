@@ -5763,11 +5763,31 @@ function coachPlanDays(days: PlanDay[], schedule: CoachSchedule, logs: Record<st
   const homeFrom = schedule.homeFrom;
   const completedWalkDates = Object.entries(logs).filter(([date, log]) => date <= today && log.exercises?.["home-easy-walk"]?.some(set => set.done)
     && readinessStatusFor(log.readiness) === "green" && !log.daySkipReason).map(([date]) => date).sort();
+  // A midweek class change must count strength work already performed. Without
+  // this budget, the new fit could add A/B after an earlier completed home lift.
+  const usedLifts = new Map<number, number>();
+  const actualLiftDates: string[] = [];
+  for (const day of days) {
+    const log = normalizeDayLog(logs[day.iso]);
+    const session = log.sessionSnapshot ?? day.session;
+    if (day.iso <= today && session.type === "strength" && (log.completed || Object.values(log.exercises).some(rows => rows.some(set => set.done)))) {
+      usedLifts.set(day.week, (usedLifts.get(day.week) ?? 0) + 1);
+      actualLiftDates.push(day.iso);
+    }
+  }
   return days.map(day => {
     const log = normalizeDayLog(logs[day.iso]);
     if (log.sessionSnapshot) return { ...day, session: log.sessionSnapshot };
     if (day.iso < homeFrom || log.completed || Object.values(log.exercises).some(rows => rows.some(set => set.done || set.weight || set.reps))) return day;
-    const plan = coachActivity(schedule, start, day.iso), strength = plan.activity === "strength-a" || plan.activity === "strength-b";
+    let plan = coachActivity(schedule, start, day.iso);
+    if (day.iso >= today && (plan.activity === "strength-a" || plan.activity === "strength-b")) {
+      const used = usedLifts.get(day.week) ?? 0;
+      const tooClose = actualLiftDates.some(date => date !== day.iso && Math.abs(diffDays(date, day.iso)) < 2);
+      if (tooClose) plan = { activity: "recovery", title: "Recovery after recorded training", minutes: 0, class: null };
+      else if (used >= 2) plan = { activity: "walk", title: "Easy home walk", minutes: 10, class: null };
+      else usedLifts.set(day.week, used + 1);
+    }
+    const strength = plan.activity === "strength-a" || plan.activity === "strength-b";
     const minutes = plan.activity === "walk" ? walkingMinutes(completedWalkDates, day.iso) : plan.minutes;
     const moves = strength ? coachTargets(plan.activity as "strength-a" | "strength-b") : [];
     const targets = Object.fromEntries(moves.map(move => [move.id, move.id === "wall-sit" ? move.reps : `${move.reps} controlled; leave 3–4 comfortable reps available`]));
@@ -8831,6 +8851,9 @@ export default function Home() {
           completedLifts={trainingProgress.credits}
           completedClasses={planDays.filter(day => day.iso <= calendarDate && ["trial", "class"].includes(day.session.connected?.kind ?? "") && isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso]))).length}
           days={planDays.filter(day => day.iso >= (calendarDate > store.program.startedOn ? calendarDate : store.program.startedOn)).slice(0, 7).map(day => ({ date: day.iso, title: day.session.title, kind: day.session.type, complete: isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])), skipped: Boolean(store.days[day.iso]?.daySkipReason) }))}
+          previewFor={candidate => coachPlanDays(planDays, candidate, store.days, calendarDate)
+            .filter(day => day.iso >= (calendarDate > store.program.startedOn ? calendarDate : store.program.startedOn)).slice(0, 7)
+            .map(day => ({ date: day.iso, title: day.session.title }))}
           onSave={coaching => {
             for (const [date, log] of Object.entries(store.days)) {
               if (date < calendarDate || coachActivity(coaching, store.program.startedOn, date).activity !== "class") continue;

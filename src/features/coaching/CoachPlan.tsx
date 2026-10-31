@@ -46,6 +46,7 @@ export default function CoachPlan({
   disabled,
   onSave,
   onOpenDay,
+  previewFor,
 }: {
   state: CoachSchedule;
   start: string;
@@ -56,6 +57,9 @@ export default function CoachPlan({
   disabled: boolean;
   onSave: (state: CoachSchedule) => void;
   onOpenDay: (date: string) => void;
+  previewFor?: (
+    state: CoachSchedule,
+  ) => Array<Pick<DaySummary, "date" | "title">>;
 }) {
   const id = useId();
   const [editing, setEditing] = useState(false);
@@ -137,6 +141,13 @@ export default function CoachPlan({
         choices: { ...state.choices, preview: previewChoice },
       }
     : null;
+  const previewDays = preview
+    ? (previewFor?.(preview) ??
+      Array.from({ length: 7 }, (_, n) => addDays(first, n)).map((date) => ({
+        date,
+        title: coachActivity(preview, start, date).title,
+      })))
+    : [];
   return (
     <section className="coach-plan" aria-labelledby={`${id}-heading`}>
       <header className="coach-plan-heading">
@@ -287,24 +298,20 @@ export default function CoachPlan({
             <div className="coach-schedule-preview">
               <h3>Next 7 days</h3>
               <ol>
-                {Array.from({ length: 7 }, (_, n) => addDays(first, n)).map(
-                  (date) => (
-                    <li key={date}>
-                      <span>{label(date)}</span>
-                      <strong>
-                        {coachActivity(preview!, start, date).title}
-                      </strong>
-                    </li>
-                  ),
-                )}
+                {previewDays.map(({ date, title }) => (
+                  <li key={date}>
+                    <span>{label(date)}</span>
+                    <strong>{title}</strong>
+                  </li>
+                ))}
               </ol>
             </div>
           )}
           <p className="coach-plan-muted">
             Classes replace home work. Nearby days stay light; at most two
-            well-spaced home lifts fit around classes. No make-up workouts.
-            Keep your already-cooked containers as portioned. Recorded workouts
-            stay unchanged.
+            well-spaced home lifts fit around classes. No make-up workouts. Keep
+            your already-cooked containers as portioned. Recorded workouts stay
+            unchanged.
           </p>
           <div className="coach-plan-actions">
             <button type="submit" disabled={disabled}>

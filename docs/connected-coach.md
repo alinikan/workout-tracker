@@ -35,6 +35,9 @@ a new setup. Existing private home accounts are adopted automatically without a 
   and never puts a lift on or immediately adjacent to a class date.
 - Dense class weeks may have only one home lift, or none. The app does not create make-up work
   or silently raise class frequency. Choosing fewer demands is preferable to stacking sessions.
+- Changing classes midweek counts strength work already performed toward that cycle's two-lift
+  budget. A new fit cannot add another A/B pair after an earlier completed lift. Recorded work
+  stays unchanged, and new lifts are not placed immediately after an actual strength session.
 - These are transparent, conservative software rules, not a validated individualized recovery
   model. Calendar spacing is not a guarantee of recovery. Follow your coach and actual readiness.
 - Each saved configuration takes effect today (or the future program start). Historical choices,

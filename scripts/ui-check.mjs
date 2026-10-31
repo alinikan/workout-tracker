@@ -56,7 +56,14 @@ function fixtureBackend(initial, options = {}) {
     route: async (route) => {
       const request = route.request();
       const url = new URL(request.url());
-      const send = (body, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body), headers: { "access-control-allow-origin": "*" } });
+      // Match the real API's CORS contract, including WebKit preflights after
+      // offline/clock transitions. A routed request is still cross-origin.
+      const send = (body, status = 200) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body), headers: {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "GET, POST, PATCH, DELETE, OPTIONS",
+        "access-control-allow-headers": request.headers()["access-control-request-headers"] ?? "authorization, apikey, content-type, x-client-info, prefer, accept-profile, content-profile, x-supabase-api-version",
+        "access-control-max-age": "600",
+      } });
       if (request.method() === "OPTIONS") return send({});
       if (url.pathname.endsWith("/token")) return send(authSession);
       if (url.pathname.endsWith("/user")) return send(user);
