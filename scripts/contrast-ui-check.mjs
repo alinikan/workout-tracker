@@ -262,6 +262,7 @@ export async function runContrastChecks({
       );
       await audit(page, `${label}-signed-in-account`, "#coach-account");
       await audit(page, `${label}-coach-plan`, ".coach-plan");
+      assert.equal(await page.locator(".coach-plan > button").evaluate(el => getComputedStyle(el).appearance), "none", "Coach buttons must not depend on the platform's native gray ButtonFace");
       await page.getByRole("button", { name: "Change training schedule", exact: true }).click();
       await page.getByLabel("Training setup", { exact: true }).selectOption("trial");
       await page.getByLabel("Trial date", { exact: true }).fill("2026-10-08");

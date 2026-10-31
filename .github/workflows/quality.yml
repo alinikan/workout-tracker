@@ -26,6 +26,10 @@ jobs:
         # A stalled package mirror must not consume the entire test-job budget.
         timeout-minutes: 6
         run: npx playwright install --with-deps chromium webkit
+      - name: Cross-platform color contrast preflight
+        # Catch native WebKit styling differences before the longer interaction run.
+        timeout-minutes: 5
+        run: npm run test:ui -- --contrast-only
       - name: Phone and desktop UI checks
         # Run every viewport/theme twice in fresh contexts. No automatic retry
         # may turn a missed tap into a pass; each interaction must work first time.

@@ -166,8 +166,7 @@ export default function CoachPlan({
         </div>
       </dl>
       <p className="coach-plan-muted">
-        Sets completed in Today or Gym count here automatically. Rest days need
-        no check-in.
+        Rest days are planned recovery, not workout attendance.
       </p>
       {!editing ? (
         <button
@@ -304,8 +303,8 @@ export default function CoachPlan({
           <p className="coach-plan-muted">
             Classes replace home work. Nearby days stay light; at most two
             well-spaced home lifts fit around classes. No make-up workouts.
-            Uncooked meal portions and your shopping list follow the new plan;
-            cooked food and recorded workouts stay unchanged.
+            Keep your already-cooked containers as portioned. Recorded workouts
+            stay unchanged.
           </p>
           <div className="coach-plan-actions">
             <button type="submit" disabled={disabled}>
@@ -324,8 +323,7 @@ export default function CoachPlan({
       )}
       {saved && (
         <p role="status" className="coach-plan-saved">
-          <Check size={16} aria-hidden="true" /> Schedule updated. Today, Gym
-          and Diet use this plan.
+          <Check size={16} aria-hidden="true" /> Schedule saved.
         </p>
       )}
       <details className="coach-plan-upcoming">

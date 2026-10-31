@@ -95,6 +95,34 @@ html {
   border-block: 1px solid var(--separator);
   color: var(--text-primary);
 }
+/* ButtonFace differs between macOS and Linux WebKit. Own both colors instead
+ * of inheriting a native gray background with the document's white text. */
+.coach-plan button { -webkit-appearance: none; appearance: none; }
+.coach-plan > button,
+.coach-plan-actions > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 1px solid var(--separator-strong);
+  border-radius: 6px;
+  color: var(--text-primary);
+  background: var(--surface-secondary);
+  font-weight: 650;
+}
+.coach-plan > button:hover,
+.coach-plan-actions > button:hover {
+  color: var(--text-primary);
+  background: var(--surface-tertiary);
+}
+.coach-plan-actions > button[type="submit"],
+.coach-plan-actions > button[type="submit"]:hover {
+  color: var(--selection-ink);
+  background: var(--selection-fill);
+  border-color: transparent;
+}
 .coach-plan-heading,
 .coach-plan-actions {
   display: flex;

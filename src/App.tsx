@@ -5858,6 +5858,16 @@ function qualifiesForTrainingCredit(planDay: PlanDay, log: DayLog) {
     readinessStatusFor(log.readiness) !== "red" && isPlanDayComplete(planDay, log);
 }
 
+/** After adoption, reopening a Diet meal must invalidate its intake evidence.
+ * An archived, still-checked copy must never silently undo that correction. */
+function sharedFoodEvidence(store: TrackerStore, legacy: MomentumData | null, date: string) {
+  const log = normalizeDietDayLog(store.dietDays[date]);
+  const main = foodEvidence({ eaten: log.meals, recipes: log.recipes, portions: log.portions }, "Nutrition");
+  if (store.coaching.legacyImported || main.complete) return main;
+  const old = foodEvidence(legacy?.meals[date], "Momentum");
+  return old.complete ? old : main;
+}
+
 // One forward pass supplies stable historical levels and avoids repeatedly
 // scanning years of history for every day rendered. Credits are full lifts only:
 // the routine's completed-session quota earns a level; missed calendar weeks earn none.
@@ -6732,7 +6742,7 @@ function runViewTransition(update: () => void) {
 // 26-week plans and saved progress without duplicating the coaching logic.
 export {
   buildPlanDays, emptyStore, normalizeDayLog, normalizeStore, completePlanDay,
-  connectedPlanDays, coachPlanDays, importCoachHistory, isRestDay, allowsDayEdit,
+  connectedPlanDays, coachPlanDays, importCoachHistory, isRestDay, allowsDayEdit, sharedFoodEvidence,
   withTrainingWeek, earnedTrainingWeekForDay, scheduledExercisesForDay,
   recommendedSets, targetForExercise, dayStatusForDay, firstUnfinishedMoveIndex,
   nextUnfinishedMoveIndex, proteinReferenceFromMetrics, weightTrendSignalFor,
@@ -7340,7 +7350,7 @@ export default function Home() {
     // actual lifts or the trial, without upgrading every completed rest-day walk.
     const actualLift = Boolean(workout && (recordedSession?.type === "strength" || ["trial", "class"].includes(recordedSession?.connected?.kind ?? ""))
       && Object.values(workout.exercises).some((sets) => sets.some((set) => set.done)));
-    const privateActual = Boolean(prepJourney && slots.some(slot => {
+    const privateActual = Boolean(!store.coaching.legacyImported && prepJourney && slots.some(slot => {
       const log = prepJourney.logs[slot.id];
       return log && (log.plannedActivity?.startsWith("strength") || log.plannedActivity === "boxing")
         && (log.outcome === "planned" || log.outcome === "modified" || Object.values(log.sets).some(set => set.done) || Number(log.minutes) > 0);
@@ -7356,14 +7366,7 @@ export default function Home() {
       nutrition: nutritionBudgetFor(store.nutrition, date, training, date >= calendarDate && nutritionReference > 0 ? nutritionReference : undefined),
     };
   };
-  // Read ONE complete meal source, never double-count Nutrition and Momentum.
-  // Old meals without numeric saved portions are unknown, not zero-calorie days.
-  const nutritionFoodForDate = (date: string) => {
-    const log = normalizeDietDayLog(store.dietDays[date]);
-    const main = foodEvidence({ eaten: log.meals, recipes: log.recipes, portions: log.portions }, "Nutrition");
-    const privateFood = foodEvidence(momentum.data?.meals[date], "Momentum");
-    return main.complete ? main : privateFood.complete ? privateFood : main;
-  };
+  const nutritionFoodForDate = (date: string) => sharedFoodEvidence(store, momentum.data, date);
   const nutritionEvidence: ReviewEvidence = {
     weights: nutritionWeights,
     food: Object.fromEntries(Array.from({ length: 21 }, (_, i) => { const date = addDays(calendarDate, i - 21); return [date, nutritionFoodForDate(date)]; })),
@@ -8733,7 +8736,7 @@ export default function Home() {
     const locks: Partial<Record<"main" | "breakfast" | "snack", boolean>> = {};
     for (let day = block.start; day <= block.end; day = addDays(day, 1)) {
       const diet = normalizeDietDayLog(store.dietDays[day]);
-      const privateMeal = momentum.data?.meals[day];
+      const privateMeal = store.coaching.legacyImported ? undefined : momentum.data?.meals[day];
       for (const { id: slot } of dietMealSlots) {
         // Existing legacy checkmarks do not lock a batch that was never cooked.
         const prepEaten = (diet.meals[slot] && Boolean(prepRecipeMap[diet.recipes?.[slot] ?? ""])) ||

@@ -385,3 +385,37 @@ test("future classes accept skips and notes but never early attendance", () => {
     );
   }
 });
+
+test("after migration the Diet log alone controls intake evidence, even after a meal is reopened", () => {
+  const data = emptyMomentum(),
+    store = app.emptyStore(start);
+  const slots = ["breakfast", "lunch", "snack", "dinner"];
+  const meal = { swaps: {}, eaten: {}, recipes: {}, portions: {} };
+  for (const slot of slots) {
+    meal.eaten[slot] = true;
+    meal.recipes[slot] = app.dietRecipes.find(
+      (recipe) => recipe.slot === slot,
+    ).id;
+    meal.portions[slot] = {
+      plate: ["Recorded portion"],
+      calories: 400,
+      protein: 30,
+    };
+  }
+  data.meals[start] = meal;
+  assert.equal(app.sharedFoodEvidence(store, data, start).source, "Momentum");
+  const migrated = app.importCoachHistory(store, data, start);
+  assert.equal(app.sharedFoodEvidence(migrated, data, start).complete, true);
+  assert.equal(
+    app.sharedFoodEvidence(migrated, data, start).source,
+    "Nutrition",
+  );
+  migrated.dietDays[start].meals.lunch = false;
+  assert.equal(app.sharedFoodEvidence(migrated, data, start).complete, false);
+  assert.equal(app.sharedFoodEvidence(migrated, data, start).calories, null);
+  assert.equal(
+    data.meals[start].eaten.lunch,
+    true,
+    "the retained archive cannot override a live correction",
+  );
+});

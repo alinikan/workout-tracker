@@ -84,6 +84,8 @@ shared workout records win conflicts, and meals already in the shared log are no
 Only the active journey's dates at/after the current root start are eligible. Archived journeys
 are retained, not merged into a fresh start. No migration SQL or new credentials are needed.
 The legacy sync adapter remains for archive/reset compatibility, but is not another live tracker.
+After import, the shared Diet log alone controls intake reviews and meal locks. Reopening a meal
+cannot fall back to an old still-checked private copy; archived attendance cannot override a new skip.
 
 ## Evidence And Limits
 
