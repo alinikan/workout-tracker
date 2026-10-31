@@ -1,5 +1,12 @@
 # Momentum
 
+> [!IMPORTANT]
+> **Archived interface documentation.** Momentum is no longer a separate screen.
+> Use [Coach's connected plan](connected-coach.md) for current instructions. Today/Gym now supply
+> the live attendance record and Diet supplies the meal record. Existing private rows and security
+> remain intact for one-time owner-only import/archive compatibility. The old instructions below
+> describe the retired implementation; do not install extra SQL to use the new Coach editor.
+
 **Home gym now. One confirmed trial when you are ready.**
 
 Momentum is the optional, single-owner coaching space inside Recomp. Its 90-day home routine
@@ -223,7 +230,7 @@ confirm GitHub checks and Vercel both succeed, then reopen the app. Do not clear
 | `src/App.tsx` | `connectedPlanDays` projects the private calendar into main views. Started workouts freeze `sessionSnapshot`; meal context is derived, not separately patched. |
 
 `tests/home-trial.test.mjs` covers all start weekdays, trial moves/cancellation, history, linked
-workouts/food and resets. `scripts/trial-ui-check.mjs` exercises real React/browser/API flows
+workouts/food and resets. Its replacement, `scripts/coaching-ui-check.mjs`, exercises current React/browser/API flows
 across phone/desktop themes and two independent devices. Existing suites retain legacy, offline
 merge, encryption, batch food, shared-start and actual PostgreSQL RLS/RPC coverage. Fixtures use
 synthetic accounts, never production health records; external media is blocked during these tests.

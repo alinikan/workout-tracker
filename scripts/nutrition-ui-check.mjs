@@ -154,20 +154,14 @@ export async function runNutritionChecks({
       await page.screenshot({
         path: `outputs/ui-check/nutrition-${name}-${colorScheme}.png`,
       });
-      await page.locator(".momentum-entry").click();
-      await page
-        .getByRole("navigation", { name: "Momentum sections" })
-        .getByRole("button", { name: "Meals", exact: true })
-        .click();
+      await navigate(page, "Diet");
       await expect(page.locator(".mp-personal-target")).toContainText(
         "1,950 kcal",
       );
       await expect(
-        page.getByRole("button", { name: "Mark eaten: Lunch", exact: true }),
+        page.getByRole("button", { name: "Reopen Lunch", exact: true }),
       ).toBeVisible();
-      await page
-        .getByRole("button", { name: "Back to Coach Hub", exact: true })
-        .click();
+      await navigate(page, "Coach");
       await page.reload();
       await expect(page.locator(".nutrition-coach .nc-targets")).toContainText(
         "1,950",
@@ -175,7 +169,7 @@ export async function runNutritionChecks({
       assert.deepEqual(errors, []);
       await context.close();
       console.log(
-        `PASS nutrition ${name}/${colorScheme}: profile, real recipe quantities, no invented weigh-in, honest extras, saved meal evidence, shared Momentum target and reload`,
+        `PASS nutrition ${name}/${colorScheme}: profile, real recipe quantities, no invented weigh-in, honest extras, one shared meal record and reload`,
       );
     }
   }

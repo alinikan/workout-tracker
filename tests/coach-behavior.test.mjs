@@ -453,6 +453,11 @@ test("whole-day skipping works throughout the program, including recovery and ac
     const before = structuredClone(log);
     const skipped = model.skipPlanDay(day, log, "time");
     assert.deepEqual(log, before, "skipping must not mutate the source log");
+    if (model.isRestDay(day)) {
+      assert.equal(skipped.daySkipReason, undefined, "rest is never a skipped workout");
+      assert.equal(skipped.notes, log.notes);
+      continue;
+    }
     assert.equal(model.dayStatusForDay(day, skipped), "skipped", day.iso);
     assert.equal(skipped.completed, false);
     assert.equal(model.isPlanDayComplete(day, skipped), false);
@@ -561,7 +566,8 @@ test("past-date rollover records forgotten weights without treating them as zero
 
   const afterProgram = model.reconcilePastTracking(days, model.emptyStore(), "2027-03-01");
   assert.equal(model.isWeightForgotten(afterProgram.metrics[days.at(-1).iso]), true);
-  assert.equal(model.normalizeDayLog(afterProgram.days[days.at(-1).iso]).daySkipReason, "forgotten");
+  assert.equal(model.normalizeDayLog(afterProgram.days[days.at(-1).iso]).completed, true, "the final recovery day closes automatically");
+  assert.equal(model.normalizeDayLog(afterProgram.days[days.at(-1).iso]).daySkipReason, undefined);
 });
 
 test("past-date rollover skips only unresolved workout moves after partial work", () => {

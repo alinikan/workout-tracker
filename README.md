@@ -28,7 +28,7 @@
 - [Session Experience](#session-experience)
 - [App Sections](#app-sections)
 - [Batch Cooking](#batch-cooking)
-- [Private Momentum Journey](#private-momentum-journey)
+- [Connected Coach Plan](#connected-coach-plan)
 - [How The Program Works](#how-the-program-works)
 - [Knee And Hip Friendly Lower Body](#knee-and-hip-friendly-lower-body)
 - [Tech Stack](#tech-stack)
@@ -63,7 +63,7 @@ The app ships with:
 - A Coach Hub for sign-in, morning weigh-ins, and weight trend review.
 - A Gym Mode that shows the current exercise, current set, target, video, GIF option, and completion controls.
 - Cloud sync through Supabase so the same account can be used on iPhone, MacBook, and any other device.
-- An optional **Momentum** journey: a separately authorized, private **90-day home-gym routine**, with one optional, confirmed Titan trial. Three destinations: **Today, Meals, Journey**.
+- A **connected Coach plan**: home training, a flexible Muay Thai trial or recurring weekly classes. Today and Gym share attendance; Diet and shopping follow the same schedule.
 
 > [!NOTE]
 > The original training and nutrition ideas were converted into app data. A new user does not need any external file to understand or use the project. The program, meals, recipes, cues, videos, swaps, and progression rules are already inside the app.
@@ -87,7 +87,7 @@ That means the interface favors:
 
 ---
 
-## Private Momentum Journey
+## Connected Coach Plan
 
 > [!NOTE]
 > **Rebuilt app interface:** One phone dock / desktop rail, a set-by-set Today workflow,
@@ -98,45 +98,37 @@ That means the interface favors:
 > [!TIP]
 > **Personal Nutrition Coach:** Coach can now estimate an initial calorie/protein target from a
 > confirmed adult profile, ordinary activity and logged weights. Real recipe portions, cooking
-> quantities and groceries follow the target in Nutrition and Momentum. Daily food/energy check-ins
+> quantities and groceries follow the target in Diet. Daily food/energy check-ins
 > support cautious weekly reviews; no weight-loss guarantee or automatic escalating food cuts.
 > Read the [complete nutrition guide](docs/nutrition-coach.md) for setup, calculations, limitations,
 > evidence requirements and what stays preserved. Existing accounts need **no new SQL or keys**.
 
-**Start small. Show up. Get stronger.** Momentum is an optional experience reached from Coach Hub,
-with a 90-day home-gym calendar, actual attendance, meals and recovery. An active home plan also
-supplies the schedule in Workout Today, Gym, Week and Nutrition, so these views agree about the day.
-Workout and Momentum attendance logs remain separate; a shared schedule does not duplicate checkmarks.
-Its guided Today flow follows **Plan → Session → Finish**. One movement appears at a time,
-with real set logging, a smaller-session option and a clear saved result. Three navigation items
-keep daily tasks separate from planning: Today, Meals and Journey.
+**Plan in Coach. Train in Today or Gym. Eat from Diet.** There is no separate Momentum screen
+or second set of attendance checkboxes. **Coach → Training & Muay Thai → Change training schedule**
+is the single place to choose home training, one confirmed trial or regular classes.
 
 | Boundary | How It Works |
 | --- | --- |
-| Private account | An administrator grants exactly one Supabase authentication UID. RLS and restricted server functions enforce access; hiding a button is not the security boundary. |
-| Connected start | Start on any weekday. Coach's confirmed Start Fresh date also restarts Momentum at Week 1; Momentum settings opens the same confirmation. First-time onboarding still requires an explicit start. |
-| Guided session | Plan, follow one movement at a time, then save the actual result. Next never marks a set complete. Partial work resumes without a questionnaire; feedback is optional. |
-| Home first | Two manageable strength sessions per seven-day cycle; Day 1 is Strength A, even when the start is not Monday. Two working sets per movement, with lighter practice first. |
-| One flexible trial | Add a confirmed date and optional time when ready. Preview that week before saving. Move or remove an unperformed trial; no recurring classes are assumed. |
-| Earned progress | No calendar-based load jump. Home training weeks require two fully completed lifts; missed weeks earn none. Load suggestions remain optional and history-based. |
-| Honest records | Planned, smaller, missed and stopped sessions are distinct. Finishing one set never completes the others. No catch-up workout is owed. Pauses can be resumed in Settings. |
-| Original data intact | Workout attendance and meal checks stay separate. Nutrition and Momentum share cooking batches and groceries; Coach's kg weigh-ins are the shared weight source. |
-| Connected meals | The trial uses training-day portions for uncooked batches and offers meal timing guidance. Eaten meals and already-cooked containers keep their quantities. |
+| Shared record | Today and Gym update the same dated workout. Completing required sets updates Coach and Progress automatically. Classes count as attendance, not lifting credit. |
+| Home first | Two manageable home lifts per seven-day program cycle, starting on any weekday. Bodyweight quads, machine press, supported dumbbell row, arms and floor work remain equipment-aware. |
+| One flexible trial | Choose a date, optional time and class-slot duration. The class replaces home training; adjacent days stay light. |
+| Regular classes | Choose a start date, one or two non-consecutive weekdays, time and introduction/beginner level. Preview seven days before saving. No hardcoded dates, live timetable claims or automatic bookings. |
+| Realistic workload | At most two well-spaced home lifts fit around class days. Busy class weeks can contain fewer lifts. Displaced lifts are not crammed elsewhere or owed as catch-up work. |
+| Earned progress | Two fully completed home lifts earn one training level. After eight completed home lifts, the main press and row can receive a third set; warm-ups, arms and floor work do not all grow at once. Readiness can reduce work. Weight increases still use actual performance. |
+| Automatic rest | Rest requires no completion button. Past rest days close automatically and old skipped-rest flags are repaired. Rest never earns a lifting credit. Easy walks are actual activities, not automatic attendance. |
+| Connected meals | Planned classes/lifts use the training-day budget; rest uses the recovery-day budget. Skips and actual work are considered. Uncooked batch amounts and groceries update; cooked containers and eaten-meal snapshots stay fixed. |
+| One start | Start Fresh resets the shared schedule to home-only, clears class choices and uses the chosen start date. It requires the existing destructive confirmation. Installing this update does not reset anything. |
 
 > [!IMPORTANT]
-> **GitHub/Vercel deployment alone does not enable Momentum.** Install
-> [`supabase/migrations/20261023_momentum.sql`](supabase/migrations/20261023_momentum.sql),
-> then grant your existing authentication UID privately in the dashboard. No new environment
-> variable or service-role key belongs in the browser. Other accounts see no entry.
+> **No new SQL, keys or access grants are required for Coach planning.** New choices use the
+> existing account-owned `workout_progress` JSON document and its row-level security. The old
+> private table is retained for compatibility, not deleted. Existing authorized users get a
+> one-time import of compatible activity/meal history; existing shared entries win conflicts.
 
-Read the [complete Momentum setup and user guide](docs/momentum.md) for step-by-step SQL Editor
-instructions, authorization/revocation, start and pause controls, all 90 days, calendar reminders, sync and testing. See the [Titan membership research](docs/titan-membership.md) for dated prices, honest cash-versus-credit comparisons and unresolved terms.
-Private device drafts are encrypted with a session-scoped key: sync before closing an offline
-session. Background push notifications and progress-photo storage are not configured.
-
-Already using the shared-start save function? **This home/trial update needs no SQL, keys or account reset.**
-Older installations need the existing [`20261026_shared_start.sql`](supabase/migrations/20261026_shared_start.sql)
-function upgrade. The client adopts the home routine without deleting past sessions, meals or weigh-ins.
+Read the [connected Coach guide](docs/connected-coach.md) for scheduling, progression, migration,
+sync, evidence and limitations. The [old Momentum documentation](docs/momentum.md) is an archive,
+not current setup instructions. [Titan membership research](docs/titan-membership.md) is dated
+research, not a live price/timetable feed. Confirm classes with the gym.
 
 <details>
 <summary><strong>Quick start: home gym now, one trial later</strong></summary>
@@ -144,16 +136,14 @@ function upgrade. The client adopts the home routine without deleting past sessi
 1. Open **Coach settings → Start fresh** only when you actually want to clear the shared workout,
    meal and weight history. Choose your start date and read the confirmation. Momentum's former
    private journey is archived; this software update itself never performs a reset.
-2. Open **Momentum**. Today presents the home session for that date. The first two weeks contain
-   four home strength sessions, easy walks and recovery, with no assumed class appointment.
-3. Once Titan confirms a visit, open the **Titan row → Trial date**. Set the date and, if known,
-   the time. Review the week preview and press **Save trial date**.
-4. That date becomes the trial in both schedules. The day after is recovery; a lift immediately
-   before becomes easy movement. No missed lift is squeezed elsewhere. Meal prep and groceries
+2. Open **Today** to follow the movements and log real sets. Coach and Progress use those same records.
+3. Once Titan confirms a visit, open **Coach → Change training schedule → One Muay Thai trial**.
+   Set its date and optional time, review the preview and press **Save schedule**.
+4. The class replaces home training on that date. Nearby days stay light. Meal prep and shopping
    adapt only where food has not already been cooked or eaten.
-5. Use **Remove trial date** or save another date if plans change. A visit with actual activity
-   stays locked as history. After trying the class, continue the home routine until you deliberately
-   make a new longer-term plan; the app does not enroll you in recurring classes.
+5. To cancel future classes, save **Home gym only**. To continue after the trial, explicitly save
+   **Weekly Muay Thai classes** with the days you actually intend to attend. Record attendance in
+   Today after going. Nothing is booked or purchased by this app.
 
 </details>
 
@@ -321,8 +311,8 @@ It includes:
 
 ## Batch Cooking
 
-**One main recipe. Two meals a day. A few days covered.** Nutrition and Momentum now share
-the same rolling batch calendar. The default is **2 days = 4 main portions**, with **3 days =
+**One main recipe. Two meals a day. A few days covered.** Diet uses one rolling batch
+calendar. The default is **2 days = 4 main portions**, with **3 days =
 6 main portions** as an option. Breakfast jars and simple snacks repeat within each batch, too.
 Variety comes between batches, not from buying ingredients for fourteen different main dishes.
 
@@ -347,8 +337,8 @@ Variety comes between batches, not from buying ingredients for fourteen differen
 - Raw meat assumes roughly **75% cooked yield**, and dry rice roughly **3x cooked weight**.
   These are estimates, not promises. Weigh the actual cooked output and divide it in the dated
   proportions. Potatoes/vegetables are bought by raw weight and divided by their planned shares.
-- Seven-day shopping buys **complete batches** that intersect that period. The displayed range
-  names any extra boundary days, rather than claiming that eight or nine days of groceries are seven.
+- Two-/three-week shopping buys **complete batches** that intersect that period. The displayed range
+  names any extra boundary days rather than hiding them in the ingredient totals.
 - A shopping check means **have/bought**, not eaten. New quantity/range keys prevent an old list
   from appearing purchased when the next batch needs different amounts.
 - Prepared batches do not ask you to buy their ingredients again. Cook batch still shows their
@@ -356,9 +346,9 @@ Variety comes between batches, not from buying ingredients for fourteen differen
   Freeze safely handled surplus; a new plan never marks leftover containers eaten automatically.
 - If one device records cooking while another swaps an older uncooked copy, the cooking record
   wins as a whole. Two different cooking records are retained with a visible conflict warning.
-- Diet and Momentum share the batch calendar, choices, preparation record and groceries through
-  `workout_progress`. Their existing eaten checkmarks remain separate; new checks save recipe and
-  portion snapshots in their existing respective records. An old eaten meal is never relabeled as
+- Diet stores the batch calendar, choices, preparation record, groceries and eaten checks through
+  `workout_progress`. Old private eaten checks are imported once into the same account's Diet log;
+  new checks save recipe and portion snapshots. An old eaten meal is never relabeled as
   a new recipe. Earlier individual-day meals and swaps remain available in history.
 - The first batch starts when an older installation opens this update. It is not tied to a fixed
   month, a Monday, or the 26 earned workout weeks. No data reset or new SQL is needed.
@@ -378,8 +368,8 @@ validation, recipe sources, storage assumptions and tests. The approach follows
 
 Developers can verify the isolated two-device meal flow with `npm run test:ui -- --batch-only`.
 It covers offline meal/grocery edits, account reload, prepared quantities after a weight change,
-shared Momentum food, separate eaten records, legacy history and future-date guards. The default
-UI command includes this test alongside the workout, Momentum and contrast suites.
+one shared food log, legacy history and future-date guards. The default
+UI command includes this test alongside the workout, Coach and contrast suites.
 
 ---
 
@@ -387,9 +377,9 @@ UI command includes this test alongside the workout, Momentum and contrast suite
 
 The program is built for a true beginner who wants to train seriously for six months. The first month is deliberately smaller so the user can learn machines, setup, breathing, bracing, pain-free range of motion, logging, and recovery. After that, the app adds work gradually.
 
-With an active Momentum home routine, use the [home-first schedule](docs/momentum.md#home-rhythm)
-and one optional confirmed trial. The table and training blocks below describe the **original
-standalone routine**, retained for accounts without that private plan and for historical records:
+With a connected home routine, use the [Coach schedule](docs/connected-coach.md), with an optional
+trial or chosen weekly classes. The table and training blocks below describe the **original
+standalone routine**, retained for older accounts until they change setup and for historical records:
 
 | Day | Focus |
 | --- | --- |
@@ -419,7 +409,7 @@ The app separates **calendar week** from **earned training week**. Calendar Week
 lifts still uses Training Week 1. Two completed home lifts (three in the original standalone routine)
 earn Week 2 for the next unstarted workout. No calendar deadline removes your chance to finish.
 
-With an active Momentum home routine, two fully completed strength sessions earn one week; 52 earn
+With a connected home routine, two fully completed strength sessions earn one week; 52 earn
 26 training weeks. The original standalone routine uses three and 78 respectively. Cardio, recovery
 replacements, skipped days and partial lifts remain visible but do not earn full strength credit.
 Calendar dates still organize meals, weigh-ins and weekly averages. The home routine starts with
@@ -435,21 +425,21 @@ The app freezes a day's training level when you first edit it. Backfilling older
 2. Scroll to **Need a fresh start?** and select **Start fresh**.
 3. Choose today or a future start date. Read the list of data that will be cleared.
 4. Type `RESET`, then select **Reset & start fresh**. Canceling does not change anything.
-5. Keep the app open until Coach shows **Synced across devices** and the fresh-start pending notice disappears. Momentum acknowledges the same date after the main progress record syncs. If offline, the fresh start saves locally and remains pending until both sections confirm it.
+5. Keep the app open until Coach shows **Synced across devices** and the fresh-start pending notice disappears. The schedule and tracking share one root reset. If a legacy private archive exists, its compatibility adapter also acknowledges the reset without importing old work into the new routine.
 6. Open your other updated devices online so they receive the new program.
 
 > [!WARNING]
 > A reset removes this account's workout, diet, weigh-in, note, swap, skip, achievement, and preference history. It cannot be undone in the app. Your Supabase user, email/password, and signed-in session stay intact. This clears app data in the account's progress row; it does not erase backups retained by your hosting provider.
 
-**Momentum uses that exact date too, even when it is not a Monday.** Its active calendar restarts at
-Week 1 with 90 new home-first days and no assumed trial. Previous private journeys and their meals
-are archived. No old completion checks, pauses or trial date are carried into the new routine.
-Workout and Momentum still record attendance separately; sharing a start and schedule does not
-equate their attendance.
+**Coach, Today, Gym and Diet use that exact date, even when it is not a Monday.** The calendar
+restarts with home training and no assumed classes. Old class choices and old attendance are not
+carried into the fresh routine. Previous private journeys remain archived, not deleted.
 
-Every reset has its own generation ID. Updated clients choose the root reset document as a whole instead of merging old history into it, including when an old save was already in flight. Momentum derives one deterministic journey ID from that generation, retains archived history, and rejects an old active journey winning a later sync. If two devices restart offline, the later reset wins when synced. Ordinary edits within the same generation still merge normally. **Update/reopen all installed app copies before resetting; old code cannot honor a protocol it does not know.**
+Every reset has its own generation ID. Updated clients choose the root reset document as a whole instead of merging old history into it, including when an old save was already in flight. The legacy archive adapter retains its reset-aware history; it is not a separate live schedule. If two devices restart offline, the later reset wins when synced. Ordinary edits within the same generation still merge normally. **Update/reopen all installed app copies before resetting; old code cannot honor a protocol it does not know.**
 
-Existing Momentum installations must run [`supabase/migrations/20261026_shared_start.sql`](supabase/migrations/20261026_shared_start.sql) once in SQL Editor before deploying this update. It replaces only the private save function: no progress rows, owner permissions, tables or RLS policies are changed. Fresh installations already include it. No new environment variable or account recreation is required. An unapplied Start Fresh made after the existing Momentum journey was created is picked up automatically; do not reset your account again just to repair the old date mismatch.
+This Coach update requires no new SQL or credentials. The old private migrations remain archived
+for installations that already use those tables; do not drop them or change access just to update
+the interface. A deployment does not reset any records.
 
 ### Month 1 Strength Sessions
 
@@ -1089,18 +1079,20 @@ workout-tracker/
 | `src/lib/presentationState.ts` | Pure conditional Undo and honest save-presentation helpers. |
 | `src/experience.css` | Coordinated session layouts, semantic colors, measured mobile controls, and keyboard/motion fallbacks. |
 | `docs/session-experience.md` | Detailed guide to the 12 interface improvements and their testing boundaries. |
-| `src/features/momentum/` | Independently authorized private journey, safety, calendar, coaching and revisioned sync. |
+| `src/features/coaching/` | Live Coach editor and date-effective home/trial/recurring-class planner using the shared account record. |
+| `src/features/momentum/` | Legacy plan definitions, private archive and migration/sync compatibility. Its former UI is no longer routed or bundled. |
 | `src/features/momentum/sharedStart.ts` | Projects a confirmed root reset into one dated private journey while archiving the previous journey and private food records. |
 | `src/features/mealPrep/recipes.ts` | Structured batch recipes, shared grocery identities and explicit nutrition assumptions. |
 | `src/features/mealPrep/plan.ts` | Rolling 2/3-day calendar, per-date portions, prepared snapshots and exact grocery aggregation. |
 | `src/features/mealPrep/MealPrepPlanner.tsx` | Shared Eat today / Cook batch / To buy interface for both nutrition destinations. |
 | `docs/meal-prep.md` | Batch cooking workflow, arithmetic, food safety sources and migration details. |
 | `tests/meal-prep.test.mjs` | Deterministic date, quantity, recipe-selection, validation and prepared-batch tests. |
-| `docs/momentum.md` | Administrator setup, user guide, privacy model, evidence and maintenance. |
+| `docs/connected-coach.md` | Current Coach scheduling, shared attendance, recovery rules, data migration and limitations. |
+| `docs/momentum.md` | Archived documentation for the retired private screen and its existing database. |
 | `supabase/migrations/20261023_momentum.sql` | Additive Momentum allowlist, RLS and restricted read/write functions. Does not change the original table. |
 | `supabase/migrations/20261026_shared_start.sql` | Function-only update for any-weekday starts and account-verified shared reset metadata; preserves existing records, grants and RLS. |
 | `tests/momentum.test.mjs` | Starter-plan behavior, clinical gates, real PostgreSQL RLS/CAS checks and private-cache tests. |
-| `scripts/momentum-ui-check.mjs` | Private-feature onboarding, phone/desktop layout, meals, safety, offline and multi-device checks. |
+| `scripts/coaching-ui-check.mjs` | Shared attendance, legacy import, trial/regular planning, phone/desktop layout and offline/two-device checks. |
 | `tests/coach-behavior.test.mjs` | Runs actual calendar, coaching, completion, weight, and merge functions using synthetic data. |
 | `tests/service-worker.test.mjs` | Exercises offline recovery, failed responses, and cache cleanup using controlled fixtures. |
 | `.github/workflows/quality.yml` | Runs checks on pushes to main and pull requests without production credentials. |
@@ -1182,17 +1174,17 @@ npx playwright install chromium webkit
 npm run test:ui
 # Run all six configurations twice, as GitHub Actions does:
 npm run test:ui -- --repeat=2
-# Focused Momentum checks while developing this optional feature:
-npm run test:ui -- --momentum-only
+# Focused Coach scheduling, attendance and migration checks:
+npm run test:ui -- --coaching-only
 # Focused one-off trial editing and cross-device scheduling checks:
 npm run test:ui -- --trial-only
-# Run only the full-view color contrast audits (including sign-in and Momentum).
+# Run only the full-view color contrast audits (including sign-in and Coach).
 npm run test:ui -- --contrast-only
 ```
 
 This starts its own local Vite server with `.env` loading disabled, uses synthetic data and a mocked Supabase API, and closes the server afterward. It checks WebKit at 402 px and 375 px plus Chromium at MacBook dimensions, in light and dark appearance with both normal and reduced motion. It exercises Today logging, swap/revert, selected-control and caption contrast (4.5:1 minimum), Gym, Diet, the earned journey map, reset confirmation/cancellation, cross-tab resets, and two-device reset/reconnection through the actual sync client. External media requests are blocked for deterministic fixtures; these screenshots do not validate the remote videos or food photos. Screenshots go to the Git-ignored `outputs/ui-check/` folder. WebKit emulation is useful regression coverage, not a substitute for checking a real iPhone Home Screen app after deployment.
 
-The test-only `@axe-core/playwright` engine additionally audits WCAG text contrast across authentication, filled inputs, live theme changes, expanded weight history, Today, Gym, Week, Library, Nutrition, shopping, completed meals, dialogs and Momentum. Normal text needs at least **4.5:1** and qualifying large text **3:1**. The default UI command runs these audits in CI; `--contrast-only` is the faster focused command. `outputs/ui-check/contrast-report.json` records detected failures and cases needing manual review. Automated checks supplement visual inspection; they are not a claim of complete accessibility certification. Native iPhone password autofill still merits a device check.
+The test-only `@axe-core/playwright` engine additionally audits WCAG text contrast across authentication, filled inputs, live theme changes, expanded weight history, Today, Gym, Week, Library, Nutrition, shopping, completed meals, dialogs and Coach. Normal text needs at least **4.5:1** and qualifying large text **3:1**. The default UI command runs these audits in CI; `--contrast-only` is the faster focused command. `outputs/ui-check/contrast-report.json` records detected failures and cases needing manual review. Automated checks supplement visual inspection; they are not a claim of complete accessibility certification. Native iPhone password autofill still merits a device check.
 
 The behavioral tests execute the actual app functions and a server-rendered Coach Hub, using synthetic data with environment loading disabled. They verify:
 

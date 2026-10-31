@@ -61,13 +61,12 @@ export async function runRedesignChecks({
       await expect(page.locator(".account-row")).toContainText(
         "fixture@example.test",
       );
-      await expect(page.locator(".momentum-entry")).toBeVisible();
-      assert.equal(
-        await page
-          .locator(".momentum-entry")
-          .evaluate((el) => getComputedStyle(el).textAlign),
-        "left",
-        `${name}/${colorScheme}: Momentum shortcut text must share a left edge`,
+      await expect(page.locator(".coach-plan")).toBeVisible();
+      assert.ok(
+        ["left", "start"].includes(await page
+          .locator(".coach-plan")
+          .evaluate((el) => getComputedStyle(el).textAlign)),
+        `${name}/${colorScheme}: Coach planning text must share a left edge`,
       );
       await page.evaluate(() => window.scrollTo(0, 0));
       await settlePresentation(page);

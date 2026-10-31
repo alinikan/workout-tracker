@@ -127,7 +127,10 @@ export function useMomentum(
       const permission = await supabase.rpc("momentum_access");
       if (!stillHere()) return;
       if (permission.error || permission.data !== true) {
-        if (permission.data === false || permission.error?.code === "42501") {
+        if (permission.data === false || ["42501", "PGRST202", "42883"].includes(permission.error?.code ?? "")) {
+          // The retired private module is optional on fresh installations.
+          // A missing RPC means there is no archive to import, not that the
+          // shared Coach/Workout/Diet features require more SQL or permissions.
           clearPrivateCache();
           base.current = null;
           commit({

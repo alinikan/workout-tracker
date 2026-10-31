@@ -182,13 +182,8 @@ export async function runBatchChecks({
   ).toHaveText(ingredients, { useInnerText: true });
   assert.deepEqual(backend.snapshot().mealPrep.blocks["2026-10-26"], original);
 
-  // Momentum uses that same prepared dish, while its eaten checks stay private.
-  await navigate(b, "Coach");
-  await b.locator(".momentum-entry").click();
-  await b
-    .getByRole("navigation", { name: "Momentum sections" })
-    .getByRole("button", { name: "Meals", exact: true })
-    .click();
+  // One Diet log now supplies every view, rather than separate private checks.
+  await section(b, "Eat today");
   await expect(
     planner(b)
       .getByRole("article", { name: "Lunch", exact: true })
@@ -198,34 +193,29 @@ export async function runBatchChecks({
     .getByRole("button", { name: "Mark eaten: Breakfast", exact: true })
     .click();
   await expect
-    .poll(() => backend.privateSnapshot().meals["2026-10-26"]?.eaten.breakfast)
+    .poll(() => backend.snapshot().dietDays["2026-10-26"]?.meals.breakfast)
     .toBe(true);
   assert.equal(
     backend.snapshot().dietDays["2026-10-26"].meals.breakfast,
-    false,
+    true,
   );
   await section(b, "To buy");
   await expect(planner(b)).toContainText("1 prepared batch omitted");
   await expect(planner(b).getByRole("button", { name: "2 weeks", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(planner(b).locator(".mp-grocery input").first()).toBeVisible();
-  await planner(b).getByLabel("Meal date", { exact: true }).fill("2026-10-27");
+  await b.locator(".diet-day-button").filter({ has: b.locator("strong").filter({ hasText: /^27$/ }) }).click();
   await section(b, "Eat today");
   await expect(
     planner(b)
       .locator(".prep-legacy-meal")
       .getByRole("button", { name: "Mark eaten", exact: true }),
   ).toBeDisabled();
-  await planner(b).getByLabel("Meal date", { exact: true }).fill("2026-10-25");
-  await expect(planner(b).locator(".prep-legacy-meal")).toHaveCount(4);
-  await expect(planner(b)).toContainText(
-    "Saved meals from before batch planning",
-  );
-  await planner(b).getByLabel("Meal date", { exact: true }).fill("2026-10-26");
-  await assertLayout(b, "batch-shared-momentum");
-  await b.screenshot({ path: "outputs/ui-check/batch-shared-momentum.png" });
+  await b.locator(".diet-day-button").filter({ has: b.locator("strong").filter({ hasText: /^26$/ }) }).click();
+  await assertLayout(b, "batch-shared-diet");
+  await b.screenshot({ path: "outputs/ui-check/batch-shared-diet.png" });
   failures.forEach((errors) => assert.deepEqual(errors, []));
   for (const context of contexts) await context.close();
   console.log(
-    "PASS batch: cross-device choices, offline meal/groceries, reload, frozen cooked quantities, shared Momentum plan and separate eaten records",
+    "PASS batch: cross-device choices, offline meal/groceries, reload, frozen cooked quantities and one shared eaten record",
   );
 }

@@ -4,9 +4,9 @@
 the clock, browser storage, authentication, workout history or Momentum data, and
 does not write to either existing tracker. UI and persistence are separate work.
 `recipes.ts` is a separate structured catalog; existing Diet recipe IDs and the
-legacy rotation remain available to interpret saved food history. With an active Momentum home
-routine, the UI passes that routine's training/rest context into this engine; a confirmed one-off
-trial counts as training. No trial date is inferred from a weekday. Moving/removing the visit
+legacy rotation remain available to interpret saved food history. The UI passes the connected
+Coach schedule's training/rest context into this engine; confirmed trials and regular class dates
+count as training. No trial date is inferred from a weekday. Moving/removing the visit
 recomputes uncooked portions and groceries, while prepared batches and eaten meals retain snapshots.
 
 ## Everyday Workflow
@@ -16,7 +16,7 @@ calorie/protein budget. Old cooked contexts remain reproducible; new targets cha
 food. See [Personal Nutrition Coach](nutrition-coach.md) for the formula, boundaries and review rules.
 Without a profile, the original bounded weight/training-day portion behavior below remains active.
 
-1. Open **Nutrition**, or **Momentum → Meals**. They show the same batch choices.
+1. Open **Diet**. It is the single live meal tracker; the former Momentum screen is retired.
 2. In **Cook batch**, keep the default two days or choose three before starting.
    Choose one main dish for all lunches/dinners. Swap breakfast only if wanted;
    there is no requirement to invent another breakfast each morning.
@@ -315,11 +315,11 @@ measure actual fridge temperature or prove the food is safe.
 
 ## Integration And Preserved History
 
-Persist one canonical shared `MealPrepState`; pass it and narrow prep-specific
-callbacks to Diet and Momentum. Do not maintain two competing copies in their
-separate sync documents. Do not copy Momentum's private meal or profile history
-into ordinary storage. Define which prep choices are intentionally shared and
-gate edits until the correct account's shared store has loaded.
+Persist one canonical shared `MealPrepState`; pass it and narrow prep-specific callbacks to Diet.
+Do not maintain competing live copies in separate sync documents. The authorized owner requested
+retirement of Momentum: its eaten checks now receive a one-time import into that same account's
+Diet log. The private source is retained; profiles and other users' data are not copied. Gate edits
+until the correct account's shared store has loaded. See [connected Coach](connected-coach.md).
 
 This engine does not rewrite `weeklyDietMealMap`, `dietDays`, Momentum's `meals`,
 eaten booleans, per-day swaps, notes or workout progress. **Preservation is an
@@ -328,7 +328,7 @@ Use precedence: recorded eaten-recipe snapshot, explicit validated same-slot
 swap, dated prep assignment, legacy weekday default. Before enabling/replanning
 prep, preserve affected already-eaten recipes and their served portions; old
 boolean-only logs cannot reconstruct food that was never recorded. Keep each
-mode's eaten/swaps private and separate unless an explicit migration is agreed.
+old source's archive intact; new eaten/swaps use the shared Diet log after the agreed migration.
 
 Apply prep to open future slots only by default. Never install it by overwriting
 day swaps or by calling existing swap handlers, since those clear eaten flags.

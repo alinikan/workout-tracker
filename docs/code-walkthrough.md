@@ -17,7 +17,7 @@ Workout Tracker is a React + TypeScript Progressive Web App. Its original three 
 | Coach Hub | Account sign-in, sync status, daily kg weigh-ins, weight chart, and weekly averages. |
 | Workout | Today, Gym Mode, weekly planner, progress dashboard, and exercise library. |
 | Diet | Daily meal cards, recipe steps, meal swaps, pre-workout fueling, and weekly to-buy list. |
-| Momentum (optional/private) | A separately authorized 90-day home-first journey. Its active calendar supplies Workout/Nutrition scheduling; activity logs remain separate. One optional confirmed trial, never assumed weekly classes. |
+| Connected Coach plan | Home-first, one trial or recurring weekly classes. Today/Gym are the shared workout record; Diet is the meal record. The calendar grows beyond the initial six-month preview. |
 
 The app saves progress in two layers:
 
@@ -27,10 +27,10 @@ The app saves progress in two layers:
 That design lets the app work in a gym with weak reception while still giving account-based syncing
 when the network is available.
 
-Momentum uses a different boundary: live single-account authorization before entry, an independent
-revisioned cloud document, and encrypted session-key device drafts. Its offline tradeoffs are
-intentional; do not copy original plaintext persistence into this private feature. See
-[Momentum setup and architecture](momentum.md#privacy-and-sync-architecture).
+The retired Momentum store retains its independent authorization and encrypted archive drafts.
+Its owner-only adapter imports compatible records once into that owner's normal workout/diet
+account document, never another account. New scheduling uses the existing `workout_progress` RLS
+boundary. See [connected Coach](connected-coach.md) and the [legacy archive](momentum.md).
 
 ## File-By-File Guide
 
@@ -38,12 +38,13 @@ intentional; do not copy original plaintext persistence into this private featur
 | --- | --- |
 | `src/App.tsx` | Main application logic, data, helpers, and UI. This is the product brain. |
 | `src/components/WorkoutMove.tsx` | Isolated movement header/actions and inline-log composition. Receives domain callbacks without owning saved records. See the [rebuilt interface guide](app-interface.md). |
-| `src/features/momentum/` | Scoped private feature; pure plan/safety/coaching modules, independent sync hook and lazy UI. |
+| `src/features/coaching/` | Current dated schedule rules and explicit Coach editor. Shared completion drives its counters. |
+| `src/features/momentum/` | Legacy home movement definitions, private archive sync and compatibility. The old UI is no longer imported by App. |
 | `src/features/nutrition/` | Shared profile, estimated targets, ingredient calculations and evidence-backed reviews. Values live in the owner-bound progress row, never source defaults. See the [nutrition guide](nutrition-coach.md). |
 | `src/features/momentum/trial.ts` | Pure home-plan creation, non-destructive legacy adoption, one-off trial validation and adjacent-day/fueling projections. Cancellation is a timestamped tombstone for offline merges. |
-| `src/features/momentum/TrialPanel.tsx` | Date/time editor with a derived week preview. Save is explicit; the preview never writes activity or books a class. |
+| `src/features/coaching/CoachPlan.tsx` | Explicit home/trial/regular schedule editor, derived preview and shared attendance summaries. |
 | `tests/home-trial.test.mjs` | Home starts on every weekday, no assumed class, trial moves/cancellation, preserved history, shared workouts, meal context and reset tests. |
-| `scripts/trial-ui-check.mjs` | Real browser trial editing, cross-device sync, home restoration and linked meal guidance using synthetic accounts. |
+| `scripts/coaching-ui-check.mjs` | Current schedule editing, two-device/offline sync, legacy import, shared completion and progress alignment using synthetic accounts. |
 | `supabase/migrations/20261023_momentum.sql` | Administrator-installed singleton authorization, separate RLS table and revisioned write RPC. |
 | `tests/momentum.test.mjs` | Pure feature tests plus actual PostgreSQL authorization, activation and conflict checks. |
 | `src/styles.css` | Stable feature styles and the original mobile/PWA layout contract. |
@@ -94,7 +95,7 @@ only known values are used.
 Example:
 
 ```ts
-type AppMode = "hub" | "workout" | "diet" | "momentum";
+type AppMode = "hub" | "workout" | "diet";
 ```
 
 That means a typo such as `"workouts"` would fail during development instead of becoming a broken
@@ -135,7 +136,7 @@ The live meal system is now in **`src/features/mealPrep/`**. `recipes.ts` gives 
 stable IDs, raw/dry/ready units, food-label estimates and actual recipe steps. `plan.ts` places
 those recipes into rolling two/three-day blocks, sums each date's servings, freezes prepared
 contexts and adds up shopping quantities. `MealPrepPlanner.tsx` renders the same three views in
-Nutrition and Momentum. Read [meal-prep.md](meal-prep.md) before changing its calculations.
+Diet. Read [meal-prep.md](meal-prep.md) before changing its calculations.
 
 `dietRecipes` in `App.tsx` is retained for **earlier saved meal history**, not the live batch
 rotation. Each older recipe has:

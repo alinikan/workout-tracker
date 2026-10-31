@@ -2,7 +2,7 @@
 
 **An estimated starting target, real portion calculations, and cautious feedback from your records.**
 
-The Nutrition Coach connects Coach Hub, Workout, Nutrition and Momentum. It does not measure
+The Nutrition Coach connects Coach Hub, Workout and Diet. It does not measure
 metabolism, diagnose symptoms or guarantee fat loss. Its job is to make a repeatable eating plan
 more individualized and to show when the evidence supports keeping or reviewing that plan.
 
@@ -13,7 +13,7 @@ more individualized and to show when the evidence supports keeping or reviewing 
    public application or sample account.
 2. Press **Calculate my target**. The target uses recent logged weights when available rather
    than blindly treating the starting value as a new scale measurement.
-3. Open **Today's portions**, or Nutrition / Momentum Meals. Read the dated ingredients and
+3. Open **Diet → Eat today**. Read the dated ingredients and
    plate quantities. The target changes those actual quantities and groceries, not just a badge.
 4. Keep the existing morning weigh-in habit in Coach. Missing mornings are permitted and excluded,
    never filled with zero or an invented weight. This is an in-app reminder, not a push notification.
@@ -116,8 +116,8 @@ explicit extras amount, including `0` when there were none. Unknown energy is no
 There is no automatic phone step count or HealthKit connection.
 
 A day can support an intake review only when all four meals have saved numeric portions in one
-source, the user confirms quantities/extras, and the meal signature still matches. Nutrition and
-Momentum meal checks remain separate histories. The evidence layer selects **one complete source**,
+source, the user confirms quantities/extras, and the meal signature still matches. Diet is the live
+meal log; old private eaten records are imported once for the authorized owner. The evidence layer selects **one complete source**,
 never sums two copies of the same day or assembles an intake from mismatched partial records.
 
 If meals are changed after the check-in, save the confirmation again. A canonical ordered signature

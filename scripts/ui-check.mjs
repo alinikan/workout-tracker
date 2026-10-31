@@ -8,18 +8,16 @@ import { mkdir } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { createServer } from "vite";
 import { chromium, webkit, expect } from "playwright/test";
-import { runMomentumChecks } from "./momentum-ui-check.mjs";
+import { runCoachingChecks } from "./coaching-ui-check.mjs";
 import { runContrastChecks } from "./contrast-ui-check.mjs";
 import { runBatchChecks } from "./batch-ui-check.mjs";
-import { runSharedStartChecks } from "./shared-start-ui-check.mjs";
-import { runTrialChecks } from "./trial-ui-check.mjs";
 import { runNutritionChecks } from "./nutrition-ui-check.mjs";
 import { runRedesignChecks } from "./redesign-ui-check.mjs";
 
 const storageKey = "body-recomp-gym-tracker-v1";
 const fixtureHost = "tracker-fixture.supabase.co";
 const diagnosticContexts = new Set();
-const { values } = parseArgs({ options: { repeat: { type: "string", default: "1" }, "momentum-only": { type: "boolean", default: false }, "contrast-only": { type: "boolean", default: false }, "batch-only": { type: "boolean", default: false }, "shared-start-only": { type: "boolean", default: false }, "trial-only": { type: "boolean", default: false }, "nutrition-only": { type: "boolean", default: false }, "redesign-only": { type: "boolean", default: false } } });
+const { values } = parseArgs({ options: { repeat: { type: "string", default: "1" }, "coaching-only": { type: "boolean", default: false }, "momentum-only": { type: "boolean", default: false }, "contrast-only": { type: "boolean", default: false }, "batch-only": { type: "boolean", default: false }, "shared-start-only": { type: "boolean", default: false }, "trial-only": { type: "boolean", default: false }, "nutrition-only": { type: "boolean", default: false }, "redesign-only": { type: "boolean", default: false } } });
 const focused = Object.entries(values).some(([key, value]) => key.endsWith("-only") && value);
 const runSuite = name => !focused || values[`${name}-only`];
 const repeatCount = Number(values.repeat);
@@ -63,7 +61,8 @@ function fixtureBackend(initial, options = {}) {
       if (url.pathname.endsWith("/token")) return send(authSession);
       if (url.pathname.endsWith("/user")) return send(user);
       if (url.pathname.endsWith("/logout")) return send({});
-      if (url.pathname === "/rest/v1/rpc/momentum_access") return send(privateAccess);
+      if (url.pathname === "/rest/v1/rpc/momentum_access") return options.noPrivateModule
+        ? send({ code: "PGRST202", message: "Optional legacy function is not installed" }, 404) : send(privateAccess);
       if (url.pathname === "/rest/v1/momentum_progress") {
         if (options.privateLoadDelay) await new Promise((resolve) => setTimeout(resolve, options.privateLoadDelay));
         return send(privateAccess && privateData ? [{ data: privateData, revision: privateRevision }] : []);
@@ -559,10 +558,10 @@ try {
   await fallbackPage.reload();
   await expect(fallbackPage.locator(".coach-hub-shell")).toBeVisible();
   await navigate(fallbackPage, "Today");
-  await expect(fallbackPage.locator(".today-session-count")).toHaveText("0 of 3 recovery steps complete");
-  await expect(fallbackPage.locator(".today-targets-disclosure .check-row").first()).toBeVisible();
-  await fallbackPage.locator(".today-targets-disclosure .check-row").first().click();
-  await expect(fallbackPage.locator(".today-session-count")).toHaveText("1 of 3 recovery steps complete");
+  await expect(fallbackPage.locator(".today-session-count")).toHaveText("Rest is planned. No tasks or completion check needed.");
+  await expect(fallbackPage.locator(".today-targets-disclosure")).toHaveCount(0);
+  await expect(fallbackPage.locator(".today-command-panel .complete-button")).toHaveCount(0);
+  await expect(fallbackPage.locator(".today-command-panel .day-skip-button")).toHaveCount(0);
   assert.deepEqual(fallbackErrors, []);
   await fallbackContext.close();
   console.log("PASS WebKit unavailable GIF, Gym completion Undo, whole-day skip Undo");
@@ -617,10 +616,9 @@ try {
   console.log("PASS two-device auth/reset/same-browser tab/offline stale-save/reconnect/reload integration (fixture only)");
   }
   if (runSuite("nutrition")) await runNutritionChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout, settlePresentation });
-  if (runSuite("trial")) await runTrialChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout });
-  if (runSuite("shared-start")) await runSharedStartChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout });
+  // Old focused flags remain aliases; none opens the retired private screen.
+  if (runSuite("coaching") || values["trial-only"] || values["shared-start-only"] || values["momentum-only"]) await runCoachingChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout });
   if (runSuite("batch")) await runBatchChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout });
-  if (runSuite("momentum")) await runMomentumChecks({ server, model, browsers, prepare, fixtureBackend, assertLayout, assertSelectionContrast, settlePresentation });
   if (runSuite("contrast")) await runContrastChecks({ server, model, browsers, prepare, fixtureBackend, navigate, settlePresentation });
   if (runSuite("redesign")) await runRedesignChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout, settlePresentation });
 } catch (error) {

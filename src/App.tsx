@@ -1,4 +1,4 @@
-import { Fragment, type FormEvent, type ReactNode, lazy, Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { Fragment, type FormEvent, type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
   Activity,
@@ -38,15 +38,15 @@ import { WeightTrendChart } from "./components/WeightTrendChart";
 import { savePresentation, undoUnchangedFields } from "./lib/presentationState";
 import { initialProgram, isCalendarDate, normalizeProgram, restartedProgram, resolveResetConflict, type ProgramState } from "./lib/programLifecycle";
 import { useMomentum } from "./features/momentum/useMomentum";
-import type { Resources as MomentumResources } from "./features/momentum/types";
+import CoachPlan from "./features/coaching/CoachPlan";
+import { emptyCoaching, normalizeCoaching, coachActivity, coachTargets, classFuel, walkingMinutes, type CoachSchedule } from "./features/coaching/plan";
 import { MealPrepPlanner } from "./features/mealPrep/MealPrepPlanner";
 import { createMealPrep, normalizeMealPrep, prepBatch, prepBlockFor, prepServing, recipeForPrepSlot, startPrepSchedule, type MealPrepState, type PrepContext } from "./features/mealPrep/plan";
 import { prepRecipeMap } from "./features/mealPrep/recipes";
 import { currentJourney as momentumJourney, sortedSlots as momentumSlots } from "./features/momentum/plan";
 import { resolveDay as momentumDay } from "./features/momentum/coaching";
-import { isHomePlan, trialFuel } from "./features/momentum/trial";
+import { isHomePlan } from "./features/momentum/trial";
 import type { MomentumData } from "./features/momentum/types";
-const MomentumPage = lazy(() => import("./features/momentum/MomentumPage"));
 
 /**
  * App.tsx is intentionally the main "product brain" for this personal tracker.
@@ -67,7 +67,7 @@ const MomentumPage = lazy(() => import("./features/momentum/MomentumPage"));
 // When TypeScript sees a value like "strength" or "diet", it can verify that the UI and helpers
 // only use the values this app actually understands.
 type SessionType = "strength" | "cardio" | "movement" | "recovery";
-type AppMode = "hub" | "workout" | "diet" | "momentum";
+type AppMode = "hub" | "workout" | "diet";
 type AppSection = "today" | "gym" | "week" | "progress" | "library";
 type PrimaryDestination = "today" | "gym" | "diet" | "progress" | "coach";
 type PlanWeekday = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday" | "Sunday";
@@ -378,7 +378,7 @@ type SessionTemplate = {
   exerciseIds: string[];
   tasks: string[];
   finisher?: string;
-  connected?: { kind: "home" | "trial" | "easy"; sets: 1 | 2; targets: Record<string, string> };
+  connected?: { kind: "home" | "trial" | "class" | "easy"; sets: 1 | 2; targets: Record<string, string> };
 };
 
 type SetLog = {
@@ -431,6 +431,7 @@ type TrackerStore = {
   settings: UserSettings;
   mealPrep: MealPrepState;
   nutrition: NutritionState;
+  coaching: CoachSchedule;
 };
 
 type StoreMeta = {
@@ -585,6 +586,7 @@ const emptyStore = (startedOn = isoFromDate(new Date())): TrackerStore => ({
   settings: createEmptySettings(),
   mealPrep: createMealPrep(startedOn),
   nutrition: emptyNutrition(),
+  coaching: emptyCoaching(),
 });
 
 // The to-buy list groups recipe ingredients into a small number of store sections. It is not tied
@@ -710,7 +712,7 @@ function normalizeSessionSnapshot(value: unknown): SessionTemplate | undefined {
     || !["title", "code", "time", "summary", "accent"].every(key => typeof value[key] === "string")
     || !Array.isArray(value.exerciseIds) || !value.exerciseIds.every(id => typeof id === "string" && exerciseMap[id])
     || !Array.isArray(value.tasks) || !value.tasks.every(task => typeof task === "string")) return undefined;
-  if (value.connected && (!isRecord(value.connected) || !["home", "trial", "easy"].includes(String(value.connected.kind))
+  if (value.connected && (!isRecord(value.connected) || !["home", "trial", "class", "easy"].includes(String(value.connected.kind))
     || (value.connected.sets !== 1 && value.connected.sets !== 2) || !isRecord(value.connected.targets)
     || !Object.values(value.connected.targets).every(target => typeof target === "string"))) return undefined;
   return value as SessionTemplate;
@@ -2538,6 +2540,12 @@ exerciseMap["muay-thai-trial"] = {
   progression: "One trial does not activate recurring classes. Continue the home routine until you choose a longer-term plan.", resources: [],
 };
 exerciseMap["home-easy-walk"] = { ...exerciseMap["warmup-treadmill-walk"], id: "home-easy-walk", name: "Easy Treadmill Walk", shortName: "Easy walk", family: "cardio", reps: "10-15 easy conversational minutes" };
+exerciseMap["muay-thai-class"] = {
+  ...exerciseMap["muay-thai-trial"], id: "muay-thai-class", name: "Muay Thai / Kickboxing Class", shortName: "Coached Muay Thai",
+  reps: "Attend the class at your own pace; take breaks as needed", target: "Coached technique and manageable practice",
+  cues: ["Follow your coach's introduction or beginner class and adapt the intensity to your experience.", "Take breaks when you need them. The timetable duration is not a requirement for continuous hard exercise.", "The class replaces today's home training. Do not add a catch-up lift or hard finisher."],
+  progression: "Choose a suitable class level with your coach. Attendance does not automatically authorize sparring or more intense classes.",
+};
 
 // Diet recipes are the nutrition equivalent of the exercise library: each recipe needs a slot,
 // portioned ingredients, a photo, and plate guidance so the daily plan can rotate variety while
@@ -3867,8 +3875,15 @@ function recommendedSets(
   readinessStatus: ReadinessStatus = "green",
   originalExercise: Exercise = exercise,
 ) {
-  if (planDay.session.connected) return exercise.family === "warmup" || exercise.family === "cardio" ? 1
-    : readinessStatus === "red" || readinessStatus === "yellow" ? 1 : planDay.session.connected.sets;
+  if (planDay.session.connected) {
+    if (exercise.family === "warmup" || exercise.family === "cardio") return 1;
+    if (readinessStatus === "red" || readinessStatus === "yellow") return 1;
+    // Two lifts earn one training level. After eight completed home lifts,
+    // add only one set to the main press/row; accessories remain at two.
+    const earnedMainSet = planDay.session.connected.kind === "home" && coachingWeek(planDay) >= 5
+      && ["machine-chest-press", "single-arm-row"].includes(originalExercise.id);
+    return planDay.session.connected.sets + (earnedMainSet ? 1 : 0);
+  }
   const week = coachingWeek(planDay);
   // A swap changes the movement and its load history, not the program slot.
   // Derive volume from the original slot so an equivalent machine option does
@@ -5364,6 +5379,7 @@ function normalizeStore(value: unknown): TrackerStore | null {
     // updated app is opened, without resetting any workout or diet record.
     mealPrep: normalizeMealPrep(value.mealPrep, isoFromDate(new Date())),
     nutrition: normalizeNutrition(value.nutrition),
+    coaching: normalizeCoaching(value.coaching),
   };
 }
 
@@ -5417,7 +5433,7 @@ function syncBaseKey(userId: string) { return `${STORAGE_KEY}:baseline:${userId}
 
 function hasStoreData(store: TrackerStore) {
   return (
-    store.program.resetAt !== null ||
+    store.program.resetAt !== null || store.coaching.homeFrom !== null ||
     Object.keys(store.days).length > 0 ||
     Object.keys(store.dietDays).length > 0 ||
     Object.keys(store.metrics).length > 0 ||
@@ -5601,6 +5617,7 @@ function mergeStores(localStore: TrackerStore, cloudStore: TrackerStore) {
       ? mergeProgressChanges(createMealPrep(cloudStore.mealPrep.startedOn), localStore.mealPrep, cloudStore.mealPrep)
       : localStore.mealPrep,
     nutrition: mergeProgressChanges(emptyNutrition(), localStore.nutrition, cloudStore.nutrition),
+    coaching: mergeProgressChanges(emptyCoaching(), localStore.coaching, cloudStore.coaching),
   };
 }
 
@@ -5739,6 +5756,103 @@ function connectedPlanDays(days: PlanDay[], data: MomentumData | null, logs: Rec
   });
 }
 
+/** The shared store is the only live attendance source. Legacy private planning
+ * supplies history during migration, never a second counter for new sessions. */
+function coachPlanDays(days: PlanDay[], schedule: CoachSchedule, logs: Record<string, DayLog>, today: string, start = days[0]?.iso): PlanDay[] {
+  if (!schedule.homeFrom || !start) return days;
+  const homeFrom = schedule.homeFrom;
+  const completedWalkDates = Object.entries(logs).filter(([date, log]) => date <= today && log.exercises?.["home-easy-walk"]?.some(set => set.done)
+    && readinessStatusFor(log.readiness) === "green" && !log.daySkipReason).map(([date]) => date).sort();
+  return days.map(day => {
+    const log = normalizeDayLog(logs[day.iso]);
+    if (log.sessionSnapshot) return { ...day, session: log.sessionSnapshot };
+    if (day.iso < homeFrom || log.completed || Object.values(log.exercises).some(rows => rows.some(set => set.done || set.weight || set.reps))) return day;
+    const plan = coachActivity(schedule, start, day.iso), strength = plan.activity === "strength-a" || plan.activity === "strength-b";
+    const minutes = plan.activity === "walk" ? walkingMinutes(completedWalkDates, day.iso) : plan.minutes;
+    const moves = strength ? coachTargets(plan.activity as "strength-a" | "strength-b") : [];
+    const targets = Object.fromEntries(moves.map(move => [move.id, move.id === "wall-sit" ? move.reps : `${move.reps} controlled; leave 3–4 comfortable reps available`]));
+    const warmups = moves.slice(0, 2).flatMap(move => move.id === "wall-sit" ? ["warmup-ramp-home-wall-sit"] : move.id === "reverse-nordic" ? ["warmup-ramp-home-reverse-nordic"] : move.id === "machine-chest-press" ? ["warmup-ramp-home-machine-press"] : []);
+    const isClass = plan.activity === "class", classId = plan.class?.mode === "trial" ? "muay-thai-trial" : "muay-thai-class";
+    targets["warmup-treadmill-walk"] = "5–7 minutes easy walking";
+    targets["warmup-ramp-home-wall-sit"] = "5–10 seconds shallow, easy rehearsal";
+    targets["warmup-ramp-home-reverse-nordic"] = "2–3 very small, easy reps";
+    targets["warmup-ramp-home-machine-press"] = "5–8 easy reps; clearly lighter than your working weight";
+    targets["home-easy-walk"] = `${minutes} minutes easy and conversational`;
+    targets[classId] = `${plan.class?.time ? `${plan.class.time} · ` : ""}${plan.minutes}-minute class slot; take breaks, shorten or observe as needed`;
+    return { ...day, session: {
+      title: plan.title, code: isClass ? plan.class?.mode === "trial" ? "TRIAL" : "MT" : strength ? plan.activity === "strength-a" ? "HA" : "HB" : plan.activity === "walk" ? "EASY" : "REST",
+      type: strength ? "strength" : isClass ? "cardio" : plan.activity === "walk" ? "movement" : "recovery",
+      time: minutes ? `${minutes} minutes` : "Rest day",
+      summary: isClass ? "Your coached class replaces home training. Keep the intensity manageable and take breaks." : plan.activity === "recovery" ? "Rest is already part of the plan. No completion button or make-up workout is needed." : strength ? "Two manageable home sessions when recovery spacing allows. Follow the movements in order." : "Easy movement, not a hard workout.",
+      accent: isClass ? "cardio" : plan.activity === "strength-a" ? "strength-a" : plan.activity === "strength-b" ? "strength-b" : "recovery",
+      exerciseIds: strength ? ["warmup-treadmill-walk", ...warmups, ...moves.map(move => move.id)] : isClass ? [classId] : plan.activity === "walk" ? ["home-easy-walk"] : [],
+      tasks: [], connected: { kind: strength ? "home" : isClass ? plan.class?.mode === "trial" ? "trial" : "class" : "easy", sets: 2, targets },
+    } };
+  });
+}
+
+/** One-time, non-destructive import from the retired private screen. Existing
+ * shared entries win conflicts. Old private documents remain as an archive;
+ * future tracking is written only to the normal workout/diet account row. */
+function importCoachHistory(store: TrackerStore, data: MomentumData, today: string): TrackerStore {
+  if (store.coaching.legacyImported) return store;
+  const journey = momentumJourney(data);
+  const schedule = { ...store.coaching, legacyImported: true,
+    homeFrom: store.coaching.homeFrom ?? (journey && isHomePlan(journey) ? journey.homeFrom ?? journey.startedOn : null) };
+  const trial = journey?.trial;
+  if (!Object.keys(schedule.choices).length && trial?.date && trial.date >= today && isCalendarDate(trial.date)) {
+    const id = `legacy-${trial.id}`;
+    schedule.choices = { ...schedule.choices, [id]: { id, updatedAt: trial.updatedAt, effectiveOn: today > store.program.startedOn ? today : store.program.startedOn,
+      mode: "trial", date: trial.date, time: trial.time, weekdays: [], minutes: 60, stage: "introduction" } };
+  }
+  let days = { ...store.days }, dietDays = { ...store.dietDays };
+  const legacyDays = connectedPlanDays(buildPlanDays(store.program.startedOn, today), data, {}, today);
+  if (journey) for (const slot of momentumSlots(journey)) {
+    const old = journey.logs[slot.id], date = old?.performedOn ?? slot.date;
+    if (!old || date < store.program.startedOn || date > today) continue;
+    const current = normalizeDayLog(days[date]);
+    if (current.completed || Object.values(current.exercises).some(rows => rows.some(set => set.done || set.weight || set.reps))) continue;
+    const source = legacyDays.find(day => day.iso === slot.date);
+    if (!source) continue;
+    const exercises: Record<string, SetLog[]> = { ...current.exercises };
+    for (const [key, entry] of Object.entries(old.sets)) {
+      const second = key.endsWith("-2"), exerciseId = second ? key.slice(0, -2) : key;
+      if (!exerciseMap[exerciseId]) continue;
+      const rows = ensureSetRows(exercises[exerciseId], second ? 2 : 1);
+      rows[second ? 1 : 0] = { weight: entry.weight ?? "", reps: entry.reps ?? "", done: Boolean(entry.done) };
+      exercises[exerciseId] = rows;
+    }
+    const didWork = Object.values(exercises).some(rows => rows.some(set => set.done || set.weight || set.reps));
+    const classAttended = old.plannedActivity === "boxing" && ["planned", "modified"].includes(old.outcome ?? "") && (Number(old.minutes) > 0 || old.observed);
+    const walkRecorded = old.plannedActivity === "walk" && ["planned", "modified"].includes(old.outcome ?? "") && Number(old.minutes) > 0;
+    if (classAttended) exercises["muay-thai-trial"] = [{ ...emptySet(), done: true }];
+    if (walkRecorded) exercises["home-easy-walk"] = [{ ...emptySet(), done: true }];
+    if (!didWork && !classAttended && !walkRecorded && old.outcome !== "missed") continue;
+    // Copy only documented working sets, not imaginary completed warm-ups.
+    const prescribed = old.plannedExerciseIds ?? source.session.exerciseIds.filter(id => exerciseMap[id]?.family !== "warmup");
+    const snapshot = { ...source.session, exerciseIds: classAttended ? ["muay-thai-trial"] : walkRecorded ? ["home-easy-walk"] : [...new Set([...prescribed, ...Object.keys(exercises)])] };
+    let next: DayLog = { ...current, notes: current.notes || [old.note, Number(old.minutes) > 0 ? `Recorded activity: ${old.minutes} minutes` : ""].filter(Boolean).join("\n"), exercises,
+      daySkipReason: old.outcome === "missed" ? "forgotten" : undefined, completed: false, sessionSnapshot: snapshot };
+    if (old.outcome === "planned" || classAttended || walkRecorded) next = withAutomaticDayCompletion({ ...source, iso: date, session: snapshot }, next);
+    days[date] = next;
+  }
+  for (const [date, meal] of Object.entries(data.meals)) {
+    if (date < store.program.startedOn) continue;
+    const current = normalizeDietDayLog(dietDays[date]);
+    const next = { ...current, meals: { ...current.meals }, swaps: { ...current.swaps }, recipes: { ...current.recipes }, portions: { ...current.portions } };
+    for (const { id } of dietMealSlots) if (meal.eaten[id] && !current.meals[id]) {
+      next.meals[id] = true;
+      const swap = meal.swaps[id];
+      if (swap && dietRecipeMap[swap]?.slot === id) next.swaps[id] = swap;
+      if (meal.recipes?.[id]) next.recipes[id] = meal.recipes[id];
+      if (meal.portions?.[id]) next.portions[id] = meal.portions[id];
+    }
+    next.completed = dietMealSlots.every(({ id }) => next.meals[id]);
+    dietDays[date] = next;
+  }
+  return { ...store, coaching: normalizeCoaching(schedule), days, dietDays };
+}
+
 function qualifiesForTrainingCredit(planDay: PlanDay, log: DayLog) {
   return planDay.session.type === "strength" &&
     readinessStatusFor(log.readiness) !== "red" && isPlanDayComplete(planDay, log);
@@ -5795,7 +5909,8 @@ function trainingLevelCopy(_calendarWeek: number, trainingWeek: number, sessions
 function resetProgress(store: TrackerStore, startedOn: string, now = new Date()): TrackerStore {
   const weights = Object.entries(store.metrics).flatMap(([date, metric]) => { const kg = weightKgFromMetric(metric); return kg === null ? [] : [{ date, kg }]; });
   return { ...emptyStore(startedOn), program: restartedProgram(store.program, startedOn, now),
-    nutrition: restartNutrition(store.nutrition, startedOn, weights, now.toISOString()) };
+    nutrition: restartNutrition(store.nutrition, startedOn, weights, now.toISOString()),
+    coaching: { ...emptyCoaching(), homeFrom: startedOn, legacyImported: true } };
 }
 
 function monthlyCheckInForDay(planDays: PlanDay[], store: TrackerStore, selectedDay: PlanDay) {
@@ -5943,6 +6058,7 @@ function locationGuideForExercise(exercise: Exercise) {
 
 function locationFlowNoteForDay(planDay: PlanDay) {
   if (planDay.session.connected?.kind === "trial") return "Your one confirmed visit is at Titan. It replaces today's home workout; do not add lifting or a hard finisher.";
+  if (planDay.session.connected?.kind === "class") return "Your class is at Titan. Follow the coach and take breaks. This replaces today's home training; no catch-up lift or hard finisher is needed.";
   if (planDay.session.connected?.kind === "home") return "Do the comfortable bodyweight quad practice and quad sets upstairs first. Then head downstairs for easy walking, lighter machine practice sets and equipment work. Finish the floor exercises downstairs or upstairs, with no need to return for equipment.";
   if (planDay.session.type === "strength") {
     return "Do the gentle Upstairs OK prep first, then head straight downstairs for the treadmill warm-up, ramp sets, lifting, cable work, and treadmill finisher. Finish the Either floor exercises upstairs or downstairs. If you take a long break, warm up again before lifting.";
@@ -6032,7 +6148,7 @@ function smartLoadSuggestion(
   const target = targetForExercise(selectedDay, exercise);
   const repRange = repRangeFromTarget(target);
 
-  if (exercise.id === "muay-thai-trial") return {
+  if (["muay-thai-trial", "muay-thai-class"].includes(exercise.id)) return {
     label: "One coached visit",
     detail: "Check this only after attending. Breaks or observation are fine; no extra home workout is owed.",
     tone: "steady",
@@ -6170,6 +6286,7 @@ function skipReasonForExercise(log: DayLog, originalExerciseId: string) {
 /** Close only this workout day. Preserve completed sets, loads, notes, and swaps. */
 function skipPlanDay(planDay: PlanDay, log: DayLog, reason: SkipReason): DayLog {
   const normalized = normalizeDayLog(log);
+  if (isRestDay(planDay)) return withAutomaticDayCompletion(planDay, normalized);
   if (isPlanDayComplete(planDay, normalized)) return normalized;
   return { ...normalized, completed: false, daySkipReason: reason };
 }
@@ -6234,6 +6351,7 @@ function areDayExercisesComplete(planDay: PlanDay, log: DayLog) {
 }
 
 function dayStatusForDay(planDay: PlanDay, log: DayLog): DayStatus {
+  if (isRestDay(planDay) && planDay.iso <= isoFromDate(new Date())) return "complete";
   if (log.daySkipReason) return "skipped";
   const exercises = scheduledExercisesForDay(planDay, log);
   if (!exercises.length) return log.completed ? "complete" : "incomplete";
@@ -6255,6 +6373,7 @@ function dayStatusForDay(planDay: PlanDay, log: DayLog): DayStatus {
 }
 
 function withAutomaticDayCompletion(planDay: PlanDay, log: DayLog) {
+  if (isRestDay(planDay)) return { ...log, completed: planDay.iso <= isoFromDate(new Date()), daySkipReason: undefined };
   if (log.daySkipReason) return { ...log, completed: false };
   if (!planDay.session.exerciseIds.length) {
     const allTasksDone =
@@ -6273,6 +6392,10 @@ function withAutomaticDayCompletion(planDay: PlanDay, log: DayLog) {
 
 function isPlanDayComplete(planDay: PlanDay, log: DayLog) {
   return dayStatusForDay(planDay, log) === "complete";
+}
+
+function isRestDay(planDay: PlanDay) {
+  return planDay.session.type === "recovery" && planDay.session.exerciseIds.length === 0;
 }
 
 /**
@@ -6314,6 +6437,15 @@ function reconcilePastTracking(
 
     const planDay = coachedDays[rawDay.index];
     const log = normalizeDayLog(nextDays[rawDay.iso]);
+    if (isRestDay(planDay)) {
+      const next = { ...log, completed: true, daySkipReason: undefined, sessionSnapshot: log.sessionSnapshot ?? planDay.session };
+      if (!sameData(next, log)) {
+        if (!daysChanged) nextDays = { ...nextDays };
+        daysChanged = true;
+        nextDays[rawDay.iso] = next;
+      }
+      continue;
+    }
     if (log.daySkipReason) continue;
 
     const exercises = scheduledExercisesForDay(planDay, log);
@@ -6594,7 +6726,7 @@ function runViewTransition(update: () => void) {
 // 26-week plans and saved progress without duplicating the coaching logic.
 export {
   buildPlanDays, emptyStore, normalizeDayLog, normalizeStore, completePlanDay,
-  connectedPlanDays,
+  connectedPlanDays, coachPlanDays, importCoachHistory, isRestDay,
   withTrainingWeek, earnedTrainingWeekForDay, scheduledExercisesForDay,
   recommendedSets, targetForExercise, dayStatusForDay, firstUnfinishedMoveIndex,
   nextUnfinishedMoveIndex, proteinReferenceFromMetrics, weightTrendSignalFor,
@@ -6698,8 +6830,17 @@ export default function Home() {
     syncBaselineRef.current.userId === session?.user.id &&
     sameData(syncBaselineRef.current.store?.program, store.program);
   const momentum = useMomentum(session?.user.id ?? null, ownerProgramReady ? store.program : null, sharedProgramSynced, calendarDate);
-  const planDays = useMemo(() => connectedPlanDays(basePlanDays, momentum.access === "allowed" ? momentum.data : null, store.days, calendarDate),
-    [basePlanDays, momentum.data, momentum.access, store.days, calendarDate]);
+  const migrationReady = ownerProgramReady && momentum.access === "allowed" && Boolean(momentum.data);
+  const migratedStore = useMemo(() => migrationReady && momentum.data
+    ? importCoachHistory(store, momentum.data, calendarDate) : store,
+    [store, migrationReady, momentum.data, calendarDate]);
+  const planDays = useMemo(() => coachPlanDays(
+    connectedPlanDays(basePlanDays, momentum.access === "allowed" ? momentum.data : null, migratedStore.days, calendarDate),
+    migratedStore.coaching, migratedStore.days, calendarDate),
+    [basePlanDays, momentum.data, momentum.access, migratedStore.coaching, migratedStore.days, calendarDate]);
+  useEffect(() => {
+    if (migrationReady && momentum.data) setStore(current => importCoachHistory(current, momentum.data!, calendarDate));
+  }, [migrationReady, momentum.data, calendarDate]);
 
   useEffect(() => {
     // Each app tab keeps its own scroll position. Entering Gym after browsing a
@@ -7040,7 +7181,7 @@ export default function Home() {
   useEffect(() => {
     // Rollover runs only after account restoration is settled. On a new device this prevents an
     // empty local store from auto-skipping old dates before the real Supabase history arrives.
-    if (!isHydrated || !authResolved || (session && ["checking", "unavailable"].includes(momentum.access))) return;
+    if (!isHydrated || !authResolved || (session && !store.coaching.legacyImported && ["checking", "unavailable"].includes(momentum.access))) return;
     const userId = session?.user.id ?? null;
     const hasAccountSnapshot =
       !userId ||
@@ -7048,7 +7189,8 @@ export default function Home() {
       (syncBaselineRef.current.userId === userId && Boolean(syncBaselineRef.current.store));
     if (!hasAccountSnapshot) return;
 
-    setStore((current) => reconcilePastTracking(planDays, current, calendarDate));
+    setStore((current) => reconcilePastTracking(planDays,
+      migrationReady && momentum.data ? importCoachHistory(current, momentum.data, calendarDate) : current, calendarDate));
   }, [authResolved, calendarDate, cloudReadyForUser, isHydrated, planDays, session?.user.id, momentum.access]);
 
   useEffect(() => {
@@ -7173,9 +7315,8 @@ export default function Home() {
   const selectedDietType = dietDayTypeForPlanDay(selectedDietDay);
   const proteinReference = useMemo(() => proteinReferenceFromMetrics(planDays, store.metrics, gymDay.index),
     [planDays, store.metrics, gymDay.index]);
-  // One shared planning context prevents Nutrition and Momentum from suggesting
-  // different containers. An active Momentum journey uses its real scheduled
-  // classes/lifts; otherwise the original workout calendar supplies training days.
+  // Archived private logs remain food evidence during migration; the shared
+  // calendar, not a separate private attendance counter, now supplies fuel days.
   const prepJourney = momentum.data ? momentumJourney(momentum.data) : null;
   const prepSlots = prepJourney ? momentumSlots(prepJourney) : [];
   const nutritionWeights: WeightEvidence[] = Object.entries(store.metrics).flatMap(([date, metric]) => {
@@ -7187,23 +7328,22 @@ export default function Home() {
   const nutritionReference = nutritionReferenceFor(nutritionWeights, calendarDate, currentNutritionPlan?.referenceWeightKg ?? currentNutritionProfile?.startWeightKg ?? 0);
   const prepContextForDate = (date: string): PrepContext => {
     const slots = prepSlots.filter((slot) => slot.date === date && !slot.legacy);
-    const momentumTraining = Boolean(momentum.data && slots.some((slot) => {
-      const activity = momentumDay(momentum.data!, slot, calendarDate).activity;
-      return activity === "boxing" || activity.startsWith("strength");
-    }));
     const workout = store.days[date];
     const recordedSession = workout?.sessionSnapshot ?? planDays.find(day => day.iso === date)?.session;
     // Checking an easy walk is not a lifting/class session. Preserve fuel for
     // actual lifts or the trial, without upgrading every completed rest-day walk.
-    const actualLift = Boolean(workout && (recordedSession?.type === "strength" || recordedSession?.connected?.kind === "trial")
+    const actualLift = Boolean(workout && (recordedSession?.type === "strength" || ["trial", "class"].includes(recordedSession?.connected?.kind ?? ""))
       && Object.values(workout.exercises).some((sets) => sets.some((set) => set.done)));
     const privateActual = Boolean(prepJourney && slots.some(slot => {
       const log = prepJourney.logs[slot.id];
       return log && (log.plannedActivity?.startsWith("strength") || log.plannedActivity === "boxing")
         && (log.outcome === "planned" || log.outcome === "modified" || Object.values(log.sets).some(set => set.done) || Number(log.minutes) > 0);
     }));
-    const skipped = Boolean(workout?.daySkipReason) || Boolean(prepJourney && slots.length && slots.every(slot => prepJourney.logs[slot.id]?.outcome === "missed"));
-    const training = trainingFuelDay(prepJourney && slots.length ? momentumTraining : planDays.find(day => day.iso === date)?.session.type === "strength", actualLift || privateActual, skipped);
+    const skipped = Boolean(workout?.daySkipReason);
+    const planned = planDays.find(day => day.iso === date)?.session;
+    const plannedTraining = planned ? planned.type === "strength" || ["trial", "class"].includes(planned.connected?.kind ?? "")
+      : store.coaching.homeFrom && date >= store.coaching.homeFrom ? ["class", "strength-a", "strength-b"].includes(coachActivity(store.coaching, store.program.startedOn, date).activity) : false;
+    const training = trainingFuelDay(Boolean(plannedTraining), actualLift || privateActual, skipped);
     return {
       training,
       weightKg: proteinReference.weight,
@@ -7660,7 +7800,7 @@ export default function Home() {
   // These small updater wrappers keep all edits immutable. React notices the changed objects, and
   // the autosave effects above persist the updated store.
   const updateDay = (date: string, updater: (log: DayLog) => DayLog, undoLabel?: string) => {
-    if (date > calendarDate && planDays.find(day => day.iso === date)?.session.connected?.kind === "trial") return;
+    if (date > calendarDate && ["trial", "class"].includes(planDays.find(day => day.iso === date)?.session.connected?.kind ?? "")) return;
     if (undoLabel) {
       const current = latestStoreRef.current;
       const before = normalizeDayLog(current.days[date]);
@@ -8591,34 +8731,18 @@ export default function Home() {
     }
     return locks;
   };
-  const renderSharedPrep = (date: string, onDateChange: (date: string) => void, source: "diet" | "momentum") => {
+  const renderSharedPrep = (date: string) => {
     const dietLog = normalizeDietDayLog(store.dietDays[date]);
-    const privateLog = momentum.data?.meals[date] ?? { swaps: {}, eaten: {} };
-    const log = source === "diet" ? { ...dietLog, eaten: dietLog.meals } : privateLog;
+    const log = { ...dietLog, eaten: dietLog.meals };
     const overrides = savedMealOverrides(date, store.mealPrep, log, weeklyDietMealMap[dayName(date) as PlanWeekday]);
     const batch = prepBatch(store.mealPrep, date < store.mealPrep.startedOn ? store.mealPrep.startedOn : date, prepContextForDate);
     const toggle = (slot: DietMealSlot) => {
       if (date > calendarDate) return;
-      if (source === "diet") { toggleDietMeal(slot); return; }
-      momentum.edit((data) => {
-        const previous = data.meals[date] ?? { swaps: {}, eaten: {} };
-        const id = overrides[slot] ?? recipeForPrepSlot(batch.block, slot).id;
-        const recipe = prepRecipeMap[id];
-        const serving = recipe ? batch.servings.find((row) => row.date === date && row.slot === slot && row.serving.recipe.id === id)?.serving
-          ?? prepServing(recipe, prepContextForDate(date)) : null;
-        return { ...data, meals: { ...data.meals, [date]: {
-          ...previous,
-          recipes: { ...previous.recipes, [slot]: id },
-          portions: serving ? { ...previous.portions, [slot]: {
-            plate: serving.plate, calories: serving.calories, protein: serving.protein,
-          } } : previous.portions,
-          eaten: { ...previous.eaten, [slot]: !previous.eaten[slot] },
-        } } };
-      });
+      toggleDietMeal(slot);
     };
     return <MealPrepPlanner state={store.mealPrep} date={date} today={calendarDate}
-      sessionGuidance={momentum.data ? trialFuel(momentum.data, date) : null}
-      contextForDate={prepContextForDate} onChange={updateMealPrep} onDateChange={source === "momentum" ? onDateChange : undefined}
+      sessionGuidance={prepContextForDate(date).training ? classFuel(store.coaching, date) : null}
+      contextForDate={prepContextForDate} onChange={updateMealPrep}
       mealLog={{ eaten: log.eaten, overrides, portions: log.portions }}
       onToggleMeal={toggle} history={date < store.mealPrep.startedOn}
       batchLocked={Object.values(prepLockedKinds(date)).some(Boolean)} lockedKinds={prepLockedKinds(date)}
@@ -8629,34 +8753,7 @@ export default function Home() {
       }} />;
   };
 
-  // A deliberately narrow bridge: media resources are read-only and weight edits use
-  // the ORIGINAL metric handler. Momentum never calls Recomp's day completion,
-  // reset or earned-week handlers and never embeds private data in its bundle.
-  const momentumResources: MomentumResources = {
-    recordedTrialDates: Object.entries(store.days).filter(([, log]) => log.exercises?.["muay-thai-trial"]?.some(set => set.done)).map(([date]) => date),
-    workoutDates: Object.entries(store.days).filter(([, log]) => log.completed || Object.values(log.exercises ?? {}).some(rows => rows.some(set => set.done || set.weight || set.reps))).map(([date]) => date),
-    exercises: exerciseMap, recipes: dietRecipes, meals: weeklyDietMealMap,
-    howTo: (recipe) => detailedRecipeHowTo(dietRecipeMap[recipe.id]),
-    media: (id) => <ExerciseMedia key={id} exercise={exerciseMap[id]} variant="gym" />,
-    groceries: (recipes) => shoppingItemsForRecipes(recipes.map(r=>dietRecipeMap[r.id])).flatMap(group=>group.items),
-    mealPrep: (date, onDateChange) => session && cloudReadyForUser === session.user.id
-      ? renderSharedPrep(date, onDateChange, "momentum")
-      : <p role="status">Loading your shared meal plan. Your saved meals are unchanged.</p>,
-  };
-  if (appMode === "momentum") {
-    if (momentum.access !== "allowed" || !momentum.data) return <main className="app-shell"><h1>Private section</h1><p>{momentum.access === "checking" ? "Checking account access…" : "This section is unavailable for this account or connection."}</p><button type="button" onClick={()=>setAppMode("hub")}>Back to Coach Hub</button><button type="button" onClick={momentum.retry}>Retry private access</button></main>;
-    const sharedWeightsReady = Boolean(session && cloudReadyForUser === session.user.id);
-    return <Suspense fallback={<main className="app-shell"><p>Opening private journey…</p></main>}><MomentumPage key={session?.user.id}
-      data={momentum.data} edit={momentum.edit} today={calendarDate} resources={momentumResources}
-      status={momentum.status} error={momentum.error} retry={momentum.retry} onExit={()=>setAppMode("hub")}
-      sharedStartReady={!resetDisabled} onStartFresh={() => { setOpenResetRequested(true); setAppMode("hub"); }}
-      weights={sharedWeightsReady ? weightEntries : []} weightsReady={sharedWeightsReady}
-      weightChart={sharedWeightsReady ? <WeightTrendChart entries={weightEntries} weeks={weightWeekSummaries} today={calendarDate}/> : <p>Loading the shared account weight records.</p>}
-      logWeight={(date,kg)=>{if(sharedWeightsReady)updateMetric(date,metric=>({...metric,weightKg:kg,weightForgotten:false}));}}/>
-    </Suspense>;
-  }
-
-  if (session && ["workout", "diet"].includes(appMode) && ["checking", "unavailable"].includes(momentum.access)) {
+  if (session && !store.coaching.legacyImported && ["workout", "diet"].includes(appMode) && ["checking", "unavailable"].includes(momentum.access)) {
     return <main className="app-shell"><h1>Loading your connected plan</h1><p>Your workouts and meals are unchanged while private planning loads.</p><button type="button" onClick={momentum.retry}>Retry plan sync</button><button type="button" onClick={() => setAppMode("hub")}>Back to Coach</button></main>;
   }
 
@@ -8694,10 +8791,10 @@ export default function Home() {
               <div className="hub-choice-content">
                 <span><Icon name="dumbbell" size={20} /> Training <Icon name="chevronRight" size={18} /></span>
                 <strong>{gymDay.session.title}</strong>
-                <small>{gymMoveRows.find((move) => !move.isComplete && !move.isSkipped)?.activeExercise.name ?? (gymSessionResolved ? "Session recorded" : "Recovery day")}</small>
-                <span className="hub-next-label">{gymSessionResolved ? "Review workout" : "Continue training"}</span>
+                <small>{isRestDay(gymCoachDay) ? "Rest is part of your plan. No check-in needed." : gymMoveRows.find((move) => !move.isComplete && !move.isSkipped)?.activeExercise.name ?? (gymSessionResolved ? "Session recorded" : "Recovery day")}</small>
+                <span className="hub-next-label">{isRestDay(gymCoachDay) ? "View rest day" : gymSessionResolved ? "Review workout" : "Continue training"}</span>
               </div>
-              <div className="hub-destination-progress"><progress aria-label="Today's workout progress" value={gymMoveRows.filter(move => move.isComplete).length} max={Math.max(1,gymMoveRows.length)} /><span>{gymMoveRows.filter(move => move.isComplete).length}/{gymMoveRows.length} complete</span></div>
+              <div className="hub-destination-progress">{isRestDay(gymCoachDay) ? <span>Planned rest</span> : <><progress aria-label="Today's workout progress" value={gymMoveRows.filter(move => move.isComplete).length} max={Math.max(1,gymMoveRows.length)} /><span>{gymMoveRows.filter(move => move.isComplete).length}/{gymMoveRows.length} complete</span></>}</div>
             </button>
             <button
               className="hub-choice-card diet"
@@ -8714,7 +8811,21 @@ export default function Home() {
             </button>
           </div>
         </section>
-        {momentum.access === "allowed" && <button className="momentum-entry" type="button" onClick={()=>setAppMode("momentum")}><span><strong>Momentum</strong><small>My Personal Fitness Journey · Private</small></span><Icon name="chevronRight" size={22}/></button>}
+        <CoachPlan key={`${session?.user.id ?? "guest"}:${store.program.resetId}`} state={store.coaching} start={store.program.startedOn} today={calendarDate}
+          disabled={!isHydrated || !authResolved || Boolean(session && (!ownerProgramReady || (!store.coaching.legacyImported && ["checking", "unavailable"].includes(momentum.access))))}
+          completedLifts={trainingProgress.credits}
+          completedClasses={planDays.filter(day => day.iso <= calendarDate && ["trial", "class"].includes(day.session.connected?.kind ?? "") && isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso]))).length}
+          days={planDays.filter(day => day.iso >= (calendarDate > store.program.startedOn ? calendarDate : store.program.startedOn)).slice(0, 7).map(day => ({ date: day.iso, title: day.session.title, kind: day.session.type, complete: isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])), skipped: Boolean(store.days[day.iso]?.daySkipReason) }))}
+          onSave={coaching => {
+            for (const [date, log] of Object.entries(store.days)) {
+              if (date < calendarDate || coachActivity(coaching, store.program.startedOn, date).activity !== "class") continue;
+              const existing = log.sessionSnapshot ?? planDays.find(day => day.iso === date)?.session;
+              if (!["trial", "class"].includes(existing?.connected?.kind ?? "") && Object.values(log.exercises).some(rows => rows.some(set => set.done || set.weight || set.reps)))
+                throw new Error(`A workout is already recorded on ${formatDate(date, "short")}. Choose another class date or a later regular-class start so training is not stacked.`);
+            }
+            setStore(current => ({ ...current, coaching }));
+          }}
+          onOpenDay={date => { setSelectedDate(date); setActiveSection("today"); setAppMode("workout"); }} />
         {localSaveError && <p className="save-alert" role="alert">{localSaveError}</p>}
 
         <section className="hub-dashboard-grid" aria-label="Daily coach overview">
@@ -8781,7 +8892,7 @@ export default function Home() {
           <div className="hub-mini-grid">
             <div>
               <span>Workouts · last 7 days</span>
-              <strong>{coachRecentDays.filter((day) => isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso]))).length}</strong>
+              <strong>{coachRecentDays.filter((day) => !isRestDay(day) && isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso]))).length}</strong>
             </div>
             <div>
               <span>Meals · last 7 days</span>
@@ -8888,7 +8999,7 @@ export default function Home() {
 
             <section className="weight-motivation-card" aria-label="Weight motivation">
               <p className="eyebrow">
-                <Icon name="spark" size={14} /> Momentum
+                <Icon name="spark" size={14} /> Weight trend
               </p>
               <h3>{weightMomentum.headline}</h3>
               <p>{weightMomentum.detail}</p>
@@ -9235,7 +9346,7 @@ export default function Home() {
         </section>
 
         {usesBatchMenu ? <>
-          {renderSharedPrep(selectedDietDay.iso, setSelectedDietDate, "diet")}
+          {renderSharedPrep(selectedDietDay.iso)}
           <details className="diet-coach-note prep-fuel-disclosure">
             <summary>Training fuel & daily notes</summary>
             <p>{prepContextForDate(selectedDietDay.iso).training
@@ -9786,7 +9897,7 @@ export default function Home() {
               )}
             </div>
 
-            {gymDay.session.connected?.kind !== "trial" && <details className="gym-session-guidance">
+            {!["trial", "class"].includes(gymDay.session.connected?.kind ?? "") && <details className="gym-session-guidance">
               <summary>
                 <span>Session guidance</span>
                 <strong>{gymReadinessCopy.label} · {gymPhase.rir}</strong>
@@ -10110,12 +10221,12 @@ export default function Home() {
               <p className="today-command-date">
                 {formatDate(selectedDay.iso)} · Training Week {selectedTrainingWeek}
               </p>
-              <p className="today-session-count">{workoutMoveRows.length
+              <p className="today-session-count">{isRestDay(selectedCoachDay) ? "Rest is planned. No tasks or completion check needed." : workoutMoveRows.length
                 ? `${completedMoveCount} of ${workoutMoveRows.length} movements complete`
                 : `${completedTaskCount} of ${selectedDay.session.tasks.length} recovery steps complete`}</p>
-              <progress className="today-header-progress" aria-label="Workout progress"
+              {!isRestDay(selectedCoachDay) && <progress className="today-header-progress" aria-label="Workout progress"
                 max={workoutMoveRows.length || selectedDay.session.tasks.length || 1}
-                value={workoutMoveRows.length ? completedMoveCount : completedTaskCount} />
+                value={workoutMoveRows.length ? completedMoveCount : completedTaskCount} />}
               {selectedDay.iso !== currentProgramDate && <button className="back-to-today" type="button" onClick={goToCurrentProgramDay}>Back to Today</button>}
               <span className={`day-status-chip ${selectedDayStatus}`}>
                 {selectedDayStatusText}
@@ -10137,26 +10248,27 @@ export default function Home() {
                   <Icon name="play" size={18} /> {selectedDay.iso === currentProgramDate ? "Gym Mode" : "Gym Mode · Today"}
                 </button>
               )}
-              <button className="day-skip-button" type="button" disabled={selectedDayComplete}
+              {!isRestDay(selectedCoachDay) && <button className="day-skip-button" type="button" disabled={selectedDayComplete}
                 aria-label={`${selectedLog.daySkipReason ? "Resume" : "Skip"} workout for ${formatDate(selectedDay.iso)}`}
                 onClick={() => selectedLog.daySkipReason
                   ? updateDay(selectedDay.iso, (log) => reopenPlanDay(selectedCoachDay, log))
                   : requestSkipReason(selectedCoachDay, null, "today")}>
                 <Icon name={selectedLog.daySkipReason ? "play" : "x"} size={18} />
                 {selectedLog.daySkipReason ? "Resume Day" : selectedDay.iso === currentProgramDate ? "Skip Today" : "Skip Day"}
-              </button>
-              <button
+              </button>}
+              {!isRestDay(selectedCoachDay) && <button
                 className={`complete-button ${selectedDayComplete ? "is-complete" : ""} ${
                   selectedDayStatus === "finished-with-skips" || selectedDayStatus === "skipped" ? "is-skipped" : ""
                 }`}
                 type="button"
-                disabled={selectedDayComplete || (selectedDay.session.connected?.kind === "trial" && selectedDay.iso > calendarDate)}
+                disabled={selectedDayComplete || (["trial", "class"].includes(selectedDay.session.connected?.kind ?? "") && selectedDay.iso > calendarDate)}
                 onClick={() =>
                   updateDay(selectedDay.iso, (log) => completePlanDay(selectedCoachDay, log), "Workout completed")
                 }
               >
                 {selectedCompletionButtonLabel}
-              </button>
+              </button>}
+              {isRestDay(selectedCoachDay) && <span className="rest-day-note">Rest day · no check-in needed</span>}
             </div>
           </div>
 
@@ -10194,7 +10306,7 @@ export default function Home() {
               {" "}Logged sets and weights are saved. Resume Day reopens the remaining work.
             </p>
           )}
-          <div className="command-progress-grid">
+          {!isRestDay(selectedCoachDay) && <div className="command-progress-grid">
             <div className="command-progress-card primary">
               <span>Move progress</span>
               <strong>
@@ -10224,9 +10336,9 @@ export default function Home() {
               <strong>Week {selectedTrainingWeek}</strong>
               <small>{trainingLevelCopy(selectedDay.week, selectedTrainingWeek, trainingProgress.sessions)}</small>
             </div>
-          </div>
+          </div>}
 
-          <details className="readiness-disclosure">
+          {!isRestDay(selectedCoachDay) && <details className="readiness-disclosure">
           <summary><Activity size={17} aria-hidden="true" /><span>Readiness check<small>{Object.values(selectedLog.readiness).filter(Boolean).length}/4 answered · {selectedReadinessCopy.label}</small></span></summary>
           <section className={`readiness-card readiness-${selectedReadinessStatus}`} aria-labelledby="readiness-heading">
             <div className="flow-heading">
@@ -10305,7 +10417,7 @@ export default function Home() {
             </div>
           </section>
 
-          </details>
+          </details>}
           {workoutMoveRows.length > 0 ? (
             <section className="exercise-stack compact-flow" aria-labelledby="exercise-heading">
               <div className="flow-heading">
@@ -10331,7 +10443,7 @@ export default function Home() {
                     expanded={expanded} complete={move.isComplete} skipped={move.isSkipped}
                     next={nextOpenMove?.originalExercise.id === move.originalExercise.id}
                     thumbnail={move.activeExercise.youtubeId ? `https://i.ytimg.com/vi/${move.activeExercise.youtubeId}/mqdefault.jpg` : undefined}
-                    disabled={selectedDay.session.connected?.kind === "trial" && selectedDay.iso > calendarDate}
+                    disabled={["trial", "class"].includes(selectedDay.session.connected?.kind ?? "") && selectedDay.iso > calendarDate}
                     original={move.isSwapped ? move.originalExercise.name : undefined} canSwap={move.swaps.length > 0}
                     onExpand={() => setExpandedTodayMoveId(expanded ? "" : move.originalExercise.id)}
                     onComplete={() => toggleExerciseDone(move.activeExercise.id, move.setCount, move.isComplete)}
@@ -10376,14 +10488,14 @@ export default function Home() {
             </section>
           )}
 
-          <details className="today-session-guidance">
+          {!isRestDay(selectedCoachDay) && !["trial", "class"].includes(selectedDay.session.connected?.kind ?? "") && <details className="today-session-guidance">
             <summary><span>Session guidance</span><strong>{phase.title} · {phase.rir}</strong></summary>
             <div><p className="plan-note">{selectedSessionSummary}</p><p className="phase-note">{phase.note}</p>
               <p className="phase-note"><strong>{phase.title}:</strong> {phase.sets} · {phase.timeCap} target · {phase.rir}.</p>
               <p className="location-flow-note"><strong>Home/gym split:</strong> {selectedLocationNote}</p>
             </div>
-          </details>
-          <details className="today-targets-disclosure" open={workoutMoveRows.length === 0}>
+          </details>}
+          {!isRestDay(selectedCoachDay) && selectedDay.session.tasks.length > 0 && <details className="today-targets-disclosure" open={workoutMoveRows.length === 0}>
             <summary>Daily targets <small>{completedTaskCount}/{selectedDay.session.tasks.length}</small></summary>
             <section className="checklist-block compact-targets" aria-labelledby="tasks-heading">
               <div className="flow-heading"><h3 id="tasks-heading">Today&apos;s Targets</h3><span>{completedTaskCount}/{selectedDay.session.tasks.length}</span></div>
@@ -10392,7 +10504,7 @@ export default function Home() {
                 <input type="checkbox" checked={Boolean(selectedLog.tasks[task])} onChange={() => toggleTask(task)} /><span><strong>{task}</strong></span>
               </label>)}</div>
             </section>
-          </details>
+          </details>}
           <section className="notes-block" aria-labelledby="notes-heading">
             <h3 id="notes-heading">Workout Notes</h3>
             <label className="notes-field">

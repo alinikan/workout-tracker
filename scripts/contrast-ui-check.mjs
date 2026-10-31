@@ -261,39 +261,14 @@ export async function runContrastChecks({
         "fixture@example.test",
       );
       await audit(page, `${label}-signed-in-account`, "#coach-account");
-      await page.locator(".momentum-entry").click();
-      await expect(page.locator("main.momentum")).toBeVisible();
-      await audit(page, `${label}-momentum-today`);
-      await page.locator(".mm-titan-row").click();
-      await audit(page, `${label}-momentum-titan`, ".mm-sheet");
+      await audit(page, `${label}-coach-plan`, ".coach-plan");
+      await page.getByRole("button", { name: "Change training schedule", exact: true }).click();
+      await page.getByLabel("Training setup", { exact: true }).selectOption("trial");
       await page.getByLabel("Trial date", { exact: true }).fill("2026-10-08");
-      await audit(page, `${label}-momentum-trial-preview`, ".mm-sheet");
-      await page
-        .getByRole("button", { name: "Close panel", exact: true })
-        .click();
-      const privateTab = (name) =>
-        page
-          .getByRole("navigation", { name: "Momentum sections" })
-          .getByRole("button", { name, exact: true })
-          .click();
-      await privateTab("Meals");
-      await audit(page, `${label}-momentum-meals`);
-      await page.getByRole("tab", { name: "Cook batch", exact: true }).click();
-      await audit(page, `${label}-momentum-batch`);
-      await page.getByRole("tab", { name: "To buy", exact: true }).click();
-      await audit(page, `${label}-momentum-groceries`);
-      await privateTab("Journey");
-      await audit(page, `${label}-momentum-journey`);
-      await privateTab("Today");
-      await page
-        .getByRole("button", { name: "Start session", exact: true })
-        .click();
-      await audit(page, `${label}-momentum-session`);
-      await page
-        .getByRole("button", { name: "Finish with what I did", exact: true })
-        .click();
-      await audit(page, `${label}-momentum-finish`);
-      await page.getByRole("button", { name: "Back to Coach Hub", exact: true }).click();
+      await audit(page, `${label}-coach-trial-preview`, ".coach-plan");
+      await page.getByLabel("Training setup", { exact: true }).selectOption("regular");
+      await audit(page, `${label}-coach-weekly-classes`, ".coach-plan");
+      await page.locator(".coach-plan").getByRole("button", { name: "Cancel", exact: true }).click();
       const nutrition = page.locator(".nutrition-coach");
       await nutrition.getByLabel("Age", { exact: true }).fill("30");
       await nutrition.getByLabel("Height (cm)", { exact: true }).fill("175");

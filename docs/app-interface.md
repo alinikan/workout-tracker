@@ -15,7 +15,7 @@ redesign resets an account or changes Supabase access permissions.
 | Diet | Follow the shared batch meals, open recipe instructions, change an uncooked batch and use the To buy list. |
 | Progress | Review training attendance, achievements, logged loads and history. |
 | Week plan / Exercise library | Contextual buttons inside Workout; they are not extra global navigation layers. |
-| Momentum | Open from Coach for the private 90-day home/trial journey. It keeps its existing independent private tracking and security. |
+| Training & Muay Thai | In Coach, choose home-only, one trial or recurring weekly classes. Today/Gym share attendance and Diet uses the same dates. The former Momentum screen is retired; records are preserved. See [connected Coach](connected-coach.md). |
 
 ## Exercise Swaps
 

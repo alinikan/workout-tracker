@@ -220,7 +220,7 @@ test("includes researched movement resources and autosave controls", async () =>
     assert.match(page, new RegExp(required.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
 
-  assert.doesNotMatch(page, /Reps\/sec|Daily Foundations|Export JSON|Import|Light Practice Sets|lb\/kg|Inline video/);
+  assert.doesNotMatch(page, /Reps\/sec|Daily Foundations|Export JSON|>Import(?: JSON)?<|Light Practice Sets|lb\/kg|Inline video/);
   assert.doesNotMatch(page, /className="load-pill"/);
   assert.doesNotMatch(page, /Starts Tuesday/);
   assert.match(page, /acefitness\.org/);
@@ -676,8 +676,8 @@ test("day skip controls share date-scoped handlers and Gym shows a terminal summ
 test("service worker avoids stale Vercel app shells", async () => {
   const serviceWorker = await text("public/sw.js");
 
-  assert.match(serviceWorker, /recomp-gym-console-v59/);
-  assert.match(serviceWorker, /bulk-shopping-v59/);
+  assert.match(serviceWorker, /recomp-gym-console-v60/);
+  assert.match(serviceWorker, /unified-coach-v60/);
   assert.match(serviceWorker, /\/icons\/chevron-down\.svg/);
   const appSource = await text("src/App.tsx");
   assert.match(appSource, /registration\.update\(\)\.catch\(/);

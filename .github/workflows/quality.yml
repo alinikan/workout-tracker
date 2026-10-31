@@ -12,7 +12,7 @@ jobs:
     # identical commits. Keep Linux UI checks on this explicit LTS image.
     runs-on: ubuntu-24.04
     # Includes full-view axe contrast audits as well as repeated interaction tests.
-    # Includes six additional trial-editor viewport/theme flows and two-device sync.
+    # Includes Coach scheduling/migration, rest rollover and two-device sync.
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
