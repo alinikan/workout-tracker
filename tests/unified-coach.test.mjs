@@ -343,3 +343,45 @@ test("a partial legacy log never becomes a full lift merely because all copied r
   assert.equal(store.days[start].completed, false);
   assert.equal(app.trainingProgressFor(days, store, start).credits, 0);
 });
+
+test("future classes accept skips and notes but never early attendance", () => {
+  for (const mode of ["trial", "regular"]) {
+    const state = choose(
+      emptyCoaching(),
+      input(mode, {
+        date: "2026-11-04",
+        weekdays: mode === "regular" ? [3] : [],
+      }),
+    );
+    const day = projected(state).find((d) => d.iso === "2026-11-04");
+    const log = app.normalizeDayLog();
+    assert.equal(
+      app.allowsDayEdit(day, { ...log, notes: "Away with work" }, start),
+      true,
+    );
+    const skipped = app.skipPlanDay(day, log, "time");
+    assert.equal(app.allowsDayEdit(day, skipped, start), true);
+    assert.equal(
+      app.allowsDayEdit(day, app.reopenPlanDay(day, skipped), start),
+      true,
+    );
+    assert.equal(
+      app.allowsDayEdit(day, app.completePlanDay(day, log), start),
+      false,
+    );
+    assert.equal(
+      app.allowsDayEdit(day, app.completePlanDay(day, log), day.iso),
+      true,
+    );
+    const rest = {
+      ...day,
+      iso: "2999-11-04",
+      session: { ...day.session, type: "recovery", exerciseIds: [] },
+    };
+    assert.equal(
+      app.dayStatusForDay(rest, skipped),
+      "incomplete",
+      "a future rest day never inherits an old class skip badge",
+    );
+  }
+});

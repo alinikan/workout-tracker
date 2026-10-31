@@ -17,6 +17,10 @@ There is no separate Momentum screen or parallel attendance counter.
 7. To cancel future classes, save **Home gym only**. To move a trial, save a new future date.
    Recorded activity remains historical even if the new preview would otherwise replace it.
 
+To miss just one regular class, open that date in Today and **Skip Day**. Notes/skips can be saved
+ahead of time; attendance cannot. Uncooked meals use recovery portions for that skipped date unless
+actual training was recorded. **Resume Day** reopens it; already-cooked food stays unchanged.
+
 The calendar grows beyond the initial six-month preview. Recurring classes continue until
 changed; the home cycle uses the user's chosen start date rather than a fixed Monday/date.
 The original three-day template stays compatible for older non-home accounts until they choose

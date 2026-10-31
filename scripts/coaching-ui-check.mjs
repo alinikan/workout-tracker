@@ -158,6 +158,21 @@ export async function runCoachingChecks({
         "Fuel for your trial",
       );
       await expect(page.locator(".meal-prep-planner")).toContainText("18:15");
+      await navigate(page, "Coach");
+      await editor(page).locator(".coach-plan-upcoming > summary").click();
+      await editor(page).locator(".coach-plan-week button").last().click();
+      await page.locator(".today-command-panel .day-skip-button").click();
+      await page
+        .getByRole("dialog")
+        .getByRole("button", { name: "Time", exact: true })
+        .click();
+      await expect
+        .poll(() => backend.snapshot().days["2026-11-03"]?.daySkipReason)
+        .toBe("time");
+      await navigate(page, "Diet");
+      await expect(page.locator(".meal-prep-planner")).not.toContainText(
+        "Fuel for your trial",
+      );
       await edit(page);
       await editor(page)
         .getByLabel("Trial date", { exact: true })
@@ -288,9 +303,18 @@ export async function runCoachingChecks({
       await navigate(page, "Coach");
       await page.clock.setFixedTime(new Date("2026-11-02T19:00Z"));
       await page.reload();
-      await expect(page.locator(".hub-choice-card.workout")).toContainText("Planned rest");
-      await expect(page.getByRole("progressbar", { name: "Today's workout progress", exact: true })).toHaveCount(0);
-      await expect(page.locator(".hub-mini-grid > div").first().locator("strong")).toHaveText("1");
+      await expect(page.locator(".hub-choice-card.workout")).toContainText(
+        "Planned rest",
+      );
+      await expect(
+        page.getByRole("progressbar", {
+          name: "Today's workout progress",
+          exact: true,
+        }),
+      ).toHaveCount(0);
+      await expect(
+        page.locator(".hub-mini-grid > div").first().locator("strong"),
+      ).toHaveText("1");
       await page
         .getByRole("button", { name: "Start fresh", exact: true })
         .click();

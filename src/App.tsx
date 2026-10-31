@@ -6351,7 +6351,7 @@ function areDayExercisesComplete(planDay: PlanDay, log: DayLog) {
 }
 
 function dayStatusForDay(planDay: PlanDay, log: DayLog): DayStatus {
-  if (isRestDay(planDay) && planDay.iso <= isoFromDate(new Date())) return "complete";
+  if (isRestDay(planDay)) return planDay.iso <= isoFromDate(new Date()) ? "complete" : "incomplete";
   if (log.daySkipReason) return "skipped";
   const exercises = scheduledExercisesForDay(planDay, log);
   if (!exercises.length) return log.completed ? "complete" : "incomplete";
@@ -6396,6 +6396,12 @@ function isPlanDayComplete(planDay: PlanDay, log: DayLog) {
 
 function isRestDay(planDay: PlanDay) {
   return planDay.session.type === "recovery" && planDay.session.exerciseIds.length === 0;
+}
+
+/** A future class may be skipped, resumed or annotated, but not attended early. */
+function allowsDayEdit(planDay: PlanDay | undefined, log: DayLog, today: string) {
+  return !planDay || planDay.iso <= today || !["trial", "class"].includes(planDay.session.connected?.kind ?? "")
+    || (!log.completed && !Object.values(log.exercises).some(rows => rows.some(set => set.done)));
 }
 
 /**
@@ -6726,7 +6732,7 @@ function runViewTransition(update: () => void) {
 // 26-week plans and saved progress without duplicating the coaching logic.
 export {
   buildPlanDays, emptyStore, normalizeDayLog, normalizeStore, completePlanDay,
-  connectedPlanDays, coachPlanDays, importCoachHistory, isRestDay,
+  connectedPlanDays, coachPlanDays, importCoachHistory, isRestDay, allowsDayEdit,
   withTrainingWeek, earnedTrainingWeekForDay, scheduledExercisesForDay,
   recommendedSets, targetForExercise, dayStatusForDay, firstUnfinishedMoveIndex,
   nextUnfinishedMoveIndex, proteinReferenceFromMetrics, weightTrendSignalFor,
@@ -7800,18 +7806,24 @@ export default function Home() {
   // These small updater wrappers keep all edits immutable. React notices the changed objects, and
   // the autosave effects above persist the updated store.
   const updateDay = (date: string, updater: (log: DayLog) => DayLog, undoLabel?: string) => {
-    if (date > calendarDate && ["trial", "class"].includes(planDays.find(day => day.iso === date)?.session.connected?.kind ?? "")) return;
+    const planDay = planDays.find(day => day.iso === date);
+    const safeUpdate = (log: DayLog) => {
+      const next = updater(log);
+      return allowsDayEdit(planDay, next, calendarDate) ? next : log;
+    };
     if (undoLabel) {
       const current = latestStoreRef.current;
       const before = normalizeDayLog(current.days[date]);
-      setUndoAction({ kind: "workout", date, before, after: updater(before), label: undoLabel,
+      const after = safeUpdate(before);
+      if (sameData(before, after)) return;
+      setUndoAction({ kind: "workout", date, before, after, label: undoLabel,
         resetId: current.program.resetId, owner: session?.user.id ?? null });
     }
     setStore((current) => {
       const rawDay = planDays.find((day) => day.iso === date);
       const log = normalizeDayLog(current.days[date]);
       const frozenLevel = rawDay ? trainingWeekForEdit(planDays, current, rawDay, calendarDate) : log.trainingWeek;
-      const updated = updater({ ...log, trainingWeek: frozenLevel });
+      const updated = safeUpdate({ ...log, trainingWeek: frozenLevel });
       const actualWork = updated.completed || Object.values(updated.exercises).some(rows => rows.some(set => set.done || set.weight || set.reps));
       const nextLog = { ...updated, trainingWeek: frozenLevel,
         ...(rawDay?.session.connected && date <= calendarDate && actualWork ? { sessionSnapshot: log.sessionSnapshot ?? rawDay.session } : {}) };
@@ -10300,7 +10312,7 @@ export default function Home() {
             </motion.div>
           )}
 
-          {selectedLog.daySkipReason && (
+          {!isRestDay(selectedCoachDay) && selectedLog.daySkipReason && (
             <p className="day-skipped-notice" role="status">
               <strong>{formatDate(selectedDay.iso, "short")} skipped:</strong> {skipReasonLabel(selectedLog.daySkipReason)}.
               {" "}Logged sets and weights are saved. Resume Day reopens the remaining work.
@@ -10467,6 +10479,7 @@ export default function Home() {
                           {tracksPerformance(move.activeExercise) && <SetLoadFields exercise={move.activeExercise} set={set} setIndex={setIndex}
                             onChange={updateSet} previous={previous?.rows[setIndex]} />}
                           <label className="mini-check"><input type="checkbox" checked={set.done}
+                            disabled={["trial", "class"].includes(selectedDay.session.connected?.kind ?? "") && selectedDay.iso > calendarDate}
                             aria-label={`${move.activeExercise.name} set ${setIndex + 1} complete`}
                             onChange={(event) => updateSet(move.activeExercise.id, setIndex, "done", event.target.checked)} /><span /></label>
                         </div>)}
