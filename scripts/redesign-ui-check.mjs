@@ -76,6 +76,12 @@ export async function runRedesignChecks({
       await navigate(page, "Today");
       await expect(page.locator(".today-inline-log")).toHaveCount(0);
       const quad = page.locator("#today-move-wall-sit");
+      const prep = page.locator("#today-move-warmup-ramp-home-wall-sit");
+      await prep.locator(".move-main-button").click();
+      await prep.getByRole("textbox", {
+        name: "Bodyweight Wall Sit Warm-Up set 1 hold seconds", exact: true,
+      }).fill("8");
+      await prep.locator(".move-main-button").click();
       await quad.locator(".move-check-button").click();
       await expect(page.locator(".today-inline-log")).toHaveCount(0);
       await quad.locator(".move-check-button").click();
@@ -113,6 +119,37 @@ export async function runRedesignChecks({
       await quadSheet
         .getByRole("button", { name: "Close exercise details", exact: true })
         .click();
+      await expect(prep).toContainText("Bodyweight Wall Sit Warm-Up");
+      await expect(prep).not.toContainText("Reverse Nordic");
+      await prep.locator(".move-main-button").click();
+      await expect(prep.getByRole("textbox", {
+        name: "Bodyweight Wall Sit Warm-Up set 1 hold seconds", exact: true,
+      })).toHaveValue("8");
+      await expect(prep.locator(".set-weight")).toHaveCount(0);
+      await prep.locator(".move-main-button").click();
+      await expect.poll(() => backend.snapshot().days["2026-10-05"]?.swaps?.["wall-sit"]).toBe("reverse-nordic");
+      await expect.poll(() => backend.snapshot().days["2026-10-05"]?.exercises?.["warmup-ramp-home-wall-sit"]?.[0]?.reps).toBe("8");
+      await page.reload();
+      await navigate(page, "Gym");
+      const gym = page.locator(".gym-mode-shell");
+      await expect(gym.getByRole("heading", { name: "Bodyweight Wall Sit Warm-Up", exact: true })).toBeVisible();
+      await expect(gym.locator(".video-poster img")).toHaveAttribute("src", /RG7z0P9qrLk/);
+      await navigate(page, "Today");
+      await expect(quad).toContainText("Nordic Leg Extension (Reverse Nordic)");
+      await expect(prep).toContainText("Bodyweight Wall Sit Warm-Up");
+      await prep.locator(".entry-swap-button").click();
+      await quadSheet.locator(".swap-option-grid").getByRole("button", {
+        name: /Seated Knee Extension \(No Machine\) Warm-Up/,
+      }).click();
+      await quadSheet.getByRole("tab", { name: "Log", exact: true }).click();
+      await expect(quadSheet.getByRole("textbox", {
+        name: "Seated Knee Extension (No Machine) Warm-Up set 1 reps", exact: true,
+      })).toBeVisible();
+      await expect(quadSheet.locator(".set-weight")).toHaveCount(0);
+      await quadSheet.getByRole("button", { name: "Close exercise details", exact: true }).click();
+      await expect(quad).toContainText("Nordic Leg Extension (Reverse Nordic)");
+      await prep.getByRole("button", { name: "Revert to original", exact: true }).click();
+      await expect(prep).toContainText("Bodyweight Wall Sit Warm-Up");
       await quad
         .getByRole("button", { name: "Revert to original", exact: true })
         .click();

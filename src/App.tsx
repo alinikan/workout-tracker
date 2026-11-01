@@ -2522,7 +2522,7 @@ exerciseMap["mi6-cable-curl"].swapIds = ["dumbbell-biceps-curl"];
 exerciseMap["mi6-bar-pressdown"].swapIds = ["rope-triceps-pressdown"];
 
 // A warm-up reuses the exact movement's media/setup, never an unrelated demonstration.
-for (const [id, sourceId] of [["warmup-ramp-home-wall-sit", "wall-sit"], ["warmup-ramp-home-reverse-nordic", "reverse-nordic"], ["warmup-ramp-home-leg-extension", "seated-leg-extension"], ["warmup-ramp-home-cable-extension", "mi6-leg-extension"], ["warmup-ramp-home-machine-press", "machine-chest-press"]]) {
+for (const [id, sourceId] of [["warmup-ramp-home-wall-sit", "wall-sit"], ["warmup-ramp-home-reverse-nordic", "reverse-nordic"], ["warmup-ramp-home-seated-quad", "seated-quad-extension"], ["warmup-ramp-home-leg-extension", "seated-leg-extension"], ["warmup-ramp-home-cable-extension", "mi6-leg-extension"], ["warmup-ramp-home-machine-press", "machine-chest-press"]]) {
   const source = exerciseMap[sourceId];
   exerciseMap[id] = { ...source, id, name: `${source.name} Warm-Up`, shortName: `${source.shortName} warm-up`,
     family: "warmup", priority: "main", swapIds: undefined,
@@ -2530,6 +2530,18 @@ for (const [id, sourceId] of [["warmup-ramp-home-wall-sit", "wall-sit"], ["warmu
     cues: [tracksWeight(source) ? "Use the lightest comfortable setting, clearly below your working weight. This is preparation, not a hard set." : "Rehearse a smaller, easier range or shorter hold than your working set. Use bodyweight only and do not create fatigue.", ...source.cues],
     progression: "Keep this easy. Do not turn a warm-up into another working set." };
 }
+// Preparation alternatives use their own warm-up identities. Saving one must
+// never overwrite the working exercise's swap, completed sets, or load history.
+const bodyweightQuadPrepIds = ["warmup-ramp-home-wall-sit", "warmup-ramp-home-reverse-nordic", "warmup-ramp-home-seated-quad"];
+for (const id of bodyweightQuadPrepIds) exerciseMap[id].swapIds = bodyweightQuadPrepIds.filter(option => option !== id);
+exerciseMap["warmup-ramp-home-seated-quad"].trainingLocation = "upstairs";
+exerciseMap["warmup-ramp-home-seated-quad"].locationNote = "Use a stable chair in your unit for this easy preparation, then head downstairs for the equipment work.";
+exerciseMap["warmup-ramp-home-wall-sit"].cues = [
+  "Stand with your back against a sturdy wall, feet comfortably apart and forward from the wall.",
+  "Slide down only a little. Stay shallow and comfortable; a right-angle knee bend is not required.",
+  "Hold easily for 5-10 seconds while breathing normally, then slide up. This is preparation, not a tiring working hold.",
+  "This warm-up stays separate from your working exercise. Choose its own Swap if you want different preparation; use the seated option if the wall position is uncomfortable.",
+];
 exerciseMap["muay-thai-trial"] = {
   id: "muay-thai-trial", name: "Muay Thai / Kickboxing Trial", shortName: "One coached trial", family: "cardio", logType: "done",
   trainingLocation: "titan", locationNote: "Attend your confirmed visit at Titan, not the home gym. Follow the coach's introduction and take breaks whenever needed.",
@@ -5257,9 +5269,12 @@ function performanceUnit(exercise: Exercise) {
 // Swaps are resolved at render time. The original exercise stays in the schedule, while the saved
 // log says which replacement should currently be shown.
 function activeExerciseFor(originalExercise: Exercise, log: DayLog) {
+  // Bodyweight preparation is its own short, easy movement, not an equipment
+  // setup for the working lift. Keep it independent: changing the quad swap
+  // must not silently change its technique, video, or seconds/reps field.
   // Keep a ramp slot's stable ID, but teach the movement actually selected for
   // its corresponding main lift. A row swap must not keep teaching dumbbell setup.
-  if (isRampWarmup(originalExercise)) {
+  if (isRampWarmup(originalExercise) && !bodyweightQuadPrepIds.includes(originalExercise.id)) {
     const homeRamp = { "warmup-ramp-home-wall-sit": "wall-sit", "warmup-ramp-home-reverse-nordic": "reverse-nordic", "warmup-ramp-home-cable-extension": "mi6-leg-extension", "warmup-ramp-home-leg-extension": "seated-leg-extension", "warmup-ramp-home-machine-press": "machine-chest-press" };
     const mainId = homeRamp[originalExercise.id as keyof typeof homeRamp] ?? originalExercise.id.replace("warmup-ramp-", "");
     const main = exerciseMap[mainId];

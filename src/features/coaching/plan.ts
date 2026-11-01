@@ -231,7 +231,15 @@ export function coachActivity(
 }
 
 export function coachTargets(activity: "strength-a" | "strength-b") {
-  return homeStrengthTemplates[activity];
+  // The live home plan favors the user's comfortable wall-sit option on both
+  // days. Leave the retired template untouched: importing an older B session
+  // must still identify its Reverse Nordic work, not relabel it as a hold.
+  // App.tsx also preserves started sessions through their saved snapshots.
+  return homeStrengthTemplates[activity].map((move) =>
+    move.id === "reverse-nordic"
+      ? { id: "wall-sit", reps: "10-20 sec comfortable hold" }
+      : move,
+  );
 }
 
 /** Small walking increases use actual completed walks, not future appointments.

@@ -203,7 +203,10 @@ function recordWeek(store, week, kg, count = 7) {
   for (let day = 0; day < count; day += 1) store.metrics[days[week * 7 + day].iso] = weight(kg);
 }
 
-test("Coach Hub is the useful default with no saved user data", () => {
+test("Coach Hub is the useful default with no saved user data", (t) => {
+  // Render a known lifting day instead of depending on CI's current weekday.
+  // Rest days intentionally have no workout-completion progress control.
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-10-05T19:00:00Z") });
   const html = renderToString(createElement(model.default));
   assert.match(html, /coach-hub-shell/);
   assert.match(html, /Today&#x27;s workout progress/);
@@ -211,6 +214,14 @@ test("Coach Hub is the useful default with no saved user data", () => {
   assert.match(html, /Morning weight \(kg\)/);
   assert.match(html, /Recomp app navigation/);
   assert.doesNotMatch(html, /NaN|undefined/);
+});
+
+test("Coach Hub renders planned recovery without asking for workout completion", (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-11-01T19:00:00Z") });
+  const html = renderToString(createElement(model.default));
+  assert.match(html, /Planned rest/);
+  assert.doesNotMatch(html, /Today&#x27;s workout progress/);
+  assert.match(html, /Today&#x27;s meal progress/);
 });
 
 test("GIF-only exercises start with compact controls, never an empty video frame", () => {

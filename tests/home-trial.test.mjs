@@ -137,6 +137,52 @@ test("the home cable warm-up follows the no-machine swap without asking for a we
   }
 });
 
+test("bodyweight preparation does not follow a working-exercise swap or overwrite its saved hold", () => {
+  const original = app.exerciseMap["warmup-ramp-home-wall-sit"];
+  for (const replacement of ["reverse-nordic", "seated-quad-extension"]) {
+    const log = app.normalizeDayLog({
+      swaps: { "wall-sit": replacement },
+      exercises: { [original.id]: [{ done: true, weight: "", reps: "8" }] },
+    });
+    const before = structuredClone(log);
+    assert.equal(app.activeExerciseFor(original, log), original);
+    assert.equal(app.activeExerciseFor(app.exerciseMap["wall-sit"], log).id, replacement);
+    assert.equal(original.logType, "seconds");
+    assert.equal(original.youtubeId, "RG7z0P9qrLk");
+    assert.deepEqual(log, before);
+  }
+  // Retained Reverse Nordic snapshots also keep their own preparation identity.
+  const oldRamp = app.exerciseMap["warmup-ramp-home-reverse-nordic"];
+  assert.equal(app.activeExerciseFor(oldRamp, app.normalizeDayLog({ swaps: { "reverse-nordic": "wall-sit" } })), oldRamp);
+});
+
+test("equipment-specific warm-ups still teach a selected press swap with easy bodyweight targets", () => {
+  const log = app.normalizeDayLog({ swaps: { "machine-chest-press": "incline-push-up" } });
+  const ramp = app.activeExerciseFor(app.exerciseMap["warmup-ramp-home-machine-press"], log);
+  assert.equal(ramp.youtubeId, app.exerciseMap["incline-push-up"].youtubeId);
+  assert.equal(ramp.logType, "reps");
+  assert.match(app.targetForExercise(app.buildPlanDays(start)[0], ramp), /2-3 easy/);
+});
+
+test("each bodyweight warm-up can be chosen independently with its own media and units", () => {
+  const prep = app.exerciseMap["warmup-ramp-home-reverse-nordic"];
+  const log = app.normalizeDayLog({
+    swaps: { "warmup-ramp-home-reverse-nordic": "warmup-ramp-home-wall-sit" },
+  });
+  assert.equal(app.activeExerciseFor(prep, log).id, "warmup-ramp-home-wall-sit");
+  assert.equal(app.activeExerciseFor(prep, log).logType, "seconds");
+  assert.equal(app.activeExerciseFor(app.exerciseMap["reverse-nordic"], log).id, "reverse-nordic");
+  for (const option of app.swapOptionsFor(prep)) {
+    assert.equal(option.family, "warmup");
+    assert.ok(option.youtubeId && option.resources.length && option.cues.length);
+    assert.ok(["seconds", "reps"].includes(option.logType));
+    assert.equal(app.locationGuideForExercise(option).type, "upstairs");
+  }
+  const seated = app.exerciseMap["warmup-ramp-home-seated-quad"];
+  assert.equal(seated.youtubeId, app.exerciseMap["seated-quad-extension"].youtubeId);
+  assert.equal(seated.logType, "reps");
+});
+
 for (let offset = 0; offset < 7; offset++)
   test(`home start weekday ${offset}: Day 1 lift, two weekly lifts, no assumed class`, () => {
     const d = fixture(addDays(start, offset)),

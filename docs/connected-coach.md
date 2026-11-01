@@ -67,6 +67,47 @@ batches and the 2-/3-week shopping totals follow the new schedule.
 This is a deterministic, tested planner. It is not a live personal trainer, an AI model, a calorie
 measurement device or a guarantee of weight loss. Regular check-ins and realistic adherence matter.
 
+## Home Equipment And Preparation
+
+Upcoming Home A and B use the preferred **Bodyweight Wall Sit**: a comfortable shallow hold,
+not a forced deep squat. The easy 5–10-second wall-sit rehearsal stays separate from the
+10–20-second working holds. Swapping the working exercise changes only that slot; it does not
+silently replace the bodyweight preparation, its video, or its seconds field. Each bodyweight
+warm-up also has its **own Swap** for explicitly choosing Wall Sit, Reverse Nordic or a gentle
+seated rehearsal without changing the working exercise. Reverse Nordic
+and unloaded seated knee extension remain choices through **Swap**, not additional sets.
+Use the seated option when the wall position or kneeling is uncomfortable.
+
+Equipment-specific ramp sets still follow the selected press/row movement so their setup/media
+teach the equipment actually used. A warm-up is easy preparation, never another demanding set.
+Existing session snapshots, archived templates and logged values are not migrated or deleted.
+A previously started B session may therefore still show its saved Reverse Nordic prescription;
+use each slot's own Swap control to choose Wall Sit rather than resetting the program.
+
+The supplied exercise placard labels **HPA-1** and **HPA-2** press-arm *options*. It does not
+identify the installed model or prove that every pictured attachment is usable. The
+[manufacturer's H2200/H4400 brochure](https://storage.googleapis.com/hoist_products_public_data/brochure/H2200%20%26%20H4400_BROCHURE.pdf)
+also distinguishes fixed and articulating press arms. This is a configuration check, not an
+assertion that the pictured machine is either exact model.
+
+For the current return-to-training routine:
+
+- Keep the existing chest press; incline/decline presses and flyes are not extra required work.
+- A properly configured **press-arm mid-row** is a promising replacement for the dumbbell row
+  once the installed handles, adjustment and supported position are confirmed. It is different
+  from the unavailable Mi6 seated cable row, which remains excluded from selectable swaps.
+- A confirmed standing leg-curl attachment could provide direct hamstring work later; it is
+  not a quadriceps replacement. Leg extensions remain excluded unless equipment availability
+  is explicitly corrected. No attachment is enabled just from the placard.
+- Keep the existing floor core work rather than automatically adding machine crunches or back
+  extensions. New equipment is not a reason to increase total workload.
+
+These choices prioritize a manageable repeatable routine, consistent with
+[ACSM's 2026 guidance](https://acsm.org/resistance-training-guidelines-update-2026/): regular
+training, individual fit and adherence matter more than complicated exercise rotation. This
+supports the conservative approach, not a claim that wall sits and dynamic knee extensions
+produce identical adaptations or that the exact app routine is optimal for everyone.
+
 ## Data And Compatibility
 
 `src/features/coaching/plan.ts` owns validated dated choices, recurrence, recovery spacing and fuel

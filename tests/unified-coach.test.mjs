@@ -54,6 +54,30 @@ test("home plan grows beyond six calendar months and never schedules a class by 
   }
 });
 
+test("upcoming A and B use Wall Sit without rewriting a previously started Reverse Nordic session", () => {
+  const state = choose(emptyCoaching(), input());
+  const home = projected(state).filter(day => day.session.connected?.kind === "home");
+  for (const day of home) {
+    assert.ok(day.session.exerciseIds.includes("wall-sit"));
+    assert.ok(day.session.exerciseIds.includes("warmup-ramp-home-wall-sit"));
+    assert.ok(!day.session.exerciseIds.includes("reverse-nordic"));
+    assert.ok(app.swapOptionsFor(app.exerciseMap["wall-sit"]).some(e => e.id === "reverse-nordic"));
+    assert.equal(app.recommendedSets(day, app.exerciseMap["wall-sit"], 0), 2);
+  }
+  const second = home[1];
+  const snapshot = structuredClone(second.session);
+  snapshot.exerciseIds = snapshot.exerciseIds.map(id => id === "wall-sit" ? "reverse-nordic" : id === "warmup-ramp-home-wall-sit" ? "warmup-ramp-home-reverse-nordic" : id);
+  snapshot.connected.targets["reverse-nordic"] = "4-6 small-range reps";
+  const log = app.normalizeDayLog({
+    sessionSnapshot: snapshot,
+    exercises: { "reverse-nordic": [{ weight: "", reps: "4", done: true }] },
+  });
+  const saved = structuredClone(log);
+  const retained = projected(state, { [second.iso]: log }).find(day => day.iso === second.iso);
+  assert.deepEqual(retained.session, snapshot);
+  assert.deepEqual(log, saved);
+});
+
 test("every trial weekday replaces work and buffers adjacent dates without inventing attendance", () => {
   for (let n = 0; n < 21; n++) {
     const date = addDays(start, n),

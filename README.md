@@ -487,13 +487,19 @@ The base program remains recognizable on purpose. Repeating the same main moveme
 
 | Equipment | Supported use in the app | Important rule |
 | --- | --- | --- |
-| Selectorized multi-gym press arms | Machine Chest Press swap. | Use only the manufacturer's chest-press position. Extra grip choices do not turn fixed press arms into an overhead press. |
-| Bodyweight quad work | Home A: shallow wall sit, recorded in seconds. Home B: small-range reverse Nordic, recorded in reps. A seated knee-extension swap is available. | Neither requires added weight. Do not force painful knee bending or kneeling; use the seated alternative when needed. |
+| Selectorized multi-gym press arms | Machine Chest Press is the main press in the connected home routine and a swap in the original template. | Use the manufacturer's chest-press setup. Other press directions require their documented seat/backrest/arm adjustments, not just a different grip. |
+| Bodyweight quad work | Upcoming Home A and B: shallow wall sit, recorded in seconds. Reverse Nordic and seated knee extension remain optional swaps. | The short wall-sit warm-up stays independent when the working exercise is swapped. No added weight is required. Use a comfortable shallow position; choose the seated alternative if necessary. Started sessions retain their saved prescription. |
 | Home horizontal row | Supported single-arm dumbbell row replaces the unavailable Mi6 seated row. | Keep each side controlled and the supporting surface stable. Past Mi6 records remain readable. |
 | HOIST Mi6 dual cable | Short-bar biceps curl, short-bar triceps pressdown and standing cable fly. | Lock every adjustment and follow the movement-specific setup. |
 | HOIST Mi6 pull-up bar | Assisted pull-up only with the manufacturer-documented assistance setup and compatible strap. | Never improvise a loose foot/knee connection. Assistance is inverse: more assistance means an easier rep. |
 
 The Mi6 manual specifies a **2:1 pulley ratio**, or about half of the selected stack weight at each handle before cable and attachment effects. The tracker deliberately asks for the visible pin pounds **per stack** because that is easy to reproduce. Do not add the two stack numbers together, and do not compare Mi6 pin pounds with a different cable machine. Keep the same attachment, pulley height, bench position, stance, and grip when evaluating Smart Load.
+
+An exercise placard can cover multiple optional attachments. It is not confirmation that every
+pictured movement is available on the installed machine. The current plan does not automatically
+add leg extensions, leg curls, flyes or extra presses from a placard. A manufacturer-supported
+press-arm mid-row could replace the dumbbell row once the actual station/setup is confirmed;
+it is not the unavailable Mi6 seated cable row. See the [equipment rationale](docs/connected-coach.md#home-equipment-and-preparation).
 
 > [!TIP]
 > Use the exercise's Swap button to choose a home-machine version. It remains clearly marked as a swap and can be reverted. Its video, GIF/reference demo, setup instructions, and weight history stay attached to that specific version.
