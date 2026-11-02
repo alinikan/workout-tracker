@@ -274,10 +274,17 @@
 }
 .meal-prep-planner .mp-meal-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   margin-top: 12px;
+}
+.meal-prep-planner .mp-meal-command-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
 }
 .meal-prep-planner .mp-button {
   display: inline-flex;

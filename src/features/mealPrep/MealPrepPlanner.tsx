@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
   ArrowRight,
   Check,
@@ -307,6 +307,16 @@ export function MealPrepPlanner({
   const [swap, setSwap] = useState<{ key: string; kind: ChoiceKind } | null>(
     null,
   );
+  const swapPanelRef = useRef<HTMLDivElement>(null);
+  // An Eat-today swap opens the existing batch chooser, not a second unsynced
+  // meal editor. Move focus with it so phone/keyboard users land at the choices.
+  useEffect(() => {
+    if (!swap || destination !== "cook") return;
+    swapPanelRef.current
+      ?.querySelector<HTMLButtonElement>("button")
+      ?.focus({ preventScroll: true });
+    swapPanelRef.current?.scrollIntoView({ block: "nearest" });
+  }, [swap?.key, swap?.kind, destination]);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
@@ -783,21 +793,36 @@ export function MealPrepPlanner({
                       ? "Reheat one container"
                       : "Ready in a few minutes"}
                   </span>
-                  <button
-                    type="button"
-                    className="mp-button mp-eaten-button"
-                    aria-pressed={Boolean(mealLog.eaten[slot])}
-                    aria-label={`${mealLog.eaten[slot] ? "Reopen" : "Mark eaten:"} ${label}`}
-                    disabled={date > today}
-                    onClick={() => onToggleMeal(slot)}
-                  >
-                    {mealLog.eaten[slot] ? (
-                      <Check aria-hidden="true" />
-                    ) : (
-                      <Circle aria-hidden="true" />
-                    )}
-                    {mealLog.eaten[slot] ? "Eaten" : "Mark eaten"}
-                  </button>
+                  <div className="mp-meal-command-group">
+                    <button
+                      type="button"
+                      className="mp-text-button"
+                      aria-label={`Swap recipe: ${label}`}
+                      disabled={!canEditKind(kindForSlot(slot))}
+                      onClick={() => {
+                        setDestination("cook");
+                        setSwap({ key: block.key, kind: kindForSlot(slot) });
+                      }}
+                    >
+                      <ArrowLeftRight aria-hidden="true" />
+                      Swap
+                    </button>
+                    <button
+                      type="button"
+                      className="mp-button mp-eaten-button"
+                      aria-pressed={Boolean(mealLog.eaten[slot])}
+                      aria-label={`${mealLog.eaten[slot] ? "Reopen" : "Mark eaten:"} ${label}`}
+                      disabled={date > today}
+                      onClick={() => onToggleMeal(slot)}
+                    >
+                      {mealLog.eaten[slot] ? (
+                        <Check aria-hidden="true" />
+                      ) : (
+                        <Circle aria-hidden="true" />
+                      )}
+                      {mealLog.eaten[slot] ? "Eaten" : "Mark eaten"}
+                    </button>
+                  </div>
                 </div>
                 {changed && !recorded && (
                   <button
@@ -986,7 +1011,11 @@ export function MealPrepPlanner({
                   </button>
                 )}
               </div>
-              <div id={`${id}-swap-${kind}`} hidden={!swapOpen}>
+              <div
+                id={`${id}-swap-${kind}`}
+                hidden={!swapOpen}
+                ref={swapOpen ? swapPanelRef : undefined}
+              >
                 <p className="mp-swap-caption">
                   For all {count}{" "}
                   {kind === "main"

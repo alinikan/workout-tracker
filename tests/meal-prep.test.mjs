@@ -75,7 +75,10 @@ test("catalog contains structured one-serving recipes with stable prep-prefixed 
     assert.equal(prepRecipeMap[r.id], r);
     assert.ok(r.title && r.shortTitle && r.description && r.storage);
     assert.ok(r.minutes > 0 && Number.isFinite(r.minutes));
-    assert.match(r.photo, /^https:\/\/images\.unsplash\.com\//);
+    assert.match(
+      r.photo,
+      /^https:\/\/(images\.unsplash\.com\/|leanfit\.ca\/cdn\/shop\/files\/)/,
+    );
     assert.ok(r.steps.length >= 3);
     assert.ok(r.ingredients.length >= 3);
     for (const i of r.ingredients) {
@@ -457,7 +460,12 @@ test("breakfast supplies oats, yogurt and berries with no required whey", () => 
     const serving = prepServing(r, rest);
     assert.deepEqual(
       serving.ingredients.map((i) => i.id),
-      ["greek-yogurt", "oats", "berries"],
+      [
+        "greek-yogurt",
+        "oats",
+        "berries",
+        ...(r.id === "prep-chia-overnight-oats" ? ["chia-seeds"] : []),
+      ],
     );
     assert.ok(serving.calories >= 400);
     assert.ok(serving.protein >= 30);

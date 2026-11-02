@@ -4,7 +4,7 @@ import {
   type Ingredient,
   type PrepRecipe,
 } from "./recipes.ts";
-import { calibratedIngredients } from "../nutrition/portions.ts";
+import { calibratedIngredients, type PrepMenu } from "../nutrition/portions.ts";
 import type { NutritionBudget } from "../nutrition/model.ts";
 
 export type { Ingredient, PrepRecipe } from "./recipes.ts";
@@ -336,10 +336,11 @@ function assertIngredient(item: Ingredient) {
 export function prepServing(
   recipe: PrepRecipe,
   input: PrepContext,
+  menu?: PrepMenu,
 ): PrepServing {
   const c = context(input);
   const ingredients = c.nutrition
-    ? calibratedIngredients(recipe, c.nutrition)
+    ? calibratedIngredients(recipe, c.nutrition, menu)
     : recipe.ingredients.flatMap((base) => {
         assertIngredient(base);
         const item = { ...base };
@@ -514,13 +515,21 @@ export function prepBatch(
 ): PrepBatch {
   const block = prepBlockFor(state, date);
   const servings: PrepBatch["servings"] = [];
+  // These newly introduced choices reserve their actual breakfast/snack food
+  // before fitting lunch/dinner. Existing v1 menus remain byte-for-byte
+  // reproducible, including already-prepared batches and archived servings.
+  const menu =
+    block.breakfastId === "prep-chia-overnight-oats" ||
+    block.snackId === "prep-leanfit-whey-banana-toast"
+      ? { breakfastId: block.breakfastId, snackId: block.snackId }
+      : undefined;
   for (let day = block.start; day <= block.end; day = addPrepDays(day, 1)) {
     const c = block.contexts?.[day] ?? contextForDate(day);
     for (const slot of slots)
       servings.push({
         date: day,
         slot,
-        serving: prepServing(recipeForPrepSlot(block, slot), c),
+        serving: prepServing(recipeForPrepSlot(block, slot), c, menu),
       });
   }
   const ingredients = aggregate(

@@ -132,6 +132,51 @@ export async function runNutritionChecks({
       await expect(page.locator(".mp-personal-target")).toContainText(
         "1,950 kcal",
       );
+      // The user can discover these foods from the meal itself. Both changes
+      // edit the existing batch document, never append a fifth meal/shake.
+      const planner = page.locator(".meal-prep-planner");
+      await planner
+        .getByRole("button", { name: "Swap recipe: Snack", exact: true })
+        .click();
+      await planner
+        .getByRole("region", { name: "Snacks", exact: true })
+        .locator(".mp-swap-option")
+        .filter({ hasText: "LEANFIT whey + banana" })
+        .click();
+      await planner
+        .getByRole("tab", { name: "Eat today", exact: true })
+        .click();
+      await expect(
+        planner.getByRole("article", { name: "Snack", exact: true }),
+      ).toContainText("LEANFIT");
+      await planner
+        .getByRole("button", { name: "Swap recipe: Breakfast", exact: true })
+        .click();
+      await planner
+        .getByRole("region", { name: "Breakfast", exact: true })
+        .locator(".mp-swap-option")
+        .filter({ hasText: "Chia overnight oats" })
+        .click();
+      await planner
+        .getByRole("tab", { name: "Eat today", exact: true })
+        .click();
+      await expect(
+        planner.getByRole("article", { name: "Breakfast", exact: true }),
+      ).toContainText("10 g chia seeds");
+      await expect(planner.locator(".mp-meal")).toHaveCount(4);
+      await expect
+        .poll(() => backend.snapshot().mealPrep.blocks[start]?.snackId)
+        .toBe("prep-leanfit-whey-banana-toast");
+      await expect
+        .poll(() => backend.snapshot().mealPrep.blocks[start]?.breakfastId)
+        .toBe("prep-chia-overnight-oats");
+      await assertLayout(page, `whey-chia-${name}-${colorScheme}`);
+      await planner
+        .getByRole("article", { name: "Snack", exact: true })
+        .scrollIntoViewIfNeeded();
+      await page.screenshot({
+        path: `outputs/ui-check/whey-chia-${name}-${colorScheme}.png`,
+      });
       for (const meal of ["Breakfast", "Lunch", "Snack", "Dinner"])
         await page
           .getByRole("button", { name: `Mark eaten: ${meal}`, exact: true })
@@ -165,6 +210,24 @@ export async function runNutritionChecks({
       await page.reload();
       await expect(page.locator(".nutrition-coach .nc-targets")).toContainText(
         "1,950",
+      );
+      await navigate(page, "Diet");
+      await expect(
+        planner.getByRole("article", { name: "Snack", exact: true }),
+      ).toContainText("LEANFIT");
+      await expect(
+        planner.getByRole("button", {
+          name: "Swap recipe: Snack",
+          exact: true,
+        }),
+      ).toBeDisabled();
+      assert.equal(
+        backend.snapshot().dietDays[start].recipes.snack,
+        "prep-leanfit-whey-banana-toast",
+      );
+      assert.equal(
+        backend.snapshot().dietDays[start].recipes.breakfast,
+        "prep-chia-overnight-oats",
       );
       assert.deepEqual(errors, []);
       await context.close();

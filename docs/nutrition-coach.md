@@ -83,6 +83,14 @@ maintenance estimate while the user reviews the next goal. The app does not keep
 ## How Recipes Become Portions
 
 The shared meal-prep engine supports the existing two-day/three-day batches and recipe swaps.
+
+Optional [LEANFIT whey and chia choices](meal-prep.md#whey-and-chia-choices) replace existing
+meal slots, never append another meal. The verified whey ingredient uses 35 g powder / 140 kcal /
+24 g protein, with at most one label serving in the planned snack. The chia breakfast counts its
+10 g seeds and reserves their energy before sizing oats/yogurt. For these new menus, lunch/dinner
+reserve the actual selected breakfast/snack totals and re-fit starch after the meat minimum is
+applied. This path is selected by the new recipe identities; old v1 recipe calculations and
+prepared signatures remain reproducible. Product availability does not raise the protein target.
 With an active personal target:
 
 - Breakfast and snack quantities solve for energy and protein together, using oats/yogurt and

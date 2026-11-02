@@ -89,6 +89,20 @@ const catalog: Record<
     unit: "g",
     basis: "ready",
   },
+  "leanfit-chocolate-whey": {
+    id: "leanfit-chocolate-whey",
+    name: "LEANFIT chocolate whey protein powder",
+    category: "Protein & dairy",
+    unit: "g",
+    basis: "dry",
+  },
+  "chia-seeds": {
+    id: "chia-seeds",
+    name: "Chia seeds",
+    category: "Pantry",
+    unit: "g",
+    basis: "dry",
+  },
   berries: {
     id: "berries",
     name: "Frozen berries",
@@ -138,7 +152,8 @@ const hotStorage =
   "Cool promptly in shallow containers; refrigerate within 2 hours at 4 C or colder. Eat refrigerated leftovers within 2-3 days. For a 3-day batch, freeze the third day's cooked portions on prep day after prompt cooling; thaw in the fridge and reheat to 74 C. This is a conservative planning rule, not an expiry guarantee.";
 
 // These are editable food-label planning assumptions, not measured nutrition or
-// personalized energy targets. Values are per 100 g, except banana/bread per item.
+// personalized energy targets. Values are per 100 g, except banana/bread per
+// item and LEANFIT whey per its explicitly labelled 35 g powder serving.
 export const prepNutritionEstimates: Readonly<
   Record<string, { per: number; calories: number; protein: number }>
 > = Object.freeze({
@@ -155,6 +170,11 @@ export const prepNutritionEstimates: Readonly<
   banana: { per: 1, calories: 105, protein: 1.3 },
   toast: { per: 1, calories: 80, protein: 4 },
   paprika: { per: 100, calories: 282, protein: 14 },
+  // LEANFIT chocolate whey: the supplied 2 kg bag and manufacturer's label
+  // both specify 35 g powder / 140 kcal / 24 g protein. Powder is not pure protein.
+  "leanfit-chocolate-whey": { per: 35, calories: 140, protein: 24 },
+  // USDA SR Legacy, NDB 12006. This small food serving is not a fat-loss treatment.
+  "chia-seeds": { per: 100, calories: 486, protein: 16.54 },
 });
 
 // Each recipe describes ONE base serving, not a pot. Batch arithmetic lives in plan.ts.
@@ -351,6 +371,54 @@ export const prepRecipes: PrepRecipe[] = [
     ],
     storage:
       "Keep yogurt at 4 C or colder and follow its package date. Store bread dry or frozen; peel the banana and toast any training-day slice on the day. This snack is not a cooked leftover to reheat.",
+  },
+  {
+    id: "prep-leanfit-whey-banana-toast",
+    title: "LEANFIT Chocolate Whey, Banana and Portioned Toast",
+    shortTitle: "LEANFIT whey + banana",
+    kind: "snack",
+    photo:
+      "https://leanfit.ca/cdn/shop/files/2kg-whey-choc-front-rev04-2000.png?v=1790883815&width=800",
+    minutes: 3,
+    description:
+      "A convenient replacement for the yogurt snack, not an extra shake. The listed powder, banana and bread all count toward the day's calories and protein.",
+    ingredients: [
+      ingredient("leanfit-chocolate-whey", 35),
+      ingredient("banana", 1),
+      ingredient("toast", 1),
+    ],
+    steps: [
+      "For each date in the batch, weigh that snack's listed dry powder into a separate clean, dry container. Your LEANFIT label is 35 g powder, 140 kcal and 24 g protein per scoop; follow the listed grams if your portion is smaller than a scoop.",
+      "On the serving day, pour about 250 ml cold drinking water into a shaker, then add that date's measured powder. Close firmly, shake for 20-30 seconds and add a little more water if it is too thick. Water adds no calories; milk is not included in these portions and would need to be counted separately.",
+      "Peel and eat the listed banana. Toast only the bread quantity shown for that date; if none is listed, do not add it. This replaces the yogurt snack: do not also eat the original yogurt portion unless you log it as extra food.",
+      "For evening training, try the planned snack about 60-120 minutes beforehand if comfortable. If whey upsets your stomach, move the shake after training and keep the planned banana/toast beforehand, or choose the original snack. Whey alone is not pre-workout carbohydrate fuel and cannot prevent faintness.",
+    ],
+    storage:
+      "Keep weighed powder dry and sealed following the bag label. Keep bananas whole and bread dry or frozen; mix the shake fresh on the serving day, not as a 2-3-day jug. Contains milk; do not use with a milk allergy. Choose a tolerated alternative if lactose causes symptoms.",
+  },
+  {
+    id: "prep-chia-overnight-oats",
+    title: "Chia, Greek Yogurt and Berry Overnight Oats",
+    shortTitle: "Chia overnight oats",
+    kind: "breakfast",
+    photo: photo("photo-1517673400267-0251440c45dc"),
+    minutes: 5,
+    description:
+      "An optional breakfast swap with 10 g chia for fibre and variety. Chia is not required for fat loss; its calories are included and personal portions make room for it.",
+    ingredients: [
+      ingredient("greek-yogurt", 250),
+      ingredient("oats", 45),
+      ingredient("berries", 100),
+      ingredient("chia-seeds", 10),
+    ],
+    steps: [
+      "For each breakfast jar, combine its listed dry oats and 10 g chia. Add about 100 ml drinking water and stir thoroughly, scraping the bottom so no dry seed pockets remain.",
+      "Stir in that date's measured plain Greek yogurt. Wait 10 minutes, stir again to break up clumps, cover and refrigerate at 4 C or colder overnight, for at least 4 hours. Add a splash of water if needed: the seeds should be hydrated in a soft, spoonable mixture, not swallowed dry.",
+      "Prepare the measured frozen berries according to their package, including any heating instruction. Cool heated berries promptly, refrigerate and add to the jar when ready to eat. Do not add honey, extra seeds or milk without accounting for them.",
+      "Assemble only the first two breakfasts on prep day. For day three, keep the oats and chia dry together, berries frozen and yogurt refrigerated separately; assemble and refrigerate the jar the evening before. If the extra fibre is uncomfortable, revert to the original oats breakfast rather than forcing it.",
+    ],
+    storage:
+      "Refrigerate assembled jars at 4 C or colder and follow yogurt and berry package directions. Use the two assembled jars within 2 days. Keep the third serving separate until the evening before. Never swallow a spoonful of dry chia; let it hydrate in the wet mixture.",
   },
 ];
 

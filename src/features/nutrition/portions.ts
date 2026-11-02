@@ -5,6 +5,8 @@ import {
 } from "../mealPrep/recipes.ts";
 import type { NutritionBudget } from "./model.ts";
 
+export type PrepMenu = { breakfastId: string; snackId: string };
+
 const bound = (n: number, min: number, max: number) =>
   Math.max(min, Math.min(max, n));
 const grams = (n: number, min: number, max: number) =>
@@ -22,12 +24,47 @@ const totals = (items: Record<string, number>) =>
  * ingredient by body weight. Fixed fruit/vegetables stay in the meal. Quantities
  * are practical kitchen increments, so the final label is still an estimate.
  * Version 1 must remain reproducible for contexts saved with cooked batches. */
-function breakfast(budget: NutritionBudget) {
-  const energy = budget.calories * 0.25 - 50,
-    protein = budget.protein * 0.3 - 1;
+function breakfast(budget: NutritionBudget, chia = false) {
+  // Keep the existing version-1 breakfast reproducible. Only the new chia
+  // recipe reserves energy/protein for its fixed 10 g serving before solving.
+  const seeds = chia ? 10 : 0;
+  const energy =
+      budget.calories * 0.25 -
+      50 -
+      (seeds * foods["chia-seeds"].calories) / 100,
+    protein =
+      budget.protein * 0.3 - 1 - (seeds * foods["chia-seeds"].protein) / 100;
   const oats = grams((energy - 5.9 * protein) / (3.89 - 5.9 * 0.169), 25, 120);
   const yogurt = grams((protein - 0.169 * oats) / 0.1, 150, 400);
-  return { oats, "greek-yogurt": yogurt, berries: 100 };
+  return {
+    oats,
+    "greek-yogurt": yogurt,
+    berries: 100,
+    ...(chia ? { "chia-seeds": seeds } : {}),
+  };
+}
+function wheySnack(budget: NutritionBudget) {
+  // Search practical half/three-quarter/full servings and bread portions.
+  // The whole snack replaces the yogurt snack; never add a second protein
+  // serving simply because it is a lifting day. Keep the banana for fuel.
+  const label = foods["leanfit-chocolate-whey"];
+  const options = [0.5, 0.75, 1].flatMap((fraction) =>
+    [0, 0.5, 1, 1.5, 2].map((toast) => {
+      const items = {
+        "leanfit-chocolate-whey": Math.round(label.per * fraction),
+        banana: 1,
+        toast,
+      };
+      const food = totals(items);
+      return {
+        items,
+        score:
+          Math.abs(food.calories - budget.calories * 0.15) +
+          Math.abs(food.protein - budget.protein * 0.2) * 6,
+      };
+    }),
+  );
+  return options.sort((a, b) => a.score - b.score)[0].items;
 }
 function snack(budget: NutritionBudget) {
   const targetEnergy = budget.calories * 0.15,
@@ -45,9 +82,15 @@ function snack(budget: NutritionBudget) {
   });
   return options.sort((a, b) => a.score - b.score)[0].items;
 }
-function main(recipe: PrepRecipe, budget: NutritionBudget) {
-  const breakfastFood = totals(breakfast(budget)),
-    snackFood = totals(snack(budget));
+function main(recipe: PrepRecipe, budget: NutritionBudget, menu?: PrepMenu) {
+  const breakfastFood = totals(
+      breakfast(budget, menu?.breakfastId === "prep-chia-overnight-oats"),
+    ),
+    snackFood = totals(
+      menu?.snackId === "prep-leanfit-whey-banana-toast"
+        ? wheySnack(budget)
+        : snack(budget),
+    );
   const energy =
     (budget.calories - breakfastFood.calories - snackFood.calories) / 2;
   const protein =
@@ -73,7 +116,7 @@ function main(recipe: PrepRecipe, budget: NutritionBudget) {
   );
   const remainingEnergy = energy - 100 - oil * 9,
     remainingProtein = protein - 6;
-  const starchAmount = grams(
+  let starchAmount = grams(
     (remainingEnergy - (m.calories / m.protein) * remainingProtein) /
       (s.calories / 100 - ((m.calories / m.protein) * s.protein) / 100),
     starch === "rice" ? 30 : 150,
@@ -84,6 +127,16 @@ function main(recipe: PrepRecipe, budget: NutritionBudget) {
     130,
     meat === "extra-lean-beef" ? 210 : 320,
   );
+  // A minimum meat portion can exceed the unconstrained protein solution. For
+  // the new menu-aware recipes, re-fit starch to actual meat energy rather than
+  // quietly adding the seeds/shake on top of an already full day's budget.
+  // No menu means the original v1 calculation, preserving old cooked signatures.
+  if (menu)
+    starchAmount = grams(
+      (remainingEnergy - (meatAmount * m.calories) / 100) / (s.calories / 100),
+      starch === "rice" ? 30 : 150,
+      starch === "rice" ? 140 : 700,
+    );
   return {
     [meat]: meatAmount,
     [starch]: starchAmount,
@@ -94,13 +147,16 @@ function main(recipe: PrepRecipe, budget: NutritionBudget) {
 export function calibratedIngredients(
   recipe: PrepRecipe,
   budget: NutritionBudget,
+  menu?: PrepMenu,
 ): Ingredient[] {
   const amounts =
     recipe.kind === "breakfast"
-      ? breakfast(budget)
+      ? breakfast(budget, recipe.id === "prep-chia-overnight-oats")
       : recipe.kind === "snack"
-        ? snack(budget)
-        : main(recipe, budget);
+        ? recipe.id === "prep-leanfit-whey-banana-toast"
+          ? wheySnack(budget)
+          : snack(budget)
+        : main(recipe, budget, menu);
   return recipe.ingredients.flatMap((base) => {
     if (base.optional) return [{ ...base }];
     if (!(base.id in amounts))

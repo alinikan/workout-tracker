@@ -371,6 +371,27 @@ It covers offline meal/grocery edits, account reload, prepared quantities after 
 one shared food log, legacy history and future-date guards. The default
 UI command includes this test alongside the workout, Coach and contrast suites.
 
+### Protein Powder And Chia
+
+Whole foods remain the default. These optional swaps make the existing four-meal plan more
+convenient without automatically adding another shake or extra calories:
+
+| Choice | Where to find it | How it fits |
+| --- | --- | --- |
+| **LEANFIT chocolate whey + banana** | Diet → Eat today → Snack → **Swap** | Replaces the yogurt snack for that batch. The verified label is **35 g powder = 140 kcal and 24 g protein**, not 35 g protein. Personal portions use roughly half, three-quarter or one label serving, rounded to whole grams, with banana and the dated bread amount. Mix fresh with water; milk and extra scoops are not included. |
+| **Chia overnight oats** | Diet → Eat today → Breakfast → **Swap** | An optional fibre/variety choice with **10 g chia**. Its roughly 49 kcal are counted, and personalized oats/main-meal quantities make room for the selected menu. Hydrate in the wet mixture overnight; never swallow dry spoonfuls. |
+
+Both choices work on training and rest days using the existing Coach target and recent weight
+reference. Powder is a convenient protein source, not a fat burner; chia is not required for
+weight loss or muscle gain. The app keeps the same four meals, labels swap versions and offers
+**Revert to original**. Choices apply to the selected 2-/3-day batch, not every future batch.
+Already-eaten meals and prepared quantities stay saved. The 2-/3-week shopping list includes
+powder/chia only where selected; check off pantry supplies already owned.
+
+See the [whey/chia rationale, preparation and sources](docs/meal-prep.md#whey-and-chia-choices).
+`npm run test:ui -- --nutrition-only` tests the meal-level Swap shortcut, both foods, synced
+recipe choices, four-meal accounting, saved portions and reload in phone/desktop browsers.
+
 ---
 
 ## How The Program Works
@@ -1093,6 +1114,7 @@ workout-tracker/
 | `src/features/mealPrep/MealPrepPlanner.tsx` | Shared Eat today / Cook batch / To buy interface for both nutrition destinations. |
 | `docs/meal-prep.md` | Batch cooking workflow, arithmetic, food safety sources and migration details. |
 | `tests/meal-prep.test.mjs` | Deterministic date, quantity, recipe-selection, validation and prepared-batch tests. |
+| `tests/whey-chia.test.mjs` | Product-label arithmetic, new menu combinations, one-serving cap, counted chia, shopping, sync and frozen batch regression tests. |
 | `docs/connected-coach.md` | Current Coach scheduling, shared attendance, recovery rules, data migration and limitations. |
 | `docs/momentum.md` | Archived documentation for the retired private screen and its existing database. |
 | `supabase/migrations/20261023_momentum.sql` | Additive Momentum allowlist, RLS and restricted read/write functions. Does not change the original table. |

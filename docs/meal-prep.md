@@ -37,6 +37,51 @@ Without a profile, the original bounded weight/training-day portion behavior bel
 6. In **Eat today**, follow the four meals and check each actual meal. Lunch and
    dinner use containers from the same recipe, not a fresh cooking assignment.
 
+### Whey And Chia Choices
+
+These are optional **recipe swaps**, not extra meals or required supplements. In **Eat today**,
+use the meal's **Swap** button to open its batch choices, or use **Cook batch** directly:
+
+- **Snack → LEANFIT whey + banana** replaces the yogurt snack. It uses the chocolate whey
+  label of **35 g powder / 140 kcal / 24 g protein** per scoop. A gram of powder is not a gram
+  of protein. Personal targets choose roughly half, three-quarter or one label serving, rounded
+  to whole grams, plus a banana
+  and the dated bread portion. One full label serving per planned day is an application cap,
+  not a universal medical safety limit. No extra post-workout shake is automatically added.
+- **Breakfast → Chia overnight oats** includes **10 g chia**, about 49 kcal, 1.7 g protein and
+  3.4 g fibre using USDA estimates. Chia is optional for variety/fibre, not a treatment for fat
+  loss or a substitute for the main protein foods. Its energy is counted and the personal oats
+  portion makes room for it. Selecting the recipe makes chia a counted ingredient; it is not
+  marked as an excluded optional topping.
+- Both choices replace one of the existing four meals for the selected 2-/3-day batch, sync
+  with the account and have **Revert to original**. They do not become mandatory defaults for
+  every future batch. Logged meals and already-prepared food stay locked; plan the next batch
+  or explicitly start a new one to change future food.
+- The new menu-aware portion path reserves the selected breakfast/snack's actual estimated
+  energy and protein before solving lunch/dinner portions. Training/rest budgets and the
+  existing weight-based protein target still come from Coach. It does not increase the target
+  because powder is available or invent exercise calories. The original v1 menu calculation
+  remains reproducible for saved old prepared signatures. Rounding and practical minimums
+  still apply; the UI shows full-day totals and warns when a menu falls outside its target.
+- Mix each shake fresh with drinking water. Milk, an extra scoop, honey or other additions are
+  not free calories and must be counted separately. Pre-weigh dry powder for the batch rather
+  than storing a mixed 3-day jug. Keep the planned banana/toast for carbohydrate fuel; if whey
+  causes stomach discomfort before training, move that shake after training or choose a
+  tolerated snack. No shake guarantees prevention of faintness or other symptoms.
+- Hydrate chia thoroughly in the wet oats/yogurt mixture overnight; never swallow dry spoonfuls.
+  Begin with a tolerated amount of fibre rather than forcing a food that causes discomfort.
+  Keep the existing two-day jar assembly and separate-third-day storage rules.
+- **To buy** counts the powder/chia only in selected future uncooked batches, in grams, once
+  per batch. Check off the powder you already own; the app does not assume a full bag remains
+  or deduct invented pantry inventory. The existing 2-/3-week shopping windows are unchanged.
+
+Evidence: [LEANFIT chocolate whey product and nutrition label](https://leanfit.ca/products/leanfit-whey-protein-chocolate-2kg),
+[NIH: protein supplements are useful when needed, not compulsory](https://ods.od.nih.gov/factsheets/ExerciseAndAthleticPerformance-Consumer/),
+[Harvard Nutrition Source: chia and safe preparation](https://nutritionsource.hsph.harvard.edu/food-features/chia-seeds/),
+and [USDA SR Legacy: chia, NDB 12006](https://www.ars.usda.gov/ARSUserFiles/80400535/Data/SR/SR28/reports/sr28fg12.pdf).
+Package labels take precedence over generic food estimates. If a later bag has a different formula,
+give it a new ingredient/recipe identity instead of silently rewriting historical portions.
+
 For example, a two-day chicken/rice batch at the 80 kg reference, with one
 training day and one easier day, requires **800 g raw chicken breast, 250 g dry
 rice, 800 g frozen vegetables and 40 g measured oil** for four main servings.
@@ -63,7 +108,8 @@ food in response to missed sessions. No recipe guarantees a body-composition res
 Photos are illustrative serving references, not the ingredient or nutrition authority. The
 breakfast reference shows oats and berries, the main references show chicken or beef, and
 the snack reference includes yogurt and banana. Follow the written ingredients and measured
-portions, not extra toppings in a reference photo. Photos are hosted on Unsplash; the beef
+portions, not extra toppings in a reference photo. Most photos are hosted on Unsplash; the whey
+swap uses LEANFIT's public 2 kg product image. The beef
 image is [Sheri Silver's beef and broccoli](https://unsplash.com/photos/a-bowl-of-beef-and-broccoli-with-white-rice-BA2UZ6w8JfY),
 and the snack image is [Nikita Khowala's yogurt and banana](https://unsplash.com/photos/yogurt-cup-with-granola-banana-and-spoon-on-yellow-background-jxt0SNnrtm0),
 both offered under the free Unsplash License when checked. No paid image/API service is required.
@@ -103,7 +149,7 @@ Date strings are local calendar labels, strictly `YYYY-MM-DD`, not timestamps.
 | `normalizeMealPrep(value, fallbackDate)` | Validate persisted data; retain valid choices, preparation snapshots and boolean grocery checks. |
 | `prepBlockFor(state, date)` | `{start, end, days, index, key, mainId, breakfastId, snackId}`, plus saved preparation fields. End is inclusive; index is zero-based and continuous across schedule changes; key is the start date. |
 | `recipeForPrepSlot(block, slot)` | A catalog `PrepRecipe`; lunch and dinner resolve to the same main. |
-| `prepServing(recipe, context)` | `{recipe, ingredients, plate, calories, protein, note}` for ONE dated serving. Ingredient quantities are purchase/preparation amounts; plate labels are concise. |
+| `prepServing(recipe, context, menu?)` | `{recipe, ingredients, plate, calories, protein, note}` for ONE dated serving. Ingredient quantities are purchase/preparation amounts; plate labels are concise. The batch engine supplies `{breakfastId, snackId}` for menu-aware new recipes; use `prepBatch` for a coherent full day. |
 | `prepBatch(state, date, contextForDate)` | `{block, servings, ingredients, signature, mainServings}` for the containing block. Each serving has `{date, slot, serving}`. |
 | `preparedBatchFor(state, date, contextForDate)` | `PrepBatch \| null`: reconstruct the original physical cooked batch for the current block's start, accepting it only when its signature exactly matches the stored prepared signature. |
 | `prepShopping(batches)` | A sorted `Ingredient[]` aggregated across unique non-overlapping batches. |
@@ -117,7 +163,7 @@ Date strings are local calendar labels, strictly `YYYY-MM-DD`, not timestamps.
 `recipes.ts` exports `prepRecipes`, `prepRecipeMap`, and
 `prepNutritionEstimates`. Catalog objects are frozen to prevent accidental
 cross-serving mutation; serving ingredients are fresh mutable copies. There are
-five mains, two breakfast methods and one snack, all with `prep-` IDs.
+five mains, three breakfast choices and two snacks, all with `prep-` IDs.
 
 `Ingredient` has `id`, `name`, `category`, `amount`, `unit`, `basis`, optional
 `optional` and optional `cookedAmount`. Categories are `Protein & dairy`,
