@@ -29,6 +29,7 @@ import {
   prepShoppingWindow,
   prepShoppingKey,
   recipeForPrepSlot,
+  recipeForPrepContext,
   setPrepChoice,
   startPrepSchedule,
   type MealPrepState,
@@ -42,7 +43,12 @@ type Recipe = (typeof prepRecipes)[number];
 type Ingredient = ReturnType<typeof prepShopping>[number];
 type ChoiceKind = "main" | "breakfast" | "snack";
 type Destination = "eat" | "cook" | "buy";
-type Portion = { plate: string[]; calories: number; protein: number };
+type Portion = {
+  plate: string[];
+  calories: number;
+  protein: number;
+  portionVersion?: 2;
+};
 
 export type MealPrepPlannerProps = {
   state: MealPrepState;
@@ -383,7 +389,9 @@ export function MealPrepPlanner({
   );
   const foods = kinds.map((kind) => ({
     ...kind,
-    recipe: recipeForPrepSlot(cookBlock, kind.slot),
+    recipe:
+      cookBatch.servings.find((row) => row.slot === kind.slot)?.serving
+        .recipe ?? recipeForPrepSlot(cookBlock, kind.slot),
     originalRecipe: recipeForPrepSlot(original, kind.slot),
   }));
 
@@ -396,12 +404,33 @@ export function MealPrepPlanner({
     const current = batch.servings.find(
       (item) => item.date === date && item.slot === slot,
     )?.serving;
+    const savedPortion = mealLog.eaten[slot]
+      ? mealLog.portions?.[slot]
+      : undefined;
+    // A logged portion's revision wins, even if the current batch uses the same
+    // recipe ID with new ingredients. Never teach milk for an old milk-free jar.
     const recipe =
-      savedRecipe ?? current?.recipe ?? recipeForPrepSlot(block, slot);
+      savedRecipe && mealLog.eaten[slot]
+        ? recipeForPrepContext(savedRecipe, {
+            training: false,
+            weightKg: null,
+            portionVersion: savedPortion?.portionVersion,
+          })
+        : current && (!savedRecipe || current.recipe.id === savedRecipe.id)
+          ? current.recipe
+          : recipeForPrepContext(
+              savedRecipe ?? recipeForPrepSlot(block, slot),
+              contextForDate(date),
+            );
     const serving =
-      current?.recipe.id === recipe.id
-        ? current
-        : prepServing(recipe, contextForDate(date));
+      savedRecipe && mealLog.eaten[slot] && !savedPortion
+        ? prepServing(savedRecipe, {
+            ...contextForDate(date),
+            portionVersion: undefined,
+          })
+        : current?.recipe.id === recipe.id
+          ? current
+          : prepServing(recipe, contextForDate(date));
     const snapshot =
       override && mealLog.eaten[slot] ? mealLog.portions?.[slot] : undefined;
     return {
@@ -415,12 +444,7 @@ export function MealPrepPlanner({
         override && recipe.id !== recipeForPrepSlot(block, slot).id,
       ),
       changed: recipe.id !== recipeForPrepSlot(original, slot).id,
-      approximate: Boolean(
-        override &&
-        mealLog.eaten[slot] &&
-        !snapshot &&
-        current?.recipe.id !== recipe.id,
-      ),
+      approximate: Boolean(override && mealLog.eaten[slot] && !snapshot),
     };
   });
   const eaten = slots.filter(({ id: slot }) => mealLog.eaten[slot]).length;
@@ -839,7 +863,7 @@ export function MealPrepPlanner({
                   key={recipe.id}
                   recipe={recipe}
                   ingredients={
-                    recorded && mealLog.portions?.[slot]
+                    mealLog.eaten[slot] && mealLog.portions?.[slot]
                       ? undefined
                       : serving.ingredients
                   }
@@ -1030,6 +1054,13 @@ export function MealPrepPlanner({
                 >
                   {prepRecipes
                     .filter((option) => option.kind === kind)
+                    .map((option) =>
+                      recipeForPrepContext(
+                        option,
+                        cookBlock.contexts?.[cookBlock.start] ??
+                          contextForDate(date),
+                      ),
+                    )
                     .map((option) => (
                       <button
                         className="mp-swap-option"

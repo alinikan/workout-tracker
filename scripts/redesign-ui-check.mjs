@@ -129,6 +129,13 @@ export async function runRedesignChecks({
       await prep.locator(".move-main-button").click();
       await expect.poll(() => backend.snapshot().days["2026-10-05"]?.swaps?.["wall-sit"]).toBe("reverse-nordic");
       await expect.poll(() => backend.snapshot().days["2026-10-05"]?.exercises?.["warmup-ramp-home-wall-sit"]?.[0]?.reps).toBe("8");
+      // This checks acknowledged-save recovery, not interrupted networking.
+      // Let response handlers and the optional archive refresh settle first:
+      // WebKit can report teardown-cancelled fetches as access-control errors
+      // (https://github.com/microsoft/playwright/issues/43120). Keep the final
+      // pageerror assertion strict; do not filter real networking failures.
+      await expect(page.getByRole("button", { name: "Account and sync settings", exact: true })).toContainText("Synced across devices");
+      await page.waitForLoadState("networkidle");
       await page.reload();
       await navigate(page, "Gym");
       const gym = page.locator(".gym-mode-shell");

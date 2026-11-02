@@ -14,7 +14,57 @@ recomputes uncooked portions and groceries, while prepared batches and eaten mea
 With a confirmed **Coach → Nutrition coach** profile, portion quantities use a personal estimated
 calorie/protein budget. Old cooked contexts remain reproducible; new targets change only uncooked
 food. See [Personal Nutrition Coach](nutrition-coach.md) for the formula, boundaries and review rules.
-Without a profile, the original bounded weight/training-day portion behavior below remains active.
+Without a profile, practical breakfast/snack recipes still apply; main meals retain bounded
+weight/training-day portions rather than claiming a personal calorie prescription.
+
+## Practical Portions
+
+The live app supplies `portionVersion: 2` for uncooked food. The old macro-only calculation could
+produce a 350–400 g yogurt portion; this was not inherently unsafe, but it was an unnecessarily
+large default for the intended user. Version 2 starts with usable meals and fits the **whole
+day**, instead of making yogurt carry a fixed breakfast/snack protein quota.
+
+| Food | Practical version-2 portion |
+| --- | --- |
+| Yogurt in each oat breakfast | 150 g plain nonfat Greek yogurt |
+| Milk in each oat breakfast | 125 ml plain 1% milk, counted in calories and protein |
+| Yogurt/banana snack | 175 g yogurt, one banana and the dated toast portion |
+| Dry oats | 30–80 g |
+| Dry rice / raw potatoes | 40–90 g rice or 200–450 g potatoes per main |
+| Raw chicken / extra-lean beef | 130–250 g chicken or 130–200 g beef per main |
+| Added olive oil | 5–15 g per main, counted |
+
+These are preference-driven application bounds, not universal dietary limits or a guarantee
+that every possible calorie target can fit. Very high or unusual targets may need another meal
+pattern; the full-day mismatch notice remains visible instead of generating giant servings.
+The optimizer's protein/energy scoring weights are product heuristics, not physiological laws.
+For representative targets, tests check all main/breakfast/snack combinations against the day's
+calorie/protein estimates. No target, weigh-in, workout or activity expenditure is invented.
+
+The default breakfast has milk, not mandatory protein powder. The existing whey snack remains
+an optional replacement, capped at one 35 g label serving in the plan. There is no uncounted
+breakfast scoop or automatic second post-workout shake. Greek yogurt already supplies protein;
+the remaining daily target is fitted through realistic main meals and the selected snack.
+
+Milk uses a Canadian 1% reference of **110 kcal and 9 g protein per 250 ml**, so the 125 ml
+breakfast portion contributes **55 kcal and 4.5 g protein**. Compare your own package; a different
+milk or sweetened beverage is not nutritionally identical. This mixed milk/yogurt approach is
+consistent with [Canada's Food Guide overnight oats](https://www.canada.ca/en/health-canada/services/food-guide/eating-support/kitchen/recipes/classic-overnight-oats.html).
+The milk reference is [Island Farms 1% milk](https://www.islandfarms.com/en/products/milks/1-partly-skimmed-milk).
+Keep dairy refrigerated and follow expiry/use-after-opening labels; a 2-/3-week shopping window
+does not mean an opened milk carton or yogurt tub stays safe for that entire period.
+
+Compatibility is explicit: absence of `portionVersion` means the original recipe/calculation.
+Prepared version-1 containers reproduce the same canonical signature and original instructions.
+Version-2 contexts and eaten-portion snapshots retain the revision. The prepared signature also
+records it, allowing recovery if a stale client drops the context field. Recipe revisions are
+immutable, separate objects with the same food identity, not mutations of archived definitions.
+There is no data reset or new Supabase schema. Refresh old browser tabs/installations after an
+update so they do not edit data using an obsolete recipe catalog.
+
+`recipeForPrepContext()` resolves the matching instructions. The daily UI prioritizes a saved
+portion's revision over today's recipe, and the cooking UI uses the physical batch's revision.
+New shopping lists use the new quantities; already-prepared food is still omitted.
 
 1. Open **Diet**. It is the single live meal tracker; the former Momentum screen is retired.
 2. In **Cook batch**, keep the default two days or choose three before starting.
@@ -120,7 +170,7 @@ Types exported from `plan.ts`:
 
 ```ts
 type MealSlot = "breakfast" | "lunch" | "snack" | "dinner";
-type PrepContext = { training: boolean; weightKg: number | null };
+type PrepContext = { training: boolean; weightKg: number | null; nutrition?: NutritionBudget; portionVersion?: 2 };
 type BlockChoice = {
   mainId?: string;
   breakfastId?: string;

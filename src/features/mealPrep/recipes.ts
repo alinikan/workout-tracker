@@ -20,6 +20,7 @@ export type PrepRecipe = {
   ingredients: Ingredient[];
   steps: string[];
   storage: string;
+  portionVersion?: 2;
 };
 
 const catalog: Record<
@@ -87,6 +88,13 @@ const catalog: Record<
     name: "Plain nonfat Greek yogurt",
     category: "Protein & dairy",
     unit: "g",
+    basis: "ready",
+  },
+  "milk-1-percent": {
+    id: "milk-1-percent",
+    name: "Plain 1% milk",
+    category: "Protein & dairy",
+    unit: "ml",
     basis: "ready",
   },
   "leanfit-chocolate-whey": {
@@ -166,6 +174,8 @@ export const prepNutritionEstimates: Readonly<
   "olive-oil": { per: 100, calories: 900, protein: 0 },
   oats: { per: 100, calories: 389, protein: 16.9 },
   "greek-yogurt": { per: 100, calories: 59, protein: 10 },
+  // Canadian 1% milk reference: 110 kcal and 9 g protein per 250 ml.
+  "milk-1-percent": { per: 250, calories: 110, protein: 9 },
   berries: { per: 100, calories: 50, protein: 1 },
   banana: { per: 1, calories: 105, protein: 1.3 },
   toast: { per: 1, calories: 80, protein: 4 },
@@ -435,3 +445,76 @@ for (const recipe of prepRecipes) {
 }
 Object.values(prepNutritionEstimates).forEach(Object.freeze);
 Object.freeze(prepRecipes);
+
+// Recipe revisions are separate immutable objects. A prepared v1 batch must
+// still reproduce its original ingredients AND instructions after an update.
+const practicalRecipeMap = Object.fromEntries(
+  prepRecipes.map((recipe) => {
+    const revised: PrepRecipe = { ...recipe, portionVersion: 2 };
+    if (recipe.kind === "breakfast") {
+      const chia = recipe.id === "prep-chia-overnight-oats";
+      const warm = recipe.id === "prep-warm-oats";
+      revised.title = warm
+        ? "Warm Berry Oats, Milk and Yogurt"
+        : chia
+          ? "Chia Berry Oats, Milk and Yogurt"
+          : "Berry Overnight Oats, Milk and Yogurt";
+      revised.description =
+        "A smaller yogurt portion with measured milk, oats and berries." +
+        (chia
+          ? " The optional chia recipe includes its 10 g seeds in the totals."
+          : "");
+      revised.ingredients = [
+        ingredient("greek-yogurt", 150),
+        ingredient("milk-1-percent", 125),
+        ingredient("oats", chia ? 50 : 60),
+        ingredient("berries", 100),
+        ...(chia ? [ingredient("chia-seeds", 10)] : []),
+      ];
+      revised.steps = warm
+        ? [
+            "Pre-weigh each date's dry oats into a separate container. Keep its listed 1% milk and 150 g plain Greek yogurt refrigerated, and the berries frozen until needed.",
+            "On the serving day, put the listed oats and milk in a small saucepan. Add drinking water as needed for the oat package's liquid ratio; water adds no calories. Simmer and stir for the package's cooking time, adding a splash of water if it thickens too much.",
+            "Prepare the berries separately according to their package, including any heating instruction. Stir them into the cooked oats.",
+            "Remove the oats from the heat and let strong steaming subside. Stir in or top with the listed 150 g yogurt. Do not add an unlisted scoop of powder, honey or extra milk; the planned whey snack is a separate meal choice, not an automatic addition.",
+          ]
+        : [
+            `For each date, put the listed dry oats${chia ? " and 10 g chia" : ""} into a jar. Add its listed 1% milk and stir well${chia ? ", breaking up dry seed pockets" : ""}.`,
+            `Stir in the listed 150 g plain Greek yogurt. ${chia ? "Wait 10 minutes and stir again, then cover and refrigerate overnight for at least 4 hours so the chia hydrates fully." : "Cover and refrigerate overnight, until the oats soften."} Use a splash of drinking water to loosen a thick jar rather than adding uncounted milk.`,
+            "Prepare the berries according to their package, including any heating instruction. Cool heated berries promptly and refrigerate; add the measured berries when serving. Do not add honey, extra seeds or an unlisted scoop of protein powder.",
+            "Assemble only the first two breakfasts on prep day and keep at 4 C or colder. Keep the third day's oats dry, berries frozen, and milk/yogurt refrigerated separately; assemble the third jar the evening before. Follow all package dates." +
+              (chia ? " Never swallow dry spoonfuls of chia." : ""),
+          ];
+      revised.storage =
+        "Keep milk, yogurt and assembled jars at 4 C or colder and follow package dates. Assemble cold jars for only 2 days; keep day 3 separate until the evening before. Warm oats are cooked on their serving day." +
+        (chia ? " Hydrate chia in the wet mixture, never swallow it dry." : "");
+    } else if (recipe.id === "prep-yogurt-banana-toast") {
+      revised.ingredients = [
+        ingredient("greek-yogurt", 175),
+        ingredient("banana", 1),
+        ingredient("toast", 1),
+      ];
+      revised.description =
+        "One 175 g yogurt portion with banana and the dated bread amount, not a large bowl of plain yogurt.";
+      revised.steps = [
+        "Portion 175 g plain nonfat Greek yogurt into each dated snack container and refrigerate at 4 C or colder. Keep bananas whole and bread dry or frozen.",
+        "On the serving day, peel and slice the listed banana over the yogurt. Toast the bread quantity shown for that date; if none is listed, do not add it.",
+        "This is the whole planned snack. Choose the LEANFIT snack instead when you prefer a shake; do not add that shake on top of the yogurt snack without accounting for the extra food.",
+      ];
+    }
+    if (revised.ingredients !== recipe.ingredients) {
+      revised.ingredients.forEach(Object.freeze);
+      Object.freeze(revised.ingredients);
+    }
+    if (revised.steps !== recipe.steps) Object.freeze(revised.steps);
+    return [recipe.id, Object.freeze(revised)];
+  }),
+);
+Object.freeze(practicalRecipeMap);
+
+export function recipeForPortionVersion(
+  recipe: PrepRecipe,
+  version?: 2,
+): PrepRecipe {
+  return version === 2 ? (practicalRecipeMap[recipe.id] ?? recipe) : recipe;
+}

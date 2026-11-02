@@ -373,6 +373,13 @@ UI command includes this test alongside the workout, Coach and contrast suites.
 
 ### Protein Powder And Chia
 
+> [!NOTE]
+> New uncooked meals use practical portions: oat breakfasts contain **150 g Greek yogurt +
+> 125 ml plain 1% milk**, and the yogurt/fruit snack uses **175 g yogurt**. The app does not
+> inflate yogurt to 350–400 g to hit a meal-specific protein number. Protein is balanced across
+> the whole day, including main meals and an optional whey snack. The milk is counted, not free.
+> Already-prepared batches and logged meals retain their original quantities and recipe revision.
+
 Whole foods remain the default. These optional swaps make the existing four-meal plan more
 convenient without automatically adding another shake or extra calories:
 
@@ -389,6 +396,8 @@ Already-eaten meals and prepared quantities stay saved. The 2-/3-week shopping l
 powder/chia only where selected; check off pantry supplies already owned.
 
 See the [whey/chia rationale, preparation and sources](docs/meal-prep.md#whey-and-chia-choices).
+The [practical-portion guide](docs/meal-prep.md#practical-portions) explains serving bounds,
+the revised calculation, milk assumptions and historical preservation.
 `npm run test:ui -- --nutrition-only` tests the meal-level Swap shortcut, both foods, synced
 recipe choices, four-meal accounting, saved portions and reload in phone/desktop browsers.
 
@@ -1115,6 +1124,8 @@ workout-tracker/
 | `docs/meal-prep.md` | Batch cooking workflow, arithmetic, food safety sources and migration details. |
 | `tests/meal-prep.test.mjs` | Deterministic date, quantity, recipe-selection, validation and prepared-batch tests. |
 | `tests/whey-chia.test.mjs` | Product-label arithmetic, new menu combinations, one-serving cap, counted chia, shopping, sync and frozen batch regression tests. |
+| `src/features/nutrition/practicalPortions.ts` | Version-2 real-world food bounds and whole-day calorie/protein fitting. |
+| `tests/practical-portions.test.mjs` | Smaller yogurt portions, counted milk, recipe combinations, food bounds, saved revisions and historical container preservation. |
 | `docs/connected-coach.md` | Current Coach scheduling, shared attendance, recovery rules, data migration and limitations. |
 | `docs/momentum.md` | Archived documentation for the retired private screen and its existing database. |
 | `supabase/migrations/20261023_momentum.sql` | Additive Momentum allowlist, RLS and restricted read/write functions. Does not change the original table. |

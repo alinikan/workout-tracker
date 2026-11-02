@@ -132,6 +132,14 @@ export async function runNutritionChecks({
       await expect(page.locator(".mp-personal-target")).toContainText(
         "1,950 kcal",
       );
+      const breakfastCard = page.getByRole("article", {
+        name: "Breakfast",
+        exact: true,
+      });
+      await expect(breakfastCard).toContainText(
+        "150 g plain nonfat greek yogurt",
+      );
+      await expect(breakfastCard).toContainText("125 ml plain 1% milk");
       // The user can discover these foods from the meal itself. Both changes
       // edit the existing batch document, never append a fifth meal/shake.
       const planner = page.locator(".meal-prep-planner");
@@ -229,6 +237,13 @@ export async function runNutritionChecks({
         backend.snapshot().dietDays[start].recipes.breakfast,
         "prep-chia-overnight-oats",
       );
+      assert.equal(
+        backend.snapshot().dietDays[start].portions.breakfast.portionVersion,
+        2,
+      );
+      await expect(
+        planner.getByRole("article", { name: "Breakfast", exact: true }),
+      ).toContainText("125 ml plain 1% milk");
       assert.deepEqual(errors, []);
       await context.close();
       console.log(
@@ -239,6 +254,77 @@ export async function runNutritionChecks({
 
   const browser = await chromium.launch();
   browsers.push(browser);
+  // A logged v1 breakfast can share its recipe ID with the new default. Its
+  // saved plate/instructions must win; never show v2 milk in a v1 ingredients list.
+  const oldSeed = model.emptyStore(start);
+  const prep = await server.ssrLoadModule("/src/features/mealPrep/plan.ts");
+  const recipes = await server.ssrLoadModule(
+    "/src/features/mealPrep/recipes.ts",
+  );
+  const oldBreakfast = prep.prepServing(
+    recipes.prepRecipeMap["prep-overnight-oats"],
+    {
+      training: true,
+      weightKg: 80,
+      nutrition: { version: 1, calories: 1950, protein: 160 },
+    },
+  );
+  oldSeed.dietDays[start] = {
+    meals: { breakfast: true },
+    recipes: { breakfast: "prep-overnight-oats" },
+    portions: {
+      breakfast: {
+        plate: oldBreakfast.plate,
+        calories: oldBreakfast.calories,
+        protein: oldBreakfast.protein,
+      },
+    },
+  };
+  const oldContext = await browser.newContext({
+    viewport: { width: 402, height: 874 },
+    timezoneId: "America/Vancouver",
+    reducedMotion: "reduce",
+  });
+  const oldResult = await prepare(oldContext, fixtureBackend(oldSeed));
+  await signIn(oldResult.page);
+  await navigate(oldResult.page, "Diet");
+  const savedBreakfast = oldResult.page.getByRole("article", {
+    name: "Breakfast",
+    exact: true,
+  });
+  await expect(savedBreakfast).toContainText(oldBreakfast.plate[0]);
+  await savedBreakfast.locator(".mp-instructions > summary").click();
+  await expect(savedBreakfast.locator(".mp-ingredient-list")).toHaveCount(0);
+  await expect(savedBreakfast).not.toContainText("125 ml plain 1% milk");
+  assert.deepEqual(oldResult.errors, []);
+  await oldContext.close();
+  console.log(
+    "PASS saved v1 breakfast retains its recorded plate and never shows new v2 ingredients",
+  );
+  const unknownSeed = structuredClone(oldSeed);
+  delete unknownSeed.dietDays[start].portions.breakfast;
+  const unknownContext = await browser.newContext({
+    viewport: { width: 402, height: 874 },
+    timezoneId: "America/Vancouver",
+    reducedMotion: "reduce",
+  });
+  const unknown = await prepare(unknownContext, fixtureBackend(unknownSeed));
+  await signIn(unknown.page);
+  await navigate(unknown.page, "Diet");
+  const approximateBreakfast = unknown.page.getByRole("article", {
+    name: "Breakfast",
+    exact: true,
+  });
+  await expect(approximateBreakfast).toContainText(
+    "approximate historic portion",
+  );
+  await approximateBreakfast.locator(".mp-instructions > summary").click();
+  await expect(approximateBreakfast).not.toContainText("125 ml plain 1% milk");
+  assert.deepEqual(unknown.errors, []);
+  await unknownContext.close();
+  console.log(
+    "PASS historical food without a portion snapshot stays explicitly approximate and does not acquire v2 ingredients",
+  );
   const seed = model.emptyStore(start);
   seed.nutrition = nutrition.saveProfile(
     seed.nutrition,

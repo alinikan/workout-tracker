@@ -82,6 +82,12 @@ maintenance estimate while the user reviews the next goal. The app does not keep
 
 ## How Recipes Become Portions
 
+The current app uses the [practical version-2 portions](meal-prep.md#practical-portions) for new
+uncooked batches: 150 g yogurt with 125 ml milk at breakfast, a 175 g yogurt snack, and bounded
+main-meal quantities. Protein is fitted across the day, not by enlarging a dairy bowl. Milk's
+energy/protein are counted. The description below also documents the retained version-1 path
+for historical contexts; it is not the live default for unstarted food.
+
 The shared meal-prep engine supports the existing two-day/three-day batches and recipe swaps.
 
 Optional [LEANFIT whey and chia choices](meal-prep.md#whey-and-chia-choices) replace existing

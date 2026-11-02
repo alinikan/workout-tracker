@@ -420,7 +420,7 @@ type DietDayLog = {
   notes: string;
   // A checked meal is a historical fact, not a pointer to a changing menu.
   recipes?: Partial<Record<DietMealSlot, string>>;
-  portions?: Partial<Record<DietMealSlot, { plate: string[]; calories: number; protein: number }>>;
+  portions?: Partial<Record<DietMealSlot, { plate: string[]; calories: number; protein: number; portionVersion?: 2 }>>;
 };
 
 type TrackerStore = {
@@ -795,7 +795,7 @@ function normalizeMealPortions(value: unknown): NonNullable<DietDayLog["portions
       !entry.plate.every((line) => typeof line === "string") ||
       typeof entry.calories !== "number" || !Number.isFinite(entry.calories) || entry.calories < 0 ||
       typeof entry.protein !== "number" || !Number.isFinite(entry.protein) || entry.protein < 0) return [];
-    return [[id, { plate: entry.plate, calories: entry.calories, protein: entry.protein }]];
+    return [[id, { plate: entry.plate, calories: entry.calories, protein: entry.protein, ...(entry.portionVersion === 2 ? { portionVersion: 2 as const } : {}) }]];
   }));
 }
 
@@ -7398,6 +7398,9 @@ export default function Home() {
     return {
       training,
       weightKg: proteinReference.weight,
+      // Only uncooked live contexts receive the practical recipe revision.
+      // Prepared batches carry their own older/newer context snapshots.
+      portionVersion: 2,
       nutrition: nutritionBudgetFor(store.nutrition, date, training, date >= calendarDate && nutritionReference > 0 ? nutritionReference : undefined),
     };
   };
@@ -7984,6 +7987,7 @@ export default function Home() {
         recipes: { ...log.recipes, [slot]: recipeId },
         portions: serving ? { ...log.portions, [slot]: {
           plate: serving.plate, calories: serving.calories, protein: serving.protein,
+          ...(serving.portionVersion === 2 ? { portionVersion: 2 as const } : {}),
         } } : log.portions,
         meals: { ...log.meals, [slot]: !log.meals[slot] },
       };

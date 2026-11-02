@@ -1,11 +1,13 @@
 import {
   prepNutritionEstimates,
   prepRecipeMap,
+  recipeForPortionVersion,
   type Ingredient,
   type PrepRecipe,
 } from "./recipes.ts";
 import { calibratedIngredients, type PrepMenu } from "../nutrition/portions.ts";
 import type { NutritionBudget } from "../nutrition/model.ts";
+import { practicalIngredients } from "../nutrition/practicalPortions.ts";
 
 export type { Ingredient, PrepRecipe } from "./recipes.ts";
 export type MealSlot = "breakfast" | "lunch" | "snack" | "dinner";
@@ -13,6 +15,7 @@ export type PrepContext = {
   training: boolean;
   weightKg: number | null;
   nutrition?: NutritionBudget;
+  portionVersion?: 2;
 };
 export type BlockChoice = {
   mainId?: string;
@@ -47,6 +50,7 @@ export type PrepServing = {
   calories: number;
   protein: number;
   note: string;
+  portionVersion?: 2;
 };
 export type PrepBatch = {
   block: PrepBlock;
@@ -118,6 +122,7 @@ function context(value: unknown): PrepContext {
   return {
     training: v.training === true,
     ...(validBudget(v.nutrition) ? { nutrition: { ...v.nutrition } } : {}),
+    ...(v.portionVersion === 2 ? { portionVersion: 2 as const } : {}),
     weightKg:
       typeof v.weightKg === "number" &&
       Number.isFinite(v.weightKg) &&
@@ -162,6 +167,7 @@ function validContext(value: unknown): value is PrepContext {
     record(value) &&
     typeof value.training === "boolean" &&
     (value.nutrition === undefined || validBudget(value.nutrition)) &&
+    (value.portionVersion === undefined || value.portionVersion === 2) &&
     (value.weightKg === null ||
       (typeof value.weightKg === "number" &&
         Number.isFinite(value.weightKg) &&
@@ -173,6 +179,15 @@ function normalizeBlockChoice(
   date: string,
 ): Omit<BlockChoice, "conflictingPreparation"> {
   const choice: Omit<BlockChoice, "conflictingPreparation"> = {};
+  let signedVersion: 2 | undefined;
+  if (typeof saved.preparedSignature === "string") {
+    try {
+      const metadata: unknown = JSON.parse(saved.preparedSignature);
+      if (record(metadata) && metadata.portionVersion === 2) signedVersion = 2;
+    } catch {
+      /* A malformed signature remains unprepared; never guess food from it. */
+    }
+  }
   let badChoice = false;
   for (const kind of ["main", "breakfast", "snack"] as const) {
     const key = `${kind}Id` as const;
@@ -195,7 +210,14 @@ function normalizeBlockChoice(
           record(snapshot) &&
           typeof snapshot.training === "boolean"
         )
-          choice.contexts[day] = context(snapshot);
+          if (
+            snapshot.portionVersion === undefined ||
+            snapshot.portionVersion === 2
+          )
+            choice.contexts[day] = context({
+              ...snapshot,
+              portionVersion: snapshot.portionVersion ?? signedVersion,
+            });
     }
   }
   return choice;
@@ -333,14 +355,22 @@ function assertIngredient(item: Ingredient) {
     throw new RangeError("Invalid structured ingredient.");
 }
 
+export function recipeForPrepContext(recipe: PrepRecipe, input: PrepContext) {
+  return recipeForPortionVersion(recipe, input.portionVersion);
+}
+
 export function prepServing(
-  recipe: PrepRecipe,
+  originalRecipe: PrepRecipe,
   input: PrepContext,
   menu?: PrepMenu,
 ): PrepServing {
   const c = context(input);
+  const version = c.portionVersion ?? originalRecipe.portionVersion;
+  const recipe = recipeForPortionVersion(originalRecipe, version);
   const ingredients = c.nutrition
-    ? calibratedIngredients(recipe, c.nutrition, menu)
+    ? version === 2
+      ? practicalIngredients(recipe, c.nutrition, menu)
+      : calibratedIngredients(recipe, c.nutrition, menu)
     : recipe.ingredients.flatMap((base) => {
         assertIngredient(base);
         const item = { ...base };
@@ -364,7 +394,13 @@ export function prepServing(
               ),
             );
             item.amount = round(cooked / 0.75);
-            item.cookedAmount = cooked;
+            if (version === 2)
+              item.amount = Math.min(
+                item.amount,
+                item.id === "extra-lean-beef" ? 200 : 250,
+              );
+            item.cookedAmount =
+              version === 2 ? Math.round(item.amount * 0.75) : cooked;
           } else if (item.id === "rice") {
             item.amount = base.amount + (c.training ? 5 : 0);
             item.cookedAmount = item.amount * 3;
@@ -412,6 +448,7 @@ export function prepServing(
       return `${item.amount} ${item.unit} ${item.name.toLowerCase()}`;
     });
   return {
+    ...(version === 2 ? { portionVersion: 2 as const } : {}),
     recipe,
     ingredients,
     plate,
@@ -539,6 +576,11 @@ export function prepBatch(
   // grocery checks cannot make an unchanged physical batch look different.
   const signature = JSON.stringify({
     version: 1,
+    // Redundant with the dated contexts so a stale client dropping an unknown
+    // context field cannot turn a practical prepared jar back into a v1 recipe.
+    ...(servings.some((row) => row.serving.portionVersion === 2)
+      ? { portionVersion: 2 }
+      : {}),
     start: block.start,
     end: block.end,
     days: block.days,
