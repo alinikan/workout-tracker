@@ -31,6 +31,7 @@ type Props = {
   onDetails: () => void;
   onSwap: () => void;
   onRevert: () => void;
+  guidance?: ReactNode;
   children: ReactNode;
 };
 
@@ -107,6 +108,7 @@ export function WorkoutMove(p: Props) {
           <i style={{ width: `${(100 * p.done) / Math.max(p.total, 1)}%` }} />
         </div>
       </div>
+      {p.guidance}
       {p.original && (
         <div className="entry-swap-state">
           <span>Swap version · Original: {p.original}</span>

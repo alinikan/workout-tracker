@@ -56,6 +56,50 @@ Load suggestions continue to use the existing performance-history rules, not ela
 Easy walks add five minutes after each four recorded completed walks, up to 30 minutes. A gap
 longer than three weeks resets that walking evidence block to the ten-minute return option.
 
+### Progression Notices And Evidence
+
+`smartLoadSuggestion()` remains the source of current-attempt evidence. Its typed `action`
+separates a concise instruction from the detailed explanation. `moveLoadGuidance()` additionally
+checks a completed movement on the actual current date, finds the next scheduled occurrence of
+the same original slot **and actual exercise**, and calculates its earned set count before giving
+next-attempt advice. An added third set therefore blocks a simultaneous load increase. Deliberate
+future skips and swaps are respected; future performance drafts do not count as evidence.
+Warm-ups, bodyweight work, and assisted pull-ups do not receive this heavier-load preview.
+
+`LoadGuidance.tsx` renders the action directly in normal document flow. Today shows it above an
+expanded weighted log and retains earned increases on closed rows. Gym keeps a recap of earned
+next-workout increases outside the automatically advancing movement, including at the end of a
+session. Details → Log uses the same result. No modal, autofocus, acknowledgement database,
+background push permission, automatic weight insertion, or forced movement opening is involved.
+All notices derive from the existing dated logs, so Undo, corrections, account changes and reset
+cannot leave a separate stale notification record. Syncing those logs reproduces the advice on
+another device without changing the Supabase schema or permissions.
+
+The rationale is progressive, repeatable training rather than novelty:
+
+- [ACSM's 2026 position-stand summary](https://acsm.org/resistance-training-guidelines-update-2026/)
+  emphasizes consistency, training major muscle groups at least twice weekly and fitting load
+  and volume to the goal. More weekly volume can favor hypertrophy, but that does not establish
+  a need for an inactive beginner to start with ten hard sets per muscle or rotate exercises
+  every month. The home routine is a low-demand starting point, not a maximal-hypertrophy claim.
+- [The exercise-variation systematic review](https://pubmed.ncbi.nlm.nih.gov/35438660/) supports
+  purposeful variation rather than excessive random changes. Keeping familiar lifts allows
+  comparable logs; new movements should address a goal, missing movement pattern, comfort,
+  equipment access or a reviewed plateau, not just a new calendar date.
+- [ACSM's earlier progression model](https://pubmed.ncbi.nlm.nih.gov/19204579/) discusses small
+  load increases after the workload can be exceeded. The app's narrower 2.5–5% suggestion,
+  two comparable recorded top-range attempts, 21-day evidence window and extra safeguards are
+  conservative product policies, not a validated algorithm that identifies an individual's
+  optimal load. The app cannot observe technique, pain, equipment calibration or actual reserve.
+- [CDC's activity and weight guidance](https://www.cdc.gov/healthy-weight-growth/physical-activity/index.html)
+  describes activity and food intake together in weight management. Adding exercises alone
+  cannot guarantee fat loss; the existing nutrition and weight-trend tracking remain relevant.
+
+An appropriate review after a sustained block would consider adherence, performance, recovery,
+available equipment and whole-body coverage before adding modest volume or a new movement.
+That is a coaching judgment, not an automatic promise that all later exercises must change.
+This update improves recommendation visibility; it does not replace the home exercise template.
+
 Classes and lifts use the existing **training-day** nutrition budget, not guessed exercise-calorie
 add-backs. Rest uses the recovery-day budget. Logged actual work and deliberate skips are included.
 Protein/calorie estimates still use the user's confirmed nutrition profile and weight evidence.

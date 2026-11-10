@@ -13,7 +13,9 @@ jobs:
     runs-on: ubuntu-24.04
     # Includes full-view axe contrast audits as well as repeated interaction tests.
     # Includes Coach scheduling/migration, rest rollover and two-device sync.
-    timeout-minutes: 25
+    # The prior successful Linux run took ~24 minutes. Include the new earned-
+    # progression flows in both passes without timing out a healthy browser run.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

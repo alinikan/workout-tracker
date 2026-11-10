@@ -497,6 +497,33 @@ The app uses **RIR**, or Reps In Reserve, to explain how hard each set should fe
 
 Gym Mode asks how each set felt: **Too easy**, **About right**, or **Very hard**. Smart Load combines that feedback with a conservative double-progression rule. For an 8-12 rep target, keep the same pounds until every planned set reaches 12 clean reps with reserve in **two comparable sessions in a row**. Only then does the app suggest the smallest available increase around 2.5-5%. It never changes the saved weight automatically.
 
+**Where the advice appears:** expand a weighted movement in **Today** to see a visible
+**For this workout** recommendation above its set log. An earned increase remains visible even
+when that log is closed. After completing today's movement, the banner evaluates its next actual
+scheduled occurrence and changes to **Next workout**, with the date and a specific action.
+**Gym** shows the same guidance and retains earned next-workout increases in a session recap even
+after it advances to another movement. The exercise's **Log** details use the same advice.
+
+Actions distinguish building reps, confirming one qualifying session, establishing a newly added
+set, and considering a small weight increase. At 50 lb, a qualifying recommendation might suggest
+about 51.25–52.5 lb, returning to the bottom of the rep range. If your equipment cannot make that
+small jump, keep 50 lb; the app does not round up to an unsuitable pin or dumbbell.
+Recording only **Done**, without actual reps and set feel, never earns a load increase.
+**Why this recommendation** expands the evidence and safeguards without hiding the main action.
+These are non-blocking inline notices, not automatic dialogs or browser push notifications.
+Undo, changed effort or corrected logs recompute the recommendation; no stale notification or
+heavier weight is saved. Existing records and cloud permissions remain unchanged.
+
+The current home routine retains familiar A/B movements: two complete home lifts earn a training
+week; after eight lifts, press/row can rise from two to three sets. It does **not** automatically
+rotate exercises or add sets every calendar month. This is a manageable starting routine, not a
+claim of maximal muscle growth or a fully individualized long-term coaching system. See the
+[evidence and progression limits](docs/connected-coach.md#progression-notices-and-evidence).
+
+`npm run test:ui -- --progression-only` checks visible advice, unchanged pounds, final-set
+completion, corrections, Gym recap, synced reload, and contrast in WebKit/Chromium, light/dark.
+`tests/load-guidance.test.mjs` verifies the shared next-attempt calculations and volume safeguards.
+
 An increase is withheld when the latest comparable attempt was incomplete or skipped, any set was marked Very hard, weight/reps/effort are missing, loads differ within the attempt, readiness was reduced, a new set was just added, the week is a consolidation week, or the last attempt is more than 21 days old. New swaps create their own load history, because pounds from dumbbells, a commercial stack, and a cable machine are not interchangeable.
 
 Rest timers start automatically when a set is completed:
@@ -1111,6 +1138,9 @@ workout-tracker/
 | `src/components/AppErrorBoundary.tsx` | Recovery screen for unexpected rendering failures. |
 | `src/components/PremiumUI.tsx` | Stateless level-one navigation and accessible progress-ring primitives. |
 | `src/components/SessionUI.tsx` | Accessible section tabs, save states, and the dismissible Undo action. |
+| `src/components/LoadGuidance.tsx` | Typed, visible current-/next-workout actions with optional evidence; never changes recorded weights. |
+| `tests/load-guidance.test.mjs` | Completion-to-next-attempt advice, Undo/corrections, new-set priority, future data, swaps and historical review safeguards. |
+| `scripts/progression-ui-check.mjs` | Phone/desktop logging, earned notices, Gym recap, synced reload, contrast and non-interrupting interactions. |
 | `src/components/WeightTrendChart.tsx` | Calendar-based daily/weekly weight visualization and exact-value inspection. |
 | `src/lib/presentationState.ts` | Pure conditional Undo and honest save-presentation helpers. |
 | `src/experience.css` | Coordinated session layouts, semantic colors, measured mobile controls, and keyboard/motion fallbacks. |

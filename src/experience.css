@@ -1217,6 +1217,59 @@ html {
 .inline-progression p {
   color: var(--text-secondary);
 }
+/* Progression stays in flow: no overlay can cover the weight/reps controls.
+ * Semantic theme tokens keep the green/amber recommendations readable in both
+ * appearances; the expanded explanation uses a familiar native disclosure. */
+.app-shell .move-load-guidance {
+  display: block;
+  min-width: 0;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border: 0;
+  border-left: 3px solid var(--separator-strong);
+  border-radius: 0;
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.app-shell .move-load-guidance.build {
+  border-left-color: var(--done-ink);
+  background: var(--done-fill);
+  color: var(--done-ink);
+}
+.app-shell .move-load-guidance.deload {
+  border-left-color: var(--skip-ink);
+  background: var(--skip-fill);
+  color: var(--skip-ink);
+}
+.app-shell .load-guidance-heading,
+.app-shell .session-load-recap h3 {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: inherit;
+}
+.load-guidance-heading svg,
+.session-load-recap svg { flex-shrink: 0; margin-top: 2px; }
+.app-shell .move-load-guidance > strong { display: block; margin-top: 4px; font-size: 15px; line-height: 1.4; }
+.app-shell .move-load-guidance p,
+.app-shell .session-load-recap p { margin: 6px 0 0; color: inherit; font-size: 13px; line-height: 1.6; }
+.app-shell .move-load-guidance details { margin-top: 6px; border: 0; padding: 0; background: transparent; color: inherit; }
+.app-shell .move-load-guidance summary { min-height: 44px; padding: 10px 0; cursor: pointer; font-size: 12px; color: inherit; }
+.app-shell .move-load-guidance summary::after { content: none; }
+.app-shell .session-load-recap {
+  margin: 12px 0;
+  padding: 12px 0;
+  border-block: 2px solid var(--done-ink);
+  color: var(--done-ink);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.app-shell .session-load-recap h3 { margin: 0; font-size: 16px; }
+.app-shell .session-load-recap > div { margin-top: 12px; }
+.app-shell .session-load-recap strong { font-size: 14px; line-height: 1.5; }
 /* Reset inherited grid positions together, including label positioning. */
 .app-shell .set-table {
   display: block;

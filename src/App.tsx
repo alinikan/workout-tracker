@@ -28,6 +28,7 @@ import { isSupabaseConfigured, supabase, supabaseConfigError } from "./lib/supab
 import { canClaimLocalProgress, mergeProgressChanges, sameData } from "./lib/syncMerge";
 import { ProductNavigation, ProgressRing, type ProductMode } from "./components/PremiumUI";
 import { WorkoutMove } from "./components/WorkoutMove";
+import { LoadGuidance, type LoadRecommendation, type MoveLoadGuidance } from "./components/LoadGuidance";
 import { ProgramControls, TrainingJourney } from "./components/ProgramControls";
 import NutritionCoach from "./features/nutrition/NutritionCoach";
 import { emptyNutrition, normalizeNutrition, budgetFor as nutritionBudgetFor, planFor as nutritionPlanFor,
@@ -6187,7 +6188,7 @@ function smartLoadSuggestion(
   exercise: Exercise,
   exerciseIndex: number,
   originalExercise: Exercise = exercise,
-) {
+): LoadRecommendation {
   const readiness = readinessStatusFor(normalizeDayLog(store.days[selectedDay.iso]).readiness);
   const setCount = recommendedSets(selectedDay, exercise, exerciseIndex, readiness, originalExercise);
   const target = targetForExercise(selectedDay, exercise);
@@ -6259,7 +6260,8 @@ function smartLoadSuggestion(
     return { label: "Finish the current load first", detail: `${lastSummary} This attempt was skipped or incomplete. There is no earned increase yet; resume at a comfortable load and complete the planned work.`, tone: "steady" };
   }
   if (previous.rows.length < setCount) {
-    return { label: "Earn the new set", detail: `${lastSummary} Establish today's full ${setCount} sets before adding weight. More sets and more pounds should not arrive together.`, tone: "steady" };
+    return { label: "Earn the new set", detail: `${lastSummary} Establish today's full ${setCount} sets before adding weight. More sets and more pounds should not arrive together.`, tone: "steady",
+      action: { kind: "new-set", instruction: `Keep a comfortable load and establish all ${setCount} planned sets before increasing pounds.` } };
   }
   // Strict numeric logs avoid interpreting "20 + 5", "2x25", or draft text as
   // comparable pounds. Missing reps/effort are unknown, never automatic success.
@@ -6283,13 +6285,46 @@ function smartLoadSuggestion(
       label: "Try the next jump",
       detail: `2/2 qualifying sessions at ${formatLoadValue(load)} lb: all sets reached the top reps with reserve reported. On the SAME setup, consider the smallest available increase around 2.5-5% (about ${formatLoadValue(load * 1.025)}-${formatLoadValue(load * 1.05)} lb). If the next dumbbell or pin is a larger jump, keep this load. Only try it if warm-ups and form feel good; return to ${repRange?.low} reps and keep reserve. This is advice, not an automatic weight change.`,
       tone: "build",
+      action: { kind: "increase", instruction: `On the same setup, consider ${formatLoadValue(load * 1.025)}–${formatLoadValue(load * 1.05)} lb instead of ${formatLoadValue(load)} lb, only if a small increment is available. Start at ${repRange!.low} reps. If the equipment jump is larger or form changes, keep ${formatLoadValue(load)} lb.` },
     };
   }
   return {
     label: firstWin ? "One more confirming session" : "Build reps before pounds",
     detail: `${lastSummary} ${firstWin ? "1/2 qualifying sessions at this load." : "0/2 qualifying sessions at this load."} Aim for every planned set at ${repRange?.high ?? "the top target"} clean reps, with the planned reserve, twice in a row. Record reps and feel for each set. Time at the same weight alone does not justify increasing.`,
     tone: "steady",
+    action: { kind: firstWin ? "confirm" : "reps", instruction: firstWin
+      ? `Repeat this load for every planned set at ${repRange?.high ?? "the top target"} clean reps once more, with comfortable reserve. Log pounds, reps and set feel.`
+      : `Keep a manageable load and build toward ${repRange?.high ?? "the top target"} clean reps on every planned set. Log pounds, reps and set feel; a Done check alone cannot earn heavier weights.` },
   };
+}
+
+/** Finished sets can qualify the NEXT attempt, never authorize raising pounds
+ * midway through this workout. Resolve an actual future occurrence and its
+ * earned volume; a newly unlocked third set must take priority over more load.
+ * Future performance entries are excluded from the evidence, and a different
+ * swap/setup must not inherit this exercise's recommendation. */
+function moveLoadGuidance(
+  planDays: PlanDay[], store: TrackerStore, day: PlanDay, exercise: Exercise,
+  exerciseIndex: number, original: Exercise, today: string,
+): MoveLoadGuidance {
+  const current = { recommendation: smartLoadSuggestion(planDays, store, day, exercise, exerciseIndex, original), nextWorkout: false, date: day.iso };
+  if (day.iso !== today || !tracksWeight(exercise) || isRampWarmup(exercise) || exercise.id === "assisted-pull-up") return current;
+  const log = normalizeDayLog(store.days[day.iso]);
+  const count = recommendedSets(day, exercise, exerciseIndex, readinessStatusFor(log.readiness), original);
+  if (skipReasonForExercise(log, original.id) || !ensureSetRows(log.exercises[exercise.id], count).every(row => row.done)) return current;
+  const evidence = { ...store, days: Object.fromEntries(Object.entries(store.days).filter(([date]) => date <= today)) };
+  for (const raw of planDays.slice(day.index + 1)) {
+    const futureLog = normalizeDayLog(store.days[raw.iso]);
+    if (raw.session.type !== "strength" || futureLog.daySkipReason || skipReasonForExercise(futureLog, original.id)) continue;
+    if (!raw.session.exerciseIds.includes(original.id) || activeExerciseFor(original, futureLog).id !== exercise.id) continue;
+    const next = withTrainingWeek(raw, earnedTrainingWeekForDay(planDays, evidence, raw));
+    const moves = scheduledExercisesForDay(next, futureLog);
+    const index = moves.findIndex(move => move.id === original.id && activeExerciseFor(move, futureLog).id === exercise.id);
+    if (index < 0) continue;
+    const preview = { ...evidence, days: { ...evidence.days, [raw.iso]: { ...futureLog, exercises: {}, completed: false } } };
+    return { recommendation: smartLoadSuggestion(planDays, preview, next, exercise, index, moves[index]), nextWorkout: true, date: raw.iso };
+  }
+  return current;
 }
 
 function beginnerTeachingForExercise(planDay: PlanDay, exercise: Exercise, suggestionLabel: string) {
@@ -6789,7 +6824,7 @@ export {
   activeExerciseFor, locationGuideForExercise, swapOptionsFor, ExerciseMedia, exerciseMap, exerciseHistoryFor,
   resetProgress, trainingProgressFor, trainingWeekForEdit, coachedDaysForStore, monthlyCheckInForDay, chooseInitialSyncedStore,
   dietRecipes, weeklyDietMealMap,
-  savedMealOverrides, normalizeDietDayLog,
+  savedMealOverrides, normalizeDietDayLog, moveLoadGuidance,
 };
 
 export default function Home() {
@@ -8382,6 +8417,8 @@ export default function Home() {
       const isSkipped = Boolean(skipReason && !isComplete);
       const status: MoveStatus = isComplete ? "done" : isSkipped ? "skipped" : "pending";
       const suggestion = smartLoadSuggestion(planDays, store, planDay, activeExercise, exerciseIndex, originalExercise);
+      const loadGuidance = tracksWeight(activeExercise) && !isRampWarmup(activeExercise) && activeExercise.id !== "assisted-pull-up"
+        ? moveLoadGuidance(planDays, store, planDay, activeExercise, exerciseIndex, originalExercise, calendarDate) : null;
       const statusLabel =
         status === "done"
           ? "Done"
@@ -8411,6 +8448,7 @@ export default function Home() {
         location: locationGuideForExercise(activeExercise),
         progression: progressionForExercise(planDay, activeExercise),
         suggestion,
+        loadGuidance,
         beginnerTeaching: beginnerTeachingForExercise(planDay, activeExercise, suggestion.label),
         swaps: swapOptionsFor(originalExercise),
         isSwapped: isSwappedExercise(originalExercise, dayLog),
@@ -8418,6 +8456,10 @@ export default function Home() {
     });
   const workoutMoveRows = buildWorkoutMoveRows(selectedCoachDay, selectedLog, selectedExercises);
   const gymMoveRows = buildWorkoutMoveRows(gymCoachDay, gymLog, gymExercises);
+  // Gym automatically advances after a movement is finished. Keep earned advice
+  // outside that changing movement so it survives navigation and the final set.
+  const gymEarnedLoads = gymMoveRows.filter(move => move.isComplete && move.loadGuidance?.nextWorkout
+    && move.loadGuidance.recommendation.action?.kind === "increase");
   const gymCompletionSignature = gymMoveRows.map((move) => move.status).join("");
   const gymSessionResolved = Boolean(gymLog.daySkipReason) || (gymMoveRows.length
     ? gymMoveRows.every((move) => move.isComplete || move.isSkipped)
@@ -9871,6 +9913,14 @@ export default function Home() {
             </button>
           )}
         </div>
+        {gymEarnedLoads.length > 0 && <section className="session-load-recap" aria-label="Earned next workout recommendations">
+          <h3><Sparkles size={18} aria-hidden="true" /> Next workout</h3>
+          <p role="status">{gymEarnedLoads.length} {gymEarnedLoads.length === 1 ? "movement has" : "movements have"} earned a weight recommendation. No need to add weight or extra sets now.</p>
+          {gymEarnedLoads.map(move => <div key={move.originalExercise.id}>
+            <strong>{move.activeExercise.name} · {formatDate(move.loadGuidance!.date, "short")}</strong>
+            <p>{move.loadGuidance!.recommendation.action!.instruction}</p>
+          </div>)}
+        </section>}
         {gymSessionResolved ? (
           <section className="empty-gym-card gym-session-summary" aria-live="polite">
             <span className={`day-status-chip ${gymDayStatus}`}>{dayStatusLabel(gymDayStatus)}</span>
@@ -9957,18 +10007,18 @@ export default function Home() {
             {!["trial", "class"].includes(gymDay.session.connected?.kind ?? "") && <details className="gym-session-guidance">
               <summary>
                 <span>Session guidance</span>
-                <strong>{gymReadinessCopy.label} · {gymPhase.rir}</strong>
+                <strong>{gymReadinessCopy.label} · {gymDay.session.connected?.kind === "home" ? "Comfortable effort" : gymPhase.rir}</strong>
               </summary>
               <div className={`gym-coach-strip readiness-${gymReadinessStatus}`}>
                 <div>
                   <span>Today</span>
-                  <strong>{gymPhase.title}</strong>
-                  <small>Training Week {gymTrainingWeek} · {gymPhase.timeCap} · {gymSessionTime}</small>
+                  <strong>{gymDay.session.connected?.kind === "home" ? "Home A/B" : gymPhase.title}</strong>
+                  <small>Training Week {gymTrainingWeek} · {gymDay.session.connected?.kind === "home" ? gymSessionTime : `${gymPhase.timeCap} · ${gymSessionTime}`}</small>
                 </div>
                 <div>
                   <span>RIR target</span>
-                  <strong>{gymPhase.rir}</strong>
-                  <small>{rirExplanationForWeek(gymTrainingWeek)}</small>
+                  <strong>{gymDay.session.connected?.kind === "home" ? "3–4 clean reps available" : gymPhase.rir}</strong>
+                  <small>{gymDay.session.connected?.kind === "home" ? "Keep several comfortable repetitions available; follow each movement's own target. No need to train to failure." : rirExplanationForWeek(gymTrainingWeek)}</small>
                 </div>
                 <div>
                   <span>Readiness</span>
@@ -10109,7 +10159,8 @@ export default function Home() {
               </div>
             )}
 
-            {currentGymSuggestion && (
+            {currentGymMove.loadGuidance ? <LoadGuidance guidance={currentGymMove.loadGuidance}
+              dateLabel={formatDate(currentGymMove.loadGuidance.date, "short")} /> : currentGymSuggestion && (
               <div className={`load-suggestion smart-load ${currentGymSuggestion.tone}`}>
                 <Icon name="spark" size={16} />
                 <span>
@@ -10507,7 +10558,9 @@ export default function Home() {
                     onSkip={() => move.isSkipped ? reopenSkippedExerciseForDay(selectedCoachDay, move.originalExercise.id) : requestSkipReason(selectedCoachDay, move.originalExercise.id, "today")}
                     onDetails={() => { setDetailTab("technique"); setDetailExerciseId(move.originalExercise.id); }}
                     onSwap={() => { setDetailTab("swap"); setDetailExerciseId(move.originalExercise.id); }}
-                    onRevert={() => setExerciseSwap(move.originalExercise.id, move.originalExercise.id)}>
+                    onRevert={() => setExerciseSwap(move.originalExercise.id, move.originalExercise.id)}
+                    guidance={move.loadGuidance && (expanded || (!move.isSkipped && move.loadGuidance.recommendation.tone === "build"))
+                      ? <LoadGuidance guidance={move.loadGuidance} dateLabel={formatDate(move.loadGuidance.date, "short")} /> : undefined}>
                     {expanded && <div className="today-inline-log" id={`inline-log-${move.originalExercise.id}`}
                       role="region" aria-label={`${move.activeExercise.name} inline set log`}>
                       <div className="inline-log-heading"><strong>{move.isSkipped ? "Skipped - resume to continue" : "Your sets"}</strong>
@@ -10529,10 +10582,10 @@ export default function Home() {
                             onChange={(event) => updateSet(move.activeExercise.id, setIndex, "done", event.target.checked)} /><span /></label>
                         </div>)}
                       </div>
-                      <details className={`inline-progression smart-load-mini ${move.suggestion.tone}`}>
+                      {!move.loadGuidance && <details className={`inline-progression smart-load-mini ${move.suggestion.tone}`}>
                         <summary><Sparkles size={14} aria-hidden="true" />{move.suggestion.label}</summary>
                         <p>{move.suggestion.detail}</p>
-                      </details>
+                      </details>}
                     </div>}
                   </WorkoutMove>
                   </Fragment>
@@ -10547,9 +10600,11 @@ export default function Home() {
           )}
 
           {!isRestDay(selectedCoachDay) && !["trial", "class"].includes(selectedDay.session.connected?.kind ?? "") && <details className="today-session-guidance">
-            <summary><span>Session guidance</span><strong>{phase.title} · {phase.rir}</strong></summary>
-            <div><p className="plan-note">{selectedSessionSummary}</p><p className="phase-note">{phase.note}</p>
-              <p className="phase-note"><strong>{phase.title}:</strong> {phase.sets} · {phase.timeCap} target · {phase.rir}.</p>
+            <summary><span>Session guidance</span><strong>{selectedDay.session.connected?.kind === "home" ? "Home A/B · earned progression" : `${phase.title} · ${phase.rir}`}</strong></summary>
+            <div><p className="plan-note">{selectedSessionSummary}</p>
+              {selectedDay.session.connected?.kind === "home" ? <p className="phase-note">Follow the set counts shown on each movement. Two completed home lifts earn one training week. From Training Week 5, press and row receive one extra set; other movements keep their planned set counts. Keep familiar exercises and build clean reps before pounds. Record weight, reps and set feel for guidance. Skipped days do not advance your training level.</p> : <>
+              <p className="phase-note">{phase.note}</p>
+              <p className="phase-note"><strong>{phase.title}:</strong> {phase.sets} · {phase.timeCap} target · {phase.rir}.</p></>}
               <p className="location-flow-note"><strong>Home/gym split:</strong> {selectedLocationNote}</p>
             </div>
           </details>}
@@ -11115,13 +11170,14 @@ export default function Home() {
               </section>
             )}
 
-            {detailTab === "log" && <><div className={`load-suggestion smart-load ${detailMove.suggestion.tone}`}>
+            {detailTab === "log" && <>{detailMove.loadGuidance ? <LoadGuidance guidance={detailMove.loadGuidance}
+              dateLabel={formatDate(detailMove.loadGuidance.date, "short")} /> : <div className={`load-suggestion smart-load ${detailMove.suggestion.tone}`}>
               <Icon name="spark" size={16} />
               <span>
                 <strong>{detailMove.suggestion.label}</strong>
                 <small>{detailMove.suggestion.detail}</small>
               </span>
-            </div>
+            </div>}
             {detailExercise.loadNote && <p className="equipment-load-note">{detailExercise.loadNote}</p>}</>}
 
             {detailTab === "technique" && <div className="detail-details-grid">
