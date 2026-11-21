@@ -6,7 +6,7 @@ There is no separate Momentum screen or parallel attendance counter.
 ## Use It
 
 1. Open **Coach → Training & Muay Thai → Change training schedule**.
-2. Choose **Home gym only**, **One Muay Thai trial**, or **Weekly Muay Thai classes**.
+2. Choose **Home gym only**, **Home gym every other day**, **One Muay Thai trial**, or **Weekly Muay Thai classes**.
 3. For a class, enter a confirmed date and optional time. Duration is the timetable slot, not
    continuous hard exercise and not an estimate of calories burned. Choose the class level.
 4. For recurring classes, select one or two non-consecutive weekdays. Confirm the timetable with
@@ -28,9 +28,9 @@ a new setup. Existing private home accounts are adopted automatically without a 
 
 ## Scheduling Rules
 
-- Home-only rhythm: A, easy walk, rest, B, easy walk, rest, easy walk.
+- Twice-weekly home rhythm: A, easy walk, rest, B, easy walk, rest, easy walk.
 - A class replaces home work that day. The day before and after stay light/restful.
-- The planner fits **at most two** home lifts into a seven-day program cycle, preferring the
+- The twice-weekly planner fits **at most two** home lifts into a seven-day program cycle, preferring the
   familiar A/B anchors. It leaves at least three calendar days between lifts within that cycle
   and never puts a lift on or immediately adjacent to a class date.
 - Dense class weeks may have only one home lift, or none. The app does not create make-up work
@@ -48,6 +48,53 @@ a new setup. Existing private home accounts are adopted automatically without a 
   weigh-ins remain forgotten, excluded from averages; they are never filled with zero.
 
 ## Progression And Food
+
+### Every Other Day
+
+Open **Coach → Training & Muay Thai → Change training schedule → Home gym every other day**.
+Choose **Switch to every other day on** and pick today or a future day, such as next Saturday.
+If you choose a future date, the preview starts on that date. Your current workouts, classes
+and meal-day targets stay in place until the switch. Before it starts, use **Reschedule** or
+**Cancel scheduled switch** in Coach. Saving a home-only switch replaces future classes from
+that date in the planner; it does not cancel an actual booking. An earlier rhythm date still
+acts only as an anchor for the pattern: it never relabels past days.
+Do **not** use Start Fresh to change cadence. This saves a dated option to the existing synced
+profile without changing the program start date or erasing completed lifts, notes, weigh-ins or
+meals. An already-started session continues with its recorded prescription.
+
+On eligible days the schedule alternates A and B with one recovery day between them, normally
+three or four home sessions per seven days. A previous-day lift at the transition or a scheduled
+class can take priority; class days and the days around them do not get extra lifting. An off day
+needs no logging. Take an optional 10–20 minute easy walk if recovered, or rest. Neither a missed
+lift nor a class advances the new stage or changes the calendar rhythm.
+
+| Qualifying sessions in this block | Prescription for the next eligible visit |
+| --- | --- |
+| 0–5 | One working set per movement; keep a few good reps in reserve and practice the setup. |
+| 6–11 | Two sets on chest press and dumbbell row; other movements stay at one. |
+| 12–19 | Two wall-sit sets, two A-day glute bridge sets, slightly more dead-bug reps. B replaces glute bridge with one light dumbbell hinge set, with glute bridge available as a swap. |
+| 20+ | Three chest-press and row sets on both days, plus a second hinge set on B. Keep progressing performance rather than adding endless volume. |
+
+A qualifying session is complete at its planned volume with normal readiness, logged working
+reps/hold time, manageable set feel, and pounds for weighted movements. A skipped or reduced
+session, or a quick Done check without performance data, does not unlock harder stages. After
+more than 21 days without a qualifying session, new sessions restart the lighter ramp; actual
+history and existing Progress totals are unchanged. Weights remain suggestions only: two recent
+comparable top-rep attempts are still required, and new sets take priority over more pounds.
+
+Uncooked portions use the existing training budget on lift/class days and the recovery budget
+on off days or wholly skipped/recovery-only lifting days. If working sets were logged, keep the
+training-day fuel. No guessed calories burned are added. Already-cooked quantities and recorded
+meals are not recomputed; the nutrition profile, trend and review still guide targets.
+
+[ACSM's 2026 guidance](https://acsm.org/resistance-training-guidelines-update-2026/) and a
+[frequency meta-analysis](https://pubmed.ncbi.nlm.nih.gov/30558493/) support progressive training
+and using frequency to distribute volume, not assuming more days alone improve gains. The 6/12/20
+gates and 21-day return rule are conservative app policies, not universal training thresholds.
+[CDC's weight guidance](https://www.cdc.gov/healthy-weight-growth/physical-activity/index.html)
+frames weight loss around food intake and activity together, not a guaranteed result from lifting.
+
+### Twice-Weekly Home Plan
 
 Two complete home lifts earn one training level; rest, classes and skipped lifts do not. After
 eight completed home lifts (level 5), the main press/row can have three working sets. Other work
@@ -201,3 +248,7 @@ WebKit phone sizes and Chromium desktop, both themes. It checks import, shared T
 trial changes, recurrence, offline cancellation and non-overlapping progress labels. The complete
 UI suite also tests batch meals, nutrition, resets and contrast. Synthetic users only; production
 fitness records and real bookings are never used as test fixtures.
+
+`npm run test:ui -- --alternating-only` covers the cadence editor, saved history, Today/Gym/Diet,
+recovery and reload in WebKit and Chromium. `tests/alternating-coach.test.mjs` covers dated cadence,
+progression gates, recent training and class spacing, sync and fuel selection.

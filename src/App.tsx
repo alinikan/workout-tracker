@@ -40,7 +40,8 @@ import { savePresentation, undoUnchangedFields } from "./lib/presentationState";
 import { initialProgram, isCalendarDate, normalizeProgram, restartedProgram, resolveResetConflict, type ProgramState } from "./lib/programLifecycle";
 import { useMomentum } from "./features/momentum/useMomentum";
 import CoachPlan from "./features/coaching/CoachPlan";
-import { emptyCoaching, normalizeCoaching, coachActivity, coachTargets, classFuel, walkingMinutes, type CoachSchedule } from "./features/coaching/plan";
+import { alternatingChoice, emptyCoaching, normalizeCoaching, coachActivity, coachTargets, classFuel, homeProjectionStart, walkingMinutes, type CoachSchedule } from "./features/coaching/plan";
+import { alternatingSets, alternatingStageFor, alternatingStages, alternatingTargets, isAlternatingStage, type AlternatingStage } from "./features/coaching/alternating";
 import { MealPrepPlanner } from "./features/mealPrep/MealPrepPlanner";
 import { createMealPrep, normalizeMealPrep, prepBatch, prepBlockFor, prepServing, recipeForPrepSlot, startPrepSchedule, type MealPrepState, type PrepContext } from "./features/mealPrep/plan";
 import { prepRecipeMap } from "./features/mealPrep/recipes";
@@ -379,7 +380,7 @@ type SessionTemplate = {
   exerciseIds: string[];
   tasks: string[];
   finisher?: string;
-  connected?: { kind: "home" | "trial" | "class" | "easy"; sets: 1 | 2; targets: Record<string, string> };
+  connected?: { kind: "home" | "trial" | "class" | "easy"; sets: 1 | 2; targets: Record<string, string>; alternatingStage?: AlternatingStage };
 };
 
 type SetLog = {
@@ -715,6 +716,7 @@ function normalizeSessionSnapshot(value: unknown): SessionTemplate | undefined {
     || !Array.isArray(value.tasks) || !value.tasks.every(task => typeof task === "string")) return undefined;
   if (value.connected && (!isRecord(value.connected) || !["home", "trial", "class", "easy"].includes(String(value.connected.kind))
     || (value.connected.sets !== 1 && value.connected.sets !== 2) || !isRecord(value.connected.targets)
+    || (value.connected.alternatingStage !== undefined && (value.connected.kind !== "home" || !isAlternatingStage(value.connected.alternatingStage)))
     || !Object.values(value.connected.targets).every(target => typeof target === "string"))) return undefined;
   return value as SessionTemplate;
 }
@@ -1656,7 +1658,7 @@ const exerciseMap: Record<string, Exercise> = {
       match: "exact",
     },
     youtubeId: "5WxMW-Fu5KU",
-    swapIds: ["barbell-rdl"],
+    swapIds: ["glute-bridge", "barbell-rdl"],
     resources: [
       {
         label: "NASM video guide",
@@ -3891,6 +3893,8 @@ function recommendedSets(
   if (planDay.session.connected) {
     if (exercise.family === "warmup" || exercise.family === "cardio") return 1;
     if (readinessStatus === "red" || readinessStatus === "yellow") return 1;
+    const stage = planDay.session.connected.alternatingStage;
+    if (stage) return alternatingSets(stage, originalExercise.id);
     // Two lifts earn one training level. After eight completed home lifts,
     // add only one set to the main press/row; accessories remain at two.
     const earnedMainSet = planDay.session.connected.kind === "home" && coachingWeek(planDay) >= 5
@@ -5775,8 +5779,8 @@ function connectedPlanDays(days: PlanDay[], data: MomentumData | null, logs: Rec
 /** The shared store is the only live attendance source. Legacy private planning
  * supplies history during migration, never a second counter for new sessions. */
 function coachPlanDays(days: PlanDay[], schedule: CoachSchedule, logs: Record<string, DayLog>, today: string, start = days[0]?.iso): PlanDay[] {
-  if (!schedule.homeFrom || !start) return days;
-  const homeFrom = schedule.homeFrom;
+  const homeFrom = homeProjectionStart(schedule);
+  if (!homeFrom || !start) return days;
   const completedWalkDates = Object.entries(logs).filter(([date, log]) => date <= today && log.exercises?.["home-easy-walk"]?.some(set => set.done)
     && readinessStatusFor(log.readiness) === "green" && !log.daySkipReason).map(([date]) => date).sort();
   // A midweek class change must count strength work already performed. Without
@@ -5791,39 +5795,64 @@ function coachPlanDays(days: PlanDay[], schedule: CoachSchedule, logs: Record<st
       actualLiftDates.push(day.iso);
     }
   }
+  // Count only completed, documented sessions in this cadence. Calendar time
+  // and the older program's attendance remain visible, but do not skip this ramp.
+  let blockStart = "", lastQualified = "", qualifying = 0;
   return days.map(day => {
     const log = normalizeDayLog(logs[day.iso]);
-    if (log.sessionSnapshot) return { ...day, session: log.sessionSnapshot };
-    if (day.iso < homeFrom || log.completed || Object.values(log.exercises).some(rows => rows.some(set => set.done || set.weight || set.reps))) return day;
+    const rhythm = alternatingChoice(schedule, day.iso);
+    if (rhythm && blockStart !== rhythm.effectiveOn) {
+      blockStart = rhythm.effectiveOn;
+      lastQualified = "";
+      qualifying = 0;
+    }
+    const evidenceDate = day.iso > today ? today : day.iso;
+    if (lastQualified && diffDays(lastQualified, evidenceDate) > 21) {
+      lastQualified = "";
+      qualifying = 0;
+    }
+    const observe = (planned: PlanDay) => {
+      if (rhythm && day.iso <= today && qualifiesForAlternatingStage(planned, log)) {
+        lastQualified = day.iso;
+        qualifying += 1;
+      }
+      return planned;
+    };
+    if (log.sessionSnapshot) return observe({ ...day, session: log.sessionSnapshot });
+    if (day.iso < homeFrom || log.completed || Object.values(log.exercises).some(rows => rows.some(set => set.done || (!rhythm && (set.weight || set.reps))))) return day;
     let plan = coachActivity(schedule, start, day.iso);
-    if (day.iso >= today && (plan.activity === "strength-a" || plan.activity === "strength-b")) {
+    if ((rhythm || day.iso >= today) && (plan.activity === "strength-a" || plan.activity === "strength-b")) {
       const used = usedLifts.get(day.week) ?? 0;
-      const tooClose = actualLiftDates.some(date => date !== day.iso && Math.abs(diffDays(date, day.iso)) < 2);
+      const tooClose = actualLiftDates.some(date => date !== day.iso && (!rhythm || date < day.iso) && Math.abs(diffDays(date, day.iso)) < 2);
       if (tooClose) plan = { activity: "recovery", title: "Recovery after recorded training", minutes: 0, class: null };
-      else if (used >= 2) plan = { activity: "walk", title: "Easy home walk", minutes: 10, class: null };
+      else if (!rhythm && used >= 2) plan = { activity: "walk", title: "Easy home walk", minutes: 10, class: null };
       else usedLifts.set(day.week, used + 1);
     }
     const strength = plan.activity === "strength-a" || plan.activity === "strength-b";
+    const stage = strength && rhythm ? alternatingStageFor(qualifying) : undefined;
     const minutes = plan.activity === "walk" ? walkingMinutes(completedWalkDates, day.iso) : plan.minutes;
-    const moves = strength ? coachTargets(plan.activity as "strength-a" | "strength-b") : [];
+    const activity = plan.activity as "strength-a" | "strength-b";
+    const moves = strength ? stage ? alternatingTargets(activity, stage) : coachTargets(activity) : [];
     const targets = Object.fromEntries(moves.map(move => [move.id, move.id === "wall-sit" ? move.reps : `${move.reps} controlled; leave 3–4 comfortable reps available`]));
     const warmups = moves.slice(0, 2).flatMap(move => move.id === "wall-sit" ? ["warmup-ramp-home-wall-sit"] : move.id === "reverse-nordic" ? ["warmup-ramp-home-reverse-nordic"] : move.id === "machine-chest-press" ? ["warmup-ramp-home-machine-press"] : []);
+    if (moves.some(move => move.id === "db-rdl")) warmups.push("hip-hinge-drill");
     const isClass = plan.activity === "class", classId = plan.class?.mode === "trial" ? "muay-thai-trial" : "muay-thai-class";
     targets["warmup-treadmill-walk"] = "5–7 minutes easy walking";
     targets["warmup-ramp-home-wall-sit"] = "5–10 seconds shallow, easy rehearsal";
     targets["warmup-ramp-home-reverse-nordic"] = "2–3 very small, easy reps";
     targets["warmup-ramp-home-machine-press"] = "5–8 easy reps; clearly lighter than your working weight";
+    targets["hip-hinge-drill"] = "5-8 easy unloaded reps";
     targets["home-easy-walk"] = `${minutes} minutes easy and conversational`;
     targets[classId] = `${plan.class?.time ? `${plan.class.time} · ` : ""}${plan.minutes}-minute class slot; take breaks, shorten or observe as needed`;
-    return { ...day, session: {
+    return observe({ ...day, session: {
       title: plan.title, code: isClass ? plan.class?.mode === "trial" ? "TRIAL" : "MT" : strength ? plan.activity === "strength-a" ? "HA" : "HB" : plan.activity === "walk" ? "EASY" : "REST",
       type: strength ? "strength" : isClass ? "cardio" : plan.activity === "walk" ? "movement" : "recovery",
       time: minutes ? `${minutes} minutes` : "Rest day",
-      summary: isClass ? "Your coached class replaces home training. Keep the intensity manageable and take breaks." : plan.activity === "recovery" ? "Rest is already part of the plan. No completion button or make-up workout is needed." : strength ? "Two manageable home sessions when recovery spacing allows. Follow the movements in order." : "Easy movement, not a hard workout.",
+      summary: isClass ? "Your coached class replaces home training. Keep the intensity manageable and take breaks." : plan.activity === "recovery" ? rhythm ? "Rest or take an optional 10-20 minute easy walk at a conversational pace. No check-in or make-up lifting." : "Rest is already part of the plan. No completion button or make-up workout is needed." : stage ? alternatingStages[stage].detail : strength ? "Two manageable home sessions when recovery spacing allows. Follow the movements in order." : "Easy movement, not a hard workout.",
       accent: isClass ? "cardio" : plan.activity === "strength-a" ? "strength-a" : plan.activity === "strength-b" ? "strength-b" : "recovery",
       exerciseIds: strength ? ["warmup-treadmill-walk", ...warmups, ...moves.map(move => move.id)] : isClass ? [classId] : plan.activity === "walk" ? ["home-easy-walk"] : [],
-      tasks: [], connected: { kind: strength ? "home" : isClass ? plan.class?.mode === "trial" ? "trial" : "class" : "easy", sets: 2, targets },
-    } };
+      tasks: [], connected: { kind: strength ? "home" : isClass ? plan.class?.mode === "trial" ? "trial" : "class" : "easy", sets: stage ? 1 : 2, targets, ...(stage ? { alternatingStage: stage } : {}) },
+    } });
   });
 }
 
@@ -5894,6 +5923,33 @@ function qualifiesForTrainingCredit(planDay: PlanDay, log: DayLog) {
     readinessStatusFor(log.readiness) !== "red" && isPlanDayComplete(planDay, log);
 }
 
+function qualifiesForAlternatingStage(day: PlanDay, log: DayLog) {
+  if (!day.session.connected?.alternatingStage || readinessStatusFor(log.readiness) !== "green" || !qualifiesForTrainingCredit(day, log)) return false;
+  if (Object.values(log.exercises).some(rows => rows.some(row => row.done && row.effort === "very-hard"))) return false;
+  return scheduledExercisesForDay(day, log).every((original, index) => {
+    const exercise = activeExerciseFor(original, log);
+    if (exercise.family === "warmup" || exercise.family === "cardio" || exercisePriorityFor(original, day) === "optional") return true;
+    const count = recommendedSets(day, exercise, index, "green", original);
+    const rows = log.exercises[exercise.id] ?? [];
+    const minimum = Number(targetForExercise(day, exercise).match(/^\d+/)?.[0] ?? 1);
+    return rows.length >= count && rows.slice(0, count).every(row => row.done && /^\d+$/.test(row.reps.trim())
+      && Number(row.reps) >= minimum && (row.effort === "about-right" || row.effort === "too-easy")
+      && (!tracksWeight(exercise) || (/^\d+(?:[.,]\d+)?$/.test(row.weight.trim()) && Number(row.weight.replace(",", ".")) > 0)));
+  });
+}
+
+function fuelForProjectedDay(day: PlanDay, saved: DayLog | undefined, privateActual = false) {
+  const log = normalizeDayLog(saved);
+  const session = log.sessionSnapshot ?? day.session;
+  const strengthOrClass = session.type === "strength" || ["trial", "class"].includes(session.connected?.kind ?? "");
+  const alternating = Boolean(session.connected?.alternatingStage);
+  const actual = strengthOrClass && Object.entries(log.exercises).some(([id, sets]) =>
+    (!alternating || Boolean(exerciseMap[id] && !["warmup", "cardio"].includes(exerciseMap[id].family))) && sets.some(set => set.done));
+  const skipped = Boolean(log.daySkipReason || (alternating && (readinessStatusFor(log.readiness) === "red" ||
+    (!actual && dayStatusForDay(day, log) === "finished-with-skips"))));
+  return trainingFuelDay(strengthOrClass, actual || privateActual, skipped);
+}
+
 /** After adoption, reopening a Diet meal must invalidate its intake evidence.
  * An archived, still-checked copy must never silently undo that correction. */
 function sharedFoodEvidence(store: TrackerStore, legacy: MomentumData | null, date: string) {
@@ -5909,7 +5965,7 @@ function sharedFoodEvidence(store: TrackerStore, legacy: MomentumData | null, da
 // the routine's completed-session quota earns a level; missed calendar weeks earn none.
 function coachedDaysForStore(planDays: PlanDay[], store: TrackerStore): PlanDay[] {
   let credits = 0;
-  const sessions = planDays.some(day => day.session.connected?.kind === "home") ? 2 : STRENGTH_SESSIONS_PER_WEEK;
+  const sessions = milestoneSessionQuota(planDays);
   return planDays.map((day) => {
     const log = normalizeDayLog(store.days[day.iso]);
     const earned = Math.min(TRAINING_WEEKS, Math.floor(credits / sessions) + 1);
@@ -5934,7 +5990,7 @@ function trainingProgressFor(planDays: PlanDay[], store: TrackerStore, through: 
   const creditedDays = coachedDaysForStore(planDays, store).filter((day) =>
     day.iso <= through && qualifiesForTrainingCredit(day, normalizeDayLog(store.days[day.iso])));
   const credits = creditedDays.length;
-  const sessions = planDays.some(day => day.session.connected?.kind === "home") ? 2 : STRENGTH_SESSIONS_PER_WEEK;
+  const sessions = milestoneSessionQuota(planDays);
   const target = TRAINING_WEEKS * sessions;
   return {
     credits, sessions, target,
@@ -5946,6 +6002,13 @@ function trainingProgressFor(planDays: PlanDay[], store: TrackerStore, through: 
     lastCompletedOn: creditedDays.at(-1)?.iso ?? null,
     creditedDays,
   };
+}
+
+function milestoneSessionQuota(planDays: PlanDay[]) {
+  // A future alternating switch must not rescore a legacy program. The new
+  // cadence has its own earned stages, separate from long-term milestones.
+  return planDays.some(day => day.session.connected?.kind === "home" && !day.session.connected.alternatingStage)
+    ? 2 : STRENGTH_SESSIONS_PER_WEEK;
 }
 
 function trainingLevelCopy(_calendarWeek: number, trainingWeek: number, sessions = 3) {
@@ -6250,7 +6313,7 @@ function smartLoadSuggestion(
   if (diffDays(previous.day.iso, selectedDay.iso) > 21) {
     return { label: "Return gently", detail: `${lastSummary} More than three weeks have passed. Start lighter if needed and rebuild two recent controlled sessions before increasing.`, tone: "deload" };
   }
-  if (isConsolidationWeek(coachingWeek(selectedDay))) {
+  if (!selectedDay.session.connected?.alternatingStage && isConsolidationWeek(coachingWeek(selectedDay))) {
     return { label: "Consolidate", detail: `${lastSummary} Keep the planned easier week. Repeat a comfortable load or reduce it; do not increase load while consolidating.`, tone: "deload" };
   }
   if (previous.rows.some((row) => row.effort === "very-hard") || readinessStatusFor(previous.log.readiness) !== "green") {
@@ -6270,9 +6333,10 @@ function smartLoadSuggestion(
     if (!attempt || !repRange || attempt.skipped || !attempt.top ||
         diffDays(attempt.day.iso, selectedDay.iso) > 21 ||
         readinessStatusFor(attempt.log.readiness) !== "green" ||
-        isConsolidationWeek(coachingWeek(attempt.day))) return false;
+        (!attempt.day.session.connected?.alternatingStage && isConsolidationWeek(coachingWeek(attempt.day)))) return false;
     const load = numeric(attempt.rows[0]?.weight ?? "");
-    return load > 0 && attempt.rows.length >= Math.max(setCount, attempt.requiredSets) &&
+    return load > 0 && (!selectedDay.session.connected?.alternatingStage || Boolean(attempt.day.session.connected?.alternatingStage))
+      && attempt.rows.length >= Math.max(setCount, attempt.requiredSets) &&
       attempt.rows.every((row) => row.done && numeric(row.weight) === load &&
         Number.isInteger(numeric(row.reps)) && numeric(row.reps) >= Math.max(repRange.high, attempt.top) &&
         (row.effort === "about-right" || row.effort === "too-easy"));
@@ -6478,9 +6542,13 @@ function isRestDay(planDay: PlanDay) {
   return planDay.session.type === "recovery" && planDay.session.exerciseIds.length === 0;
 }
 
-/** A future class may be skipped, resumed or annotated, but not attended early. */
+/** Future dated classes and alternating lifts may be planned, not attended early. */
+function completionIsFuture(planDay: PlanDay, today: string) {
+  return planDay.iso > today && (Boolean(planDay.session.connected?.alternatingStage) || ["trial", "class"].includes(planDay.session.connected?.kind ?? ""));
+}
+
 function allowsDayEdit(planDay: PlanDay | undefined, log: DayLog, today: string) {
-  return !planDay || planDay.iso <= today || !["trial", "class"].includes(planDay.session.connected?.kind ?? "")
+  return !planDay || !completionIsFuture(planDay, today)
     || (!log.completed && !Object.values(log.exercises).some(rows => rows.some(set => set.done)));
 }
 
@@ -6560,7 +6628,8 @@ function reconcilePastTracking(
     if (!sameData(nextLog, log)) {
       if (!daysChanged) nextDays = { ...nextDays };
       daysChanged = true;
-      nextDays[rawDay.iso] = { ...nextLog, trainingWeek: coachingWeek(planDay) };
+      nextDays[rawDay.iso] = { ...nextLog, trainingWeek: coachingWeek(planDay),
+        ...(planDay.session.connected?.alternatingStage ? { sessionSnapshot: log.sessionSnapshot ?? planDay.session } : {}) };
     }
   }
 
@@ -6824,7 +6893,7 @@ export {
   activeExerciseFor, locationGuideForExercise, swapOptionsFor, ExerciseMedia, exerciseMap, exerciseHistoryFor,
   resetProgress, trainingProgressFor, trainingWeekForEdit, coachedDaysForStore, monthlyCheckInForDay, chooseInitialSyncedStore,
   dietRecipes, weeklyDietMealMap,
-  savedMealOverrides, normalizeDietDayLog, moveLoadGuidance,
+  savedMealOverrides, normalizeDietDayLog, moveLoadGuidance, fuelForProjectedDay,
 };
 
 export default function Home() {
@@ -6920,10 +6989,10 @@ export default function Home() {
   const migratedStore = useMemo(() => migrationReady && momentum.data
     ? importCoachHistory(store, momentum.data, calendarDate) : store,
     [store, migrationReady, momentum.data, calendarDate]);
-  const planDays = useMemo(() => coachPlanDays(
-    connectedPlanDays(basePlanDays, momentum.access === "allowed" ? momentum.data : null, migratedStore.days, calendarDate),
-    migratedStore.coaching, migratedStore.days, calendarDate),
-    [basePlanDays, momentum.data, momentum.access, migratedStore.coaching, migratedStore.days, calendarDate]);
+  const preCoachDays = useMemo(() => connectedPlanDays(basePlanDays, momentum.access === "allowed" ? momentum.data : null, migratedStore.days, calendarDate),
+    [basePlanDays, momentum.data, momentum.access, migratedStore.days, calendarDate]);
+  const planDays = useMemo(() => coachPlanDays(preCoachDays, migratedStore.coaching, migratedStore.days, calendarDate),
+    [preCoachDays, migratedStore.coaching, migratedStore.days, calendarDate]);
   useEffect(() => {
     if (migrationReady && momentum.data) setStore(current => importCoachHistory(current, momentum.data!, calendarDate));
   }, [migrationReady, momentum.data, calendarDate]);
@@ -7375,6 +7444,8 @@ export default function Home() {
   const selectedDay =
     planDays.find((day) => day.iso === selectedDate) ?? planDays[0];
   const gymDay = resolveGymDay(planDays, currentProgramDate);
+  const upcomingAlternatingStage = alternatingChoice(store.coaching, currentProgramDate)
+    ? planDays.slice(gymDay.index).find(day => day.session.connected?.alternatingStage)?.session.connected?.alternatingStage : undefined;
   const selectedDietDay =
     planDays.find((day) => day.iso === selectedDietDate) ?? gymDay;
   const selectedLog = normalizeDayLog(store.days[selectedDay.iso]);
@@ -7415,21 +7486,17 @@ export default function Home() {
   const prepContextForDate = (date: string): PrepContext => {
     const slots = prepSlots.filter((slot) => slot.date === date && !slot.legacy);
     const workout = store.days[date];
-    const recordedSession = workout?.sessionSnapshot ?? planDays.find(day => day.iso === date)?.session;
-    // Checking an easy walk is not a lifting/class session. Preserve fuel for
-    // actual lifts or the trial, without upgrading every completed rest-day walk.
-    const actualLift = Boolean(workout && (recordedSession?.type === "strength" || ["trial", "class"].includes(recordedSession?.connected?.kind ?? ""))
-      && Object.values(workout.exercises).some((sets) => sets.some((set) => set.done)));
     const privateActual = Boolean(!store.coaching.legacyImported && prepJourney && slots.some(slot => {
       const log = prepJourney.logs[slot.id];
       return log && (log.plannedActivity?.startsWith("strength") || log.plannedActivity === "boxing")
         && (log.outcome === "planned" || log.outcome === "modified" || Object.values(log.sets).some(set => set.done) || Number(log.minutes) > 0);
     }));
-    const skipped = Boolean(workout?.daySkipReason);
-    const planned = planDays.find(day => day.iso === date)?.session;
-    const plannedTraining = planned ? planned.type === "strength" || ["trial", "class"].includes(planned.connected?.kind ?? "")
-      : store.coaching.homeFrom && date >= store.coaching.homeFrom ? ["class", "strength-a", "strength-b"].includes(coachActivity(store.coaching, store.program.startedOn, date).activity) : false;
-    const training = trainingFuelDay(Boolean(plannedTraining), actualLift || privateActual, skipped);
+    const planned = planDays.find(day => day.iso === date);
+    const homeFrom = !planned && homeProjectionStart(store.coaching);
+    const outsideCalendarTraining = !planned && Boolean(homeFrom && date >= homeFrom &&
+      ["class", "strength-a", "strength-b"].includes(coachActivity(store.coaching, store.program.startedOn, date).activity));
+    const training = planned ? fuelForProjectedDay(planned, workout, privateActual)
+      : trainingFuelDay(outsideCalendarTraining, privateActual, Boolean(workout?.daySkipReason));
     return {
       training,
       weightKg: proteinReference.weight,
@@ -7470,7 +7537,7 @@ export default function Home() {
     store.settings,
     proteinReference.weight,
   );
-  const gymDietType = dietDayTypeForPlanDay(gymDay);
+  const gymDietType = gymDay.session.connected?.alternatingStage && !fuelForProjectedDay(gymDay, store.days[gymDay.iso]) ? "recovery" : dietDayTypeForPlanDay(gymDay);
   const gymDietTarget = personalizedDietTarget(
     gymDietType,
     store.settings,
@@ -8871,7 +8938,7 @@ export default function Home() {
               <p className="eyebrow">{formatDate(currentProgramDate)}</p>
               <h1 id="coach-hub-heading">Your day</h1>
               <span className="hub-greeting">{greeting}</span>
-              <p className="hero-text">Training Week {trainingProgress.trainingWeek} · {phaseForWeek(trainingProgress.trainingWeek).title}. Your pace, not a deadline.</p>
+              <p className="hero-text">{upcomingAlternatingStage ? `Every other day · ${alternatingStages[upcomingAlternatingStage].label}` : `Training Week ${trainingProgress.trainingWeek} · ${phaseForWeek(trainingProgress.trainingWeek).title}. Your pace, not a deadline.`}</p>
             </div>
           </div>
           <a className={`hub-save-status ${localSaveError ? "error" : ""}`} href="#coach-account">
@@ -8912,9 +8979,12 @@ export default function Home() {
           completedLifts={trainingProgress.credits}
           completedClasses={planDays.filter(day => day.iso <= calendarDate && ["trial", "class"].includes(day.session.connected?.kind ?? "") && isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso]))).length}
           days={planDays.filter(day => day.iso >= (calendarDate > store.program.startedOn ? calendarDate : store.program.startedOn)).slice(0, 7).map(day => ({ date: day.iso, title: day.session.title, kind: day.session.type, complete: isPlanDayComplete(coachedPlanDayFor(day), normalizeDayLog(store.days[day.iso])), skipped: Boolean(store.days[day.iso]?.daySkipReason) }))}
-          previewFor={candidate => coachPlanDays(planDays, candidate, store.days, calendarDate)
-            .filter(day => day.iso >= (calendarDate > store.program.startedOn ? calendarDate : store.program.startedOn)).slice(0, 7)
-            .map(day => ({ date: day.iso, title: day.session.title }))}
+          previewFor={(candidate, from) => {
+            const source = (preCoachDays.at(-1)?.iso ?? "") >= addDays(from, 6) ? preCoachDays
+              : connectedPlanDays(buildPlanDays(store.program.startedOn, from), momentum.access === "allowed" ? momentum.data : null, store.days, calendarDate);
+            return coachPlanDays(source, candidate, store.days, calendarDate)
+              .filter(day => day.iso >= from).slice(0, 7).map(day => ({ date: day.iso, title: day.session.title }));
+          }}
           onSave={coaching => {
             for (const [date, log] of Object.entries(store.days)) {
               if (date < calendarDate || coachActivity(coaching, store.program.startedOn, date).activity !== "class") continue;
@@ -8922,7 +8992,18 @@ export default function Home() {
               if (!["trial", "class"].includes(existing?.connected?.kind ?? "") && Object.values(log.exercises).some(rows => rows.some(set => set.done || set.weight || set.reps)))
                 throw new Error(`A workout is already recorded on ${formatDate(date, "short")}. Choose another class date or a later regular-class start so training is not stacked.`);
             }
-            setStore(current => ({ ...current, coaching }));
+            setStore(current => {
+              const days = { ...current.days };
+              // An old record may predate snapshots. Keep today's original
+              // prescription if logging already started before this change.
+              const existing = current.days[calendarDate];
+              const planned = planDays.find(day => day.iso === calendarDate);
+              const changesToday = !sameData(coachActivity(current.coaching, current.program.startedOn, calendarDate), coachActivity(coaching, current.program.startedOn, calendarDate))
+                || !sameData(alternatingChoice(current.coaching, calendarDate), alternatingChoice(coaching, calendarDate));
+              if (changesToday && existing && !existing.sessionSnapshot && planned && (existing.completed || Object.values(existing.exercises).some(rows => rows.some(set => set.done || set.weight || set.reps))))
+                days[calendarDate] = { ...existing, sessionSnapshot: planned.session };
+              return { ...current, coaching, days };
+            });
           }}
           onOpenDay={date => { setSelectedDate(date); setActiveSection("today"); setAppMode("workout"); }} />
         {localSaveError && <p className="save-alert" role="alert">{localSaveError}</p>}
@@ -10012,7 +10093,7 @@ export default function Home() {
               <div className={`gym-coach-strip readiness-${gymReadinessStatus}`}>
                 <div>
                   <span>Today</span>
-                  <strong>{gymDay.session.connected?.kind === "home" ? "Home A/B" : gymPhase.title}</strong>
+                  <strong>{gymDay.session.connected?.alternatingStage ? alternatingStages[gymDay.session.connected.alternatingStage].label : gymDay.session.connected?.kind === "home" ? "Home A/B" : gymPhase.title}</strong>
                   <small>Training Week {gymTrainingWeek} · {gymDay.session.connected?.kind === "home" ? gymSessionTime : `${gymPhase.timeCap} · ${gymSessionTime}`}</small>
                 </div>
                 <div>
@@ -10369,7 +10450,7 @@ export default function Home() {
                   selectedDayStatus === "finished-with-skips" || selectedDayStatus === "skipped" ? "is-skipped" : ""
                 }`}
                 type="button"
-                disabled={selectedDayComplete || (["trial", "class"].includes(selectedDay.session.connected?.kind ?? "") && selectedDay.iso > calendarDate)}
+                disabled={selectedDayComplete || completionIsFuture(selectedDay, calendarDate)}
                 onClick={() =>
                   updateDay(selectedDay.iso, (log) => completePlanDay(selectedCoachDay, log), "Workout completed")
                 }
@@ -10551,7 +10632,7 @@ export default function Home() {
                     expanded={expanded} complete={move.isComplete} skipped={move.isSkipped}
                     next={nextOpenMove?.originalExercise.id === move.originalExercise.id}
                     thumbnail={move.activeExercise.youtubeId ? `https://i.ytimg.com/vi/${move.activeExercise.youtubeId}/mqdefault.jpg` : undefined}
-                    disabled={["trial", "class"].includes(selectedDay.session.connected?.kind ?? "") && selectedDay.iso > calendarDate}
+                    disabled={completionIsFuture(selectedDay, calendarDate)}
                     original={move.isSwapped ? move.originalExercise.name : undefined} canSwap={move.swaps.length > 0}
                     onExpand={() => setExpandedTodayMoveId(expanded ? "" : move.originalExercise.id)}
                     onComplete={() => toggleExerciseDone(move.activeExercise.id, move.setCount, move.isComplete)}
@@ -10577,7 +10658,7 @@ export default function Home() {
                           {tracksPerformance(move.activeExercise) && <SetLoadFields exercise={move.activeExercise} set={set} setIndex={setIndex}
                             onChange={updateSet} previous={previous?.rows[setIndex]} />}
                           <label className="mini-check"><input type="checkbox" checked={set.done}
-                            disabled={["trial", "class"].includes(selectedDay.session.connected?.kind ?? "") && selectedDay.iso > calendarDate}
+                            disabled={completionIsFuture(selectedDay, calendarDate)}
                             aria-label={`${move.activeExercise.name} set ${setIndex + 1} complete`}
                             onChange={(event) => updateSet(move.activeExercise.id, setIndex, "done", event.target.checked)} /><span /></label>
                         </div>)}
@@ -10602,7 +10683,7 @@ export default function Home() {
           {!isRestDay(selectedCoachDay) && !["trial", "class"].includes(selectedDay.session.connected?.kind ?? "") && <details className="today-session-guidance">
             <summary><span>Session guidance</span><strong>{selectedDay.session.connected?.kind === "home" ? "Home A/B · earned progression" : `${phase.title} · ${phase.rir}`}</strong></summary>
             <div><p className="plan-note">{selectedSessionSummary}</p>
-              {selectedDay.session.connected?.kind === "home" ? <p className="phase-note">Follow the set counts shown on each movement. Two completed home lifts earn one training week. From Training Week 5, press and row receive one extra set; other movements keep their planned set counts. Keep familiar exercises and build clean reps before pounds. Record weight, reps and set feel for guidance. Skipped days do not advance your training level.</p> : <>
+              {selectedDay.session.connected?.alternatingStage ? <p className="phase-note"><strong>{alternatingStages[selectedDay.session.connected.alternatingStage].label}:</strong> {alternatingStages[selectedDay.session.connected.alternatingStage].detail} Log set feel and actual reps or hold time to earn the next stage.</p> : selectedDay.session.connected?.kind === "home" ? <p className="phase-note">Follow the set counts shown on each movement. Two completed home lifts earn one training week. From Training Week 5, press and row receive one extra set; other movements keep their planned set counts. Keep familiar exercises and build clean reps before pounds. Record weight, reps and set feel for guidance. Skipped days do not advance your training level.</p> : <>
               <p className="phase-note">{phase.note}</p>
               <p className="phase-note"><strong>{phase.title}:</strong> {phase.sets} · {phase.timeCap} target · {phase.rir}.</p></>}
               <p className="location-flow-note"><strong>Home/gym split:</strong> {selectedLocationNote}</p>

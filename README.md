@@ -485,6 +485,12 @@ Later blocks gradually introduce leg extensions, additional hamstring work, cabl
 
 ### Effort, Rest, And Load Progression
 
+**Want to lift every other day?** In **Coach → Training & Muay Thai → Change training schedule**,
+choose **Home gym every other day**, set **Switch to every other day on**, and preview before saving.
+A future date keeps your current plan in place until then. You can reschedule or cancel in Coach.
+This is a dated change, not **Start Fresh**. The [every-other-day guide](docs/connected-coach.md#every-other-day)
+explains the beginner workload, 6/12/20 completed-session gates, class spacing, nutrition and history.
+
 The app uses **RIR**, or Reps In Reserve, to explain how hard each set should feel:
 
 | RIR | Meaning |

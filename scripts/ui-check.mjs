@@ -14,11 +14,12 @@ import { runBatchChecks } from "./batch-ui-check.mjs";
 import { runNutritionChecks } from "./nutrition-ui-check.mjs";
 import { runRedesignChecks } from "./redesign-ui-check.mjs";
 import { runProgressionChecks } from "./progression-ui-check.mjs";
+import { runAlternatingChecks } from "./alternating-ui-check.mjs";
 
 const storageKey = "body-recomp-gym-tracker-v1";
 const fixtureHost = "tracker-fixture.supabase.co";
 const diagnosticContexts = new Set();
-const { values } = parseArgs({ options: { repeat: { type: "string", default: "1" }, "coaching-only": { type: "boolean", default: false }, "momentum-only": { type: "boolean", default: false }, "contrast-only": { type: "boolean", default: false }, "batch-only": { type: "boolean", default: false }, "shared-start-only": { type: "boolean", default: false }, "trial-only": { type: "boolean", default: false }, "nutrition-only": { type: "boolean", default: false }, "redesign-only": { type: "boolean", default: false }, "progression-only": { type: "boolean", default: false } } });
+const { values } = parseArgs({ options: { repeat: { type: "string", default: "1" }, "coaching-only": { type: "boolean", default: false }, "momentum-only": { type: "boolean", default: false }, "contrast-only": { type: "boolean", default: false }, "batch-only": { type: "boolean", default: false }, "shared-start-only": { type: "boolean", default: false }, "trial-only": { type: "boolean", default: false }, "nutrition-only": { type: "boolean", default: false }, "redesign-only": { type: "boolean", default: false }, "progression-only": { type: "boolean", default: false }, "alternating-only": { type: "boolean", default: false } } });
 const focused = Object.entries(values).some(([key, value]) => key.endsWith("-only") && value);
 const runSuite = name => !focused || values[`${name}-only`];
 const repeatCount = Number(values.repeat);
@@ -630,6 +631,7 @@ try {
   if (runSuite("contrast")) await runContrastChecks({ server, model, browsers, prepare, fixtureBackend, navigate, settlePresentation });
   if (runSuite("redesign")) await runRedesignChecks({ server, model, browsers, prepare, fixtureBackend, navigate, assertLayout, settlePresentation });
   if (runSuite("progression")) await runProgressionChecks({ model, browsers, prepare, fixtureBackend, navigate, assertLayout, settlePresentation });
+  if (runSuite("alternating")) await runAlternatingChecks({ model, browsers, prepare, fixtureBackend, navigate, assertLayout, settlePresentation });
 } catch (error) {
   // Preserve the failing screen itself, not only earlier milestone screenshots.
   // Do not let diagnostic I/O hide the original assertion or delay cleanup.

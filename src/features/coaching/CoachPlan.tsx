@@ -2,10 +2,13 @@ import { useId, useState } from "react";
 import { CalendarDays, Check, Dumbbell, Save } from "lucide-react";
 import { addDays } from "../momentum/plan";
 import {
+  applyCoachChoice,
+  cancelPendingAlternatingSwitch,
+  homeRhythmChoice,
   choiceForDate,
   coachActivity,
   saveCoachChoice,
-  validChoice,
+  pendingAlternatingSwitch,
   type CoachSchedule,
   type ClassChoice,
 } from "./plan";
@@ -59,11 +62,19 @@ export default function CoachPlan({
   onOpenDay: (date: string) => void;
   previewFor?: (
     state: CoachSchedule,
+    from: string,
   ) => Array<Pick<DaySummary, "date" | "title">>;
 }) {
   const id = useId();
   const [editing, setEditing] = useState(false);
-  const current = choiceForDate(state, today > start ? today : start);
+  const first = today > start ? today : start;
+  const current = choiceForDate(state, first);
+  const homeRhythm = homeRhythmChoice(state, first)?.rhythm;
+  const pending = pendingAlternatingSwitch(state, first);
+  const activeRhythm =
+    homeRhythm?.kind === "every-other-day" ? homeRhythm : null;
+  const [alternating, setAlternating] = useState(false);
+  const [rhythmAnchor, setRhythmAnchor] = useState(first);
   const [draft, setDraft] = useState<
     Omit<ClassChoice, "id" | "updatedAt" | "effectiveOn">
   >({
@@ -77,8 +88,10 @@ export default function CoachPlan({
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const begin = () => {
+    setAlternating(Boolean(activeRhythm || pending));
+    setRhythmAnchor(pending?.effectiveOn ?? activeRhythm?.anchor ?? first);
     setDraft(
-      current
+      current && !pending
         ? {
             mode: current.mode,
             date: current.date,
@@ -102,16 +115,7 @@ export default function CoachPlan({
   };
   const commit = () => {
     try {
-      const next = saveCoachChoice(
-        state,
-        {
-          ...draft,
-          date: draft.mode === "home" ? "" : draft.date,
-          weekdays: draft.mode === "regular" ? draft.weekdays : [],
-        },
-        today,
-        start,
-      );
+      const next = saveCoachChoice(draftState, choiceInput, today, start);
       onSave(next);
       setEditing(false);
       setError("");
@@ -120,33 +124,58 @@ export default function CoachPlan({
       setError((e as Error).message);
     }
   };
-  const first = today > start ? today : start;
-  const previewChoice = {
+  // Saving the same cadence (e.g. returning from a trial) must not discard
+  // an earned stage. Class choices have no cadence field and inherit it.
+  const rhythm: ClassChoice["rhythm"] =
+    draft.mode !== "home"
+      ? undefined
+      : alternating
+        ? activeRhythm?.anchor === rhythmAnchor
+          ? undefined
+          : { kind: "every-other-day", anchor: rhythmAnchor }
+        : activeRhythm
+          ? { kind: "twice-weekly" }
+          : undefined;
+  const choiceInput = {
     ...draft,
+    rhythm,
     date: draft.mode === "home" ? "" : draft.date,
     weekdays: draft.mode === "regular" ? draft.weekdays : [],
-    id: "preview",
-    effectiveOn: first,
-    updatedAt: new Date(
-      Math.max(
-        0,
-        ...Object.values(state.choices).map((c) => Date.parse(c.updatedAt) + 1),
-      ),
-    ).toISOString(),
   };
-  const preview: CoachSchedule | null = validChoice(previewChoice)
-    ? {
-        ...state,
-        homeFrom: state.homeFrom ?? first,
-        choices: { ...state.choices, preview: previewChoice },
-      }
-    : null;
+  const draftState =
+    pending && draft.mode === "home" && !rhythm
+      ? cancelPendingAlternatingSwitch(state, first)
+      : state;
+  const previewFrom =
+    draft.mode === "home" && alternating && rhythmAnchor > first
+      ? rhythmAnchor
+      : first;
+  const preview = (() => {
+    if (!editing) return null;
+    try {
+      return applyCoachChoice(draftState, choiceInput, first, start, {
+        id: "preview",
+        updatedAt: new Date(
+          Math.max(
+            0,
+            ...Object.values(state.choices).map(
+              (c) => Date.parse(c.updatedAt) + 1,
+            ),
+          ),
+        ).toISOString(),
+      });
+    } catch {
+      return null;
+    }
+  })();
   const previewDays = preview
-    ? (previewFor?.(preview) ??
-      Array.from({ length: 7 }, (_, n) => addDays(first, n)).map((date) => ({
-        date,
-        title: coachActivity(preview, start, date).title,
-      })))
+    ? (previewFor?.(preview, previewFrom) ??
+      Array.from({ length: 7 }, (_, n) => addDays(previewFrom, n)).map(
+        (date) => ({
+          date,
+          title: coachActivity(preview, start, date).title,
+        }),
+      ))
     : [];
   return (
     <section className="coach-plan" aria-labelledby={`${id}-heading`}>
@@ -162,10 +191,44 @@ export default function CoachPlan({
           ? `${current.weekdays.map((n) => weekdays[n]).join(" & ")} · from ${label(current.date)}${current.time ? ` at ${current.time}` : ""}`
           : current?.mode === "trial"
             ? `One trial · ${label(current.date)}${current.time ? ` at ${current.time}` : ""}`
-            : state.homeFrom
-              ? "Home training, easy movement and recovery. No classes assumed."
-              : "Your existing workout plan continues. Choose a setup to use home training or add Muay Thai."}
+            : activeRhythm
+              ? `Home gym every other day · rhythm from ${label(activeRhythm.anchor)}`
+              : state.homeFrom
+                ? "Home training, easy movement and recovery. No classes assumed."
+                : "Your existing workout plan continues. Choose a setup to use home training or add Muay Thai."}
       </p>
+      {pending && !editing && (
+        <div className="coach-schedule-preview">
+          <h3>Switch scheduled for {label(pending.effectiveOn)}</h3>
+          <p>Your current plan stays in place until then.</p>
+          <div className="coach-plan-actions">
+            <button
+              className="secondary"
+              type="button"
+              onClick={begin}
+              disabled={disabled}
+            >
+              Reschedule
+            </button>
+            <button
+              className="secondary"
+              type="button"
+              disabled={disabled}
+              onClick={() => {
+                try {
+                  onSave(cancelPendingAlternatingSwitch(state, first));
+                  setSaved(false);
+                  setError("");
+                } catch (e) {
+                  setError((e as Error).message);
+                }
+              }}
+            >
+              Cancel scheduled switch
+            </button>
+          </div>
+        </div>
+      )}
       <dl className="coach-plan-counts">
         <div>
           <dt>Completed lifts</dt>
@@ -200,20 +263,44 @@ export default function CoachPlan({
             Training setup
             <select
               aria-label="Training setup"
-              value={draft.mode}
+              value={
+                draft.mode === "home" && alternating
+                  ? "alternating"
+                  : draft.mode
+              }
               onChange={(event) => {
+                const setup = event.target.value;
+                setAlternating(setup === "alternating");
                 setDraft({
                   ...draft,
-                  mode: event.target.value as ClassChoice["mode"],
+                  mode:
+                    setup === "alternating"
+                      ? "home"
+                      : (setup as ClassChoice["mode"]),
                 });
                 setError("");
               }}
             >
               <option value="home">Home gym only</option>
+              <option value="alternating">Home gym every other day</option>
               <option value="trial">One Muay Thai trial</option>
               <option value="regular">Weekly Muay Thai classes</option>
             </select>
           </label>
+          {draft.mode === "home" && alternating && (
+            <label>
+              Switch to every other day on
+              <input
+                type="date"
+                aria-label="Switch to every other day on"
+                min={start}
+                max={addDays(first, 365)}
+                value={rhythmAnchor}
+                required
+                onChange={(event) => setRhythmAnchor(event.target.value)}
+              />
+            </label>
+          )}
           {draft.mode !== "home" && (
             <>
               <label>
@@ -296,7 +383,16 @@ export default function CoachPlan({
           )}
           {preview && (
             <div className="coach-schedule-preview">
-              <h3>Next 7 days</h3>
+              <h3>
+                {previewFrom > first
+                  ? `First 7 days from ${label(previewFrom)}`
+                  : "Next 7 days"}
+              </h3>
+              {previewFrom > first && (
+                <p>
+                  Your current plan stays in place until {label(previewFrom)}.
+                </p>
+              )}
               <ol>
                 {previewDays.map(({ date, title }) => (
                   <li key={date}>
@@ -308,11 +404,19 @@ export default function CoachPlan({
             </div>
           )}
           <p className="coach-plan-muted">
-            Classes replace home work. Nearby days stay light; at most two
-            well-spaced home lifts fit around classes. No make-up workouts. Keep
-            your already-cooked containers as portioned. Recorded workouts stay
+            Classes replace home work and the days around them stay light. No
+            make-up workouts. Choosing an earlier rhythm date never rewrites
+            prior days. Already-cooked food and recorded workouts stay
             unchanged.
           </p>
+          {draft.mode === "home" &&
+            (current?.mode === "regular" ||
+              (current?.mode === "trial" && current.date >= today)) && (
+              <p className="coach-plan-muted">
+                Upcoming classes stay in this planner until the switch date. A
+                home-only setup does not cancel a booking at the gym.
+              </p>
+            )}
           <div className="coach-plan-actions">
             <button type="submit" disabled={disabled}>
               <Save size={17} aria-hidden="true" /> Save schedule
@@ -325,9 +429,9 @@ export default function CoachPlan({
               Cancel
             </button>
           </div>
-          {error && <p role="alert">{error}</p>}
         </form>
       )}
+      {error && <p role="alert">{error}</p>}
       {saved && (
         <p role="status" className="coach-plan-saved">
           <Check size={16} aria-hidden="true" /> Schedule saved.
@@ -366,6 +470,15 @@ export default function CoachPlan({
           Your existing nutrition profile, weigh-ins and food check-ins still
           govern calorie adjustments.
         </p>
+        {activeRhythm && (
+          <p>
+            Gym visits alternate with recovery days. After 6, 12 and 20
+            qualifying home sessions, new work unlocks. Log actual reps or hold
+            time and how each working set felt, plus pounds for weighted moves.
+            A break of more than three weeks restarts the lighter progression
+            without removing your records.
+          </p>
+        )}
       </details>
     </section>
   );

@@ -11,6 +11,10 @@ export type ClassChoice = {
   weekdays: number[];
   minutes: number;
   stage: "introduction" | "beginner";
+  scheduledOn?: string;
+  rhythm?:
+    | { kind: "twice-weekly" }
+    | { kind: "every-other-day"; anchor: string };
 };
 export type CoachSchedule = {
   version: 1;
@@ -19,6 +23,9 @@ export type CoachSchedule = {
   // Append-only choices merge safely across devices. Each complete choice has
   // its own ID, so sync cannot combine one device's date with another's time.
   choices: Record<string, ClassChoice>;
+  // Cancellations refer to immutable choice IDs so a stale device cannot
+  // bring a canceled switch back by syncing its copy of the choice.
+  canceledSwitches?: Record<string, true>;
 };
 export const emptyCoaching = (): CoachSchedule => ({
   version: 1,
@@ -45,6 +52,19 @@ export function validChoice(value: unknown): value is ClassChoice {
     Number.isFinite(Date.parse(value.updatedAt)) &&
     isCalendarDate(value.effectiveOn) &&
     ["home", "trial", "regular"].includes(String(value.mode)) &&
+    (value.rhythm === undefined ||
+      (value.mode === "home" &&
+        object(value.rhythm) &&
+        (value.rhythm.kind === "twice-weekly" ||
+          (value.rhythm.kind === "every-other-day" &&
+            isCalendarDate(value.rhythm.anchor))))) &&
+    (value.scheduledOn === undefined ||
+      (isCalendarDate(value.scheduledOn) &&
+        value.scheduledOn < value.effectiveOn &&
+        value.effectiveOn <= addDays(value.scheduledOn, 365) &&
+        object(value.rhythm) &&
+        value.rhythm.kind === "every-other-day" &&
+        value.rhythm.anchor === value.effectiveOn)) &&
     (value.mode === "home"
       ? value.date === ""
       : isCalendarDate(value.date) && value.date >= value.effectiveOn) &&
@@ -72,6 +92,15 @@ export function normalizeCoaching(value: unknown): CoachSchedule {
     version: 1,
     homeFrom: isCalendarDate(value.homeFrom) ? value.homeFrom : null,
     legacyImported: value.legacyImported === true,
+    ...(object(value.canceledSwitches)
+      ? {
+          canceledSwitches: Object.fromEntries(
+            Object.entries(value.canceledSwitches).flatMap(([id, canceled]) =>
+              id && canceled === true ? [[id, true] as const] : [],
+            ),
+          ),
+        }
+      : {}),
     choices: object(value.choices)
       ? Object.entries(value.choices).reduce<Record<string, ClassChoice>>(
           (result, [id, choice]) => {
@@ -84,28 +113,141 @@ export function normalizeCoaching(value: unknown): CoachSchedule {
   };
 }
 
+const newestFirst = (a: ClassChoice, b: ClassChoice) =>
+  Date.parse(b.updatedAt) - Date.parse(a.updatedAt) || b.id.localeCompare(a.id);
+
+function availableChoices(state: CoachSchedule) {
+  const choices = Object.values(state.choices);
+  const deferred = choices.filter((choice) => choice.scheduledOn !== undefined);
+  // Offline devices may schedule different dates without seeing each other's
+  // draft. A newer booking replaces an older one only if it was still pending.
+  return choices.filter(
+    (choice) =>
+      state.canceledSwitches?.[choice.id] !== true &&
+      (!choice.scheduledOn ||
+        !deferred.some(
+          (other) =>
+            other.scheduledOn! < choice.effectiveOn &&
+            newestFirst(other, choice) < 0,
+        )),
+  );
+}
+
+function choicesThrough(state: CoachSchedule, date: string): ClassChoice[] {
+  return availableChoices(state)
+    .filter((choice) => choice.effectiveOn <= date)
+    .sort(
+      (a, b) => b.effectiveOn.localeCompare(a.effectiveOn) || newestFirst(a, b),
+    );
+}
+
+export function pendingAlternatingSwitch(state: CoachSchedule, date: string) {
+  return availableChoices(state).find(
+    (choice) => choice.scheduledOn && choice.effectiveOn > date,
+  );
+}
+
+export function cancelPendingAlternatingSwitch(
+  state: CoachSchedule,
+  date: string,
+) {
+  const pending = Object.values(state.choices).filter(
+    (choice) => choice.scheduledOn && choice.effectiveOn > date,
+  );
+  if (!pending.length) return state;
+  return {
+    ...state,
+    canceledSwitches: {
+      ...state.canceledSwitches,
+      ...Object.fromEntries(
+        pending.map((choice) => [choice.id, true as const]),
+      ),
+    },
+  };
+}
+
+export function homeProjectionStart(state: CoachSchedule) {
+  return (
+    [
+      state.homeFrom,
+      ...availableChoices(state)
+        .filter((choice) => choice.scheduledOn)
+        .map((choice) => choice.effectiveOn),
+    ]
+      .filter((date): date is string => Boolean(date))
+      .sort()[0] ?? null
+  );
+}
+
 export function choiceForDate(
   state: CoachSchedule,
   date: string,
 ): ClassChoice | null {
-  return (
-    Object.values(state.choices)
-      .filter((choice) => choice.effectiveOn <= date)
-      .sort(
-        (a, b) =>
-          b.effectiveOn.localeCompare(a.effectiveOn) ||
-          Date.parse(b.updatedAt) - Date.parse(a.updatedAt) ||
-          b.id.localeCompare(a.id),
-      )[0] ?? null
-  );
+  return choicesThrough(state, date)[0] ?? null;
 }
 
-/** A choice takes effect today, or on a not-yet-started program's first day.
- * Past choices remain available to historical dates; removing a class is a new
- * home choice rather than deleting a record a stale device might resurrect. */
+// Class edits do not silently turn off the previously chosen home rhythm.
+export function homeRhythmChoice(state: CoachSchedule, date: string) {
+  return choicesThrough(state, date).find((item) => item.rhythm !== undefined);
+}
+
+export function alternatingChoice(state: CoachSchedule, date: string) {
+  const choice = homeRhythmChoice(state, date);
+  return choice?.rhythm?.kind === "every-other-day" &&
+    choice.rhythm.anchor <= date
+    ? { anchor: choice.rhythm.anchor, effectiveOn: choice.effectiveOn }
+    : null;
+}
+
+type ChoiceInput = Omit<
+  ClassChoice,
+  "id" | "updatedAt" | "effectiveOn" | "scheduledOn"
+>;
+
+// Preview and Save share the effective-date and replacement logic.
+export function applyCoachChoice(
+  state: CoachSchedule,
+  input: ChoiceInput,
+  first: string,
+  start: string,
+  identity: { id: string; updatedAt: string },
+): CoachSchedule {
+  const anchor =
+    input.rhythm?.kind === "every-other-day" ? input.rhythm.anchor : null;
+  if (
+    anchor !== null &&
+    (!isCalendarDate(anchor) || anchor < start || anchor > addDays(first, 365))
+  )
+    throw new Error(
+      "Choose a valid switch date within the next year and no earlier than your program start.",
+    );
+  const deferred = anchor !== null && anchor > first;
+  const choice: ClassChoice = {
+    ...input,
+    ...identity,
+    effectiveOn: deferred ? anchor : first,
+    ...(deferred ? { scheduledOn: first } : {}),
+  };
+  if (!validChoice(choice))
+    throw new Error(
+      "Choose today or a future class date, a valid time, and one or two non-consecutive weekly class days. Duration must be 15–90 minutes.",
+    );
+  const next = anchor ? cancelPendingAlternatingSwitch(state, first) : state;
+  const homeFrom = homeProjectionStart(next);
+  return {
+    ...next,
+    homeFrom: deferred
+      ? next.homeFrom
+      : homeFrom && homeFrom < first
+        ? homeFrom
+        : first,
+    choices: { ...next.choices, [choice.id]: choice },
+  };
+}
+
 export function saveCoachChoice(
   state: CoachSchedule,
-  input: Omit<ClassChoice, "id" | "updatedAt" | "effectiveOn">,
+  input: ChoiceInput,
   today: string,
   start: string,
   now = new Date().toISOString(),
@@ -128,21 +270,10 @@ export function saveCoachChoice(
       ? globalThis.crypto.randomUUID()
       : `${timestamp.toString(36)}-${Math.random().toString(36).slice(2)}`;
   const id = `${updatedAt}-${token}`;
-  const choice = {
-    ...input,
+  return applyCoachChoice(state, input, today > start ? today : start, start, {
     id,
     updatedAt,
-    effectiveOn: today > start ? today : start,
-  };
-  if (!validChoice(choice))
-    throw new Error(
-      "Choose today or a future class date, a valid time, and one or two non-consecutive weekly class days. Duration must be 15–90 minutes.",
-    );
-  return {
-    ...state,
-    homeFrom: state.homeFrom ?? choice.effectiveOn,
-    choices: { ...state.choices, [id]: choice },
-  };
+  });
 }
 
 export function classOn(state: CoachSchedule, date: string) {
@@ -168,7 +299,9 @@ export function coachActivity(
   state = {
     ...state,
     choices: Object.fromEntries(
-      Object.entries(state.choices).filter(([, c]) => c.effectiveOn <= date),
+      availableChoices(state)
+        .filter((c) => c.effectiveOn <= date)
+        .map((choice) => [choice.id, choice]),
     ),
   };
   const ownClass = classOn(state, date);
@@ -191,6 +324,24 @@ export function coachActivity(
       minutes: 0,
       class: null,
     };
+  const alternating = alternatingChoice(state, date);
+  if (alternating) {
+    const offset = distance(date, alternating.anchor);
+    if (offset % 2 !== 0)
+      return {
+        activity: "recovery" as const,
+        title: "Recovery day",
+        minutes: 0,
+        class: null,
+      };
+    const a = offset % 4 === 0;
+    return {
+      activity: a ? ("strength-a" as const) : ("strength-b" as const),
+      title: `Home Strength ${a ? "A" : "B"}`,
+      minutes: 30,
+      class: null,
+    };
+  }
   const index = distance(date, start),
     weekStart = addDays(start, Math.floor(index / 7) * 7);
   // Keep the familiar A/B anchors when possible. Otherwise fit at most two
